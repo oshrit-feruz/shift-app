@@ -12,6 +12,27 @@ export interface DashboardSummary {
 
 export type RawPosition = Record<string, unknown>;
 
+export interface ScreenerEntry {
+  ticker: string;
+  price: number;
+  high_52w: number;
+  drawdown_pct: number;
+  composite_score: number;
+  dip_score: number;
+  momentum_score: number;
+  volume_score: number;
+  gate: boolean;
+  signal: string;
+  veto_reason: string | null;
+}
+
+export interface ScreenerResponse {
+  as_of: string;
+  computed_on: string;
+  buy_signals: ScreenerEntry[];
+  full_ranking: ScreenerEntry[];
+}
+
 export interface DashboardResponse {
   as_of_date: string;
   beta_start: string | null;

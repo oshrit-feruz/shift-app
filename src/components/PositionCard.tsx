@@ -4,15 +4,21 @@ import { formatDate, formatPct } from '../lib/format';
 export default function PositionCard({
   position,
   holdTargetDays,
+  onClick,
 }: {
   position: OpenPosition;
   holdTargetDays: number;
+  onClick?: () => void;
 }) {
   const p = position;
   const daysPct =
     p.daysHeld !== null ? Math.min(100, (p.daysHeld / holdTargetDays) * 100) : 0;
   return (
-    <div className="card elev-sm position-card">
+    <div
+      className="card elev-sm position-card"
+      style={onClick ? { cursor: 'pointer' } : undefined}
+      onClick={onClick}
+    >
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
           <span style={{ fontWeight: 500 }} dir="ltr">{p.ticker}</span>

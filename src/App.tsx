@@ -3,6 +3,9 @@ import { ProfileProvider, useProfile } from './state/profileStore';
 import OnboardingChat from './screens/OnboardingChat';
 import Disclosure from './screens/Disclosure';
 import Dashboard from './screens/Dashboard';
+import StockDetail from './screens/StockDetail';
+import Actions from './screens/Actions';
+import ActionDetail from './screens/ActionDetail';
 import type { ReactNode } from 'react';
 
 function RequireProfile({ children }: { children: ReactNode }) {
@@ -28,6 +31,30 @@ export default function App() {
           element={
             <RequireProfile>
               <Dashboard />
+            </RequireProfile>
+          }
+        />
+        <Route
+          path="/position/:ticker"
+          element={
+            <RequireProfile>
+              <StockDetail />
+            </RequireProfile>
+          }
+        />
+        <Route
+          path="/actions"
+          element={
+            <RequireProfile>
+              <Actions />
+            </RequireProfile>
+          }
+        />
+        <Route
+          path="/actions/:id"
+          element={
+            <RequireProfile>
+              <ActionDetail />
             </RequireProfile>
           }
         />

@@ -1,4 +1,4 @@
-import type { DashboardResponse } from './types';
+import type { DashboardResponse, ScreenerResponse } from './types';
 
 /** Read-only client of the live Recovery Detector API. This app never
  *  mutates anything on the engine — GET requests only. On failure the UI
@@ -20,4 +20,10 @@ async function getJson<T>(path: string, timeoutMs = 30_000): Promise<T> {
 
 export function fetchDashboard(): Promise<DashboardResponse> {
   return getJson<DashboardResponse>('/api/beta/dashboard');
+}
+
+/** The screener recomputes on request and can take well over a minute on a
+ *  cold service — the generous timeout is deliberate. */
+export function fetchScreener(): Promise<ScreenerResponse> {
+  return getJson<ScreenerResponse>('/api/screener', 180_000);
 }
