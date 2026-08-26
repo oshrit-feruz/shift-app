@@ -18,6 +18,9 @@ import type { ScreenProps } from '../../App';
 
 const SAT_RULES: StringKey[] = ['rec.satRule1', 'rec.satRule2', 'rec.satRule3', 'rec.satRule4', 'rec.satRule5'];
 
+/** Rendered in place of any numeric the live engine did not supply. */
+const DASH = '—';
+
 /** The Core-Satellite recommendation dashboard. */
 export function AdvisoryRecommendation(_: ScreenProps) {
   const s = useAppState();
@@ -133,16 +136,29 @@ export function AdvisoryRecommendation(_: ScreenProps) {
                 ) : (
                   <>
                     {positions.map((x) => {
-                      const pl = ((x.currentPrice - x.entryPrice) / x.entryPrice) * 100;
+                      // Live rows may omit a price. A missing number renders as
+                      // "—" and suppresses the % change entirely — it is never
+                      // guessed, defaulted to zero, or back-filled.
+                      const canComputePl =
+                        x.entryPrice !== null && x.currentPrice !== null && x.entryPrice !== 0;
+                      const pl = canComputePl
+                        ? ((x.currentPrice! - x.entryPrice!) / x.entryPrice!) * 100
+                        : null;
+                      const entryStr = x.entryPrice === null ? DASH : money(x.entryPrice);
+                      const currentStr = x.currentPrice === null ? DASH : money(x.currentPrice);
                       return (
                         <ListRow
                           key={x.ticker}
                           leading={<TickerTile ticker={x.ticker} />}
                           title={x.ticker}
-                          subtitle={
-                            <Num>{`${t('rec.entry')} ${money(x.entryPrice)} · ${money(x.currentPrice)}`}</Num>
+                          subtitle={<Num>{`${t('rec.entry')} ${entryStr} · ${currentStr}`}</Num>}
+                          right={
+                            <RowValues
+                              main={currentStr}
+                              sub={pl === null ? DASH : pct(pl, 1)}
+                              subColor={pl === null ? 'var(--muted)' : signalColor(pl)}
+                            />
                           }
-                          right={<RowValues main={money(x.currentPrice)} sub={pct(pl, 1)} subColor={signalColor(pl)} />}
                           minHeight={52}
                           onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}
                         />

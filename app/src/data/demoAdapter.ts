@@ -1,16 +1,23 @@
 /**
  * DEMO DATA ADAPTER — every number here is demonstration data carried over
- * from the design prototype. Nothing is live. The UI labels demo-backed
- * surfaces via the isDemo flag; swap in a real DataService implementation to
- * go live (see service.ts for the contract).
+ * from the design prototype.
  *
- * Failure-mode switches (for demos and UI verification):
- *   localStorage['shift.demo.unavailable'] = '1'  → every fetch returns 'unavailable'
- *   localStorage['shift.demo.satEmpty']    = '1'  → satellite positions return ok([])
- * Both can also be toggled from Settings → Data & display in the app.
+ * ONE EXCEPTION: `satellitePositions()` is LIVE. It delegates to
+ * data/recoveryDetector.ts, which calls the real Recovery Detector API. That
+ * method never returns demo data — not on failure, not on an empty result.
+ * Everything else on this adapter is still demonstration data; swap in a real
+ * DataService implementation to take the rest live (see service.ts).
+ *
+ * Failure-mode switch (for demos and UI verification of the demo-backed
+ * surfaces only):
+ *   localStorage['shift.demo.unavailable'] = '1'  → demo fetches return 'unavailable'
+ * Toggleable from Settings → Data & display. It deliberately does NOT apply to
+ * the live satellite call: faking states on a live data source would defeat
+ * the point of it being live.
  */
 
 import type { DataService } from './service';
+import { fetchSatellitePositions } from './recoveryDetector';
 import {
   ok,
   unavailable,
@@ -19,12 +26,11 @@ import {
   type Loadable,
   type NewsItem,
   type PortfolioSummary,
-  type SatellitePosition,
   type SymbolInfo,
 } from './types';
 
 export const DEMO_FLAGS = {
-  key: { unavailable: 'shift.demo.unavailable', satEmpty: 'shift.demo.satEmpty' },
+  key: { unavailable: 'shift.demo.unavailable' },
   get unavailable(): boolean {
     try {
       return localStorage.getItem(this.key.unavailable) === '1';
@@ -32,14 +38,7 @@ export const DEMO_FLAGS = {
       return false;
     }
   },
-  get satEmpty(): boolean {
-    try {
-      return localStorage.getItem(this.key.satEmpty) === '1';
-    } catch {
-      return false;
-    }
-  },
-  set(key: 'unavailable' | 'satEmpty', on: boolean) {
+  set(key: 'unavailable', on: boolean) {
     try {
       if (on) localStorage.setItem(this.key[key], '1');
       else localStorage.removeItem(this.key[key]);
@@ -62,13 +61,11 @@ const SYMS: SymbolInfo[] = [
   { ticker: 'MDA', name: 'MDA Space', price: 29.14, changePct: -1.42, volume: '2.1M', marketCap: '3.6B', pe: 31.2, rsi: 47, sector: 'Industrials', plain: { en: 'Satellites and space robotics', he: 'לוויינים ורובוטיקה לחלל' }, why: { en: 'Contract award timing slipped', he: 'לוחות הזמנים לזכייה בחוזה נדחו' } },
 ];
 
-/** Recovery Detector open positions (demo). MRNA/ALB carried from prototype. */
-const SAT: SatellitePosition[] = [
-  { ticker: 'MRNA', entryPrice: 24.8, currentPrice: 31.15, daysHeld: 74, pctOffHigh: 58 },
-  { ticker: 'ALB', entryPrice: 62.4, currentPrice: 71.05, daysHeld: 118, pctOffHigh: 51 },
-  { ticker: 'TEVA', entryPrice: 14.9, currentPrice: 18.42, daysHeld: 41, pctOffHigh: 44 },
-  { ticker: 'MDA', entryPrice: 31.2, currentPrice: 29.14, daysHeld: 12, pctOffHigh: 47 },
-];
+/* NOTE: the demo satellite-positions array that used to live here (MRNA/ALB/
+ * TEVA/MDA, carried from the design prototype) has been deleted on purpose.
+ * Satellite positions are now live (see recoveryDetector.ts) and there must be
+ * no demo rows anywhere in reach of that code path to accidentally fall back
+ * to. */
 
 const PORTFOLIOS: PortfolioSummary[] = [
   { id: 'agg', kind: 'aggregate', name: 'All accounts', broker: null, logo: null, acct: '', syncedAgo: null, total: 82589.73, dayPct: 0.94, allTimePct: 26.8 },
@@ -141,11 +138,15 @@ export const demoService: DataService & { isDemo: true } = {
     return s ? ok(s) : unavailable();
   },
 
+  /**
+   * LIVE — the one method on this adapter that is not demo data.
+   * No demo latency, no DEMO_FLAGS: it hits the real Recovery Detector API and
+   * returns exactly what that call yields (ok(positions) | ok([]) for a real
+   * empty result | unavailable on any failure). There is deliberately no demo
+   * fallback path here.
+   */
   async satellitePositions() {
-    await wait();
-    if (DEMO_FLAGS.unavailable) return unavailable();
-    // Honest empty state: an empty list is a real, valid answer.
-    return ok(DEMO_FLAGS.satEmpty ? [] : SAT);
+    return fetchSatellitePositions();
   },
 
   async portfolios() {

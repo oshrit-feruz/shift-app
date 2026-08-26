@@ -15,7 +15,7 @@ export function SettingsScreen(_: ScreenProps) {
   const { mode, setMode, theme, setTheme, signal, setSignal, language, setLanguage } = useTheme();
   const t = useT();
   const setup = setupProgress(s);
-  const [flags, setFlags] = useState({ unavailable: DEMO_FLAGS.unavailable, satEmpty: DEMO_FLAGS.satEmpty });
+  const [flags, setFlags] = useState({ unavailable: DEMO_FLAGS.unavailable });
   const [notif, setNotif] = useState({ push: true, email: true, sms: false, digest: true, movers: false });
 
   return (
@@ -149,7 +149,10 @@ export function SettingsScreen(_: ScreenProps) {
         ))}
       </Card>
 
-      {/* Data & display — includes demo-state switches (honest-state demos) */}
+      {/* Data & display — demo-state switch for the demo-backed surfaces.
+          The old "no satellite positions" switch was removed when Satellite
+          went live: its empty state is now whatever the engine actually
+          reports, and a control that faked it would misrepresent live data. */}
       <Card padding="4px 0" gap={0}>
         <CardTitle size={15}>
           <span style={{ display: 'block', padding: '6px 12px 1px' }}>{t('set.dataSection')}</span>
@@ -158,26 +161,13 @@ export function SettingsScreen(_: ScreenProps) {
           label={language === 'he' ? 'הדגמה: נתונים לא זמינים' : 'Demo: data unavailable'}
           help={
             language === 'he'
-              ? 'מדמה כשל מקור נתונים — המסכים מציגים מצב "לא זמין" כן'
-              : 'Simulates a data-source failure — screens show the honest unavailable state'
+              ? 'מדמה כשל מקור נתונים — המסכים מציגים מצב "לא זמין" כן. לא חל על פוזיציות Satellite, שהן נתונים חיים.'
+              : 'Simulates a data-source failure — screens show the honest unavailable state. Does not apply to Satellite positions, which are live.'
           }
           on={flags.unavailable}
           onChange={(v) => {
             DEMO_FLAGS.set('unavailable', v);
             setFlags({ ...flags, unavailable: v });
-          }}
-        />
-        <DemoFlagRow
-          label={language === 'he' ? 'הדגמה: אין פוזיציות Satellite' : 'Demo: no satellite positions'}
-          help={
-            language === 'he'
-              ? 'מציג את מצב הריק הכן בהמלצה — בלי נתוני דמה'
-              : 'Shows the honest empty state on the recommendation — no placeholder rows'
-          }
-          on={flags.satEmpty}
-          onChange={(v) => {
-            DEMO_FLAGS.set('satEmpty', v);
-            setFlags({ ...flags, satEmpty: v });
           }}
         />
       </Card>

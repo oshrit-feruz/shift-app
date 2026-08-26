@@ -16,12 +16,16 @@ export interface SymbolInfo {
   why: { en: string; he: string };
 }
 
+/**
+ * A position currently held by the Recovery Detector engine.
+ * Prices are nullable on purpose: this comes from a live API whose rows may
+ * omit a numeric field, and an absent price renders as "—" rather than being
+ * guessed or back-filled (see data/recoveryDetector.ts).
+ */
 export interface SatellitePosition {
   ticker: string;
-  entryPrice: number;
-  currentPrice: number;
-  daysHeld: number;
-  pctOffHigh: number;
+  entryPrice: number | null;
+  currentPrice: number | null;
 }
 
 export interface Holding {
