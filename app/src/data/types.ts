@@ -19,11 +19,31 @@ export interface SymbolInfo {
 }
 
 /** A Recovery Detector position: ticker, entry, current — deliberately NO
- *  day-count field (removed per an explicit product decision; do not add). */
+ *  day-count field (removed per an explicit product decision; do not add).
+ *  Prices are nullable: live rows may omit a field, and a missing number
+ *  renders as "—" — never guessed or back-filled. */
 export interface SatellitePosition {
   ticker: string;
-  entryPrice: number;
-  currentPrice: number;
+  entryPrice: number | null;
+  currentPrice: number | null;
+}
+
+/**
+ * A candidate surfaced by the Recovery Detector screener (its daily output —
+ * distinct from, and never presented as, open positions).
+ * Every number is nullable on purpose: this comes from a live API whose rows
+ * may omit a field, and an absent number renders as "—" rather than being
+ * guessed or back-filled (see data/recoveryDetector.ts).
+ */
+export interface SatelliteSignal {
+  ticker: string;
+  price: number | null;
+  high52w: number | null;
+  /** How far below the 52-week high, in percent (positive = below). */
+  drawdownPct: number | null;
+  /** The engine's 0..1 composite ranking score. */
+  compositeScore: number | null;
+  signal: 'BUY' | 'WATCH' | 'SKIP' | null;
 }
 
 /** Per-ticker stats block for the stock page (demo-authored per ticker). */

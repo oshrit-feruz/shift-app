@@ -1,16 +1,19 @@
 import { Icon, type IconName } from './Icon';
 import type { Screen } from '../state/appState';
+import { useT } from '../i18n/useT';
+import type { StringKey } from '../i18n/strings';
 
-const TABS: Array<{ screen: Screen; icon: IconName }> = [
-  { screen: 'home', icon: 'home' },
-  { screen: 'watch', icon: 'watch' },
-  { screen: 'news', icon: 'news' },
-  { screen: 'pf', icon: 'portfolio' },
-  { screen: 'more', icon: 'more' },
+const TABS: Array<{ screen: Screen; icon: IconName; label: StringKey }> = [
+  { screen: 'home', icon: 'home', label: 'nav.home' },
+  { screen: 'watch', icon: 'watch', label: 'nav.watch' },
+  { screen: 'news', icon: 'news', label: 'nav.news' },
+  { screen: 'pf', icon: 'portfolio', label: 'nav.pf' },
+  { screen: 'more', icon: 'more', label: 'nav.more' },
 ];
 
 /** Bottom tab bar — blurred header ground, centered icons. */
 export function TabBar({ current, onGo }: { current: Screen; onGo: (s: Screen) => void }) {
+  const translate = useT();
   return (
     <div
       style={{
@@ -29,6 +32,7 @@ export function TabBar({ current, onGo }: { current: Screen; onGo: (s: Screen) =
           <button
             key={t.screen}
             type="button"
+            aria-label={translate(t.label)}
             onClick={() => onGo(t.screen)}
             style={{
               flex: 1,

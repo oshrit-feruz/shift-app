@@ -428,7 +428,7 @@ function ToggleDemo() {
     <ListRow
       title={<span style={{ fontSize: 'var(--fs-md)', fontWeight: 'var(--fw-regular)' }}>Push notifications</span>}
       subtitle="Price, news and earnings alerts"
-      trailing={<Toggle on={on} onChange={setOn} />}
+      trailing={<Toggle on={on} onChange={setOn} label="Push notifications" />}
       divider={false}
     />
   );

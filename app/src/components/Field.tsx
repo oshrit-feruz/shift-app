@@ -1,4 +1,4 @@
-import type { ChangeEventHandler } from 'react';
+import { useId, type ChangeEventHandler } from 'react';
 
 export function Field({
   label,
@@ -17,10 +17,12 @@ export function Field({
   type?: string;
   height?: number;
 }) {
+  const inputId = useId();
   return (
     <div className="field" style={{ flex: 1 }}>
-      <label>{label}</label>
+      <label htmlFor={inputId}>{label}</label>
       <input
+        id={inputId}
         className="input"
         type={type}
         value={value}

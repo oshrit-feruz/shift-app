@@ -16,7 +16,7 @@ export function SettingsScreen(_: ScreenProps) {
   const { mode, setMode, theme, setTheme, signal, setSignal, language, setLanguage } = useTheme();
   const t = useT();
   const setup = setupProgress(s);
-  const [flags, setFlags] = useState({ unavailable: DEMO_FLAGS.unavailable, satEmpty: DEMO_FLAGS.satEmpty });
+  const [flags, setFlags] = useState({ unavailable: DEMO_FLAGS.unavailable });
   const [notif, setNotif] = useState({ push: true, email: true, sms: false, digest: true, movers: false });
 
   return (
@@ -141,7 +141,7 @@ export function SettingsScreen(_: ScreenProps) {
             padding="8px 12px"
             title={<span style={{ fontSize: 'var(--fs-md)', fontWeight: 'var(--fw-regular)' }}>{label[language]}</span>}
             subtitle={help[language]}
-            trailing={<Toggle on={notif[k]} onChange={(v) => setNotif({ ...notif, [k]: v })} />}
+            trailing={<Toggle on={notif[k]} onChange={(v) => setNotif({ ...notif, [k]: v })} label={label[language]} />}
           />
         ))}
       </Card>
@@ -162,19 +162,6 @@ export function SettingsScreen(_: ScreenProps) {
           onChange={(v) => {
             DEMO_FLAGS.set('unavailable', v);
             setFlags({ ...flags, unavailable: v });
-          }}
-        />
-        <DemoFlagRow
-          label={language === 'he' ? 'הדגמה: אין פוזיציות Satellite' : 'Demo: no satellite positions'}
-          help={
-            language === 'he'
-              ? 'מציג את מצב הריק הכן בהמלצה — בלי נתוני דמה'
-              : 'Shows the honest empty state on the recommendation — no placeholder rows'
-          }
-          on={flags.satEmpty}
-          onChange={(v) => {
-            DEMO_FLAGS.set('satEmpty', v);
-            setFlags({ ...flags, satEmpty: v });
           }}
         />
       </Card>
@@ -256,7 +243,7 @@ function DemoFlagRow({
       padding="8px 12px"
       title={<span style={{ fontSize: 'var(--fs-md)', fontWeight: 'var(--fw-regular)' }}>{label}</span>}
       subtitle={help}
-      trailing={<Toggle on={on} onChange={onChange} />}
+      trailing={<Toggle on={on} onChange={onChange} label={label} />}
     />
   );
 }

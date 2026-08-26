@@ -26,6 +26,7 @@ export function AdvisoryRecommendation(_: ScreenProps) {
   const t = useT();
   const profileKey = mapProfile(s.advAnswers);
   const sat = useLoadable(() => demoService.satellitePositions(), []);
+  const signals = useLoadable(() => demoService.satelliteSignals(), []);
   if (!profileKey) return <ProfileGate />;
   const profile = PROFILES[profileKey];
 
@@ -135,19 +136,75 @@ export function AdvisoryRecommendation(_: ScreenProps) {
                 ) : (
                   <>
                     {positions.map((x) => {
-                      const pl = ((x.currentPrice - x.entryPrice) / x.entryPrice) * 100;
+                      // Live rows may omit a price; a missing number renders
+                      // as "—" and suppresses the % rather than defaulting it.
+                      const pl =
+                        x.currentPrice != null && x.entryPrice != null && x.entryPrice !== 0
+                          ? ((x.currentPrice - x.entryPrice) / x.entryPrice) * 100
+                          : null;
                       return (
                         <ListRow
                           key={x.ticker}
                           leading={<TickerTile ticker={x.ticker} />}
                           title={x.ticker}
-                          subtitle={<Num>{`${t('rec.entry')} ${money(x.entryPrice)}`}</Num>}
-                          right={<RowValues main={money(x.currentPrice)} sub={pct(pl, 1)} subColor={signalColor(pl)} />}
+                          subtitle={<Num>{`${t('rec.entry')} ${x.entryPrice != null ? money(x.entryPrice) : '—'}`}</Num>}
+                          right={
+                            <RowValues
+                              main={x.currentPrice != null ? money(x.currentPrice) : '—'}
+                              sub={pl != null ? pct(pl, 1) : undefined}
+                              subColor={pl != null ? signalColor(pl) : undefined}
+                            />
+                          }
                           minHeight={52}
                           onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}
                         />
                       );
                     })}
+                  </>
+                )
+              }
+            </DataState>
+          </Card>
+
+          {/* Today's screener output — the engine's daily BUY candidates.
+              Clearly its output, never presented as positions or holdings. */}
+          <Card padding="13px 13px 4px" gap={7}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+              <CardTitle>{t('rec.satToday')}</CardTitle>
+              <span style={{ marginInlineStart: 'auto' }}>
+                <Tag variant="outline" fontSize={12}>
+                  {t('rec.livePrices')}
+                </Tag>
+              </span>
+            </div>
+            <p className="text-muted" style={{ fontSize: 'var(--fs-xs)', margin: 0, lineHeight: 1.5 }}>
+              {t('rec.satTodayHelp')}
+            </p>
+            <DataState state={signals.state} onRetry={signals.retry}>
+              {(rows) =>
+                rows.length === 0 ? (
+                  <EmptyState>{t('rec.noCandidates')}</EmptyState>
+                ) : (
+                  <>
+                    {rows.map((x) => (
+                      <ListRow
+                        key={x.ticker}
+                        leading={<TickerTile ticker={x.ticker} />}
+                        title={x.ticker}
+                        subtitle={
+                          <Num>{`${t('rec.fromHigh')} ${x.drawdownPct != null ? pct(-x.drawdownPct, 1) : '—'} · ${t('rec.score')} ${x.compositeScore != null ? x.compositeScore.toFixed(2) : '—'}`}</Num>
+                        }
+                        right={
+                          <RowValues
+                            main={x.price != null ? money(x.price) : '—'}
+                            sub={x.drawdownPct != null ? pct(-x.drawdownPct, 1) : undefined}
+                            subColor={x.drawdownPct != null ? signalColor(-x.drawdownPct) : undefined}
+                          />
+                        }
+                        minHeight={52}
+                        onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}
+                      />
+                    ))}
                   </>
                 )
               }

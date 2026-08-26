@@ -11,6 +11,7 @@
  */
 
 import type { DataService } from './service';
+import { fetchSatellitePositions, fetchSatelliteSignals } from './recoveryDetector';
 import {
   ok,
   unavailable,
@@ -23,13 +24,12 @@ import {
   type NextEarnings,
   type PortfolioMetrics,
   type PortfolioSummary,
-  type SatellitePosition,
   type StockStats,
   type SymbolInfo,
 } from './types';
 
 export const DEMO_FLAGS = {
-  key: { unavailable: 'shift.demo.unavailable', satEmpty: 'shift.demo.satEmpty' },
+  key: { unavailable: 'shift.demo.unavailable' },
   get unavailable(): boolean {
     try {
       return localStorage.getItem(this.key.unavailable) === '1';
@@ -37,14 +37,7 @@ export const DEMO_FLAGS = {
       return false;
     }
   },
-  get satEmpty(): boolean {
-    try {
-      return localStorage.getItem(this.key.satEmpty) === '1';
-    } catch {
-      return false;
-    }
-  },
-  set(key: 'unavailable' | 'satEmpty', on: boolean) {
+  set(key: 'unavailable', on: boolean) {
     try {
       if (on) localStorage.setItem(this.key[key], '1');
       else localStorage.removeItem(this.key[key]);
@@ -65,14 +58,6 @@ const SYMS: SymbolInfo[] = [
   { ticker: 'LLY', name: 'Eli Lilly', price: 742.18, changePct: 1.96, volume: '3.4M', marketCap: '705B', pe: 61.9, rsi: 63, sector: 'Healthcare', plain: { en: 'Weight-loss and diabetes drugs', he: 'תרופות להרזיה וסוכרת' }, why: { en: 'Phase 3 readout for oral GLP-1', he: 'תוצאות שלב 3 ל-GLP-1 בכמוסה' } , rvol: 1.4 },
   { ticker: 'TEVA', name: 'Teva Pharmaceutical', price: 18.42, changePct: 1.21, volume: '12.4M', marketCap: '21B', pe: 9.8, rsi: 58, sector: 'Healthcare', plain: { en: 'Generic medicines maker', he: 'יצרנית תרופות גנריות' }, why: { en: 'Generics pricing outlook improved', he: 'תחזית מחירי הגנריקה השתפרה' } , rvol: 1.2 },
   { ticker: 'MDA', name: 'MDA Space', price: 29.14, changePct: -1.42, volume: '2.1M', marketCap: '3.6B', pe: 31.2, rsi: 47, sector: 'Industrials', plain: { en: 'Satellites and space robotics', he: 'לוויינים ורובוטיקה לחלל' }, why: { en: 'Contract award timing slipped', he: 'לוחות הזמנים לזכייה בחוזה נדחו' } , rvol: 0.6 },
-];
-
-/** Recovery Detector open positions (demo). MRNA/ALB carried from prototype. */
-const SAT: SatellitePosition[] = [
-  { ticker: 'MRNA', entryPrice: 24.8, currentPrice: 31.15 },
-  { ticker: 'ALB', entryPrice: 62.4, currentPrice: 71.05 },
-  { ticker: 'TEVA', entryPrice: 14.9, currentPrice: 18.42 },
-  { ticker: 'MDA', entryPrice: 31.2, currentPrice: 29.14 },
 ];
 
 const PORTFOLIOS: PortfolioSummary[] = [
@@ -199,11 +184,17 @@ export const demoService: DataService & { isDemo: true } = {
     return s ? ok(s) : unavailable();
   },
 
+  // LIVE, not demo: the satellite surfaces come straight from the Recovery
+  // Detector API and are exempt from the demo switches. Every failure path
+  // is 'unavailable'; there is deliberately no demo fallback (and no demo
+  // switch that could fake their states — faking a live source's emptiness
+  // would misrepresent the data).
   async satellitePositions() {
-    await wait();
-    if (DEMO_FLAGS.unavailable) return unavailable();
-    // Honest empty state: an empty list is a real, valid answer.
-    return ok(DEMO_FLAGS.satEmpty ? [] : SAT);
+    return fetchSatellitePositions();
+  },
+
+  async satelliteSignals() {
+    return fetchSatelliteSignals();
   },
 
   async portfolios() {

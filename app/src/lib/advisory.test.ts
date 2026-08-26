@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hardRule, mapProfile, PROFILES, type Answer } from './advisory';
+import { CORE_FUNDS, hardRule, mapProfile, PROFILES, type Answer } from './advisory';
 import { money, pct, signedMoney } from './format';
 
 const all: Answer[] = [1, 2, 3];
@@ -63,6 +63,11 @@ describe('advisory profile mapping', () => {
 
   it('Conservative has no satellite sleeve', () => {
     expect(PROFILES.cons.satellitePct).toBe(0);
+  });
+
+  it('names a bond instrument for global government bonds — never an equity ETF', () => {
+    expect(CORE_FUNDS.globalGovBonds).toContain('Treasury Bond');
+    expect(Object.values(CORE_FUNDS).join(' ')).not.toContain('VEA');
   });
 });
 

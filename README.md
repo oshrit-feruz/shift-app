@@ -80,10 +80,56 @@ npm run build      # tsc --noEmit + vite build (app + design-system page)
 the `DataService` interface (`service.ts`) carrying the prototype's numbers. A
 real backend drops in by implementing that interface; no UI changes needed.
 
+**The Satellite surfaces are live.** `satellitePositions()` and
+`satelliteSignals()` delegate to `app/src/data/recoveryDetector.ts`, which
+calls the Recovery Detector engine (`stock-screener-7lvr.onrender.com`):
+`/api/beta/dashboard` → the engine's open positions (the spec's
+entry/current/% card, honest empty state until the engine opens a position),
+and `/api/screener` → today's BUY candidates, shown in a separate card that is
+explicitly labeled as engine output, never as positions. Field names are
+mapped defensively; a missing number renders `—` and its % change is
+suppressed rather than guessed. That path has **no demo fallback, by design**:
+every failure (network / CORS / timeout / non-2xx / unrecognised shape)
+renders the honest "unavailable" state, and the demo switches deliberately do
+not apply to it (faking a live source's emptiness would misrepresent the
+data). The engine runs on Render's free tier and can cold-start; the client
+waits up to 60s before reporting "unavailable". If CORS blocks the browser in
+a given deployment, the card shows "unavailable" — the fix is a small
+same-origin proxy, not a client change.
+
+**One surface is live:** Satellite positions. `satellitePositions()` delegates
+to `app/src/data/recoveryDetector.ts`, which calls the Recovery Detector engine
+at `https://stock-screener-7lvr.onrender.com/api/beta/dashboard` and reads its
+`open_positions` field. Field names are mapped defensively (`ticker|symbol`,
+`entry_price|entry`, `current_price|price|last`; numeric strings tolerated).
+
+That path has **no demo fallback, by design**:
+
+| Engine response | App shows |
+| --- | --- |
+| positions present | the real rows; a missing price renders `—`, and its % change is suppressed rather than guessed |
+| `open_positions: []` | the honest empty state, "אין פוזיציות פתוחות כרגע" — zero positions is a valid answer, not an error |
+| network / CORS / timeout / non-2xx / unparseable / unrecognised shape | the honest "unavailable" state with a retry |
+
+The Settings → Data & display "no satellite positions" demo switch was removed
+when this went live: its empty state is now whatever the engine actually
+reports, and the remaining "data unavailable" switch deliberately does not
+apply to this call.
+
+Two operational notes for whoever deploys this:
+- **CORS is unverified.** The browser calls the engine directly from a
+  different origin. If the endpoint does not send `Access-Control-Allow-Origin`
+  for the app's origin, the fetch fails and the card correctly shows
+  "unavailable" — the fix would be a small same-origin proxy, not a client
+  change.
+- The engine is on Render's free tier, which cold-starts; the client allows
+  15s (`TIMEOUT_MS`) before giving up and showing "unavailable".
+
 ## ⚠ Needs product sign-off before production
 
-- **Core fund names** (VOO / VEA / IEFA / LQD / VMFXX / EEM in
-  `app/src/lib/advisory.ts`) are realistic placeholders. Which funds the
-  product actually recommends is a material product decision.
+- **Core fund names** (VOO / IEFA / LQD / VMFXX / EEM in
+  `app/src/lib/advisory.ts`) are realistic placeholders. The specific global
+  government-bond instrument is omitted pending approval; all fund choices
+  remain a material product decision.
 - Broker/provider logos in `app/public/assets/` are third-party brand assets
   carried over from the design mockups for demo purposes.

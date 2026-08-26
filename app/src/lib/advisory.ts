@@ -42,7 +42,7 @@ export interface Profile {
  * must be reviewed before anything ships. (Flagged in README as well.)
  */
 export const CORE_FUNDS: Record<CoreCategory, string> = {
-  globalGovBonds: 'Vanguard FTSE Developed Markets ETF · VEA',
+  globalGovBonds: 'SPDR Bloomberg International Treasury Bond ETF · BWX',
   developedIndex: 'iShares Core MSCI EAFE ETF · IEFA',
   sp500: 'Vanguard S&P 500 ETF · VOO',
   corporateBonds: 'iShares Investment Grade Corporate Bond ETF · LQD',

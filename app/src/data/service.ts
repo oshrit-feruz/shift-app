@@ -1,5 +1,6 @@
 import type {
   AnalystConsensus,
+  SatelliteSignal,
   EarningsEvent,
   Loadable,
   LongTermAccount,
@@ -26,8 +27,11 @@ import type {
 export interface DataService {
   symbols(): Promise<Loadable<SymbolInfo[]>>;
   symbol(ticker: string): Promise<Loadable<SymbolInfo>>;
-  /** Live positions currently held by the Recovery Detector engine. */
+  /** Live positions currently held by the Recovery Detector engine
+   *  (LIVE API — see data/recoveryDetector.ts; never demo-backed). */
   satellitePositions(): Promise<Loadable<SatellitePosition[]>>;
+  /** Today's BUY candidates from the Recovery Detector screener (LIVE API). */
+  satelliteSignals(): Promise<Loadable<SatelliteSignal[]>>;
   portfolios(): Promise<Loadable<PortfolioSummary[]>>;
   holdings(portfolioId: string): Promise<Loadable<Holding[]>>;
   news(): Promise<Loadable<NewsItem[]>>;

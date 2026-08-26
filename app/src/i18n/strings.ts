@@ -234,6 +234,14 @@ export const STRINGS = {
   'rec.satOpenPositions': p('Recovery Detector — open positions right now', 'Recovery Detector — פוזיציות פתוחות כרגע'),
   'rec.satPositions': p('Current satellite positions', 'הפוזיציות בפועל'),
   'rec.livePrices': p('Live prices', 'מחירים חיים'),
+  'rec.satToday': p("Recovery Detector — today's screener output", 'Recovery Detector — תוצאת הסורק להיום'),
+  'rec.satTodayHelp': p(
+    "The engine's daily BUY candidates, straight from the live screener. Engine output — not positions, not holdings, and not a personal instruction.",
+    'המועמדים היומיים של המנוע, ישירות מהסורק החי. תוצר של האלגוריתם — לא פוזיציות, לא החזקות ולא הנחיה אישית.',
+  ),
+  'rec.noCandidates': p('No BUY candidates today', 'אין מועמדים לקנייה היום'),
+  'rec.fromHigh': p('from 52w high', 'מהשיא השנתי'),
+  'rec.score': p('score', 'ציון'),
   'adv.profileMissingTitle': p('Profile not determined yet', 'הפרופיל עדיין לא נקבע'),
   'adv.profileMissingBody': p(
     'The recommendation is built only from your questionnaire answers, and yours are incomplete. Answer the four questions and the profile is computed by the same fixed rules for every client — nothing is assumed on your behalf.',

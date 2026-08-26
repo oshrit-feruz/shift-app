@@ -2,9 +2,15 @@
 
 export type Pt = [number, number];
 
-export function fit(vals: number[], w: number, h: number, pad = 6): Pt[] {
-  const lo = Math.min(...vals);
-  const hi = Math.max(...vals);
+export function fit(
+  vals: number[],
+  w: number,
+  h: number,
+  pad = 6,
+  domain?: readonly [number, number],
+): Pt[] {
+  const lo = domain?.[0] ?? Math.min(...vals);
+  const hi = domain?.[1] ?? Math.max(...vals);
   const sp = hi - lo || 1;
   return vals.map((v, i) => [i * (w / (vals.length - 1)), h - pad - ((v - lo) / sp) * (h - pad * 2)]);
 }
