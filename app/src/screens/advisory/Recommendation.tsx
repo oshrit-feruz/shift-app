@@ -28,7 +28,7 @@ export function AdvisoryRecommendation(_: ScreenProps) {
   const t = useT();
   const profileKey = mapProfile(s.advAnswers) ?? 'bal';
   const profile = PROFILES[profileKey];
-  const sat = useLoadable(() => demoService.satellitePositions(), []);
+  const sat = useLoadable(() => demoService.satelliteSignals(), []);
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
@@ -118,8 +118,9 @@ export function AdvisoryRecommendation(_: ScreenProps) {
             </div>
           </Card>
 
-          {/* Live positions: ticker, entry, current, % change — no day count.
-              Honest empty state when the engine holds nothing. */}
+          {/* Live screener output: the engine's BUY candidates for today —
+              ticker, price, drawdown from the 52-week high, composite score.
+              Honest empty state when the engine picks nothing. */}
           <Card padding="13px 13px 4px" gap={7}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
               <CardTitle>{t('rec.satPositions')}</CardTitle>
@@ -130,33 +131,35 @@ export function AdvisoryRecommendation(_: ScreenProps) {
               </span>
             </div>
             <DataState state={sat.state} onRetry={sat.retry}>
-              {(positions) =>
-                positions.length === 0 ? (
+              {(signals) =>
+                signals.length === 0 ? (
                   <EmptyState>{t('rec.noPositions')}</EmptyState>
                 ) : (
                   <>
-                    {positions.map((x) => {
-                      // Live rows may omit a price. A missing number renders as
-                      // "—" and suppresses the % change entirely — it is never
-                      // guessed, defaulted to zero, or back-filled.
-                      const canComputePl =
-                        x.entryPrice !== null && x.currentPrice !== null && x.entryPrice !== 0;
-                      const pl = canComputePl
-                        ? ((x.currentPrice! - x.entryPrice!) / x.entryPrice!) * 100
-                        : null;
-                      const entryStr = x.entryPrice === null ? DASH : money(x.entryPrice);
-                      const currentStr = x.currentPrice === null ? DASH : money(x.currentPrice);
+                    {signals.map((x) => {
+                      // Live rows may omit any number. A missing value renders
+                      // as "—"; it is never guessed, defaulted to zero, or
+                      // back-filled. Drawdown is how far the ticker sits below
+                      // its 52-week high, so it is shown as a negative move.
+                      const priceStr = x.price === null ? DASH : money(x.price);
+                      const ddStr = x.drawdownPct === null ? DASH : pct(-x.drawdownPct, 1);
+                      const scoreStr =
+                        x.compositeScore === null ? DASH : x.compositeScore.toFixed(2);
                       return (
                         <ListRow
                           key={x.ticker}
                           leading={<TickerTile ticker={x.ticker} />}
                           title={x.ticker}
-                          subtitle={<Num>{`${t('rec.entry')} ${entryStr} · ${currentStr}`}</Num>}
+                          subtitle={
+                            <Num>{`${t('rec.fromHigh')} ${ddStr} · ${t('rec.score')} ${scoreStr}`}</Num>
+                          }
                           right={
                             <RowValues
-                              main={currentStr}
-                              sub={pl === null ? DASH : pct(pl, 1)}
-                              subColor={pl === null ? 'var(--muted)' : signalColor(pl)}
+                              main={priceStr}
+                              sub={ddStr}
+                              subColor={
+                                x.drawdownPct === null ? 'var(--muted)' : signalColor(-x.drawdownPct)
+                              }
                             />
                           }
                           minHeight={52}

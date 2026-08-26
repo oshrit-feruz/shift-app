@@ -4,7 +4,7 @@ import type {
   NewsItem,
   PortfolioSummary,
   Holding,
-  SatellitePosition,
+  SatelliteSignal,
   SymbolInfo,
 } from './types';
 
@@ -22,7 +22,7 @@ export interface DataService {
   symbols(): Promise<Loadable<SymbolInfo[]>>;
   symbol(ticker: string): Promise<Loadable<SymbolInfo>>;
   /** Live positions currently held by the Recovery Detector engine. */
-  satellitePositions(): Promise<Loadable<SatellitePosition[]>>;
+  satelliteSignals(): Promise<Loadable<SatelliteSignal[]>>;
   portfolios(): Promise<Loadable<PortfolioSummary[]>>;
   holdings(portfolioId: string): Promise<Loadable<Holding[]>>;
   news(): Promise<Loadable<NewsItem[]>>;

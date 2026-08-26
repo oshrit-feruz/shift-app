@@ -17,15 +17,23 @@ export interface SymbolInfo {
 }
 
 /**
- * A position currently held by the Recovery Detector engine.
- * Prices are nullable on purpose: this comes from a live API whose rows may
- * omit a numeric field, and an absent price renders as "—" rather than being
+ * A candidate surfaced by the Recovery Detector screener.
+ * Every number is nullable on purpose: this comes from a live API whose rows
+ * may omit a field, and an absent number renders as "—" rather than being
  * guessed or back-filled (see data/recoveryDetector.ts).
  */
-export interface SatellitePosition {
+export interface SatelliteSignal {
   ticker: string;
-  entryPrice: number | null;
-  currentPrice: number | null;
+  /** Last price the engine saw. */
+  price: number | null;
+  /** 52-week high the drawdown is measured against. */
+  high52w: number | null;
+  /** How far below the 52-week high, in percent (positive = below). */
+  drawdownPct: number | null;
+  /** The engine's 0..1 composite ranking score. */
+  compositeScore: number | null;
+  /** The engine's verdict; null when it sent something we don't recognise. */
+  signal: 'BUY' | 'WATCH' | 'SKIP' | null;
 }
 
 export interface Holding {

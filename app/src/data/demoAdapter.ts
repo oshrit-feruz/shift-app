@@ -17,7 +17,7 @@
  */
 
 import type { DataService } from './service';
-import { fetchSatellitePositions } from './recoveryDetector';
+import { fetchSatelliteSignals } from './recoveryDetector';
 import {
   ok,
   unavailable,
@@ -141,12 +141,12 @@ export const demoService: DataService & { isDemo: true } = {
   /**
    * LIVE — the one method on this adapter that is not demo data.
    * No demo latency, no DEMO_FLAGS: it hits the real Recovery Detector API and
-   * returns exactly what that call yields (ok(positions) | ok([]) for a real
+   * returns exactly what that call yields (ok(signals) | ok([]) for a real
    * empty result | unavailable on any failure). There is deliberately no demo
    * fallback path here.
    */
-  async satellitePositions() {
-    return fetchSatellitePositions();
+  async satelliteSignals() {
+    return fetchSatelliteSignals();
   },
 
   async portfolios() {
