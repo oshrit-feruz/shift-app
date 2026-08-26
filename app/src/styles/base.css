@@ -186,9 +186,15 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
 .seg-opt[data-active="true"] { background: var(--color-accent); color: #fff; font-weight: 600; }
 
 /* ── Motion ────────────────────────────────────────────────────────────── */
+/* Opacity-only: every screen's .anim-fade-up wrapper is an ancestor of glass
+ * .card elements. Animating `transform` here (the original translateY) gives
+ * the ancestor a transform for the animation's duration, which makes it a
+ * containing block — in Chromium that detaches descendant backdrop-filter
+ * blur from the real page background for those 220ms, so cards flash opaque
+ * on every screen transition instead of reading as glass immediately. */
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 @keyframes sheetUp {
   from { transform: translateY(100%); }
