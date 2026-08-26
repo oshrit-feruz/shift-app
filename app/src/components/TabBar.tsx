@@ -41,7 +41,7 @@ export function TabBar({ current, onGo }: { current: Screen; onGo: (s: Screen) =
               alignItems: 'center',
               justifyContent: 'center',
               gap: 3,
-              minHeight: 48,
+              minHeight: 52,
               padding: '7px 0',
               border: 0,
               background: 'transparent',
@@ -52,7 +52,10 @@ export function TabBar({ current, onGo }: { current: Screen; onGo: (s: Screen) =
                 : 'color-mix(in srgb, var(--color-text) 45%, transparent)',
             }}
           >
-            <Icon name={t.icon} size={24} strokeWidth={1.7} />
+            <Icon name={t.icon} size={22} strokeWidth={1.7} />
+            <span style={{ fontSize: 10.5, lineHeight: 1, fontWeight: active ? 600 : 400 }}>
+              {translate(t.label)}
+            </span>
           </button>
         );
       })}
