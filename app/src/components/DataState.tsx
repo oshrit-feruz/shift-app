@@ -8,18 +8,39 @@ import { Button } from './Button';
  * and delegates to children only when real data exists. Screens must route
  * every Loadable through this (or EmptyState for ok-but-empty lists) — never
  * substitute placeholder numbers.
+ *
+ * Pass `skeleton` with a placeholder shaped like the real content so the swap
+ * on load is in-place rather than a jump. Skeletons are decorative and
+ * aria-hidden; the announcement stays on the role="status" wrapper here, which
+ * carries the loading text for assistive tech either way.
  */
 export function DataState<T>({
   state,
   onRetry,
+  skeleton,
   children,
 }: {
   state: Loadable<T>;
   onRetry?: () => void;
+  skeleton?: ReactNode;
   children: (data: T) => ReactNode;
 }) {
   const t = useT();
   if (state.status === 'loading') {
+    if (skeleton) {
+      // No wrapper element: a wrapper would collapse the skeleton into a
+      // single flex item and swallow the parent's row gaps, so the layout
+      // would still shift on load. The announcement rides on an out-of-flow
+      // sibling instead, which costs no layout at all.
+      return (
+        <>
+          <span role="status" className="sr-only">
+            {t('data.loading')}
+          </span>
+          {skeleton}
+        </>
+      );
+    }
     return (
       <div
         role="status"

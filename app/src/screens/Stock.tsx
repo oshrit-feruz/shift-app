@@ -7,6 +7,7 @@ import { AreaChart } from '../components/AreaChart';
 import { CandleChart } from '../components/CandleChart';
 import { Chip } from '../components/Chip';
 import { DataState } from '../components/DataState';
+import { Skeleton } from '../components/Skeleton';
 import { useAppState, useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
@@ -32,7 +33,21 @@ export function StockScreen({ openAlert }: ScreenProps) {
   const begSeries = demoService.series(`${s.ticker}-line`, 64, 0.55, 2.6);
 
   return (
-    <DataState state={sym.state} onRetry={sym.retry}>
+    <DataState
+      state={sym.state}
+      onRetry={sym.retry}
+      skeleton={
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+            <Skeleton width="52%" height={28} />
+            <Skeleton width="38%" height={13} />
+          </div>
+          <Skeleton height={188} radius="var(--radius-lg)" />
+          <Skeleton height={132} radius="var(--radius-lg)" />
+          <Skeleton height={150} radius="var(--radius-lg)" />
+        </div>
+      }
+    >
       {(x) => (
         <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>

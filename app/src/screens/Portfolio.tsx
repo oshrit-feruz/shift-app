@@ -9,6 +9,7 @@ import { Chip, ChipRail } from '../components/Chip';
 import { ListRow, RowValues } from '../components/ListRow';
 import { LogoTile } from '../components/TickerTile';
 import { DataState, EmptyState } from '../components/DataState';
+import { Skeleton, SkeletonList } from '../components/Skeleton';
 import { ALLOC_COLORS } from '../components/AllocationBar';
 import { useAppState, useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
@@ -33,7 +34,29 @@ export function PortfolioScreen(_: ScreenProps) {
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <DataState state={portfolios.state} onRetry={portfolios.retry}>
+      <DataState
+        state={portfolios.state}
+        onRetry={portfolios.retry}
+        skeleton={
+          <>
+            {/* Mirrors the loaded stack section for section. The card heights
+                are measured off the rendered screen, not guessed — a skeleton
+                that is the wrong height just moves the jump rather than
+                removing it. */}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Skeleton width={132} height={38} radius={999} />
+              <Skeleton width={104} height={38} radius={999} />
+            </div>
+            <Skeleton height={36} radius="var(--radius-md)" />
+            <Skeleton height={81} radius="var(--radius-lg)" />
+            <Skeleton height={247} radius="var(--radius-lg)" />
+            <Skeleton height={229} radius="var(--radius-lg)" />
+            <Skeleton height={239} radius="var(--radius-lg)" />
+            <Skeleton height={292} radius="var(--radius-lg)" />
+            <Skeleton height={147} radius="var(--radius-lg)" />
+          </>
+        }
+      >
         {(pfs) => {
           const manualPortfolios: PortfolioSummary[] = s.manualPortfolios.map((x) => ({
             id: x.id,
@@ -277,7 +300,11 @@ function Holdings({ pfId }: { pfId: string }) {
   };
 
   return (
-    <DataState state={holdings.state} onRetry={holdings.retry}>
+    <DataState
+      state={holdings.state}
+      onRetry={holdings.retry}
+      skeleton={<SkeletonList count={4} leading={false} minHeight={46} />}
+    >
       {(rows) => {
         const mergedRows = withManualTransactions(rows);
         return mergedRows.length === 0 ? (

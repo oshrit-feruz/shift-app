@@ -4,6 +4,7 @@ import { Tag } from '../components/Tag';
 import { ListRow, RowValues } from '../components/ListRow';
 import { TickerTile } from '../components/TickerTile';
 import { DataState } from '../components/DataState';
+import { Skeleton, SkeletonLine } from '../components/Skeleton';
 import { useAppState, useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
@@ -80,7 +81,40 @@ export function WatchlistScreen({ openAlert }: ScreenProps) {
 
       <Card padding="12px 13px 4px" gap={4}>
         <CardTitle>{t('watch.tracking')}</CardTitle>
-        <DataState state={symbols.state} onRetry={symbols.retry}>
+        <DataState
+          state={symbols.state}
+          onRetry={symbols.retry}
+          skeleton={
+            <>
+              {/* One row per watched ticker, and rows whose ticker carries
+                  alert tags get the taller subtitle the tags will occupy —
+                  a flat row height would leave the tagged ones short. */}
+              {s.watchlist.map((ticker, i) => (
+                <ListRow
+                  key={ticker}
+                  divider={i > 0}
+                  minHeight={52}
+                  leading={<Skeleton width={26} height={26} radius="var(--radius-sm)" />}
+                  title={<SkeletonLine width="38%" fontSize={15} />}
+                  subtitle={
+                    <span style={{ display: 'flex', gap: 4, marginTop: 3 }}>
+                      {(ROW_ALERTS[ticker] ?? []).map((_, j) => (
+                        <Skeleton key={j} width={j === 0 ? 58 : 44} height={25} radius={999} />
+                      ))}
+                    </span>
+                  }
+                  right={
+                    <>
+                      <SkeletonLine width={56} fontSize={14} />
+                      <SkeletonLine width={38} fontSize={12.5} bar={9} />
+                    </>
+                  }
+                  trailing={<Skeleton width={34} height={34} radius="var(--radius-sm)" />}
+                />
+              ))}
+            </>
+          }
+        >
           {(syms) => (
             <>
               {syms

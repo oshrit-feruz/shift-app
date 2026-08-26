@@ -206,3 +206,44 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
 .scroll-y { overflow-y: auto; scrollbar-width: thin; }
 .scroll-x { overflow-x: auto; scrollbar-width: none; }
 .scroll-x::-webkit-scrollbar { display: none; }
+
+/* ── Skeletons ─────────────────────────────────────────────────────────── */
+/* Loading placeholders that mirror the shape of the content they stand in for,
+ * so data arriving swaps in place instead of shifting the layout. The sheen
+ * animates background-position, never transform: a transform here would make
+ * the element a containing block and detach descendant backdrop-filter blur
+ * (see the Motion note above). */
+.skeleton {
+  background-color: color-mix(in srgb, var(--color-text) 11%, transparent);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--color-text) 9%, transparent) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  border-radius: var(--radius-sm);
+  animation: skeletonSheen 1.4s ease-in-out infinite;
+}
+@keyframes skeletonSheen {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+}
+
+/* Visually hidden but announced. Absolutely positioned so it is out of flow —
+ * a flex container skips abspos children entirely, so it adds no gap. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

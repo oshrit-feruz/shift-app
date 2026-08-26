@@ -8,6 +8,7 @@ import { MetricStrip } from '../components/MetricStrip';
 import { ListRow, RowValues } from '../components/ListRow';
 import { TickerTile } from '../components/TickerTile';
 import { DataState } from '../components/DataState';
+import { Skeleton, SkeletonLine, SkeletonList, SkeletonText } from '../components/Skeleton';
 import { ProgressTrack } from '../components/Progress';
 import { useAppState, useDispatch, setupProgress } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
@@ -31,7 +32,25 @@ export function HomeScreen(_: ScreenProps) {
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {beg && (
-        <DataState state={portfolios.state} onRetry={portfolios.retry}>
+        <DataState
+          state={portfolios.state}
+          onRetry={portfolios.retry}
+          skeleton={
+            <Card padding={15} gap={0}>
+              {/* Mirrors the loaded hero: 13px label, 42px/1.05 total,
+                  15px change line, chart block, two 14px blurb lines. */}
+              <SkeletonLine width={96} fontSize={13} bar={11} />
+              <SkeletonLine width="66%" fontSize={42} lineHeight={1.05} bar={34} />
+              <SkeletonLine width={172} fontSize={15} bar={13} />
+              {/* 83, not the chart's 76: the AreaChart's inline SVG adds a
+                  descender line box to its wrapper. Measured, not assumed. */}
+              <Skeleton height={83} radius="var(--radius-md)" style={{ marginTop: 10 }} />
+              <div style={{ marginTop: 10 }}>
+                <SkeletonText lines={2} fontSize={14} />
+              </div>
+            </Card>
+          }
+        >
           {(pfs) => {
             const main = pfs.find((x) => x.id === 'blink');
             if (!main) {
@@ -213,7 +232,11 @@ export function HomeScreen(_: ScreenProps) {
             {t('home.seeAll')}
           </Button>
         </div>
-        <DataState state={symbols.state} onRetry={symbols.retry}>
+        <DataState
+          state={symbols.state}
+          onRetry={symbols.retry}
+          skeleton={<SkeletonList count={beg ? 4 : 6} leading={beg} />}
+        >
           {(syms) => (
             <>
               {syms.slice(0, beg ? 4 : 6).map((x) => (
@@ -241,7 +264,17 @@ export function HomeScreen(_: ScreenProps) {
             {t('home.moversHelp')}
           </p>
         )}
-        <DataState state={symbols.state} onRetry={symbols.retry}>
+        <DataState
+          state={symbols.state}
+          onRetry={symbols.retry}
+          skeleton={
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {Array.from({ length: beg ? 3 : 5 }, (_, i) => (
+                <Skeleton key={i} height={44} radius="var(--radius-md)" />
+              ))}
+            </div>
+          }
+        >
           {(syms) => (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {syms

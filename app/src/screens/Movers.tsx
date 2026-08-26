@@ -5,6 +5,7 @@ import { Chip, ChipRail } from '../components/Chip';
 import { Sparkline } from '../components/AreaChart';
 import { TickerTile } from '../components/TickerTile';
 import { DataState } from '../components/DataState';
+import { Skeleton, SkeletonList } from '../components/Skeleton';
 import { useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
@@ -55,7 +56,23 @@ export function MoversScreen(_: ScreenProps) {
         ))}
       </ChipRail>
 
-      <DataState state={symbols.state} onRetry={symbols.retry}>
+      <DataState
+        state={symbols.state}
+        onRetry={symbols.retry}
+        skeleton={
+          beg ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+              {Array.from({ length: 6 }, (_, i) => (
+                <Skeleton key={i} height={78} radius="var(--radius-lg)" />
+              ))}
+            </div>
+          ) : (
+            <Card padding="6px 10px 4px" gap={0}>
+              <SkeletonList count={8} leading={false} subtitle={false} minHeight={34} firstDivider />
+            </Card>
+          )
+        }
+      >
         {(syms) => {
           const pool = syms
             .slice()

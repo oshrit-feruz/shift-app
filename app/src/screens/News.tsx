@@ -5,6 +5,7 @@ import { Num } from '../components/Num';
 import { Chip, ChipRail } from '../components/Chip';
 import { Button } from '../components/Button';
 import { DataState } from '../components/DataState';
+import { Skeleton, SkeletonList } from '../components/Skeleton';
 import { useAppState, useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
@@ -44,7 +45,33 @@ export function NewsScreen({ openAlert }: ScreenProps) {
       </ChipRail>
 
       {tab === 'Calendar' ? (
-        <DataState state={earnings.state} onRetry={earnings.retry}>
+        <DataState
+          state={earnings.state}
+          onRetry={earnings.retry}
+          skeleton={
+            <Card padding="4px 0" gap={0}>
+              {Array.from({ length: 5 }, (_, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '10px 13px',
+                    borderTop: '1px solid var(--color-divider)',
+                  }}
+                >
+                  <Skeleton width={40} height={40} radius="var(--radius-md)" />
+                  <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <Skeleton width="38%" height={11} />
+                    <Skeleton width="62%" height={9} />
+                  </span>
+                  <Skeleton width={62} height={22} radius={999} />
+                </div>
+              ))}
+            </Card>
+          }
+        >
           {(rows) => (
             <Card padding="4px 0" gap={0}>
               {rows.map((e, i) => (
@@ -93,7 +120,24 @@ export function NewsScreen({ openAlert }: ScreenProps) {
           )}
         </DataState>
       ) : (
-        <DataState state={news.state} onRetry={news.retry}>
+        <DataState
+          state={news.state}
+          onRetry={news.retry}
+          skeleton={
+            beg ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                {/* Card count and height measured off the loaded feed. */}
+                {Array.from({ length: 7 }, (_, i) => (
+                  <Skeleton key={i} height={141} radius="var(--radius-lg)" />
+                ))}
+              </div>
+            ) : (
+              <Card padding="4px 13px" gap={0}>
+                <SkeletonList count={6} leading={false} minHeight={62} firstDivider />
+              </Card>
+            )
+          }
+        >
           {(items) => {
             const feed = items.filter(
               (a) =>

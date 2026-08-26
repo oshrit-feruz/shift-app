@@ -6,6 +6,7 @@ import { AllocationBar, ALLOC_COLORS } from '../../components/AllocationBar';
 import { ListRow, RowValues } from '../../components/ListRow';
 import { TickerTile } from '../../components/TickerTile';
 import { DataState, EmptyState } from '../../components/DataState';
+import { SkeletonList } from '../../components/Skeleton';
 import { FlowStepper } from './FlowStepper';
 import { useAppState, useDispatch } from '../../state/appState';
 import { useT } from '../../i18n/useT';
@@ -139,7 +140,11 @@ export function AdvisoryRecommendation(_: ScreenProps) {
             {t('rec.satInfoOnly')}
           </p>
         )}
-        <DataState state={sat.state} onRetry={sat.retry}>
+        <DataState
+          state={sat.state}
+          onRetry={sat.retry}
+          skeleton={<SkeletonList count={3} minHeight={52} />}
+        >
           {(signals) =>
             signals.length === 0 ? (
               <EmptyState>{t('rec.noPositions')}</EmptyState>

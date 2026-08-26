@@ -4,6 +4,7 @@ import { Icon } from '../components/Icon';
 import { ListRow, RowValues } from '../components/ListRow';
 import { TickerTile } from '../components/TickerTile';
 import { DataState } from '../components/DataState';
+import { SkeletonList } from '../components/Skeleton';
 import { useDispatch } from '../state/appState';
 import { useT } from '../i18n/useT';
 import { demoService } from '../data/demoAdapter';
@@ -49,7 +50,11 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
         </Button>
       </div>
       <div className="scroll-y" style={{ flex: 1, minHeight: 0, padding: '2px 16px 22px' }}>
-        <DataState state={symbols.state} onRetry={symbols.retry}>
+        <DataState
+          state={symbols.state}
+          onRetry={symbols.retry}
+          skeleton={<SkeletonList count={5} minHeight={52} firstDivider />}
+        >
           {(syms) => {
             const hits = query
               ? syms.filter((x) => x.ticker.toLowerCase().includes(query) || x.name.toLowerCase().includes(query))
