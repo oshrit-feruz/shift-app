@@ -13,9 +13,9 @@
  * comes from scale and overlap instead — the four spans are large and run into
  * each other, so there is no flat band without anything repeating.
  *
- * Every shape sits at 10% opacity, the green accent included, so the layer
- * reads as texture and never as content competing with the cards in front of
- * it.
+ * Every shape renders at full opacity. The cards in front are glass, so the
+ * layer shows through them — if body copy starts competing with a shape, the
+ * dial to turn is the default opacity below, in one place.
  */
 
 interface Shape {
@@ -49,9 +49,7 @@ const SHAPES: Shape[] = [
   { d: CURL, viewBox: VB.curl, fill: 'var(--acc-mid)', top: '-4%', left: '-14%', width: '128%' },
   { d: LOOP, viewBox: VB.loop, fill: 'var(--acc-dim)', top: '16%', left: '38%', width: '96%', rotate: 14 },
   { d: RIBBON, viewBox: VB.ribbon, fill: '#E52319', top: '40%', left: '-30%', width: '104%', rotate: -47 },
-  // The green accent, kept low in the frame as the design places it. It sits
-  // at the same 10% as the rest: at full opacity it read as a foreground
-  // object crossing the cards rather than as background texture.
+  // The green accent, kept low in the frame as the design places it.
   { d: HOOK, viewBox: VB.hook, fill: 'var(--up)', top: '68%', left: '24%', width: '78%' },
 ];
 
@@ -69,7 +67,7 @@ export function BackgroundShapes() {
             top: sh.top,
             left: sh.left,
             width: sh.width,
-            opacity: sh.opacity ?? 0.1,
+            opacity: sh.opacity ?? 1,
             transform: sh.rotate ? `rotate(${sh.rotate}deg)` : undefined,
           }}
         >
