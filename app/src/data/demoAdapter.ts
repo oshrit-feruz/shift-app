@@ -64,10 +64,10 @@ const SYMS: SymbolInfo[] = [
 
 /** Recovery Detector open positions (demo). MRNA/ALB carried from prototype. */
 const SAT: SatellitePosition[] = [
-  { ticker: 'MRNA', entryPrice: 24.8, currentPrice: 31.15, daysHeld: 74, pctOffHigh: 58 },
-  { ticker: 'ALB', entryPrice: 62.4, currentPrice: 71.05, daysHeld: 118, pctOffHigh: 51 },
-  { ticker: 'TEVA', entryPrice: 14.9, currentPrice: 18.42, daysHeld: 41, pctOffHigh: 44 },
-  { ticker: 'MDA', entryPrice: 31.2, currentPrice: 29.14, daysHeld: 12, pctOffHigh: 47 },
+  { ticker: 'MRNA', entryPrice: 24.8, currentPrice: 31.15 },
+  { ticker: 'ALB', entryPrice: 62.4, currentPrice: 71.05 },
+  { ticker: 'TEVA', entryPrice: 14.9, currentPrice: 18.42 },
+  { ticker: 'MDA', entryPrice: 31.2, currentPrice: 29.14 },
 ];
 
 const PORTFOLIOS: PortfolioSummary[] = [

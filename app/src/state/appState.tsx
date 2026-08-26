@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
-import type { Answer } from '../lib/advisory';
+import { mapProfile, type Answer } from '../lib/advisory';
 
 export type Screen =
   | 'home'
@@ -28,6 +28,24 @@ export const ADV_ORDER: Screen[] = ['advChat', 'advDisc', 'advDash', 'advConnect
 
 export type InstitutionKey = 'broker' | 'bank' | 'pension' | 'hisht';
 
+/** A user-logged transaction on a manual (theoretical) portfolio. Nothing is
+ *  ever executed — this is the user's own record keeping. */
+export interface ManualTx {
+  pfId: string;
+  side: 'buy' | 'sell' | 'div';
+  ticker: string;
+  shares: number;
+  price: number;
+  date: string;
+}
+
+/** A user-created theoretical portfolio (no broker behind it). */
+export interface ManualPortfolio {
+  id: string;
+  name: string;
+  startCash: number;
+}
+
 export interface AppState {
   screen: Screen;
   ticker: string;
@@ -51,6 +69,9 @@ export interface AppState {
   /** portfolio tab index */
   pfIndex: number;
   aggExcluded: Record<string, boolean>;
+  /** self-directed manual records (persisted; never executed anywhere) */
+  manualTxs: ManualTx[];
+  manualPortfolios: ManualPortfolio[];
 }
 
 const initial: AppState = {
@@ -70,6 +91,8 @@ const initial: AppState = {
   notificationsRead: false,
   pfIndex: 0,
   aggExcluded: {},
+  manualTxs: [],
+  manualPortfolios: [],
 };
 
 export type Action =
@@ -87,7 +110,9 @@ export type Action =
   | { type: 'setThreshold'; which: 'up' | 'down'; value: string }
   | { type: 'markNotificationsRead' }
   | { type: 'pfIndex'; index: number }
-  | { type: 'toggleAggAccount'; id: string };
+  | { type: 'toggleAggAccount'; id: string }
+  | { type: 'addManualTx'; tx: ManualTx }
+  | { type: 'createPortfolio'; name: string; startCash: number };
 
 function reducer(s: AppState, a: Action): AppState {
   switch (a.type) {
@@ -137,6 +162,12 @@ function reducer(s: AppState, a: Action): AppState {
       return { ...s, pfIndex: a.index };
     case 'toggleAggAccount':
       return { ...s, aggExcluded: { ...s.aggExcluded, [a.id]: !s.aggExcluded[a.id] } };
+    case 'addManualTx':
+      return { ...s, manualTxs: [...s.manualTxs, a.tx] };
+    case 'createPortfolio': {
+      const id = `manual-${Date.now().toString(36)}`;
+      return { ...s, manualPortfolios: [...s.manualPortfolios, { id, name: a.name, startCash: a.startCash }] };
+    }
     default:
       return s;
   }
@@ -153,6 +184,8 @@ const PERSISTED: Array<keyof AppState> = [
   'stepsDone',
   'alertUpThreshold',
   'alertDownThreshold',
+  'manualTxs',
+  'manualPortfolios',
 ];
 
 function hydrate(): AppState {
@@ -191,15 +224,21 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 export const useAppState = () => useContext(StateCtx);
 export const useDispatch = () => useContext(DispatchCtx);
 
-/** Derived advisory-setup facts used by banner/settings. */
+/** Derived advisory-setup facts used by banner/settings.
+ *
+ * Resume never lands past the chat unless a deterministic profile actually
+ * exists for the persisted answers — a stale or partial advStage must not
+ * surface a defaulted recommendation. */
 export function setupProgress(s: AppState) {
   const started = s.advAnswers.length > 0 || s.advStage > 0;
   const incomplete = s.advStage < 5;
+  const maxIdx = mapProfile(s.advAnswers) == null ? 0 : 4;
+  const idx = Math.min(s.advStage, maxIdx);
   return {
     showBanner: started && incomplete,
     incomplete,
     pct: Math.round((s.advStage / 5) * 100),
-    stepLabel: Math.min(s.advStage, 4) + 1,
-    resumeScreen: ADV_ORDER[Math.min(s.advStage, 4)],
+    stepLabel: idx + 1,
+    resumeScreen: ADV_ORDER[idx],
   };
 }

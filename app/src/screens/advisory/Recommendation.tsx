@@ -7,6 +7,7 @@ import { ListRow, RowValues } from '../../components/ListRow';
 import { TickerTile } from '../../components/TickerTile';
 import { DataState, EmptyState } from '../../components/DataState';
 import { FlowStepper } from './FlowStepper';
+import { ProfileGate } from './ProfileGate';
 import { useAppState, useDispatch } from '../../state/appState';
 import { useT } from '../../i18n/useT';
 import { CORE_FUNDS, mapProfile, PROFILES } from '../../lib/advisory';
@@ -23,9 +24,10 @@ export function AdvisoryRecommendation(_: ScreenProps) {
   const s = useAppState();
   const dispatch = useDispatch();
   const t = useT();
-  const profileKey = mapProfile(s.advAnswers) ?? 'bal';
-  const profile = PROFILES[profileKey];
+  const profileKey = mapProfile(s.advAnswers);
   const sat = useLoadable(() => demoService.satellitePositions(), []);
+  if (!profileKey) return <ProfileGate />;
+  const profile = PROFILES[profileKey];
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
@@ -119,7 +121,7 @@ export function AdvisoryRecommendation(_: ScreenProps) {
               Honest empty state when the engine holds nothing. */}
           <Card padding="13px 13px 4px" gap={7}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-              <CardTitle>{t('rec.satPositions')}</CardTitle>
+              <CardTitle>{t('rec.satOpenPositions')}</CardTitle>
               <span style={{ marginInlineStart: 'auto' }}>
                 <Tag variant="outline" fontSize={12}>
                   {t('rec.livePrices')}
@@ -139,9 +141,7 @@ export function AdvisoryRecommendation(_: ScreenProps) {
                           key={x.ticker}
                           leading={<TickerTile ticker={x.ticker} />}
                           title={x.ticker}
-                          subtitle={
-                            <Num>{`${t('rec.entry')} ${money(x.entryPrice)} · ${money(x.currentPrice)}`}</Num>
-                          }
+                          subtitle={<Num>{`${t('rec.entry')} ${money(x.entryPrice)}`}</Num>}
                           right={<RowValues main={money(x.currentPrice)} sub={pct(pl, 1)} subColor={signalColor(pl)} />}
                           minHeight={52}
                           onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}

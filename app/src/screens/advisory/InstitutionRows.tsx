@@ -131,3 +131,11 @@ export function InstitutionRows() {
 export function brokerName(key: 'blink' | 'ibkr' | 'colmex'): string {
   return key === 'ibkr' ? 'Interactive Brokers' : key === 'colmex' ? 'Colmex Pro' : 'Blink';
 }
+
+/** Official broker sites for the referral hand-off — account opening happens
+ *  there, never inside Shift. Plain links, no affiliate parameters. */
+export const BROKER_URLS: Record<'blink' | 'ibkr' | 'colmex', string> = {
+  blink: 'https://blink.co.il',
+  ibkr: 'https://www.interactivebrokers.com',
+  colmex: 'https://www.colmexpro.com',
+};

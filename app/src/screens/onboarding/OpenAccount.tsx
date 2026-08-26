@@ -227,8 +227,8 @@ export function OpenAccountScreen(_: ScreenProps) {
             </CardTitle>
             <p className="text-muted" style={{ fontSize: 'var(--fs-sm)', margin: 0, lineHeight: 1.5 }}>
               {language === 'he'
-                ? 'הפקודה מתבצעת בשניות בשעות המסחר. תראי אותה בפוזיציות, ומשם התפקיד היחיד הוא לא לגעת.'
-                : 'The order fills in seconds during market hours. You will see it in your positions, and from then on the only job is leaving it alone.'}
+                ? 'פקודת שוק על קרן סחירה מתבצעת בדרך כלל תוך שניות בשעות המסחר, כשהשוק פעיל וסחיר; לפעמים זה לוקח יותר. אחרי הביצוע תראי אותה בפוזיציות, ומשם התפקיד היחיד הוא לא לגעת.'
+                : 'A market order on a liquid fund usually fills within seconds during market hours; it can take longer when trading is thin or halted. Once filled you will see it in your positions, and from then on the only job is leaving it alone.'}
             </p>
           </Card>
         </div>

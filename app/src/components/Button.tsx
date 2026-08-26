@@ -5,6 +5,7 @@ export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'success';
 /** The app's button. 'success' is the green "Done" variant (distinct from
  *  Continue buttons, per design review). */
 export function Button({
+  href,
   children,
   variant = 'primary',
   block = false,
@@ -24,6 +25,8 @@ export function Button({
   disabled?: boolean;
   style?: CSSProperties;
   alignSelf?: CSSProperties['alignSelf'];
+  /** External referral link — renders an <a> (new tab, no referrer). */
+  href?: string;
 }) {
   const cls =
     variant === 'primary'
@@ -35,6 +38,19 @@ export function Button({
           : 'btn';
   const successStyle: CSSProperties =
     variant === 'success' ? { background: 'var(--up)', color: 'var(--color-on-accent)', fontWeight: 'var(--fw-semibold)' } : {};
+  if (href) {
+    return (
+      <a
+        className={`${cls} ${block ? 'btn-block' : ''}`}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ minHeight, fontSize, alignSelf, ...successStyle, ...style }}
+      >
+        {children}
+      </a>
+    );
+  }
   return (
     <button
       type="button"

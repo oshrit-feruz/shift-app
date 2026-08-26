@@ -6,18 +6,21 @@ import { Num } from '../components/Num';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
+import { useDispatch } from '../state/appState';
 
 type Side = 'buy' | 'sell' | 'div';
 
 /** Manual-transaction sheet — exists only for theoretical portfolios; nothing
  *  is ordered anywhere. */
-export function TxSheet({ open, onClose, pfName }: { open: boolean; onClose: () => void; pfName: string }) {
-  const { mode, language } = useTheme();
+export function TxSheet({ open, onClose, pfId, pfName }: { open: boolean; onClose: () => void; pfId: string; pfName: string }) {
+  const { language } = useTheme();
   const t = useT();
+  const dispatch = useDispatch();
   const [side, setSide] = useState<Side>('buy');
   const [ticker, setTicker] = useState('NVDA');
   const [shares, setShares] = useState('10');
   const [price, setPrice] = useState('182.44');
+  const [date, setDate] = useState('2026-08-24');
   const sh = parseFloat(shares) || 0;
   const px = parseFloat(price.replace(/[^0-9.]/g, '')) || 0;
   const verb =
@@ -50,7 +53,7 @@ export function TxSheet({ open, onClose, pfName }: { open: boolean; onClose: () 
         <Field label={t('tx.shares')} value={shares} onChange={(e) => setShares(e.target.value)} />
         <Field label={t('tx.price')} value={price} onChange={(e) => setPrice(e.target.value)} />
       </div>
-      <Field label={t('tx.date')} type="date" defaultValue="2026-08-24" />
+      <Field label={t('tx.date')} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
       <div
         style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 'var(--radius-md)', background: 'var(--sunk)' }}
       >
@@ -64,12 +67,19 @@ export function TxSheet({ open, onClose, pfName }: { open: boolean; onClose: () 
             (sh * px).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </Num>
       </div>
-      {mode === 'beginner' && (
-        <p className="text-muted" style={{ fontSize: 'var(--fs-xs)', margin: 0 }}>
-          {t('pf.theoretical')}
-        </p>
-      )}
-      <Button block minHeight={44} onClick={onClose}>
+      {/* Always visible, in both view modes: nothing is ordered anywhere. */}
+      <p className="text-muted" style={{ fontSize: 'var(--fs-xs)', margin: 0 }}>
+        {t('pf.theoretical')}
+      </p>
+      <Button
+        block
+        minHeight={44}
+        disabled={!ticker || sh <= 0 || px <= 0}
+        onClick={() => {
+          dispatch({ type: 'addManualTx', tx: { pfId, side, ticker, shares: sh, price: px, date } });
+          onClose();
+        }}
+      >
         {t('pf.addToPf')}
       </Button>
     </Sheet>

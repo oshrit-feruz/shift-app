@@ -4,6 +4,7 @@ import { Tag } from '../../components/Tag';
 import { Num } from '../../components/Num';
 import { AllocationBar, ALLOC_COLORS } from '../../components/AllocationBar';
 import { FlowStepper } from './FlowStepper';
+import { ProfileGate } from './ProfileGate';
 import { useAppState, useDispatch } from '../../state/appState';
 import { useT } from '../../i18n/useT';
 import { CORE_FUNDS, mapProfile, PROFILES } from '../../lib/advisory';
@@ -16,7 +17,8 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
   const s = useAppState();
   const dispatch = useDispatch();
   const t = useT();
-  const profileKey = mapProfile(s.advAnswers) ?? 'bal';
+  const profileKey = mapProfile(s.advAnswers);
+  if (!profileKey) return <ProfileGate />;
   const profile = PROFILES[profileKey];
 
   return (

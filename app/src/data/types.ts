@@ -16,12 +16,12 @@ export interface SymbolInfo {
   why: { en: string; he: string };
 }
 
+/** A Recovery Detector position: ticker, entry, current — deliberately NO
+ *  day-count field (removed per an explicit product decision; do not add). */
 export interface SatellitePosition {
   ticker: string;
   entryPrice: number;
   currentPrice: number;
-  daysHeld: number;
-  pctOffHigh: number;
 }
 
 export interface Holding {

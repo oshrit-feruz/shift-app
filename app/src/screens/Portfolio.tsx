@@ -19,6 +19,7 @@ import { useLoadable } from '../data/useLoadable';
 import { money, pct, signalColor } from '../lib/format';
 import { TxSheet } from '../sheets/TxSheet';
 import { NewPortfolioSheet } from '../sheets/NewPortfolioSheet';
+import type { StringKey } from '../i18n/strings';
 import type { ScreenProps } from '../App';
 
 export function PortfolioScreen(_: ScreenProps) {
@@ -35,7 +36,21 @@ export function PortfolioScreen(_: ScreenProps) {
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <DataState state={portfolios.state} onRetry={portfolios.retry}>
         {(pfs) => {
-          const list = pfs;
+          const list = [
+            ...pfs,
+            ...s.manualPortfolios.map((m) => ({
+              id: m.id,
+              kind: 'manual' as const,
+              name: m.name,
+              broker: null,
+              logo: null,
+              acct: 'manual entry',
+              syncedAgo: null,
+              total: m.startCash,
+              dayPct: 0,
+              allTimePct: 0,
+            })),
+          ];
           const pf = list[Math.min(s.pfIndex, list.length - 1)];
           const isAgg = pf.kind === 'aggregate';
           const isManual = pf.kind === 'manual';
@@ -209,8 +224,40 @@ export function PortfolioScreen(_: ScreenProps) {
                 {holdings}
               </Card>
 
+              {isManual && (
+                <Card padding="13px 13px 4px" gap={4}>
+                  <CardTitle>{t('pf.txLog')}</CardTitle>
+                  {(() => {
+                    const txs = s.manualTxs.filter((x) => x.pfId === pf.id);
+                    if (txs.length === 0) return <EmptyState>{t('pf.txEmpty')}</EmptyState>;
+                    return txs.map((x, i) => (
+                      <ListRow
+                        key={i}
+                        minHeight={44}
+                        title={
+                          <span style={{ fontSize: 'var(--fs-md)', fontWeight: 'var(--fw-regular)' }}>
+                            {t(`tx.${x.side}` as StringKey)} <Num>{`${x.shares} × ${x.ticker}`}</Num>
+                          </span>
+                        }
+                        subtitle={<Num>{x.date}</Num>}
+                        right={
+                          <Num size={13.5}>
+                            {(x.side === 'sell' ? '+' : '−') +
+                              '$' +
+                              (x.shares * x.price).toLocaleString('en-US', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                          </Num>
+                        }
+                      />
+                    ));
+                  })()}
+                </Card>
+              )}
+
               <LongTermSavings />
-              <TxSheet open={txOpen} onClose={() => setTxOpen(false)} pfName={pf.name} />
+              <TxSheet open={txOpen} onClose={() => setTxOpen(false)} pfId={pf.id} pfName={pf.name} />
               <NewPortfolioSheet open={newPfOpen} onClose={() => setNewPfOpen(false)} />
             </>
           );

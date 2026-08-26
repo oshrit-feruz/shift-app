@@ -3,7 +3,8 @@ import { Button } from '../../components/Button';
 import { Icon } from '../../components/Icon';
 import { LogoTile } from '../../components/TickerTile';
 import { FlowStepper } from './FlowStepper';
-import { InstitutionRows, brokerName } from './InstitutionRows';
+import { InstitutionRows, brokerName, BROKER_URLS } from './InstitutionRows';
+import { OptionCard } from '../../components/OptionCard';
 import { useAppState, useDispatch } from '../../state/appState';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useT } from '../../i18n/useT';
@@ -48,33 +49,24 @@ export function AdvisoryConnect(_: ScreenProps) {
           {BROKERS.map((b) => {
             const selected = s.advBroker === b.key;
             return (
-              <button
+              <OptionCard
                 key={b.key}
-                type="button"
+                active={selected}
+                filled
+                padding="12px 13px"
                 onClick={() => dispatch({ type: 'advBroker', broker: selected ? null : b.key })}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 11,
-                  padding: '12px 13px',
-                  borderRadius: 'var(--radius-md)',
-                  font: 'inherit',
-                  color: 'inherit',
-                  cursor: 'pointer',
-                  textAlign: 'start',
-                  background: selected ? 'var(--color-accent-900)' : 'var(--color-surface)',
-                  border: `1px solid ${selected ? 'var(--color-accent)' : 'var(--color-divider)'}`,
-                }}
               >
-                <LogoTile src={b.logo} size={34} />
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: 'block', fontSize: 'var(--fs-md)', fontWeight: 'var(--fw-semibold)' }}>{b.name}</span>
-                  <span className="text-muted" style={{ display: 'block', fontSize: 'var(--fs-xs)', lineHeight: 1.45 }}>
-                    {b.help[language]}
+                <span style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                  <LogoTile src={b.logo} size={34} />
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', fontSize: 'var(--fs-md)', fontWeight: 'var(--fw-semibold)' }}>{b.name}</span>
+                    <span className="text-muted" style={{ display: 'block', fontSize: 'var(--fs-xs)', lineHeight: 1.45 }}>
+                      {b.help[language]}
+                    </span>
                   </span>
+                  <span style={{ color: 'var(--color-accent)', fontSize: 'var(--fs-md)' }}>{selected ? '✓' : ''}</span>
                 </span>
-                <span style={{ color: 'var(--color-accent)', fontSize: 'var(--fs-md)' }}>{selected ? '✓' : ''}</span>
-              </button>
+              </OptionCard>
             );
           })}
         </div>
@@ -95,7 +87,7 @@ export function AdvisoryConnect(_: ScreenProps) {
               {t('conn.handoffHelp')}
             </p>
             {/* Referral only: opening happens on the broker's own site. */}
-            <Button variant="secondary" block minHeight={42} fontSize={13}>
+            <Button variant="secondary" block minHeight={42} fontSize={13} href={BROKER_URLS[s.advBroker]}>
               {t('conn.openAt', { broker: brokerName(s.advBroker) })} ↗
             </Button>
           </div>
