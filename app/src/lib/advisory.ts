@@ -40,6 +40,19 @@ export interface Profile {
  * PLACEHOLDER FUND NAMES — realistic but NOT signed off. Which specific
  * ETFs/funds the product recommends is a material product decision; these
  * must be reviewed before anything ships. (Flagged in README as well.)
+ *
+ * DOMICILE / TAX: every ticker here is a US-domiciled ETF. For Israeli
+ * investors that carries US dividend withholding and US estate-tax exposure
+ * on US-situs assets, which Irish-domiciled (UCITS) equivalents are commonly
+ * used to mitigate. Deliberately not switched here: the licensed execution
+ * partner determines the actual available fund universe, so this is decided
+ * once that partner is finalized — not in this file. Confirm the tax
+ * treatment with a qualified adviser rather than treating this note as the
+ * analysis.
+ *
+ * `globalGovBonds` intentionally has no entry: the placeholder it carried
+ * (VEA) is a developed-markets equity fund, not a government-bond one.
+ * The record is Partial so the gap is explicit rather than mislabelled.
  */
 export const CORE_FUNDS: Partial<Record<CoreCategory, string>> = {
   developedIndex: 'iShares Core MSCI EAFE ETF · IEFA',

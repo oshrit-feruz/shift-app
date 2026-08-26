@@ -101,5 +101,13 @@ Two operational notes for whoever deploys this:
   `app/src/lib/advisory.ts`) are realistic placeholders. The specific global
   government-bond instrument is omitted pending approval; all fund choices
   remain a material product decision.
+- **Fund domicile is unresolved.** Every placeholder above is a
+  **US-domiciled** ETF. For Israeli investors that carries US dividend
+  withholding and US estate-tax exposure on US-situs assets, which
+  Irish-domiciled (UCITS) equivalents are commonly used to mitigate. This is
+  deliberately left as-is for now: the licensed execution partner determines
+  the fund universe actually available, so domicile should be settled
+  together with that partner rather than picked here. Needs confirmation
+  from a qualified tax adviser, not from this note.
 - Broker/provider logos in `app/public/assets/` are third-party brand assets
   carried over from the design mockups for demo purposes.
