@@ -1,0 +1,38 @@
+<!-- @dsCard group="Motion" title="Explainer video" viewport="1920x1080" -->
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&amp;display=swap">
+<link rel="stylesheet" href="_ds/nocturne-dcb98569-e815-4baa-b06f-abb8af2f2592/styles.css">
+<style>
+body { margin: 0; background: #0b1020; font-family: 'Rubik', system-ui, sans-serif; }
+a { color: #A78BFA; } a:hover { color: #DDD6FE; }
+</style>
+<script>window.OM_SCENES = '[{"name":"Hook","dur":8,"desc":"A single line states that investing in Israel today asks more than most people have"},{"name":"Problem","dur":12,"desc":"Three tool cards fly apart — bank app, trading platform, spreadsheet — none built for a beginner"},{"name":"Gap","dur":9,"desc":"A wall of jargon fades in over the scattered cards to show the expertise barrier"},{"name":"Shift","dur":9,"desc":"The three cards converge into one and the SHIFT wordmark pops in"},{"name":"Home","dur":13,"desc":"The phone appears with the home screen: portfolio value counting up, chart drawing, watchlist rows"},{"name":"Broker","dur":11,"desc":"Broker accounts connect one by one on the phone with a read-only badge"},{"name":"Reco","dur":11,"desc":"Four questions answer themselves and a core-satellite portfolio suggestion builds"},{"name":"Desktop","dur":9,"desc":"The phone shrinks aside as the desktop screener window scales in behind it"},{"name":"Close","dur":8,"desc":"Logo, the investor message about a generation with nowhere to start, and an accent rule"}]';</script>
+<script>window.OM_PLAYBACK = '{"mode":"loop"}';</script>
+</helmet>
+<x-import component-from-global-scope="CompositionStage" from="./animations-v3.jsx ./shift-explainer.jsx" width="1920" height="1080" bg="#0F172A" scenes="{{ scenes }}" playback="{{ playback }}" hint-size="100%,100%">
+  <x-import component-from-global-scope="ShiftExplainer" hint-size="100%,100%"></x-import>
+</x-import>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      scenes: window.OM_SCENES,
+      playback: window.OM_PLAYBACK
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root {
+  --color-bg: var(--page-bg-color, #161826);
+  --color-text: var(--text-color, #e9e9ed);
+  --color-surface: #272a3c;
+  --color-divider: var(--divider-color, #3f424d);
+  --color-accent: var(--accent-color, #9184d9);
+  --color-accent-200: var(--accent-light, #d2cefd);
+  --color-accent-700: var(--accent-dark, #423a6a);
+  --color-accent-900: var(--accent-fill, #423a6a);
+  --up: #2fd18a;
+  --down: #f2564e;
+  --font-heading: 'Rubik', system-ui, sans-serif;
+  --card-bg: var(--card-bg-color, #272a3c);
+  --card-padding: var(--card-padding-val, 18px);
+  --card-radius: var(--card-radius-val, 8px);
+  --card-shadow: var(--card-shadow-val, 0 0 0 transparent);
+  --card-backdrop: var(--card-backdrop-val, none);
+  --base-font-size: var(--base-font-val, 13px);
+  --bg-opacity: var(--bg-opacity-val, 0.1);
+}
+body { margin: 0; padding: 20px; background: var(--color-bg); color: var(--color-text); font-family: var(--font-heading); position: relative; overflow-x: hidden; }
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  background-image: 
+    url("data:image/svg+xml,%3Csvg width='600' height='1200' viewBox='0 0 600 1200' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M-200,0 Q100,300 300,600 T700,1200' stroke='%238B5CF6' stroke-width='180' fill='none' opacity='0.2'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg width='600' height='1200' viewBox='0 0 600 1200' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M800,0 Q400,300 200,600 T-200,1200' stroke='%2300D084' stroke-width='160' fill='none' opacity='0.18'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg width='600' height='1200' viewBox='0 0 600 1200' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M50,0 Q150,300 350,600 T600,1200' stroke='%23F2564E' stroke-width='140' fill='none' opacity='0.15'/%3E%3C/svg%3E");
+  background-size: 600px 1200px, 600px 1200px, 600px 1200px;
+  background-position: -100px 0, 200px 100px, -50px 200px;
+  background-repeat: repeat-y;
+}
+.container { position: relative; z-index: 1; }
+h1 { font-size: 20px; margin: 0 0 10px; font-weight: 600; }
+.subtitle { font-size: 12px; color: #75798c; margin-bottom: 24px; }
+.card { background: var(--card-bg); border: 1px solid var(--color-divider); border-radius: var(--card-radius); padding: var(--card-padding); gap: 12px; display: flex; flex-direction: column; margin-bottom: 14px; box-shadow: var(--card-shadow); backdrop-filter: var(--card-backdrop); }
+.card-title { font-size: calc(var(--base-font-size) * 1.15); font-weight: 600; }
+.tag { display: inline-block; padding: 0 8px; height: 24px; border-radius: 4px; font-size: calc(var(--base-font-size) * 0.77); font-weight: 600; background: var(--color-accent-700); color: var(--color-accent-200); width: fit-content; }
+.row { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; margin-bottom: 12px; }
+.muted { color: var(--color-divider); font-size: calc(var(--base-font-size) * 0.92); }
+.core-item { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.core-name { display: flex; gap: 10px; font-size: var(--base-font-size); }
+.core-name span:last-child { font-variant-numeric: tabular-nums; }
+.core-fund { font-size: calc(var(--base-font-size) * 0.85); color: var(--color-divider); }
+.bar { height: 7px; border-radius: 4px; background: var(--color-divider); overflow: hidden; }
+.bar-fill { display: block; height: 100%; border-radius: 4px; background: var(--color-accent); }
+
+.sat-section { border-top: 1px solid var(--color-divider); padding-top: 12px; }
+.sat-label { font-size: calc(var(--base-font-size) * 1.08); font-weight: 600; margin-bottom: 12px; }
+.sat-table { display: flex; flex-direction: column; gap: 0; }
+.sat-header { display: flex; gap: 10px; font-size: calc(var(--base-font-size) * 0.77); text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-divider); padding-bottom: 6px; margin-bottom: 6px; border-bottom: 1px solid var(--color-divider); }
+.sat-row { display: flex; gap: 10px; padding: 9px 0; border-top: 1px solid var(--color-divider); align-items: center; font-size: var(--base-font-size); }
+.sat-row:first-child { border-top: none; }
+.sat-ticker { width: 100px; display: flex; gap: 8px; align-items: center; }
+.sat-tile { width: 24px; height: 24px; border-radius: 4px; background: var(--color-accent-900); color: var(--color-accent-200); display: grid; place-items: center; font-size: 10px; font-weight: 600; }
+.sat-symbol { font-weight: 600; }
+.sat-value { text-align: right; font-variant-numeric: tabular-nums; flex: 1; }
+.sat-value.up { color: var(--up); }
+.sat-value.down { color: var(--down); }
+
+.controls { display: flex; gap: 12px; padding-top: 20px; border-top: 1px solid var(--color-divider); flex-wrap: wrap; }
+.control-group { display: flex; gap: 8px; }
+.control-label { font-size: 12px; color: #75798c; align-self: center; }
+.swatch-btn { padding: 8px 12px; border: 1px solid var(--color-divider); border-radius: 6px; background: transparent; color: var(--color-text); cursor: pointer; font-size: 11px; font-family: var(--font-heading); }
+.swatch-btn:hover { background: var(--color-accent-900); }
+.swatch-btn.active { background: var(--color-accent); color: #161826; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Get a recommendation — קבלי המלצה</h1>
+<div class="subtitle">Balanced · מאוזן · Four questions about horizon, risk and your goals</div>
+
+<div class="card">
+  <div style="display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;">
+    <div class="card-title">Core</div>
+    <span class="muted">100% of the portfolio</span>
+  </div>
+  
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    <div class="core-item">
+      <div class="core-name">
+        <span style="flex: 1;">Developed-market index</span>
+        <span>40%</span>
+      </div>
+      <div class="core-fund">iShares Core MSCI EAFE ETF · IEFA</div>
+      <div class="bar"><span class="bar-fill" style="width: 40%;"></span></div>
+    </div>
+
+    <div class="core-item">
+      <div class="core-name">
+        <span style="flex: 1;">S&P 500 index</span>
+        <span>25%</span>
+      </div>
+      <div class="core-fund">Vanguard S&P 500 ETF · VOO</div>
+      <div class="bar"><span class="bar-fill" style="width: 25%;"></span></div>
+    </div>
+
+    <div class="core-item">
+      <div class="core-name">
+        <span style="flex: 1;">Global government bonds</span>
+        <span>25%</span>
+      </div>
+      <div class="core-fund">Vanguard FTSE Developed Markets ETF · VEA</div>
+      <div class="bar"><span class="bar-fill" style="width: 25%;"></span></div>
+    </div>
+
+    <div class="core-item">
+      <div class="core-name">
+        <span style="flex: 1;">Cash equivalents</span>
+        <span>10%</span>
+      </div>
+      <div class="core-fund">Money Market Fund · VMFXX</div>
+      <div class="bar"><span class="bar-fill" style="width: 10%;"></span></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div style="display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;">
+    <div class="card-title">Satellite</div>
+    <span class="muted">10% of the portfolio · 15% cap</span>
+    <span class="tag">Recovery Detector</span>
+  </div>
+
+  <p class="muted" style="margin: 0;">Recovery Detector is a deterministic strategy: S&P 500 large caps trading 40–60% below their 52-week high, held for a fixed period, with the same rules for every client and no customisation.</p>
+
+  <div class="sat-section">
+    <div class="sat-label">Recovery Detector — פוזיציות פתוחות כרגע</div>
+    
+    <div class="sat-table">
+      <div class="sat-header">
+        <span style="width: 100px;">Symbol</span>
+        <span style="width: 82px; text-align: right;">Entry</span>
+        <span style="width: 82px; text-align: right;">Live</span>
+        <span style="flex: 1; text-align: right;">P/L</span>
+      </div>
+
+      <div class="sat-row">
+        <div class="sat-ticker">
+          <div class="sat-tile">NV</div>
+          <span class="sat-symbol">NVDA</span>
+        </div>
+        <span class="sat-value" style="width: 82px; text-align: right;">$156.20</span>
+        <span class="sat-value" style="width: 82px; text-align: right;">$182.44</span>
+        <span class="sat-value up" style="flex: 1; text-align: right;">+16.8%</span>
+      </div>
+
+      <div class="sat-row">
+        <div class="sat-ticker">
+          <div class="sat-tile">AM</div>
+          <span class="sat-symbol">AMD</span>
+        </div>
+        <span class="sat-value" style="width: 82px; text-align: right;">$138.90</span>
+        <span class="sat-value" style="width: 82px; text-align: right;">$171.35</span>
+        <span class="sat-value up" style="flex: 1; text-align: right;">+23.4%</span>
+      </div>
+
+      <div class="sat-row">
+        <div class="sat-ticker">
+          <div class="sat-tile">LY</div>
+          <span class="sat-symbol">LLY</span>
+        </div>
+        <span class="sat-value" style="width: 82px; text-align: right;">$620.10</span>
+        <span class="sat-value" style="width: 82px; text-align: right;">$742.18</span>
+        <span class="sat-value up" style="flex: 1; text-align: right;">+19.7%</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="control-group">
+    <span class="control-label">Page BG:</span>
+    <input type="text" id="pageBgInput" placeholder="#161826" style="width: 100px; padding: 6px 8px; border: 1px solid var(--color-divider); border-radius: 4px; background: transparent; color: var(--color-text); font-family: monospace; font-size: 11px;" onchange="setPageBgFromInput()">
+  </div>
+
+  <div class="control-group">
+    <span class="control-label">Card BG:</span>
+    <input type="text" id="cardBgInput" placeholder="#272a3c" style="width: 100px; padding: 6px 8px; border: 1px solid var(--color-divider); border-radius: 4px; background: transparent; color: var(--color-text); font-family: monospace; font-size: 11px;" onchange="setCardBgFromInput()">
+  </div>
+  
+  <div class="control-group">
+    <span class="control-label">Accent:</span>
+    <input type="text" id="accentInput" placeholder="#9184d9" style="width: 100px; padding: 6px 8px; border: 1px solid var(--color-divider); border-radius: 4px; background: transparent; color: var(--color-text); font-family: monospace; font-size: 11px;" onchange="setAccentFromInput()">
+  </div>
+
+  <div class="control-group">
+    <span class="control-label">Text:</span>
+    <input type="text" id="textInput" placeholder="#e9e9ed" style="width: 100px; padding: 6px 8px; border: 1px solid var(--color-divider); border-radius: 4px; background: transparent; color: var(--color-text); font-family: monospace; font-size: 11px;" onchange="setTextColorFromInput()">
+  </div>
+
+  <div class="control-group">
+    <span class="control-label">Divider:</span>
+    <input type="text" id="dividerInput" placeholder="#3f424d" style="width: 100px; padding: 6px 8px; border: 1px solid var(--color-divider); border-radius: 4px; background: transparent; color: var(--color-text); font-family: monospace; font-size: 11px;" onchange="setDividerColorFromInput()">
+  </div>
+
+  <div class="control-group">
+    <span class="control-label">Font size (px):</span>
+    <input type="number" id="fontSizeInput" placeholder="13" min="10" max="20" step="0.5" style="width: 60px; padding: 6px 8px; border: 1px solid var(--color-divider); border-radius: 4px; background: transparent; color: var(--color-text); font-family: monospace; font-size: 11px;" onchange="setFontSizeFromInput()">
+  </div>
+
+  <div class="control-group">
+    <span class="control-label">Padding (px):</span>
+    <input type="number" id="paddingInput" placeholder="18" min="8" max="32" step="1" style="width: 60px; padding: 6px 8px; border: 1px solid var(--color-divider); border-radius: 4px; background: transparent; color: var(--color-text); font-family: monospace; font-size: 11px;" onchange="setPaddingFromInput()">
+  </div>
+
+  <div class="control-group">
+    <span class="control-label">Radius (px):</span>
+    <input type="number" id="radiusInput" placeholder="8" min="0" max="16" step="1" style="width: 60px; padding: 6px 8px; border: 1px solid var(--color-divider); border-radius: 4px; background: transparent; color: var(--color-text); font-family: monospace; font-size: 11px;" onchange="setRadiusFromInput()">
+  </div>
+
+  <div class="control-group">
+    <span class="control-label">Effect:</span>
+    <select id="shadowInput" style="width: 140px; padding: 6px 8px; border: 1px solid var(--color-divider); border-radius: 4px; background: transparent; color: var(--color-text); font-family: var(--font-heading); font-size: 11px;" onchange="setShadowFromInput()">
+      <option value="0 0 0 transparent">None</option>
+      <option value="0 2px 8px rgba(0,0,0,0.2)">Subtle shadow</option>
+      <option value="0 4px 12px rgba(0,0,0,0.3)">Medium shadow</option>
+      <option value="0 8px 24px rgba(0,0,0,0.4)">Strong shadow</option>
+      <option value="glass">Glassmorphism</option>
+    </select>
+  </div>
+
+  <div class="control-group">
+    <span class="control-label">Glass blur (px):</span>
+    <input type="number" id="blurInput" placeholder="10" min="0" max="30" step="1" style="width: 60px; padding: 6px 8px; border: 1px solid var(--color-divider); border-radius: 4px; background: transparent; color: var(--color-text); font-family: monospace; font-size: 11px;" onchange="updateGlassEffect()">
+  </div>
+
+  <div class="control-group">
+    <span class="control-label">Glass opacity (%):</span>
+    <input type="number" id="opacityInput" placeholder="20" min="0" max="100" step="5" style="width: 60px; padding: 6px 8px; border: 1px solid var(--color-divider); border-radius: 4px; background: transparent; color: var(--color-text); font-family: monospace; font-size: 11px;" onchange="updateGlassEffect()">
+  </div>
+
+  <div class="control-group">
+    <span class="control-label">BG shapes opacity (%):</span>
+    <input type="number" id="bgOpacityInput" placeholder="10" min="0" max="100" step="5" style="width: 60px; padding: 6px 8px; border: 1px solid var(--color-divider); border-radius: 4px; background: transparent; color: var(--color-text); font-family: monospace; font-size: 11px;" onchange="setBgOpacityFromInput()">
+  </div>
+</div>
+</div>
+
+<script>
+function setPageBg(color) {
+  if (color && /^#[0-9a-fA-F]{6}$/.test(color)) {
+    document.documentElement.style.setProperty('--page-bg-color', color);
+    document.getElementById('pageBgInput').value = color;
+  }
+}
+
+function setPageBgFromInput() {
+  const input = document.getElementById('pageBgInput').value;
+  setPageBg(input);
+}
+
+function setCardBg(color) {
+  if (color && /^#[0-9a-fA-F]{6}$/.test(color)) {
+    document.documentElement.style.setProperty('--card-bg-color', color);
+    document.getElementById('cardBgInput').value = color;
+  }
+}
+
+function setCardBgFromInput() {
+  const input = document.getElementById('cardBgInput').value;
+  setCardBg(input);
+}
+
+function setAccent(color) {
+  if (color && /^#[0-9a-fA-F]{6}$/.test(color)) {
+    const h = parseInt(color.slice(1), 16);
+    const [r, g, b] = [(h >> 16) & 255, (h >> 8) & 255, h & 255];
+    const light = `rgba(${r}, ${g}, ${b}, 0.2)`;
+    const dark = `rgba(${r}, ${g}, ${b}, 0.15)`;
+    
+    document.documentElement.style.setProperty('--accent-color', color);
+    document.documentElement.style.setProperty('--accent-light', light);
+    document.documentElement.style.setProperty('--accent-dark', dark);
+    document.documentElement.style.setProperty('--accent-fill', dark);
+    
+    document.getElementById('accentInput').value = color;
+  }
+}
+
+function setAccentFromInput() {
+  const input = document.getElementById('accentInput').value;
+  setAccent(input);
+}
+
+function setTextColor(color) {
+  if (color && /^#[0-9a-fA-F]{6}$/.test(color)) {
+    document.documentElement.style.setProperty('--text-color', color);
+    document.getElementById('textInput').value = color;
+  }
+}
+
+function setTextColorFromInput() {
+  const input = document.getElementById('textInput').value;
+  setTextColor(input);
+}
+
+function setDividerColor(color) {
+  if (color && /^#[0-9a-fA-F]{6}$/.test(color)) {
+    document.documentElement.style.setProperty('--divider-color', color);
+    document.getElementById('dividerInput').value = color;
+  }
+}
+
+function setDividerColorFromInput() {
+  const input = document.getElementById('dividerInput').value;
+  setDividerColor(input);
+}
+
+function setFontSize(size) {
+  if (size && size > 0) {
+    document.documentElement.style.setProperty('--base-font-val', size + 'px');
+    document.getElementById('fontSizeInput').value = size;
+  }
+}
+
+function setFontSizeFromInput() {
+  const input = parseFloat(document.getElementById('fontSizeInput').value);
+  setFontSize(input);
+}
+
+function setPadding(val) {
+  if (val && val > 0) {
+    document.documentElement.style.setProperty('--card-padding-val', val + 'px');
+    document.getElementById('paddingInput').value = val;
+  }
+}
+
+function setPaddingFromInput() {
+  const input = parseFloat(document.getElementById('paddingInput').value);
+  setPadding(input);
+}
+
+function setRadius(val) {
+  if (val >= 0) {
+    document.documentElement.style.setProperty('--card-radius-val', val + 'px');
+    document.getElementById('radiusInput').value = val;
+  }
+}
+
+function setRadiusFromInput() {
+  const input = parseFloat(document.getElementById('radiusInput').value);
+  setRadius(input);
+}
+
+function setShadow(shadow) {
+  document.documentElement.style.setProperty('--card-shadow-val', shadow);
+  document.getElementById('shadowInput').value = shadow;
+}
+
+function setShadowFromInput() {
+  const input = document.getElementById('shadowInput').value;
+  if (input === 'glass') {
+    updateGlassEffect();
+  } else {
+    setShadow(input);
+    document.documentElement.style.setProperty('--card-backdrop-val', 'none');
+  }
+}
+
+function setBgOpacity(val) {
+  if (val >= 0 && val <= 100) {
+    const opacity = val / 100;
+    const svg1 = `url('data:image/svg+xml;utf8,<svg width="533" height="232" viewBox="0 0 533 232" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M46.8596 4.52583C34.8108 3.01724 22.762 1.50864 10.7132 4.52995e-05C8.96769 21.8469 10.5414 41.3492 14.1781 61.5785C24.5811 137.806 91.6882 203.953 165.943 214.15C180.829 217.012 195.335 218.465 210.477 218.997C252.727 220.229 296.482 215.874 335.099 195.01C373.697 175.408 402.415 129.152 390.353 84.6039C383.966 56.4581 357.915 30.6076 326.521 30.7455C316.756 30.2413 304.314 34.2435 297.355 43.3729C290.297 52.3074 288.187 62.4843 287.329 71.7984C285.953 90.6508 289.647 108.062 294.875 124.848C306.246 157.821 322.214 190.607 356.132 211.931C364.153 216.477 373.869 219.959 384.507 219.901C407.795 221.014 436.281 206.645 446.14 183.532C456.707 161.287 457.012 138.432 455.18 116.958C453.763 102.75 451.174 90.1845 452.766 78.9948C454.585 62.8351 464.513 50.3098 479.998 42.8799C495.595 35.2078 513.979 31.769 532.398 29.8016" stroke="%231A67BF" stroke-width="20" stroke-linecap="round" opacity="${opacity}" fill="none"/></svg>')`;
+    const svg2 = `url('data:image/svg+xml;utf8,<svg width="362" height="359" viewBox="0 0 362 359" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M197.308 346.484C197.308 342.609 197.308 338.734 197.308 334.859C185.011 333.346 172.807 323.873 166.063 312.041C154.74 292.558 152.634 268.06 153.296 244.172C155.435 204.944 176.454 166.621 190.407 124.862C196.932 103.85 204.959 80.7153 197.137 53.2364C188.251 24.3037 159.262 11.7597 137.111 6.87289C107.702 0.988809 75.7586 -6.60242 41.1091 10.4727C14.213 24.36 7.66134 58.2699 10.6746 80.6752C15.4303 143.822 82.7023 180.841 137.334 173.04C152.745 171.317 168.019 169.148 183.218 166.707C243.62 155.087 277.06 107.849 320.619 82.5991C333.371 74.9849 346.993 69.1052 361.418 66.952" stroke="%2300D084" stroke-width="18" stroke-linecap="round" opacity="${opacity}" fill="none"/></svg>')`;
+    const svg3 = `url('data:image/svg+xml;utf8,<svg width="267" height="417" viewBox="0 0 267 417" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M131.743 404.249C132.501 400.449 133.259 396.649 134.017 392.849C122.35 389.612 110.27 384.901 99.6109 379.057C85.2929 371.286 72.2744 359.884 70.4738 347.411C68.3486 335.121 76.5874 321.435 87.4955 309.656V309.656C98.0179 298.047 109.534 286.798 119.535 271.993C129.776 257.776 136.062 235.063 130.365 216.029C118.863 178.626 93.6942 156.243 70.4417 133.379C58.0997 121.801 47.0672 108.895 42.6675 96.3719C28.5403 64.774 87.7934 41.6509 130.442 31.1622C180.704 16.6636 248.459 42.3918 249.343 99.6353" stroke="%238B5CF6" stroke-width="16" stroke-linecap="round" opacity="${opacity}" fill="none"/></svg>')`;
+    
+    document.documentElement.style.setProperty('--bg-shapes', `${svg1}, ${svg2}, ${svg3}`);
+    document.getElementById('bgOpacityInput').value = val;
+  }
+}
+
+function setBgOpacityFromInput() {
+  const input = parseFloat(document.getElementById('bgOpacityInput').value);
+  setBgOpacity(input);
+}
+
+function updateGlassEffect() {
+  const blur = document.getElementById('blurInput').value || 10;
+  const opacity = (document.getElementById('opacityInput').value || 20) / 100;
+  const bgColor = document.getElementById('cardBgInput').value;
+  
+  // Convert hex to RGB for rgba
+  const h = bgColor.slice(1);
+  const [r, g, b] = [h.slice(0, 2), h.slice(2, 4), h.slice(4, 6)].map(x => parseInt(x, 16));
+  
+  document.documentElement.style.setProperty('--card-bg-color', `rgba(${r}, ${g}, ${b}, ${opacity})`);
+  document.documentElement.style.setProperty('--card-backdrop-val', `blur(${blur}px)`);
+  document.documentElement.style.setProperty('--card-shadow-val', '0 8px 32px rgba(0, 0, 0, 0.1)');
+  document.getElementById('shadowInput').value = 'glass';
+}
+
+// Light mode
+document.getElementById('pageBgInput').value = '#F1F5F9';
+document.getElementById('cardBgInput').value = '#121829';
+document.getElementById('accentInput').value = '#4F46E5';
+document.getElementById('textInput').value = '#FFFFFF';
+document.getElementById('dividerInput').value = '#929BAC';
+document.getElementById('fontSizeInput').value = 14;
+document.getElementById('paddingInput').value = 18;
+document.getElementById('radiusInput').value = 16;
+document.getElementById('shadowInput').value = 'glass';
+document.getElementById('blurInput').value = 6;
+document.getElementById('opacityInput').value = 80;
+document.getElementById('bgOpacityInput').value = 100;
+
+// Apply on load
+setPageBg('#F1F5F9');
+setCardBg('#121829');
+setAccent('#4F46E5');
+setTextColor('#FFFFFF');
+setDividerColor('#929BAC');
+setFontSize(14);
+setRadius(16);
+setBgOpacity(100);
+document.getElementById('blurInput').value = 6;
+document.getElementById('opacityInput').value = 80;
+updateGlassEffect();
+</script>
+</body>
+</html>

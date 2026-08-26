@@ -1,0 +1,1189 @@
+
+const UP = 'var(--up)', DN = 'var(--down)';
+const LOGOS = { NVDA: window.__resources.a_sym_nvda_svg, AAPL: window.__resources.a_sym_aapl_svg, MSFT: window.__resources.a_sym_msft_svg, GOOGL: window.__resources.a_sym_googl_svg, META: window.__resources.a_sym_meta_svg, AMZN: window.__resources.a_sym_amzn_svg, TSLA: window.__resources.a_sym_tsla_svg, AVGO: window.__resources.a_sym_avgo_svg, JPM: window.__resources.a_sym_jpm_svg, LLY: window.__resources.a_sym_lly_svg, XOM: window.__resources.a_sym_xom_svg, UNH: window.__resources.a_sym_unh_svg, COST: window.__resources.a_sym_cost_svg, JNJ: window.__resources.a_sym_jnj_svg, WMT: window.__resources.a_sym_wmt_svg, V: window.__resources.a_sym_v_svg, MA: window.__resources.a_sym_ma_svg, NFLX: window.__resources.a_sym_nflx_svg, TEVA: window.__resources.a_sym_teva_png, MDA: window.__resources.a_sym_mda_png, AMD: window.__resources.a_sym_amd_png };
+const tile = (t, px) => {
+  const p = px || 34, url = LOGOS[t];
+  const base = 'width:' + p + 'px;height:' + p + 'px;flex:none;border-radius:9px;display:grid;place-items:center;font-size:' + (p < 30 ? 9 : 10.5) + 'px;font-weight:600;';
+  return url
+    ? base + 'background-color:#fff;background-image:url(' + url + ');background-size:74%;background-position:center;background-repeat:no-repeat'
+    : base + 'background:var(--color-accent-900);color:var(--color-accent-200)';
+};
+
+const HE_PLAIN = {
+  NVDA: 'שבבים שמריצים מרכזי נתונים של AI', AAPL: 'אייפון, מק ושירותים', MSFT: 'ווינדוס, אופיס וענן Azure',
+  AMD: 'יצרנית שבבים מתחרה ל-NVIDIA', TSLA: 'מכוניות חשמליות ואגירת אנרגיה', JPM: 'הבנק הגדול בארה״ב',
+  XOM: 'נפט וגז טבעי', LLY: 'תרופות להרזיה וסוכרת', TEVA: 'יצרנית תרופות גנריות', MDA: 'לוויינים ורובוטיקה לחלל'
+};
+const HE_WHY = {
+  NVDA: 'תחזית הכנסות ממרכזי נתונים מעל הקונצנזוס', AAPL: 'אנליסט העלה מחיר יעד לקראת אייפון 17',
+  MSFT: 'סימני שאלה על הוצאות התרחבות ב-Azure', AMD: 'זכייה בעיצוב למאיץ MI400 החדש',
+  TSLA: 'המסירות באירופה ירדו שוב ביולי', JPM: 'תחזית הכנסות מריבית עלתה',
+  XOM: 'הנפט ירד על נתוני ביקוש', LLY: 'תוצאות שלב 3 ל-GLP-1 בכמוסה',
+  TEVA: 'תחזית מחירי הגנריקה השתפרה', MDA: 'לוחות הזמנים לזכייה בחוזה נדחו'
+};
+
+const SYMS = [
+  { t: 'NVDA', n: 'NVIDIA', p: 182.44, c: 2.31, vol: '148.2M', mc: '4.45T', pe: 52.1, rsi: 61, sec: 'Technology', plain: 'Chips that power AI data centres', why: 'Data-centre revenue guide above consensus' },
+  { t: 'AAPL', n: 'Apple', p: 226.79, c: 0.42, vol: '41.6M', mc: '3.36T', pe: 34.8, rsi: 55, sec: 'Technology', plain: 'iPhone, Mac and services', why: 'Analyst raised target on iPhone 17 cycle' },
+  { t: 'MSFT', n: 'Microsoft', p: 508.12, c: -0.67, vol: '18.9M', mc: '3.78T', pe: 36.2, rsi: 48, sec: 'Technology', plain: 'Windows, Office and Azure cloud', why: 'Azure capacity spending questioned' },
+  { t: 'AMD', n: 'Advanced Micro', p: 171.35, c: 4.86, vol: '62.4M', mc: '277B', pe: 88.4, rsi: 72, sec: 'Technology', plain: 'Rival chipmaker to NVIDIA', why: 'New MI400 accelerator design win' },
+  { t: 'TSLA', n: 'Tesla', p: 334.62, c: -3.18, vol: '96.1M', mc: '1.08T', pe: 197.5, rsi: 38, sec: 'Consumer', plain: 'Electric cars and energy storage', why: 'European deliveries fell again in July' },
+  { t: 'JPM', n: 'JPMorgan Chase', p: 291.04, c: 0.88, vol: '9.2M', mc: '812B', pe: 14.6, rsi: 58, sec: 'Financials', plain: 'The largest US bank', why: 'Net interest income outlook lifted' },
+  { t: 'XOM', n: 'Exxon Mobil', p: 112.47, c: -1.24, vol: '15.7M', mc: '486B', pe: 14.1, rsi: 44, sec: 'Energy', plain: 'Oil and natural gas', why: 'Crude slipped on demand data' },
+  { t: 'LLY', n: 'Eli Lilly', p: 742.18, c: 1.96, vol: '3.4M', mc: '705B', pe: 61.9, rsi: 63, sec: 'Healthcare', plain: 'Weight-loss and diabetes drugs', why: 'Phase 3 readout for oral GLP-1' },
+  { t: 'TEVA', n: 'Teva Pharmaceutical', p: 18.42, c: 1.21, vol: '12.4M', mc: '21B', pe: 9.8, rsi: 58, sec: 'Health care', plain: 'Generic medicines maker', why: 'Generics pricing outlook improved' },
+  { t: 'MDA', n: 'MDA Space', p: 29.14, c: -1.42, vol: '2.1M', mc: '3.6B', pe: 31.2, rsi: 47, sec: 'Industrials', plain: 'Satellites and space robotics', why: 'Contract award timing slipped' }
+];
+
+class Component extends DCLogic {
+  state = { aggEx: {}, advConnOpen: null, wl: ['NVDA', 'AMD', 'LLY', 'JPM', 'AAPL', 'MSFT', 'TSLA', 'XOM'], advAns: [], advStage: 0, advBroker: null, advConn: {}, tour: 0, done: {}, page: 0, open: 0, broker: 'global', docs: {}, acct: 'plain', fund: 250, firstBuy: 'etf', cmp: ['NVDA', 'AMD', 'MSFT'], cmpRange: '1Y', newsTab: 'All', earnScope: 'All companies', earnDay: 'Mon', notifSet: { push: true, email: true, sms: false, digest: true, movers: false }, q: '', searchOpen: false, notifOpen: false, read: false, txOpen: false, txSide: 'buy', txT: 'NVDA', txSh: '10', txPx: '182.44', newPfOpen: false, onboardSeen: false, mode: 'beginner', screen: 'home', ticker: 'NVDA', alertOpen: false, alertKind: 'price', tf: '3M', ind: { ma: true, rsi: true, macd: false }, pfIdx: 0, moverTab: 'Gainers', sector: 'All', alertUpThreshold: '', alertDownThreshold: '', notifHistoryOpen: false, notifHistory: [] };
+
+  updateAlertUp = (e) => this.setState({ alertUpThreshold: e.target.value });
+  updateAlertDown = (e) => this.setState({ alertDownThreshold: e.target.value });
+
+  advVals() {
+    const s = this.state, he = (this.props.language ?? 'en') === 'he';
+    const T = (en, hb) => he ? hb : en;
+    const ans = s.advAns || [];
+
+    const QS = [
+      { q: T('How long can this money stay invested?', 'לכמה זמן הכסף הזה יכול להישאר מושקע?'),
+        opts: [[1, T('Under 2 years', 'פחות משנתיים')], [2, T('Two to seven years', 'שנתיים עד 7 שנים')], [3, T('More than seven years', 'יותר מ-7 שנים')]] },
+      { q: T('The market drops 20% in a month. What do you do?', 'השוק יורד 20% בחודש. מה את עושה?'),
+        opts: [[1, T('I would sell — a 10% drop already worries me', 'הייתי מוכרת — גם ירידה של 10% מלחיצה אותי')], [2, T('I would hold and stop looking', 'הייתי מחזיקה ומפסיקה להסתכל')], [3, T('I would buy more', 'הייתי קונה עוד')]] },
+      { q: T('What is this money for?', 'למה הכסף הזה מיועד?'),
+        opts: [[1, T('Keeping what I have', 'לשמור על מה שיש')], [2, T('Growing at the pace of the market', 'לצמוח בקצב השוק')], [3, T('Beating the market over years', 'להשיג יותר מהשוק לאורך שנים')]] },
+      { q: T('If something unexpected happens — do you have cash set aside?', 'אם יקרה משהו לא צפוי — יש לך מזומן בצד?'),
+        opts: [[1, T('No — this is all the money I have', 'לא — זה כל הכסף שיש לי')], [2, T('A month or two of expenses', 'חודש-חודשיים של הוצאות')], [3, T('Several months, untouched', 'כמה חודשים, שלא נוגעים בהם')]] }
+    ];
+
+    const score = ans.reduce((a, b) => a + b, 0);
+    const hard = ans.length >= 4 && (ans[0] === 1 || ans[3] === 1);
+    const key = ans.length < 4 ? null : hard ? 'cons' : score <= 7 ? 'cons' : score <= 10 ? 'bal' : 'growth';
+    const PROFILES = {
+      cons: { name: T('Conservative', 'סולידי'), sat: 0,
+        blurb: T('Capital preservation first. Mostly bonds and a broad developed-market index, no satellite sleeve.', 'שמירה על הכסף קודם כול. בעיקר אג״ח ומדד עולמי רחב, בלי רכיב Satellite.'),
+        core: [[T('Global government bonds', 'אג״ח ממשלתי גלובלי'), 45], [T('Developed-market index', 'מדד שווקים מפותחים'), 30], [T('Corporate bonds', 'אג״ח קונצרני'), 15], [T('Cash equivalents', 'שווי מזומן'), 10]] },
+      bal: { name: T('Balanced', 'מאוזן'), sat: 10,
+        blurb: T('A broad index core with a bond cushion, plus a small rules-based satellite sleeve.', 'ליבה של מדדים רחבים עם כרית אג״ח, ועוד רכיב Satellite קטן שמנוהל לפי כללים.'),
+        core: [[T('Developed-market index', 'מדד שווקים מפותחים'), 40], [T('S&P 500 index', 'מדד S&P 500'), 25], [T('Global government bonds', 'אג״ח ממשלתי גלובלי'), 25]] },
+      growth: { name: T('Growth', 'צמיחה'), sat: 15,
+        blurb: T('Equity-heavy core across regions, with the largest satellite sleeve the rules allow.', 'ליבה מנייתית רחבה על פני אזורים, עם רכיב Satellite בגודל המקסימלי שהכללים מתירים.'),
+        core: [[T('S&P 500 index', 'מדד S&P 500'), 40], [T('Developed-market index', 'מדד שווקים מפותחים'), 25], [T('Emerging markets index', 'מדד שווקים מתעוררים'), 10], [T('Global government bonds', 'אג״ח ממשלתי גלובלי'), 10]] }
+    };
+    const prof = key ? PROFILES[key] : PROFILES.bal;
+
+    const log = [];
+    ans.forEach((v, i) => {
+      log.push({ who: 'bot', text: QS[i].q });
+      log.push({ who: 'me', text: (QS[i].opts.find(o => o[0] === v) || ['', ''])[1] });
+    });
+    if (ans.length < 4) log.push({ who: 'bot', text: QS[ans.length].q });
+
+    const bubble = who => 'max-width:82%;padding:10px 13px;font-size:16px;line-height:1.5;border-radius:14px;' +
+      (who === 'me'
+        ? 'background:var(--color-accent-800);color:var(--acc-pale);border-end-end-radius:5px'
+        : 'background:var(--sunk);border:1px solid var(--color-divider);border-end-start-radius:5px');
+
+    const SAT = [
+      { t: 'MRNA', entry: 24.8, p: 31.15, days: 74, off: 58 },
+      { t: 'ALB', entry: 62.4, p: 71.05, days: 118, off: 51 },
+      { t: 'TEVA', entry: 14.9, p: 18.42, days: 41, off: 44 },
+      { t: 'MDA', entry: 31.2, p: 29.14, days: 12, off: 47 }
+    ];
+
+    const ORDER = ['advChat', 'advDisc', 'advDash', 'advConnect', 'advBuy'];
+    return {
+      isAdvChat: s.screen === 'advChat', isAdvDisc: s.screen === 'advDisc', isAdvDash: s.screen === 'advDash',
+      isAdvConnect: s.screen === 'advConnect', isAdvBuy: s.screen === 'advBuy',
+      isAdvFlow: ORDER.includes(s.screen) && !s.advSolo,
+      connSolo: !!s.advSolo, connFlow: !s.advSolo,
+      lStepPrev: T('Back', 'הקודם'), lStepNext: T('Next', 'הבא'),
+      advPrev: () => this.setState(st => { const i = ORDER.indexOf(st.screen); return i > 0 ? { screen: ORDER[i - 1] } : {}; }),
+      advNext: () => this.setState(st => { const i = ORDER.indexOf(st.screen); return i >= 0 && i < Math.min(st.advStage || 0, 4) ? { screen: ORDER[i + 1] } : {}; }),
+      advPrevStyle: (() => { const i = ORDER.indexOf(s.screen); const on = i > 0; return 'white-space:nowrap;flex:none;padding:6px 10px;border-radius:999px;border:1px solid var(--color-divider);background:var(--sunk);font:inherit;font-size:12.5px;cursor:' + (on ? 'pointer' : 'default') + ';color:inherit;opacity:' + (on ? '1' : '.3'); })(),
+      advNextStyle: (() => { const i = ORDER.indexOf(s.screen); const on = i >= 0 && i < Math.min(s.advStage || 0, 4); return 'white-space:nowrap;flex:none;padding:6px 10px;border-radius:999px;border:1px solid var(--color-divider);background:var(--sunk);font:inherit;font-size:12.5px;cursor:' + (on ? 'pointer' : 'default') + ';color:inherit;opacity:' + (on ? '1' : '.3'); })(),
+      advDots: ORDER.map((k, i) => { const cur = ORDER.indexOf(s.screen); return { style: 'width:' + (i === cur ? '18px' : '6px') + ';height:6px;border-radius:4px;background:' + (i === cur ? 'var(--color-accent)' : i <= (s.advStage || 0) ? 'var(--acc-dim)' : 'var(--line)') }; }),
+      goAdvisor: () => this.setState(st => ({ screen: ORDER[Math.min(st.advStage || 0, 4)], advSolo: false, searchOpen: false, notifOpen: false, alertOpen: false })),
+      goAdvChat: () => this.setState({ screen: 'advChat', advSolo: false }),
+      goAdvDisc: () => this.setState(st => ({ screen: 'advDisc', advSolo: false, advStage: Math.max(st.advStage || 0, 1) })),
+      goAdvDash: () => this.setState(st => ({ screen: 'advDash', advSolo: false, advStage: Math.max(st.advStage || 0, 2) })),
+      goAdvConnect: () => this.setState(st => ({ screen: 'advConnect', advSolo: false, advStage: Math.max(st.advStage || 0, 3) })),
+      goAdvBuy: () => this.setState(st => ({ screen: 'advBuy', advSolo: false, advStage: Math.max(st.advStage || 0, 4) })),
+      goAdvConnectDirect: () => this.setState({ screen: 'advConnect', advSolo: true }),
+      finishSetup: () => this.setState({ screen: 'home', advStage: 5 }),
+      pauseSetup: () => this.setState({ screen: 'home' }),
+      resumeSetup: () => this.setState(st => ({ screen: ORDER[Math.min(st.advStage || 0, 4)], advSolo: false, searchOpen: false, notifOpen: false, alertOpen: false })),
+      showSetupBanner: (ans.length > 0 || (s.advStage || 0) > 0) && (s.advStage || 0) < 5,
+      setupIncomplete: (s.advStage || 0) < 5,
+      setupPctW: Math.round(((s.advStage || 0) / 5) * 100) + '%',
+      lSetupProgress: T('Step ' + (Math.min(s.advStage || 0, 4) + 1) + ' of 5', 'שלב ' + (Math.min(s.advStage || 0, 4) + 1) + ' מתוך 5'),
+      lSetupBanner: T('Complete your setup', 'השלימי את ההגדרה'),
+      lSetupResume: T('Continue', 'להמשיך'),
+      lSetupSection: T('Setup', 'הגדרה ראשונית'),
+      lInstRow: T('Connect institutions — bank, pension, hishtalmut', 'חיבור מוסדות — בנק, פנסיה, קרן השתלמות'),
+      lTourRow: T('App tour', 'סיור באפליקציה'),
+      lLater: T('Continue later', 'אמשיך אחר כך'),
+      lSkipStep: T('Skip this step', 'דלגי על השלב הזה'),
+      lFromLibrary: T('From the library', 'מהספרייה'),
+      lOpenLibrary: T('Open the library', 'לספרייה המלאה'),
+      eduChatTitle: T('An ETF buys the whole basket', 'קרן סל קונה את כל הסל'),
+      eduChatBody: T('One thing you buy that holds hundreds of companies at once — which is why the Core below is built from ETF categories, not single stocks.', 'דבר אחד שקונים והוא מחזיק מאות חברות בבת אחת — ולכן הליבה שתראי בהמשך בנויה מקטגוריות של קרנות סל, לא ממניות בודדות.'),
+      eduCoreBody: T('Never put it all in one place: several unrelated markets means no single mistake decides your result.', 'לא לשים הכול במקום אחד: כמה שווקים שאינם קשורים זה לזה — וטעות אחת לא קובעת את התוצאה.'),
+      lChooseBroker: T('Connect your accounts', 'לחיבור החשבונות'),
+      lConnExisting: T('Accounts you already have', 'חשבונות שכבר יש לך'),
+      lBrokerTitle: T('Where will the account live?', 'איפה החשבון ייפתח?'),
+      lBrokerHelp: T('Three routes — none of them is wrong, just different. You can change your mind later.', 'שלושה מסלולים — אף אחד מהם לא שגוי, רק שונה. אפשר לשנות אחר כך.'),
+      lBrokerNext: s.advBroker ? T('Continue', 'המשך') : T('Continue without choosing', 'המשך בלי לבחור'),
+      brokerChosen: !!s.advBroker,
+      lHandoffTitle: T('Opening happens at the broker', 'הפתיחה עצמה נעשית אצל הברוקר'),
+      lHandoffHelp: T('Shift sends you to their signup with your details ready. When the account exists, come back and link it here read-only.', 'Shift מפנה אותך לטופס ההרשמה שלהם. כשהחשבון קיים, חוזרים לכאן ומחברים אותו לקריאה בלבד.'),
+      lHandoffCta: (s.advBroker === 'ibkr' ? T('Open an account at Interactive Brokers', 'לפתיחת חשבון ב-Interactive Brokers') : s.advBroker === 'colmex' ? T('Open an account at Colmex Pro', 'לפתיחת חשבון ב-Colmex Pro') : T('Open an account at Blink', 'לפתיחת חשבון ב-Blink')),
+      brokerOpts: [
+        ['blink', 'Blink', window.__resources.a_broker_blink_webp, T('Hebrew-first, a simple app, low minimums — the easy start.', 'בעברית, אפליקציה פשוטה, מינימום נמוך — ההתחלה הקלה.')],
+        ['ibkr', 'Interactive Brokers', window.__resources.a_broker_ibkr_png, T('The widest market access, lowest fees at larger amounts.', 'הגישה הרחבה ביותר לשווקים, והעמלות הנמוכות בסכומים גדולים.')],
+        ['colmex', 'Colmex Pro', window.__resources.a_broker_colmex_webp, T('Israeli service with phone support in Hebrew.', 'שירות ישראלי עם תמיכה טלפונית בעברית.')]
+      ].map(([k, name, logo, help]) => ({
+        name, help, img: 'url(' + logo + ')',
+        check: s.advBroker === k ? '✓' : '',
+        pick: () => this.setState({ advBroker: k }),
+        style: 'display:flex;align-items:center;gap:11px;padding:12px 13px;border-radius:var(--radius-md);font:inherit;color:inherit;cursor:pointer;text-align:start;background:' + (s.advBroker === k ? 'var(--color-accent-900)' : 'var(--color-surface)') + ';border:1px solid ' + (s.advBroker === k ? 'var(--color-accent)' : 'var(--color-divider)')
+      })),
+      lConnTitle: T('Connect your accounts — read-only', 'חיבור החשבונות שלך — לקריאה בלבד'),
+      lConnHelp: T('Optional, every one of them. Shift only reads balances and positions — it can never move money. You can come back to this any time from Settings → Setup.', 'הכול אופציונלי. Shift רק קורא יתרות ופוזיציות — הוא לא יכול להזיז כסף. אפשר לחזור לכאן בכל רגע מהגדרות ← הגדרה ראשונית.'),
+      lConnNote: T('Skipped something? It waits here — connecting a pension fund later does not repeat the flow.', 'דילגת על משהו? זה מחכה כאן — חיבור קרן פנסיה אחר כך לא מחזיר אותך לתחילת התהליך.'),
+      lConnNext: T('Continue', 'המשך'),
+      lConnDone: T('Done', 'סיימתי'),
+      lConnHelpSolo: T('Optional, every one of them. Shift only reads balances and positions — it can never move money. Connect what you like, whenever you like.', 'הכול אופציונלי. Shift רק קורא יתרות ופוזיציות — הוא לא יכול להזיז כסף. אפשר לחבר מה שרוצים ומתי שרוצים.'),
+      instRows: [
+        ['broker', T('Broker', 'ברוקר'), 'B', [['Blink', window.__resources.a_broker_blink_webp], ['Interactive Brokers', window.__resources.a_broker_ibkr_png], ['Colmex Pro', window.__resources.a_broker_colmex_webp], [T('Meitav Trade', 'מיטב טרייד'), window.__resources.a_prov_meitav_jpg], [T('Excellence Trade', 'אקסלנס טרייד'), window.__resources.a_prov_excellence_jpg]]],
+        ['bank', T('Bank account', 'חשבון בנק'), '₪', [[T('Leumi', 'לאומי'), window.__resources.a_prov_leumi_png], [T('Hapoalim', 'הפועלים'), window.__resources.a_prov_hapoalim_jpg], [T('Discount', 'דיסקונט'), window.__resources.a_prov_discount_svg], [T('Mizrahi-Tefahot', 'מזרחי-טפחות'), window.__resources.a_prov_mizrahi_jpg], ['One Zero', window.__resources.a_prov_onezero_png]]],
+        ['pension', T('Pension fund', 'קרן פנסיה'), T('P', 'פ'), [[T('Menora Mivtachim', 'מנורה מבטחים'), window.__resources.a_prov_menora_webp], [T('Harel', 'הראל'), window.__resources.a_prov_harel_png], [T('Migdal', 'מגדל'), window.__resources.a_prov_migdal_png], [T('The Phoenix', 'הפניקס'), window.__resources.a_prov_phoenix_png], [T('Altshuler Shaham', 'אלטשולר שחם'), window.__resources.a_prov_altshuler_png]]],
+        ['hisht', T('Keren Hishtalmut', 'קרן השתלמות'), T('K', 'ה'), [[T('Altshuler Shaham', 'אלטשולר שחם'), window.__resources.a_prov_altshuler_png], [T('Yelin Lapidot', 'ילין לפידות'), window.__resources.a_prov_yelin_png], [T('More', 'מור'), window.__resources.a_prov_more_png], [T('Analyst', 'אנליסט'), window.__resources.a_prov_analyst_webp], [T('The Phoenix', 'הפניקס'), window.__resources.a_prov_phoenix_png]]]
+      ].map(([k, n, init, provs]) => {
+        const conn = s.advConn || {};
+        const chosen = typeof conn[k] === 'string' ? conn[k] : (k === 'broker' && s.advBroker ? (s.advBroker === 'ibkr' ? 'Interactive Brokers' : s.advBroker === 'colmex' ? 'Colmex Pro' : 'Blink') : null);
+        const openNow = s.advConnOpen === k;
+        return {
+          n, init, openNow,
+          sub: chosen || T('Choose who to connect', 'בחרי את מי לחבר'),
+          badge: chosen ? T('✓ Connected', '✓ מחובר') : openNow ? T('Close', 'סגירה') : T('Connect', 'לחבר'),
+          badgeStyle: 'flex:none;white-space:nowrap;padding:7px 13px;border-radius:999px;font-size:12.5px;' + (chosen ? 'border:1px solid var(--color-accent);background:var(--color-accent-900);color:var(--color-accent-200)' : 'border:1px solid var(--color-divider);background:var(--sunk);color:inherit'),
+          toggleOpen: () => this.setState(st => ({ advConnOpen: st.advConnOpen === k ? null : k })),
+          provs: provs.map(([label, logo]) => ({
+            label,
+            logoStyle: logo ? 'width:18px;height:18px;flex:none;border-radius:5px;background-color:#fff;background-image:url(' + logo + ');background-size:contain;background-repeat:no-repeat;background-position:center' : 'display:none',
+            pick: () => this.setState(st => ({ advConn: Object.assign({}, st.advConn, { [k]: (st.advConn || {})[k] === label ? null : label }), advConnOpen: null })),
+            style: 'display:flex;align-items:center;gap:7px;padding:8px 13px;border-radius:999px;font:inherit;font-size:16px;cursor:pointer;' + (chosen === label ? 'border:1px solid var(--color-accent);background:var(--color-accent-800);color:var(--acc-pale)' : 'border:1px solid var(--color-divider);background:var(--sunk);color:inherit')
+          }))
+        };
+      }),
+      lBuyTitle: T('Your first purchase — a simulation', 'הקנייה הראשונה — סימולציה'),
+      lBuyHelp: T('This is what the recommendation looks like as an order list. Nothing is bought here — when you are ready, it happens at your broker.', 'כך ההמלצה נראית כרשימת קנייה. שום דבר לא נקנה כאן — כשתהיי מוכנה, זה קורה אצל הברוקר שלך.'),
+      lBuyExample: T('Example with $10,000', 'דוגמה עם $10,000'),
+      buyRows: prof.core.map(([name, p], i) => ({
+        name, pctStr: p + '%', w: p + '%',
+        amtStr: '$' + (p * 100).toLocaleString('en-US'),
+        color: ['var(--color-accent)', 'var(--acc-lite)', 'var(--acc-dim)', 'var(--color-accent-700)'][i % 4]
+      })),
+      satAmtStr: '$' + (prof.sat * 100).toLocaleString('en-US'),
+      satPctOnly: prof.sat + '%',
+      lFinish: T('Done — to the dashboard', 'סיימנו — לדשבורד'),
+      resetAdvisor: () => this.setState({ advAns: [], advStage: 0, screen: 'advChat' }),
+
+      cAfterHrs: T("Aug 21, 4:00 PM ET · after hrs", "21 באוג׳, 16:00 ET · אחרי המסחר"),
+      cWatchAdd: T("Watchlist", "לווטצ׳ליסט"),
+      cAddAlert: T("Add alert", "הוספת התראה"),
+      cChartHelp: T("Up about {{ sd.range3m }} over three months. The line is each day's closing price — where the stock finished the day.", "עלייה של בערך {{ sd.range3m }} בשלושה חודשים. הקו הוא מחיר הסגירה של כל יום — איפה המניה סיימה את היום."),
+      cAnalyst: T("Analyst ratings", "דירוגי אנליסטים"),
+      cConsensus: T("Buy", "קנייה"),
+      cAnalystMeta: T("53 analysts · PT $214 (+17%)", "53 אנליסטים · מחיר יעד $214 (+17%)"),
+      cRateSb: T("Strong buy 31", "קנייה חזקה 31"),
+      cRateB: T("Buy 11", "קנייה 11"),
+      cRateH: T("Hold 8", "החזקה 8"),
+      cRateS: T("Sell 3", "מכירה 3"),
+      cNextEarn: T("Next earnings", "הדוח הבא"),
+      cNov: T("Nov", "נוב׳"),
+      cTotalValue: T("· total value", "· שווי כולל"),
+      cTodayWord: T("today", "היום"),
+      cAllocation: T("Allocation", "חלוקה"),
+      cHoldings: T("Holdings", "החזקות"),
+      cColSym: T("Sym", "סימבול"),
+      cColLast: T("Last", "אחרון"),
+      cColChg: T("Chg%", "שינוי%"),
+      cColVol: T("Vol", "מחזור"),
+      cScreenerTitle: T("Screener", "סקרינר"),
+      cScreenerHelp: T("Filtering 6,412 symbols across twenty metrics needs a wide screen. Open SHIFT on desktop and it's in the sidebar.", "סינון של 6,412 סימבולים לפי עשרים מדדים דורש מסך רחב. פתחי את SHIFT בדסקטופ והוא בסרגל הצד."),
+      cEpsEst: T("EPS est", "צפי EPS"),
+      cImplied: T("implied", "תנועה משתמעת"),
+      cRemind: T("Remind", "תזכורת"),
+      cIndexed: T("Indexed to 100 at the start of the window", "מנורמל ל-100 בתחילת התקופה"),
+      cArtOne: T("one", "אחת"),
+      cArtShare: T("share", "מניה"),
+      cArtRest: T("the rest", "כל השאר"),
+      cArtOfCo: T("of the co.", "מהחברה"),
+      cArtDay: T("day to day", "מיום ליום"),
+      cArtYears: T("years", "שנים"),
+      cArtAllOne: T("all in one", "הכול במקום אחד"),
+      cArtSpread: T("spread out", "מפוזר"),
+      cArt7: T("7 right", "7 צדקו"),
+      cArtWins: T("small wins", "רווחים קטנים"),
+      cArt3: T("3 wrong", "3 טעו"),
+      cArtSmall: T("kept small", "נשמרו קטנים"),
+      cArtOneEtf: T("one ETF", "קרן סל אחת"),
+      cArtHundreds: T("hundreds of", "מאות"),
+      cArtCompanies: T("companies", "חברות"),
+      cArtOneBuy: T("in one purchase", "בקנייה אחת"),
+      cArtCash: T("cash you may need soon", "כסף שאולי תצטרכי בקרוב"),
+      cArtBroad: T("broad ETFs", "קרנות סל רחבות"),
+      cArtSingle: T("single stocks", "מניות בודדות"),
+      cArtTop: T("smallest slice on top", "הפרוסה הקטנה בפסגה"),
+      cArtToStart: T("to start", "להתחלה"),
+      cArtSmallFine: T("small is fine", "גם קטן זה בסדר"),
+      cArtMoreLater: T("more later", "אפשר להוסיף אחר כך"),
+      cTransferHelp: T("A bank transfer usually lands in one to three working days. Money sitting in the account is still yours and still uninvested until you buy something.", "העברה בנקאית נכנסת בדרך כלל בתוך יום עד שלושה ימי עסקים. כסף שיושב בחשבון הוא עדיין שלך ועדיין לא מושקע, עד שתקני משהו."),
+      cAfterBuyTitle: T("What happens after you press buy", "מה קורה אחרי שלוחצים קנייה"),
+      cAfterBuyBody: T("The order fills in seconds during market hours. You will see it in your positions, and from then on the only job is leaving it alone.", "הפקודה מתבצעת בשניות בשעות המסחר. תראי אותה בפוזיציות, ומשם התפקיד היחיד הוא לא לגעת."),
+      cLinkedBrokers: T("Connected accounts", "חשבונות מחוברים"),
+      cLinkedHelp: T("Brokers, bank, pension and hishtalmut in one place. SHIFT reads balances and positions and can never move money.", "ברוקרים, בנק, פנסיה וקרן השתלמות במקום אחד. SHIFT קורא יתרות ופוזיציות ולא יכול להזיז כסף."),
+      cConnect: T("Connect", "לחבר"),
+      cSecNotif: T("Notifications", "התראות"),
+      cSecData: T("Data &amp; display", "נתונים ותצוגה"),
+      cSecAccount: T("Account", "חשבון"),
+      cDeleteAcct: T("Delete account", "מחיקת חשבון"),
+      cPush: T("Push", "פוש"),
+      cEmail: T("Email", "אימייל"),
+      cNoMatch: T('No match for', 'אין תוצאה עבור'),
+      cNoMatchHelp: T("Try a ticker like NVDA, or a company name.", "נסי סימבול כמו NVDA, או שם של חברה."),
+      cNotifTitle: T("Notifications", "התראות"),
+      cMarkRead: T("Mark all read", "לסמן הכול כנקרא"),
+      cManageRules: T("Manage alert rules", "לנהל כללי התראה"),
+      cTxTitle: T("Add transaction", "הוספת עסקה"),
+      cFSymbol: T("Symbol", "סימבול"),
+      cFShares: T("Shares", "מניות"),
+      cFPrice: T("Price / share", "מחיר למניה"),
+      cFDate: T("Date", "תאריך"),
+      cFirstRun: T("First run", "הפעלה ראשונה"),
+      cFirstRunQ: T("How much detail do you want on screen?", "כמה מידע את רוצה לראות על המסך?"),
+      cFirstRunHelp: T("You can switch in the header any time. Nothing you save depends on this.", "אפשר להחליף בכותרת בכל רגע. שום דבר שנשמר לא תלוי בזה."),
+      cSkipNow: T("Skip for now", "לדלג בינתיים"),
+      lModeRow: T('Detail level', 'רמת הפירוט'),
+      lModeHelp: T('Beginner shows plain language and fewer numbers; Advanced shows every metric. Nothing you save depends on it.', 'מתחילים מציג שפה פשוטה ופחות מספרים; מקצועי מציג את כל המדדים. שום דבר שנשמר לא תלוי בזה.'),
+      lLongTerm: T('Long-term savings', 'חיסכון ארוך טווח'),
+      lReadOnlyTag: T('Read-only', 'קריאה בלבד'),
+      lLongTermEmpty: T('Pension, Keren Hishtalmut and bank balances show up here once you connect them.', 'קרן הפנסיה, קרן ההשתלמות והבנק יופיעו כאן ברגע שתחברי אותם.'),
+      lLongTermCta: T('Connect an institution', 'לחיבור מוסד'),
+      hasLongTerm: !!((s.advConn || {}).pension || (s.advConn || {}).hisht || (s.advConn || {}).bank),
+      noLongTerm: !((s.advConn || {}).pension || (s.advConn || {}).hisht || (s.advConn || {}).bank),
+      longTermRows: [
+        ['pension', T('Pension fund', 'קרן פנסיה'), T('P', 'פ'), '$86,340', '+6.2% YTD'],
+        ['hisht', T('Keren Hishtalmut', 'קרן השתלמות'), T('K', 'ה'), '$31,120', '+5.4% YTD'],
+        ['bank', T('Bank balance', 'יתרת עו״ש'), '₪', '$7,860', '']
+      ].filter(([k]) => (s.advConn || {})[k]).map(([k, n, init, value, ytd]) => ({
+        n, init, value, ytd,
+        sub: ((s.advConn || {})[k] || '') + ' · ' + T('synced 12 min ago', 'סונכרן לפני 12 דק׳')
+      })),
+      lTrackSelf: T('Do it yourself', 'לבד, בקצב שלי'),
+      lTrackSelfSub: T('Browse, pick your own, log your own trades.', 'לחקור, לבחור בעצמך, לרשום עסקאות.'),
+      lTrackHere: T('You are here', 'את כאן'),
+      lTrackAdvisor: T('Get a recommendation', 'קבלי המלצה'),
+      lTrackAdvisorSub: T('Four questions, then a suggested portfolio.', 'ארבע שאלות, ואז הצעה לתיק.'),
+      lAdvisoryTag: T('Informational only', 'מידע בלבד'),
+      lNoActionTag: T('No action taken in your account', 'טרם בוצעה פעולה בחשבון'),
+      lChatIntro: T('Four questions about horizon, risk, goal and your safety net. The answers map to one of three fixed profiles — the same answers always give the same profile.', 'ארבע שאלות על אופק, סיכון, מטרה וכרית הביטחון. התשובות ממופות לאחד משלושה פרופילים קבועים — אותן תשובות תמיד יתנו את אותו פרופיל.'),
+      lPickOne: T('Pick one', 'בחרי אחת'),
+      lYourProfile: T('Your profile', 'הפרופיל שלך'),
+      lConfirmProfile: T('Confirm profile', 'אשר פרופיל'),
+      lRestart: T('Start over', 'להתחיל מחדש'),
+      lRedoChat: T('Redo the questions', 'לענות מחדש'),
+      lBack: T('Back', 'חזרה'),
+      lDiscTitle: T('Before you see the recommendation', 'לפני שמוצגת ההמלצה'),
+      lDiscLead: T('Read these four points. They describe exactly what this track does and does not do.', 'ארבע נקודות שמתארות בדיוק מה המסלול הזה עושה ומה לא.'),
+      lSeeRecommendation: T('Show the recommendation', 'להצגת ההמלצה'),
+      lCore: T('Core', 'ליבה (Core)'),
+      lCoreHelp: T('Index-fund categories only. No single stock is picked for you here.', 'קטגוריות של קרנות מחקות בלבד. אין כאן בחירה של מניה בודדת בשבילך.'),
+      lSatellite: T('Satellite', 'Satellite (רכיב לווין)'),
+      lSatPositions: T('Current satellite positions', 'הפוזיציות בפועל'),
+      lLivePrices: T('Live prices', 'מחירים חיים'),
+      lNextStep: T('Next: where the account lives', 'הצעד הבא: איפה החשבון ייפתח'),
+      lNextStepHelp: T('Nothing is executed inside Shift. Acting on this means choosing a broker and connecting it read-only — the next two steps, both skippable.', 'שום פקודה לא מתבצעת בתוך Shift. לפעול על ההמלצה אומר לבחור ברוקר ולחבר אותו לקריאה בלבד — שני הצעדים הבאים, ושניהם ניתנים לדילוג.'),
+      lOpenBrokerFlow: T('Go to broker connections', 'למסך חיבור הברוקרים'),
+      lCoreSatIntro: T('A Core-Satellite split: a broad index core, and — where the profile allows it — a small rules-based satellite sleeve.', 'חלוקת Core-Satellite: ליבה של מדדים רחבים, ובמקום שהפרופיל מתיר — רכיב Satellite קטן שמנוהל לפי כללים.'),
+
+      chatLog: log.map(m => ({ text: m.text, align: m.who === 'me' ? 'flex-end' : 'flex-start', bubble: bubble(m.who) })),
+      chatAsking: ans.length < 4,
+      chatDone: ans.length >= 4,
+      chatOptions: ans.length < 4 ? QS[ans.length].opts.map(([v, label]) => ({
+        label, pick: () => this.setState(st => ({ advAns: (st.advAns || []).concat(v) }))
+      })) : [],
+      profileName: prof.name,
+      profileBlurb: prof.blurb + (hard ? ' ' + T('(A horizon under 2 years or no safety net always maps to Conservative.)', '(אופק מתחת לשנתיים או בלי כרית ביטחון תמיד ממופה לסולידי.)') : ''),
+      profileAnswers: [T('Horizon', 'אופק'), T('Risk', 'סיכון'), T('Goal', 'מטרה'), T('Safety net', 'כרית ביטחון')].map((k, i) => ({
+        k, v: ans[i] ? (QS[i].opts.find(o => o[0] === ans[i]) || ['', ''])[1] : '—'
+      })),
+      discPoints: [
+        T('This is a recommendation, not a managed account. Shift never places an order and never moves money.', 'זו המלצה, לא ניהול תיק. Shift לא שולח פקודות ולא מזיז כסף.'),
+        T('The profile comes from a fixed mapping of your four answers. There is no human advisor and no discretion.', 'הפרופיל נגזר ממיפוי קבוע של ארבע התשובות. אין כאן יועץ אנושי ואין שיקול דעת.'),
+        T('The satellite sleeve follows one published rule set, identical for every client, and is capped at 15% of the portfolio.', 'רכיב ה-Satellite פועל לפי מערכת כללים אחת, זהה לכל לקוח, ומוגבל ל-15% מהתיק.'),
+        T('Past behaviour of these rules is not a promise about the future. You can lose money.', 'התנהגות הכללים בעבר אינה הבטחה לעתיד. אפשר להפסיד כסף.')
+      ].map((text, i) => ({ n: i + 1, text })),
+
+      coreRows: prof.core.map(([name, p], i) => {
+        const funds = {
+          'אג״ח ממשלתי גלובלי': 'Vanguard FTSE Developed Markets ETF · VEA',
+          'Global government bonds': 'Vanguard FTSE Developed Markets ETF · VEA',
+          'מדד שווקים מפותחים': 'iShares Core MSCI EAFE ETF · IEFA',
+          'Developed-market index': 'iShares Core MSCI EAFE ETF · IEFA',
+          'מדד S&P 500': 'Vanguard S&P 500 ETF · VOO',
+          'S&P 500 index': 'Vanguard S&P 500 ETF · VOO',
+          'אג״ח קונצרני': 'iShares Investment Grade Corporate Bond ETF · LQD',
+          'Corporate bonds': 'iShares Investment Grade Corporate Bond ETF · LQD',
+          'שווי מזומן': 'Money Market Fund · VMFXX',
+          'Cash equivalents': 'Money Market Fund · VMFXX',
+          'מדד שווקים מתעוררים': 'iShares MSCI Emerging Markets ETF · EEM',
+          'Emerging markets index': 'iShares MSCI Emerging Markets ETF · EEM'
+        };
+        return {
+          name, pctStr: p + '%', w: p + '%',
+          fund: funds[name] || 'TBD',
+          color: ['var(--color-accent)', 'var(--acc-lite)', 'var(--acc-dim)', 'var(--color-accent-700)'][i % 4]
+        };
+      }),
+      corePctStr: (100 - prof.sat) + '%',
+      hasSatellite: prof.sat > 0,
+      satPctStr: prof.sat + '% ' + T('of the portfolio', 'מהתיק'),
+      lSatHelp: T('Recovery Detector is a deterministic strategy — no discretion, no per-person tuning.', 'Recovery Detector היא אסטרטגיה דטרמיניסטית — בלי שיקול דעת ובלי התאמה אישית.'),
+      satRules: [
+        T('S&P 500 large caps only', 'מניות גדולות במדד S&P 500 בלבד'),
+        T('Entry when the price is 40–60% below its 52-week high', 'כניסה כשהמחיר נמוך ב-40%–60% מהשיא של 52 שבועות'),
+        T('Held for a fixed 180 days, then closed by rule', 'החזקה קבועה של 180 יום, ואז סגירה לפי הכלל'),
+        T('The same rules for every client — nothing is customised per person', 'אותם כללים לכל לקוח — אין התאמה אישית'),
+        T('Capped at 15% of the portfolio', 'מוגבל ל-15% מהתיק')
+      ].map(text => ({ text })),
+      satPositions: SAT.map(x => {
+        const pl = ((x.p - x.entry) / x.entry) * 100;
+        return {
+          t: x.t, mono: x.t.slice(0, 2), tile: tile(x.t, 34),
+          priceStr: '$' + x.p.toFixed(2),
+          plStr: (pl >= 0 ? '+' : '') + pl.toFixed(1) + '%',
+          color: pl >= 0 ? UP : DN,
+          meta: he
+            ? 'כניסה $' + x.entry.toFixed(2) + ' · ' + x.days + ' יום · ' + x.off + '% מהשיא'
+            : 'entry $' + x.entry.toFixed(2) + ' · ' + x.days + ' days held · ' + x.off + '% off high',
+          open: () => this.setState({ screen: 'stock', ticker: x.t })
+        };
+      }),
+      satHasPositions: SAT && SAT.length > 0,
+      alertUpThreshold: s.alertUpThreshold,
+      alertDownThreshold: s.alertDownThreshold,
+      updateAlertUp: this.updateAlertUp,
+      updateAlertDown: this.updateAlertDown
+    };
+  }
+
+  rng(seed) { let s = seed; return () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; }; }
+  series(seed, n, drift, vol) {
+    const r = this.rng(seed); let v = 100; const out = [];
+    for (let i = 0; i < n; i++) { v += (r() - 0.47) * (vol || 3) + (drift || 0); out.push(v); }
+    return out;
+  }
+  fit(vals, w, h, pad) {
+    const lo = Math.min(...vals), hi = Math.max(...vals), sp = (hi - lo) || 1, p = pad == null ? 6 : pad;
+    return vals.map((v, i) => [i * (w / (vals.length - 1)), h - p - ((v - lo) / sp) * (h - p * 2)]);
+  }
+  line(pts) { return pts.map((q, i) => (i ? 'L' : 'M') + q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join(' '); }
+  area(pts, h) { return this.line(pts) + ' L' + pts[pts.length - 1][0].toFixed(1) + ' ' + h + ' L0 ' + h + ' Z'; }
+  pct(v) { return (v >= 0 ? '+' : '') + v.toFixed(2) + '%'; }
+  col(v) { return v >= 0 ? UP : DN; }
+  ma(vals, n) {
+    return vals.map((_, i) => {
+      const s = Math.max(0, i - n + 1), sl = vals.slice(s, i + 1);
+      return sl.reduce((a, b) => a + b, 0) / sl.length;
+    });
+  }
+
+  chip(active, big) {
+    return 'padding:' + (big ? '7px 13px' : '5px 11px') + ';border-radius:999px;font:inherit;font-size:16px;cursor:pointer;white-space:nowrap;' +
+      (active ? 'border:1px solid var(--color-accent);color:var(--color-accent);background:color-mix(in srgb,var(--color-accent) 14%,transparent)'
+              : 'border:1px solid var(--color-divider);color:color-mix(in srgb,var(--color-text) 68%,transparent);background:transparent');
+  }
+  pill(active) {
+    return 'padding:5px 12px;border-radius:999px;font-size:12.5px;' + (active ? 'background:var(--color-accent-800);color:var(--acc-pale)' : 'color:color-mix(in srgb,var(--color-text) 55%,transparent)');
+  }
+  tab(active) {
+    return 'flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;min-height:48px;padding:7px 0;border:0;background:transparent;cursor:pointer;font:inherit;' +
+      (active ? 'color:var(--color-accent-200)' : 'color:color-mix(in srgb,var(--color-text) 45%,transparent)');
+  }
+  modeCard(active) {
+    return 'display:block;width:100%;text-align:start;padding:12px;border-radius:var(--radius-md);cursor:pointer;font:inherit;color:inherit;' +
+      (active ? 'border:1px solid var(--color-accent);background:color-mix(in srgb,var(--color-accent) 10%,transparent)' : 'border:1px solid var(--color-divider);background:transparent');
+  }
+  sheetRow(active) {
+    return 'display:flex;align-items:center;gap:10px;width:100%;min-height:52px;padding:9px 11px;border-radius:var(--radius-md);cursor:pointer;font:inherit;color:inherit;' +
+      (active ? 'border:1px solid var(--color-accent);background:color-mix(in srgb,var(--color-accent) 10%,transparent)' : 'border:1px solid var(--color-divider);background:transparent');
+  }
+
+  go(screen) { return () => this.setState({ screen, fromSteps: false, alertOpen: false, searchOpen: false, notifOpen: false, txOpen: false, newPfOpen: false }); }
+  openStock(t) { return () => this.setState({ screen: 'stock', ticker: t, alertOpen: false, searchOpen: false, notifOpen: false, txOpen: false, newPfOpen: false }); }
+  row(x) {
+    return {
+      t: x.t, n: x.n, sub: null, priceStr: '$' + x.p.toFixed(2), pctStr: this.pct(x.c),
+      absStr: (x.c >= 0 ? '+' : '') + (x.p * x.c / 100).toFixed(2), color: this.col(x.c),
+      vol: x.vol, mc: x.mc, pe: x.pe.toFixed(1), rsi: x.rsi, sector: x.sec, why: x.why, plain: x.plain,
+      tile: tile(x.t), tileSm: tile(x.t, 26), mono: LOGOS[x.t] ? '' : x.t,
+      open: this.openStock(x.t)
+    };
+  }
+
+  chip(on) {
+    return 'padding:6px 12px;border-radius:999px;font:inherit;font-size:16px;white-space:nowrap;cursor:pointer;border:1px solid ' + (on ? 'var(--color-accent)' : 'var(--color-divider)') + ';background:' + (on ? 'var(--color-accent-900)' : 'transparent') + ';color:' + (on ? 'var(--color-accent-300)' : 'inherit');
+  }
+
+  extraVals() {
+    const s = this.state, beg = s.mode === 'beginner';
+    const he = (this.props.language ?? 'en') === 'he';
+    const T = (en, hb) => he ? hb : en;
+    const pct = v => (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
+    const NEWS = [
+      ['09:42', 'Reuters', 'NVDA', 'NVIDIA lifts data-centre outlook as Blackwell shipments accelerate', 'Guidance', 2.31, 'Management said supply, not demand, is the constraint into next quarter.'],
+      ['09:31', 'Bloomberg', 'AMD', 'AMD lands MI400 design win with a top-three cloud provider', 'Product', 4.86, 'The order is multi-year and starts shipping in the first half of next year.'],
+      ['09:18', 'WSJ', 'MSFT', 'Microsoft trims Azure capacity plans for the next two quarters', 'Capex', -0.67, 'Spending moves out, not away — the buildout is being paced rather than cut.'],
+      ['08:55', 'FT', 'TSLA', 'Tesla delivery estimates cut across three brokerages', 'Analyst', -3.18, 'Europe volumes are the common thread in all three notes.'],
+      ['08:40', 'CNBC', 'LLY', 'Lilly weight-loss pill filing accepted for priority review', 'Regulatory', 1.42, 'A decision is expected inside six months.'],
+      ['08:12', 'Reuters', 'JPM', 'JPMorgan flags softer loan demand but holds its outlook', 'Guidance', 0.88, 'Net interest income guidance was unchanged for the full year.'],
+      ['07:30', 'Reuters', 'AAPL', 'Apple supplier orders point to a flat iPhone 17 build', 'Supply chain', 0.42, 'Two suppliers reported bookings in line with last cycle.']
+    ];
+    const mine = ['NVDA', 'AAPL', 'MSFT', 'AMD', 'TSLA', 'JPM'];
+    const feed = NEWS.filter(a => s.newsTab === 'All' || (s.newsTab === 'My watchlist' ? mine.includes(a[2]) : s.newsTab === 'Analyst' ? a[4] === 'Analyst' : s.newsTab === 'Earnings' ? a[4] === 'Guidance' : true));
+
+    const EARN = [
+      ['Mon 25', 'AMC', 'LLY', 'Eli Lilly', '$1.52', '±6.4%'],
+      ['Mon 25', 'BMO', 'XOM', 'Exxon Mobil', '$1.88', '±3.1%'],
+      ['Tue 26', 'AMC', 'CRM', 'Salesforce', '$2.74', '±7.8%'],
+      ['Tue 26', 'BMO', 'JPM', 'JPMorgan Chase', '$4.41', '±2.6%'],
+      ['Wed 27', 'AMC', 'NVDA', 'NVIDIA', '$1.24', '±8.9%'],
+      ['Wed 27', 'AMC', 'CRWD', 'CrowdStrike', '$0.96', '±9.2%'],
+      ['Thu 28', 'AMC', 'AMD', 'Advanced Micro', '$1.14', '±7.4%'],
+      ['Thu 28', 'BMO', 'BABA', 'Alibaba', '$2.09', '±6.8%'],
+      ['Fri 29', 'BMO', 'MRVL', 'Marvell Technology', '$0.62', '±9.8%']
+    ];
+    const watch = this.state.wl || ['NVDA', 'AMD', 'LLY', 'JPM', 'AAPL', 'MSFT', 'TSLA', 'XOM'];
+    const week = [['Mon', '25', 2], ['Tue', '26', 2], ['Wed', '27', 3], ['Thu', '28', 2], ['Fri', '29', 1]];
+
+    const CM = { NVDA: 268, AMD: 214, MSFT: 42, AAPL: 31, TSLA: -18, SPY: 19 };
+    const colors = ['var(--acc-lite)', 'var(--up)', 'var(--color-accent-300)'];
+    const n = 90, W = 340, H = 190;
+    const mkLine = (tk, i) => {
+      const total = CM[tk] ?? 20, r = this.rng(tk.charCodeAt(0) * 31 + i * 7);
+      let v = 100; const pts = [];
+      for (let k = 0; k < n; k++) { v += total / n + (r() - 0.5) * 3.2; pts.push(v); }
+      pts[pts.length - 1] = 100 + total;
+      const y = p => H - 6 - (p - 60) / 340 * (H - 16);
+      return { t: tk, color: colors[i % 3], d: this.line(pts.map((p, k) => [k / (n - 1) * W, y(p)])), perf: (total >= 0 ? '+' : '') + total + '%', perfColor: total >= 0 ? UP : DN };
+    };
+    const M = {
+      NVDA: ['$182.44', '4.45T', '52.1', 'None', '61', '+268%'],
+      AMD: ['$171.35', '277B', '88.4', 'None', '72', '+214%'],
+      MSFT: ['$508.12', '3.78T', '36.2', '0.68%', '48', '+42%'],
+      AAPL: ['$226.79', '3.36T', '34.8', '0.44%', '55', '+31%'],
+      TSLA: ['$334.62', '1.07T', '124.6', 'None', '44', '−18%'],
+      SPY: ['$612.40', '—', '27.4', '1.21%', '57', '+19%']
+    };
+    const keys = ['Last', 'Market cap', 'P/E', 'Dividend', 'RSI(14)', '1-year'];
+    const nStyle = 'display:inline-flex;align-items:center;gap:7px;padding:6px 11px;border-radius:999px;border:1px solid var(--color-divider);background:var(--sunk);font-size:16px';
+    const sw = on => 'width:38px;height:22px;flex:none;border-radius:12px;border:1px solid var(--color-divider);cursor:pointer;padding:2px;display:flex;justify-content:' + (on ? 'flex-end' : 'flex-start') + ';background:' + (on ? 'var(--color-accent-800)' : 'transparent');
+    const kn = on => 'width:16px;height:16px;border-radius:9px;display:block;background:' + (on ? 'var(--color-accent-300)' : 'var(--muted)');
+    const NS = [
+      ['push', T('Push notifications', 'התראות פוש'), T('Price, news and earnings alerts', 'מחיר, חדשות ודוחות')],
+      ['email', T('Email', 'אימייל'), T('Same alerts to noa.k@example.com', 'אותן התראות ל-noa.k@example.com')],
+      ['sms', T('SMS', 'מסרון'), T('Price thresholds only', 'רק רף מחיר')],
+      ['digest', T('Morning digest', 'תקציר בוקר'), T('One message at 08:00', 'הודעה אחת ב-08:00')],
+      ['movers', T('Unusual movers', 'תנועות חריגות'), T('Watchlist moves over 5%', 'תנועה מעל 5% בווטצ׳ליסט')]
+    ];
+    return {
+      newsTabs: [['All', 'הכול'], ['My watchlist', 'הווטצ׳ליסט שלי'], ['Markets', 'שווקים'], ['Calendar', 'לוח דוחות'], ['Analyst', 'אנליסטים']].map(([k, hb]) => ({ label: T(k, hb), style: this.chip(s.newsTab === k), pick: () => this.setState({ newsTab: k }) })),
+      newsShowFeed: s.newsTab !== 'Calendar',
+      newsFeed: feed.map(([time, src, tk, head, tag, c, sum]) => ({
+        time, src, t: tk, head, tag, sum, ago: time + ' ET',
+        pctStr: pct(c), color: c >= 0 ? UP : DN, open: this.openStock(tk)
+      })),
+
+      earnScopes: [['All companies', 'כל החברות'], ['My watchlist', 'הווטצ׳ליסט שלי'], ['High implied move', 'תנועה צפויה גבוהה']].map(([k, hb]) => ({ label: T(k, hb), style: this.chip(s.earnScope === k), pick: () => this.setState({ earnScope: k }) })),
+      earnWeek: week.map(([dow, day, count]) => ({
+        dow: he ? ({ Mon: 'ב׳', Tue: 'ג׳', Wed: 'ד׳', Thu: 'ה׳', Fri: 'ו׳' })[dow] : dow, day, count: he ? count + ' דוחות' : count + ' rep.',
+        mStyle: 'flex:none;width:62px;padding:8px 6px;border-radius:var(--radius-md);text-align:center;cursor:pointer;font:inherit;color:inherit;border:1px solid ' + (s.earnDay === dow ? 'var(--color-accent)' : 'var(--color-divider)') + ';background:' + (s.earnDay === dow ? 'var(--color-accent-900)' : 'transparent'),
+        pick: () => this.setState({ earnDay: dow })
+      })),
+      earnRows: EARN.filter(e => s.earnScope === 'All companies' || (s.earnScope === 'My watchlist' ? watch.includes(e[2]) : parseFloat(e[5].replace(/[^0-9.]/g, '')) >= 7))
+        .map(([date, when, tk, nm, eps, move]) => ({
+          date, when, t: tk, n: nm, eps, move,
+          open: this.openStock(tk),
+          remind: () => this.setState({ screen: 'stock', ticker: tk, alertOpen: true, alertKind: 'earn' })
+        })),
+
+      cmpRanges: ['3M', '6M', '1Y', '5Y'].map(label => ({ label, style: this.chip(s.cmpRange === label), pick: () => this.setState({ cmpRange: label }) })),
+      cmpChips: s.cmp.map((tk, i) => ({ t: tk, color: colors[i % 3], style: nStyle, remove: () => this.setState({ cmp: s.cmp.filter(x => x !== tk) }) })),
+      cmpAdd: ['AAPL', 'TSLA', 'SPY'].filter(x => !s.cmp.includes(x)).slice(0, Math.max(0, 3 - s.cmp.length) ? 3 : 3).map(tk => ({
+        t: tk, add: () => this.setState({ cmp: s.cmp.length >= 3 ? s.cmp : s.cmp.concat([tk]) })
+      })),
+      cmpLinesM: s.cmp.map((tk, i) => mkLine(tk, i)),
+      cmpGridM: [300, 200, 100, 60].map(p => ({ y: (H - 6 - (p - 60) / 340 * (H - 16)).toFixed(1) })),
+      cmpMetrics: keys.map((k, i) => ({
+        k, cells: s.cmp.map(tk => { const v = (M[tk] || [])[i] || '—'; return { v, color: i === 5 ? (String(v).startsWith('−') ? DN : UP) : 'inherit' }; })
+      })),
+
+      setNotif: NS.map(([k, label, help]) => ({
+        k: label, help, style: sw(s.notifSet[k]), knob: kn(s.notifSet[k]),
+        toggle: () => this.setState({ notifSet: Object.assign({}, s.notifSet, { [k]: !s.notifSet[k] }) })
+      })),
+      setData: [
+        { k: T('Currency', 'מטבע'), help: T('Prices and totals', 'מחירים וסכומים'), v: 'USD' },
+        { k: T('Extended hours', 'מחוץ לשעות המסחר'), help: T('Pre-market and after-hours', 'טרום-פתיחה ואחרי נעילה'), v: T('On', 'פעיל') },
+        { k: T('Chart default', 'ברירת מחדל לגרף'), help: T('Advanced view only', 'במצב מקצועי בלבד'), v: T('Candles', 'נרות') },
+        { k: T('Number format', 'תצורת מספרים'), help: T('Separators and abbreviations', 'מפרידים וקיצורים'), v: '1,234 · 4.4T' }
+      ],
+      setAccount: [
+        { k: T('Email', 'אימייל'), v: 'noa.k@example.com' },
+        { k: T('Plan', 'מסלול'), v: 'SHIFT Plus' },
+        { k: T('Two-factor', 'אימות דו-שלבי'), v: T('Authenticator', 'אפליקציית אימות') },
+        { k: T('Devices', 'מכשירים'), v: T('2 signed in', '2 מחוברים') }
+      ]
+    };
+  }
+
+  guideVals() {
+    const s = this.state;
+    const he = (this.props.language ?? 'en') === 'he';
+    const T = (en, hb) => he ? hb : en;
+    const pick = on => 'display:block;width:100%;padding:15px;border-radius:var(--radius-md);text-align:' + (he ? 'right' : 'left') + ';font:inherit;color:inherit;cursor:pointer;background:' + (on ? 'var(--color-accent-900)' : 'var(--color-surface)') + ';border:1px solid ' + (on ? 'var(--color-accent)' : 'var(--color-divider)');
+    const OPEN = [
+      ['Where will the account live?', 'You open an investment account with a broker — a company licensed to hold your shares. Three routes, and none of them is wrong.'],
+      ['What you need in hand', 'Opening takes about fifteen minutes online once you have these four. Tick them off as you find them.'],
+      ['Which kind of account', 'Brokers offer a plain account and, in most countries, at least one with a tax benefit attached.'],
+      ['Move some money in', 'Start with an amount you would not miss. You can always add later, and the first transfer is mostly about proving the pipes work.'],
+      ['Your first purchase', 'This is the part people overthink. For a first buy, broad usually beats clever.']
+    ];
+    const PAGES = [
+      ['A share is a slice of a company', 'Own one share and you own a very small piece of a real business. If the business does better over the years, the piece is usually worth more.'],
+      ['Daily moves say almost nothing', 'Green and red days are noise. What matters is the direction across months and years, and that line is much calmer.'],
+      ['Never put it all in one place', 'If everything you own does the same thing, one bad quarter hits all of it. Several unrelated companies means no single mistake decides your result.'],
+      ['Time does most of the work', 'Gains earn their own gains. Slow at first, then fast — which is why money you might need next year should not be here.'],
+      ['Being wrong is part of it', 'Everyone is wrong sometimes. The trick is keeping each position small enough that it never really hurts.'],
+      ['An ETF buys the whole basket', 'A קרן סל / ETF is one thing you buy that holds hundreds of companies at once. One purchase, instantly spread out — which is why most people start here rather than picking single names.'],
+      ['What "safe" actually means', 'Not a promise of no losses. It means money you need soon stays in cash, the bulk sits in broad ETFs, and single stocks are the small slice on top.'],
+      ['Words you will keep seeing', 'Short definitions for the words the app uses everywhere.']
+    ];
+    const OPEN_HE = [
+      ['איפה החשבון ייפתח?', 'חשבון השקעות נפתח אצל ברוקר — חברה עם רישיון להחזיק את הניירות שלך. שלושה מסלולים, ואף אחד מהם לא שגוי.'],
+      ['מה צריך להכין', 'הפתיחה עצמה לוקחת כרבע שעה אונליין, אחרי שארבעת הדברים האלה מוכנים. סמני כל אחד כשהוא בידיים.'],
+      ['איזה סוג חשבון', 'לכל ברוקר יש חשבון רגיל, ובדרך כלל גם חשבון אחד לפחות עם הטבת מס.'],
+      ['להעביר כסף פנימה', 'התחילי בסכום שלא יחסר לך. אפשר להוסיף בכל רגע, וההעברה הראשונה בעיקר מוכיחה שהצינור עובד.'],
+      ['הקנייה הראשונה', 'זה החלק שאנשים מסבכים. לקנייה ראשונה, רחב עדיף על מתוחכם.']
+    ];
+    const PAGES_HE = [
+      ['מנייה היא פרוסה מחברה', 'מי שמחזיק מנייה אחת מחזיק חלק קטנטן בעסק אמיתי. אם העסק מרוויח יותר עם השנים, החלק הזה בדרך כלל שווה יותר.'],
+      ['תנודות יומיות כמעט לא אומרות כלום', 'ימים אדומים וירוקים הם רעש. מה שחשוב זה הכיוון על פני חודשים ושנים, והקו הזה הרבה יותר רגוע.'],
+      ['לא לשים הכול במקום אחד', 'אם כל מה שאת מחזיקה עושה את אותו דבר, רבעון גרוע אחד פוגע בהכול. כמה חברות שאינן קשורות זו לזו — וטעות אחת לא קובעת את התוצאה.'],
+      ['הזמן עושה את רוב העבודה', 'רווחים מייצרים רווחים משל עצמם. לאט בהתחלה, ואז מהר — ולכן כסף שאולי תצטרכי בשנה הקרובה לא אמור להיות פה.'],
+      ['לטעות זה חלק מהעניין', 'כולם טועים לפעמים. הטריק הוא להשאיר כל פוזיציה קטנה מספיק כדי שהטעות לא תכאב באמת.'],
+      ['קרן סל קונה את כל הסל', 'קרן סל (ETF) היא דבר אחד שקונים והוא מחזיק מאות חברות בבת אחת. קנייה אחת, פיזור מיידי — ולכן רוב האנשים מתחילים כאן ולא בבחירת מניות בודדות.'],
+      ['מה זה באמת "בטוח"', 'זו לא הבטחה שלא תהיה הפסד. זה אומר שכסף שתצטרכי בקרוב נשאר במזומן, עיקר הכסף יושב בקרנות סל רחבות, ומניות בודדות הן הפרוסה הקטנה שמעל.'],
+      ['מילים שתראי שוב ושוב', 'הגדרות קצרות למילים שהאפליקציה משתמשת בהן בכל מקום.']
+    ];
+    const idx = Math.min(s.page || 0, PAGES.length - 1);
+    const STEPS = [
+      ['view', 'Choose how much detail you see', 'You are in Beginner mode: plain language, one idea per card. Settings switches to Advanced whenever you are curious.', 'Compare the two modes', 'more'],
+      ['watch', 'Follow three companies you know', 'Pick businesses you already use — your phone, your bank, the shop you buy from. Watching them costs nothing and teaches you how prices behave.', 'Open the watchlist', 'watch'],
+      ['news', 'Read why one of them moved', 'Open a company and read the two or three headlines under the chart. Soon you will spot which news matters and which is noise.', 'Open the news feed', 'news'],
+      ['learn', 'Browse the learning library', 'Short cards in plain words on the ideas you keep running into — diversification, volatility, time in the market. Read one whenever a term trips you up.', 'Open the library', 'learn'],
+      ['alert', 'Set one alert', 'Choose a price worth knowing about, or ask to be told when the company reports. Then you can close the app instead of checking it.', 'Create an alert', 'watch'],
+      ['paper', 'Practise with no money', 'The Sandbox portfolio records the trades you would have made. Give it a few weeks and see how it did before anything is real.', 'Open Sandbox', 'pf'],
+      ['open', 'Open a real account when you are ready', 'Choose a broker inside Shift and it hands you straight to them — the account is opened on their site, then linked back here read-only.', 'Choose a broker', 'open'],
+      ['broker', 'Then link it here, read-only', 'Linking imports what you already hold so everything sits in one picture. SHIFT can see positions and nothing else — it can never place an order.', 'See broker connections', 'connections']
+    ];
+    const STEPS_HE = [
+      ['view', 'לבחור כמה פירוט את רואה', 'את במצב מתחילים: שפה פשוטה, רעיון אחד לכל כרטיס. בהגדרות עוברים למקצועי מתי שתרצי.', 'להשוות בין שני המצבים', 'more'],
+      ['watch', 'לעקוב אחרי שלוש חברות שאת מכירה', 'תבחרי עסקים שאת כבר משתמשת בהם — הטלפון, הבנק, החנות. מעקב לא עולה כלום ומלמד איך מחירים מתנהגים.', 'לפתוח את הווטצ׳ליסט', 'watch'],
+      ['news', 'לקרוא למה אחת מהן זזה', 'תפתחי חברה ותקראי את שתי-שלוש הכותרות מתחת לגרף. עוד מעט תזהי מה חשוב ומה רעש.', 'לפתוח את החדשות', 'news'],
+      ['learn', 'לעיין בספריית הלמידה', 'כרטיסים קצרים בשפה פשוטה על מושגים שחוזרים — פיזור, תנודתיות, זמן בשוק. אפשר לקרוא אחד בכל פעם שמונח מבלבל.', 'לפתוח את הספרייה', 'learn'],
+      ['alert', 'להגדיר התראה אחת', 'בחרי מחיר ששווה לדעת עליו, או בקשי לדעת כשהחברה מפרסמת דוחות. אחר כך אפשר לסגור את האפליקציה.', 'ליצור התראה', 'watch'],
+      ['paper', 'להתאמן בלי כסף', 'תיק ה-Sandbox רושם את העסקאות שהיית עושה. תני לזה כמה שבועות ותראי מה יצא, לפני שמשהו אמיתי.', 'לפתוח את Sandbox', 'pf'],
+      ['open', 'לפתוח חשבון אמיתי כשמרגיש נכון', 'בוחרים ברוקר בתוך Shift והוא מפנה אותך ישירות אליו — החשבון נפתח אצל הברוקר, ואז מתחבר לכאן לקריאה בלבד.', 'לבחירת ברוקר', 'advBroker'],
+      ['broker', 'ואז לחבר אותו כאן, לקריאה בלבד', 'החיבור מייבא את מה שאת כבר מחזיקה כדי שהכול יהיה בתמונה אחת. SHIFT רואה פוזיציות ולא יותר — הוא לא יכול לבצע פקודות.', 'לראות חיבורי ברוקר', 'connections']
+    ];
+    const TOUR = [
+      ['M4 11l8-7 8 7v8a1 1 0 01-1 1H5a1 1 0 01-1-1z', T('Five tabs at the bottom', 'חמישה טאבים למטה'), T('Home, watchlist, movers, portfolio and More. Every screen starts from one of these five.', 'בית, ווטצ׳ליסט, מובילים, תיק ו״עוד״. כל מסך באפליקציה מתחיל מאחד מחמשת אלה.')],
+      ['M12 15a3 3 0 100-6 3 3 0 000 6M4 12h2M18 12h2M12 4v2M12 18v2', T('Beginner or Advanced', 'מתחילים או מקצועי'), T('In Settings you choose between Beginner and Advanced. Same data, more or less detail — nothing is lost when you switch.', 'בהגדרות בוחרים בין מתחילים למקצועי. אותם נתונים, יותר או פחות פירוט — שום דבר לא הולך לאיבוד כשמחליפים.')],
+      ['M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.35-4.35', T('Search from anywhere', 'חיפוש מכל מקום'), T('The magnifier in the header finds any company by name or ticker, from any screen.', 'הזכוכית המגדלת בכותרת מוצאת כל חברה לפי שם או סימבול, מכל מסך.')],
+      ['M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0', T('Alerts instead of checking', 'התראות במקום לבדוק'), T('On any stock page — Add alert. The app watches the price so you do not have to.', 'בכל דף מניה — הוספת התראה. האפליקציה עוקבת אחרי המחיר במקומך.')],
+      ['M9 11l3 3 9-9M21 12v6a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2h11', T('Everything is tappable', 'הכול לחיץ'), T('Rows open the company behind them, cards expand, and the back arrow always returns you one step.', 'שורות פותחות את החברה שמאחוריהן, כרטיסים נפתחים, וחץ החזרה תמיד מחזיר צעד אחד.')]
+    ];
+    const tIdx = Math.min(s.tour || 0, TOUR.length - 1);
+    const doneN = STEPS.filter(x => s.done[x[0]]).length;
+    const cur = STEPS.find(x => !s.done[x[0]]);
+    const curIdx = cur ? STEPS.indexOf(cur) : -1;
+    const dot = (on, w) => 'height:4px;border-radius:3px;flex:' + (w || 1) + ';background:' + (on ? 'var(--color-accent)' : 'var(--line)');
+    return {
+      isLearn: s.screen === 'learn', isSteps: s.screen === 'steps', isOpen: s.screen === 'open',
+      showBackToSteps: !!s.fromSteps && s.screen !== 'steps',
+      backToSteps: () => this.setState({ screen: 'steps', fromSteps: false, alertOpen: false, searchOpen: false, notifOpen: false }),
+      lBackToSteps: he ? '‹ חזרה לצעדים' : '‹ Back to the steps',
+      goLearn: this.go('learn'), goSteps: this.go('steps'), goHome: this.go('home'), goOpen: () => this.setState(st => ({ screen: 'advConnect', advSolo: true, alertOpen: false, searchOpen: false, notifOpen: false })),
+      stepsProgress: he ? (doneN + ' מתוך ' + STEPS.length + ' הושלמו') : (doneN + ' of ' + STEPS.length + ' done'),
+      dir: he ? 'rtl' : 'ltr',
+      startHereTitle: he ? 'חדשה בהשקעות? מתחילים כאן' : 'New to investing? Start here',
+      lLangNote: he ? 'הניווט, המדריך וההגדרות בעברית. נתוני שוק וכותרות חדשות נשארים באנגלית.' : '',
+      startHereSub: he ? 'מדריך קצר, ואחריו הצעדים' : 'A short guide, then the steps',
+      nowLabel: he ? 'הצעד הבא' : 'Do this now',
+      markDoneLabel: he ? 'סמני כבוצע' : 'Mark as done',
+      allDoneTitle: he ? 'כל הצעדים הושלמו' : 'Every step done',
+      allDoneBody: he ? 'מכאן זה בעיקר לצפות, לקרוא ולחכות. האפליקציה לא תבקש ממך שום דבר נוסף.' : 'From here it is watching, reading and waiting. The app will not ask anything else of you.',
+      goAppLabel: he ? 'לאפליקציה' : 'Go to the app',
+      skipLabel: he ? 'דלגי' : 'Skip',
+      backLabel: he ? 'חזרה' : 'Back',
+      backToGuide: he ? 'חזרה למדריך' : 'Back to the guide',
+      openAccountLink: he ? 'איך בעצם פותחים חשבון?' : 'How do I actually open an account?',
+      stepOfLabel: he ? ('שלב ' + ((s.open || 0) + 1) + ' מתוך 5 · שום דבר כאן עדיין לא אמיתי') : ('Step ' + ((s.open || 0) + 1) + ' of 5 · nothing here is real yet'),
+      docsProgressLabel: he ? (Object.keys(s.docs).filter(k => s.docs[k]).length + ' מתוך 4 מוכנים') : (Object.keys(s.docs).filter(k => s.docs[k]).length + ' of 4 ready'),
+
+      isTour: s.screen === 'tour',
+      goTour: () => this.setState({ screen: 'tour', tour: 0, searchOpen: false, notifOpen: false, alertOpen: false }),
+      tourDots: TOUR.map((x, i) => ({ style: 'width:' + (i === tIdx ? '22px' : '7px') + ';height:7px;border-radius:4px;background:' + (i === tIdx ? 'var(--color-accent)' : i < tIdx ? 'var(--acc-dim)' : 'var(--line)') })),
+      tourIcon: TOUR[tIdx][0], tourTitle: TOUR[tIdx][1], tourBody: TOUR[tIdx][2],
+      tourHasPrev: tIdx > 0,
+      tourNextLabel: tIdx === TOUR.length - 1 ? (he ? 'סיימתי — לאפליקציה' : 'Done — to the app') : (he ? 'הבא' : 'Next'),
+      tourNext: () => this.setState(st => { const i = st.tour || 0; return i >= TOUR.length - 1 ? { screen: 'home' } : { tour: i + 1 }; }),
+      tourPrev: () => this.setState(st => ({ tour: Math.max(0, (st.tour || 0) - 1) })),
+      lLibraryTag: he ? 'ספרייה' : 'Library',
+      lLibrarySub: he ? 'תמיד כאן — כל כרטיס עומד בפני עצמו' : 'Always here — every card stands alone',
+      topicChips: (he
+        ? ['מנייה', 'תנודות', 'פיזור', 'זמן', 'טעויות', 'קרן סל', 'ביטחון', 'מילון']
+        : ['Share', 'Swings', 'Spread', 'Time', 'Mistakes', 'ETF', 'Safety', 'Glossary']
+      ).map((label, i) => ({
+        label,
+        pick: () => this.setState({ page: i }),
+        style: 'flex:none;padding:7px 13px;border-radius:999px;font:inherit;font-size:16px;cursor:pointer;line-height:1.2;white-space:nowrap;color:' + (i === idx ? 'var(--acc-pale)' : 'var(--muted)') + ';background:' + (i === idx ? 'var(--color-accent-800)' : 'transparent') + ';border:1px solid ' + (i === idx ? 'var(--color-accent)' : 'var(--color-divider)')
+      })),
+      pageDots: PAGES.map((p, i) => ({ style: 'width:' + (i === idx ? '22px' : '7px') + ';height:7px;border-radius:4px;background:' + (i === idx ? 'var(--color-accent)' : i < idx ? 'var(--acc-dim)' : 'var(--line)') })),
+      pageTitle: (he ? PAGES_HE : PAGES)[idx][0], pageBody: (he ? PAGES_HE : PAGES)[idx][1],
+      art1: idx === 0, art2: idx === 1, art3: idx === 2, art4: idx === 3, art5: idx === 4, art6: idx === 5, art7: idx === 6, artGlossary: idx === 7,
+      hasPrev: idx > 0,
+      nextLabel: idx === PAGES.length - 1 ? (he ? 'תראי לי מה לעשות' : 'Show me what to do') : (he ? 'הבא' : 'Next'),
+      nextPage: () => this.setState(st => { const i = st.page || 0; return i >= PAGES.length - 1 ? { screen: 'steps' } : { page: i + 1 }; }),
+      prevPage: () => this.setState(st => ({ page: Math.max(0, (st.page || 0) - 1) })),
+      glossary: he ? [
+        { k: 'טיקר', v: 'הקוד הקצר של חברה — NVDA היא NVIDIA.' },
+        { k: 'תיק', v: 'כל מה שאת מחזיקה, במקום אחד.' },
+        { k: 'ווטצ׳ליסט', v: 'חברות שאת עוקבת אחריהן בלי להחזיק.' },
+        { k: 'דוחות', v: 'הדוח הרבעוני של החברה.' },
+        { k: 'דיבידנד', v: 'מזומן שחברות מסוימות משלמות למחזיקים.' },
+        { k: 'קרן סל', v: 'קנייה אחת שמחזיקה הרבה חברות (ETF).' },
+        { k: 'התראה', v: 'הודעה כשקורה משהו שבחרת.' }
+      ] : [
+        { k: 'Ticker', v: 'A company\u2019s short code — NVDA is NVIDIA.' },
+        { k: 'Portfolio', v: 'Everything you hold, seen together.' },
+        { k: 'Watchlist', v: 'Companies you follow without owning.' },
+        { k: 'Earnings', v: 'The quarterly report card.' },
+        { k: 'Dividend', v: 'Cash some companies pay you for holding.' },
+        { k: 'ETF', v: 'One purchase that holds many companies (קרן סל).' },
+        { k: 'Alert', v: 'A nudge when something you chose happens.' }
+      ],
+
+      openDots: [0, 1, 2, 3, 4].map(i => ({ style: 'height:4px;border-radius:3px;flex:' + (i === (s.open || 0) ? 2 : 1) + ';background:' + (i <= (s.open || 0) ? 'var(--color-accent)' : 'var(--line)') })),
+      openNum: (s.open || 0) + 1,
+      openTitle: (he ? OPEN_HE : OPEN)[s.open || 0][0], openBody: (he ? OPEN_HE : OPEN)[s.open || 0][1],
+      openIsBroker: (s.open || 0) === 0, openIsDocs: (s.open || 0) === 1, openIsType: (s.open || 0) === 2,
+      openIsFund: (s.open || 0) === 3, openIsBuy: (s.open || 0) === 4,
+      openHasPrev: (s.open || 0) > 0,
+      openNextLabel: (s.open || 0) === 4 ? (he ? 'אני מוכנה לעשות את זה באמת' : 'I am ready to do this for real') : (he ? 'הבא' : 'Next'),
+      openNext: () => this.setState(st => { const i = st.open || 0; return i >= 4 ? { screen: 'steps', done: Object.assign({}, st.done, { open: true }) } : { open: i + 1 }; }),
+      openPrev: () => this.setState(st => ({ open: Math.max(0, (st.open || 0) - 1) })),
+      brokerKinds: (he ? [
+        ['bank', 'דרך הבנק שלך', 'הפשוט ביותר, בדרך כלל גם היקר ביותר. מתאים אם חשוב לך הכול בחשבון אחד.'],
+        ['global', 'ברוקר בינלאומי', 'הזול ביותר לקניית מניות וקרנות סל בחו״ל. יותר טפסים, פעם אחת.'],
+        ['app', 'אפליקציית השקעות', 'הפתיחה הכי מהירה, הבחירה הכי קטנה. בדקי מה העלות כשמוכרים.']
+      ] : [
+        ['bank', 'Through your bank', 'Simplest, usually the highest fees. Fine if you value one login for everything.'],
+        ['global', 'A global broker', 'Cheapest for buying shares and ETFs abroad. More forms to fill in once.'],
+        ['app', 'An investing app', 'Quickest to open, smallest selection. Check what it charges when you sell.']
+      ]).map(([k, name, note]) => ({
+        name, note,
+        style: pick(s.broker === k),
+        dot: 'width:16px;height:16px;flex:none;border-radius:50%;border:1px solid ' + (s.broker === k ? 'var(--color-accent)' : 'var(--color-divider)') + ';background:' + (s.broker === k ? 'var(--color-accent)' : 'transparent'),
+        pick: () => this.setState({ broker: k })
+      })),
+      docs: (he ? [
+        ['id', 'תעודה מזהה', 'דרכון או תעודת זהות'],
+        ['bank', 'פרטי חשבון בנק', 'החשבון שממנו יגיע הכסף'],
+        ['tax', 'מספר תיק במס', 'מספר זהות או תיק מס'],
+        ['addr', 'אישור כתובת', 'חשבון או דף בנק עדכני']
+      ] : [
+        ['id', 'Photo ID', 'Passport or national ID card'],
+        ['bank', 'Bank account details', 'The account the money will come from'],
+        ['tax', 'Tax number', 'Your national tax or social ID'],
+        ['addr', 'Proof of address', 'A recent bill or bank statement']
+      ]).map(([k, name, note]) => {
+        const on = !!s.docs[k];
+        return {
+          name, note, glyph: on ? '✓' : '',
+          style: pick(on),
+          box: 'width:22px;height:22px;flex:none;border-radius:6px;display:grid;place-items:center;font-size:16px;border:1px solid ' + (on ? 'transparent' : 'var(--color-divider)') + ';background:' + (on ? 'var(--color-accent)' : 'transparent') + ';color:var(--g2)',
+          toggle: () => this.setState(st => ({ docs: Object.assign({}, st.docs, { [k]: !st.docs[k] }) }))
+        };
+      }),
+      docsProgress: Object.keys(s.docs).filter(k => s.docs[k]).length + (he ? ' מתוך 4 מוכנים' : ' of 4 ready'),
+      acctTypes: (he ? [
+        ['plain', 'חשבון השקעות רגיל', 'בלי הגבלות ובלי נעילה. מס על הרווח משולם בעת המכירה.'],
+        ['tax', 'חשבון עם הטבת מס', 'מס נמוך או נדחה, בתמורה לכללים לגבי מתי אפשר להוציא את הכסף. שווה לשאול את הברוקר לאיזה חשבון את זכאית.']
+      ] : [
+        ['plain', 'A regular investment account', 'No limits, no lock-in. You pay tax on gains when you sell.'],
+        ['tax', 'A tax-advantaged account', 'Lower or deferred tax, in exchange for rules about when you can take the money out. Worth asking your broker which ones you qualify for.']
+      ]).map(([k, name, note]) => ({ name, note, style: pick(s.acct === k), pick: () => this.setState({ acct: k }) })),
+      fundAmount: '$' + (s.fund || 250).toLocaleString('en-US'),
+      fundBar: ((s.fund || 250) / 5000 * 300).toFixed(0),
+      fundOptions: [100, 250, 1000, 5000].map(v => ({
+        label: '$' + v.toLocaleString('en-US'),
+        style: this.chip((s.fund || 250) === v),
+        pick: () => this.setState({ fund: v })
+      })),
+      firstBuys: (he ? [
+        ['etf', 'קרן סל רחבה', 'קנייה אחת, מאות חברות. הקנייה הראשונה המקובלת, וזו שלא דורשת דעה על אף עסק מסוים.'],
+        ['stock', 'חברה בודדת', 'בסדר גמור בסכום קטן, ברגע שברור שרבעון גרוע אחד הוא כל ההשקעה.']
+      ] : [
+        ['etf', 'A broad ETF', 'One purchase, hundreds of companies. The usual first buy, and the one that needs no opinion about any single business.'],
+        ['stock', 'A single company', 'Fine in small size once you understand that one bad quarter is all of it.']
+      ]).map(([k, name, note]) => ({
+        name, note, style: pick(s.firstBuy === k),
+        dot: 'width:16px;height:16px;flex:none;border-radius:50%;border:1px solid ' + (s.firstBuy === k ? 'var(--color-accent)' : 'var(--color-divider)') + ';background:' + (s.firstBuy === k ? 'var(--color-accent)' : 'transparent'),
+        pick: () => this.setState({ firstBuy: k })
+      })),
+
+      stepDots: STEPS.map((x, i) => ({ style: dot(!!s.done[x[0]] || i === curIdx, i === curIdx ? 2 : 1) })),
+      hasCurrent: !!cur, allDone: !cur,
+      curNum: curIdx + 1,
+      curTitle: cur ? (he ? STEPS_HE[curIdx][1] : cur[1]) : '',
+      curHow: cur ? (he ? STEPS_HE[curIdx][2] : cur[2]) : '',
+      curCta: cur ? (he ? STEPS_HE[curIdx][3] : cur[3]) : '',
+      curGo: () => { if (!cur) return; this.setState(st => ({ screen: cur[4], open: 0, fromSteps: true, done: Object.assign({}, st.done, { [cur[0]]: true }) })); },
+      curSkip: () => { if (!cur) return; this.setState(st => ({ done: Object.assign({}, st.done, { [cur[0]]: true }) })); },
+      steps: STEPS.map(([k, title0], i) => {
+        const title = he ? STEPS_HE[i][1] : title0;
+        const done = !!s.done[k];
+        if (i === curIdx) return null;
+        return {
+          title, glyph: done ? '✓' : String(i + 1),
+          titleStyle: done ? 'opacity:.5;text-decoration:line-through' : i === curIdx ? '' : 'opacity:.78',
+          row: 'display:flex;align-items:center;gap:11px;width:100%;min-height:46px;padding:9px 13px;border:0;border-top:1px solid var(--color-divider);background:transparent;color:inherit;font:inherit;cursor:pointer;text-align:' + (he ? 'right' : 'left'),
+          mark: 'width:22px;height:22px;flex:none;border-radius:50%;display:grid;place-items:center;font-size:16px;border:1px solid ' + (done ? 'transparent' : 'var(--color-divider)') + ';background:' + (done ? 'var(--color-accent-800)' : 'transparent') + ';color:' + (done ? 'var(--color-accent-200)' : 'inherit'),
+          toggle: () => this.setState(st => ({ done: Object.assign({}, st.done, { [k]: !st.done[k] }) }))
+        };
+      }).filter(Boolean)
+    };
+  }
+
+  flowVals() {
+    const s = this.state, p = this.props;
+    const he = (p.language ?? 'en') === 'he';
+    const T = (en, hb) => he ? hb : en;
+    const q = s.q.trim().toLowerCase();
+    const hits = q ? SYMS.filter(x => x.t.toLowerCase().includes(q) || x.n.toLowerCase().includes(q)) : SYMS.slice(0, 5);
+    const NOTIF = [
+      ['▲', T('NVDA crossed $195.00', 'NVDA חצה את $195.00'), T('Price alert · rose above your threshold', 'התראת מחיר · עלה מעל הרף שקבעת'), T('4m', 'לפני 4 ד׳'), 'NVDA', true],
+      ['✎', T('Reuters: NVIDIA lifts data-centre outlook', 'רויטרס: NVIDIA מעלה תחזית למרכזי נתונים'), T('News alert · 1 of 3 sources matched', 'התראת חדשות · 1 מ-3 מקורות'), T('22m', 'לפני 22 ד׳'), 'NVDA', true],
+      ['▾', T('AMD fell below $150.00', 'AMD ירד מתחת ל-$150.00'), T('Price alert · repeating', 'התראת מחיר · חוזרת'), T('1h', 'לפני שעה'), 'AMD', false],
+      ['◫', T('LLY reports tomorrow after the close', 'LLY מפרסמת מחר אחרי הנעילה'), T('Earnings reminder · Q3 results', 'תזכורת דוח · תוצאות רבעון 3'), T('3h', 'לפני 3 ש׳'), 'LLY', false]
+    ];
+    const unread = s.read ? 0 : NOTIF.filter(n => n[5]).length;
+    const sideStyle = on => 'flex:1;min-height:34px;border:0;border-radius:var(--radius-sm);font:inherit;font-size:16px;cursor:pointer;background:' + (on ? 'var(--color-accent-800)' : 'transparent') + ';color:' + (on ? 'var(--color-accent-200)' : 'inherit');
+    const sh = parseFloat(s.txSh) || 0, px = parseFloat(String(s.txPx).replace(/[^0-9.]/g, '')) || 0;
+    const cardStyle = on => 'text-align:start;padding:14px;border-radius:var(--radius-md);border:1px solid ' + (on ? 'var(--color-accent)' : 'var(--color-divider)') + ';background:' + (on ? 'var(--color-accent-900)' : 'transparent') + ';color:inherit;font:inherit;cursor:pointer';
+    const rows = dense => Array.from({ length: dense ? 9 : 4 }, (_, i) => ({
+      x: dense ? (i % 3) * 88 : 0, y: dense ? Math.floor(i / 3) * 15 : i * 11,
+      w: dense ? 74 : 150 + ((i * 47) % 100), h: dense ? 4 : 6,
+      fill: i === 0 ? 'var(--color-accent)' : 'var(--line)'
+    }));
+    return {
+      q: s.q, searchOpen: s.searchOpen,
+      onQuery: e => this.setState({ q: e.target.value }),
+      openSearch: () => this.setState({ searchOpen: true, notifOpen: false }),
+      closeSearch: () => this.setState({ searchOpen: false, q: '' }),
+      searchHeading: q ? (he ? hits.length + ' תוצאות' : hits.length + ' matches') : T('Recent', 'אחרונים'),
+      searchEmpty: !!q && !hits.length,
+      searchResults: hits.map(x => ({
+        t: x.t, n: x.n, sec: x.sec, priceStr: '$' + x.p.toFixed(2), tileSm: tile(x.t, 26), mono: LOGOS[x.t] ? '' : x.t,
+        pctStr: (x.c >= 0 ? '+' : '') + x.c.toFixed(2) + '%', color: x.c >= 0 ? UP : DN,
+        open: () => this.setState({ screen: 'stock', ticker: x.t, searchOpen: false, q: '' })
+      })),
+
+      notifOpen: s.notifOpen,
+      openNotif: () => this.setState({ notifOpen: true, searchOpen: false }),
+      closeNotif: () => this.setState({ notifOpen: false }),
+      markAllRead: () => this.setState({ read: true }),
+      hasUnread: unread > 0, unreadCount: unread,
+      unreadLabel: unread ? (he ? unread + ' חדשות' : unread + ' new') : T('all caught up', 'הכול מעודכן'),
+      goWatchFromNotif: () => this.setState({ screen: 'watch', notifOpen: false }),
+      notifs: NOTIF.map(([glyph, title, detail, ago, t2, isNew]) => ({
+        glyph, title, detail, ago,
+        style: 'display:flex;align-items:flex-start;gap:10px;min-height:52px;padding:9px;border:0;border-radius:var(--radius-sm);text-align:start;font:inherit;color:inherit;cursor:pointer;background:' + (isNew && !s.read ? 'var(--sunk)' : 'transparent'),
+        open: () => this.setState({ screen: 'stock', ticker: t2, notifOpen: false })
+      })),
+
+      txOpen: s.txOpen,
+      openTx: () => this.setState({ txOpen: true }),
+      closeTx: () => this.setState({ txOpen: false }),
+      txT: s.txT, txSh: s.txSh, txPx: s.txPx,
+      onTxT: e => this.setState({ txT: e.target.value.toUpperCase() }),
+      onTxSh: e => this.setState({ txSh: e.target.value }),
+      onTxPx: e => this.setState({ txPx: e.target.value }),
+      txSides: [['buy', T('Buy', 'קנייה')], ['sell', T('Sell', 'מכירה')], ['div', T('Dividend', 'דיבידנד')]].map(([k, label]) => ({
+        label, style: sideStyle(s.txSide === k), pick: () => this.setState({ txSide: k })
+      })),
+      txSummary: he ? (s.txSide === 'sell' ? 'מכירת ' : s.txSide === 'div' ? 'דיבידנד על ' : 'קניית ') + sh + ' × ' + s.txT + ' ב-$' + px.toFixed(2) : (s.txSide === 'sell' ? 'Sell ' : s.txSide === 'div' ? 'Dividend on ' : 'Buy ') + sh + ' × ' + s.txT + ' at $' + px.toFixed(2),
+      txTotal: (s.txSide === 'sell' ? '+' : '−') + '$' + (sh * px).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+
+      newPfOpen: s.newPfOpen,
+      openNewPf: () => this.setState({ newPfOpen: true }),
+      closeNewPf: () => this.setState({ newPfOpen: false }),
+
+      onboardOpen: !!(p.showOnboarding ?? false) && !s.onboardSeen,
+      dismissOnboard: () => this.setState({ onboardSeen: true, screen: 'steps' }),
+      onboardCards: ((this.props.language ?? 'en') === 'he' ? [
+        ['מתחילים', 'שפה פשוטה', 'רעיון אחד לכל כרטיס, משפט הסבר, והסקרינר לא מפריע.', 'beginner', false],
+        ['מקצועי', 'צפיפות מלאה', 'כל המדדים בבת אחת: נרות עם RSI ו-MACD, דירוגים, פיד חדשות מלא.', 'advanced', true]
+      ] : [
+        ['Beginner', 'plain language', 'One idea per card, a sentence of explanation, screener kept out of the way.', 'beginner', false],
+        ['Advanced', 'maximum density', 'Every metric at once: candlesticks with RSI and MACD, ratings, full news feed.', 'advanced', true]
+      ]).map(([name, badge, blurb, mode, dense]) => ({
+        name, badge, blurb, rows: rows(dense),
+        style: cardStyle(s.mode === mode),
+        pick: () => this.setState({ mode, onboardSeen: true, screen: 'steps' })
+      }))
+    };
+  }
+
+  renderVals() {
+    const s = this.state, beg = s.mode === 'beginner';
+    const he = (this.props.language ?? 'en') === 'he';
+    const T = (en, hb) => he ? hb : en;
+    const cur = SYMS.find(x => x.t === s.ticker) || SYMS[0];
+    const titles = he ? { home: ['בוקר טוב, נועה', 'סקירה'], stock: [cur.n, cur.t], pf: ['תיקים', 'ארבעה חשבונות'], watch: ['ווטצ׳ליסט', 'התראות'], movers: ['מובילי שוק', 'מניות בארה״ב'], news: ['חדשות', 'פיד'], earnings: ['דוחות', 'השבוע'], compare: ['השוואה', 'עד 3'], settings: ['הגדרות', 'חשבון'], connections: ['חיבורים', 'בנק, פנסיה, ברוקר'], advChat: ['קבלי המלצה', 'ארבע שאלות'], advConnect: ['ברוקר וחיבור חשבונות', 'קריאה בלבד'], advBuy: ['הקנייה הראשונה', 'סימולציה'], tour: ['סיור באפליקציה', 'איך זה עובד'], advDisc: ['גילוי נאות', 'קבלי המלצה'], advDash: ['ההמלצה שלך', 'Core-Satellite'], learn: ['ספריית הלמידה', 'כרטיסים קצרים'], steps: ['הצעדים הראשונים', 'מדריך'], open: ['לפתוח חשבון', 'מדריך'], more: ['הגדרות', 'עוד'] } : { home: ['Good morning, Noa', 'Overview'], stock: [cur.n, cur.t], pf: ['Portfolios', 'Growth ideas'], watch: ['Watchlist', 'Alerts'], movers: ['Market movers', 'US equities'], news: ['News', 'Feed'], earnings: ['Earnings', 'This week'], compare: ['Compare', 'Up to 3'], settings: ['Settings', 'Account'], connections: ['Connections', 'Bank, pension, broker'], advChat: ['Get a recommendation', 'Four questions'], advConnect: ['Broker & accounts', 'Read-only'], advBuy: ['First purchase', 'Simulation'], tour: ['App tour', 'How it works'], advDisc: ['Disclosure', 'Recommendation'], advDash: ['Your recommendation', 'Core-Satellite'], learn: ['Learning library', 'Short cards'], steps: ['Your first steps', 'Guide'], open: ['Open an account', 'Guide'], more: ['Settings', 'More'] };
+    const tt = titles[s.screen] || titles.home;
+
+    // dashboard sparkline
+    const pfVals = this.series(7, 60, 0.42, 2.2);
+    const pfPts = this.fit(pfVals, 340, 76, 5);
+
+    // portfolio page
+    const PFS = [
+      { name: 'Blink', broker: 'Blink', logo: window.__resources.a_broker_blink_webp, acct: '••4821', synced: T('4 minutes ago', 'לפני 4 דקות'), total: '$48,214.60', day: '+0.86%', all: '+31.4%', up: true },
+      { name: 'Interactive Brokers', broker: 'Interactive Brokers', logo: window.__resources.a_broker_ibkr_png, acct: '••7130', synced: T('11 minutes ago', 'לפני 11 דקות'), total: '$12,905.11', day: '+1.94%', all: '+58.2%', up: true },
+      { name: 'Colmex Pro', broker: 'Colmex Pro', logo: window.__resources.a_broker_colmex_webp, acct: '••2265', synced: '1 hour ago', total: '$21,470.02', day: '-0.22%', all: '+9.8%', up: false },
+      { name: 'Sandbox', broker: null, logo: null, acct: 'manual entry', synced: T('you last edited it Aug 22', 'עדכנת לאחרונה ב-22 באוג׳'), total: '$9,840.25', day: '+1.32%', all: '+12.9%', up: true }
+    ];
+    const LOGOMAP = { 'הראל': window.__resources.a_prov_harel_png, 'Harel': window.__resources.a_prov_harel_png, 'מגדל': window.__resources.a_prov_migdal_png, 'Migdal': window.__resources.a_prov_migdal_png, 'הפניקס': window.__resources.a_prov_phoenix_png, 'The Phoenix': window.__resources.a_prov_phoenix_png, 'לאומי': window.__resources.a_prov_leumi_png, 'Leumi': window.__resources.a_prov_leumi_png, 'הפועלים': window.__resources.a_prov_hapoalim_jpg, 'Hapoalim': window.__resources.a_prov_hapoalim_jpg };
+    const connA = s.advConn || {};
+    const INSTS = [
+      ['pension', T('Pension fund', 'קרן פנסיה'), '$86,340.00', '+0.12%', '+6.2%'],
+      ['hisht', T('Keren Hishtalmut', 'קרן השתלמות'), '$31,120.00', '+0.08%', '+5.4%'],
+      ['bank', T('Bank account', 'עו״ש'), '$7,860.00', '', '']
+    ].filter(([k]) => typeof connA[k] === 'string').map(([k, kind, total, day, all]) => ({
+      name: connA[k], kind, inst: true, broker: null, logo: LOGOMAP[connA[k]] || null, acct: '', synced: T('12 minutes ago', 'לפני 12 דקות'), total, day, all, up: true
+    }));
+    const realPF = PFS.filter(x => x.broker);
+    const money = v => '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2 });
+    const num = v => parseFloat(String(v).replace(/[^0-9.]/g, ''));
+    const aggEx = s.aggEx || {};
+    const aggPool = realPF.concat(INSTS);
+    const aggIn = aggPool.filter(x => !aggEx[x.name]);
+    const aggTotal = aggIn.reduce((a, x) => a + num(x.total), 0) || 1;
+    const aggPF = { name: T('All accounts', 'כל החשבונות'), broker: null, agg: true, logo: null, acct: '', synced: '', total: money(aggTotal), day: '+0.94%', all: '+26.8%', up: true };
+    const ALL = [aggPF].concat(PFS).concat(INSTS);
+    const pf = ALL[Math.min(s.pfIdx, ALL.length - 1)];
+    const pfVals2 = this.series(11 + s.pfIdx * 3, 70, s.pfIdx === 2 ? 0.16 : 0.5, 2.4);
+    const pfPts2 = this.fit(pfVals2, 340, 110, 8);
+    const bench = this.fit(this.series(31, 70, 0.22, 1.4), 340, 110, 8);
+
+    const alloc = [['NVDA', 28, 'var(--color-accent)'], ['AMD', 19, 'var(--acc-lite)'], ['MSFT', 15, 'var(--acc-dim)'], ['AAPL', 13, 'var(--acc-pale)'], ['LLY', 11, 'var(--muted)'], [T('Cash', 'מזומן'), 14, 'var(--line)']];
+    let off = 0, C = 2 * Math.PI * 52;
+    const donut = alloc.map(([t, p, color]) => {
+      const len = C * p / 100, o = -off; off += len;
+      return { t, pct: p + '%', color, dash: len.toFixed(1) + ' ' + (C - len).toFixed(1), off: o.toFixed(1) };
+    });
+
+    // candles
+    const n = 42, cv = this.series(cur.t.length * 13 + 5, n + 4, 0.5, 3.4);
+    const closes = cv.slice(4);
+    const lo = Math.min(...closes) - 4, hi = Math.max(...closes) + 4, sp = hi - lo;
+    const yFor = v => 166 - ((v - lo) / sp) * 158;
+    const step = 340 / n, bw = Math.max(2.6, step * 0.55);
+    const candles = closes.map((c, i) => {
+      const o = i ? closes[i - 1] : c - 1, up = c >= o;
+      const h = Math.max(o, c) + 1.6, l = Math.min(o, c) - 1.6;
+      const by = yFor(Math.max(o, c)), bh = Math.max(1.2, yFor(Math.min(o, c)) - by);
+      const x = i * step + step / 2;
+      return { x: x.toFixed(1), bx: (x - bw / 2).toFixed(1), bw: bw.toFixed(1), by: by.toFixed(1), bh: bh.toFixed(1), hy: yFor(h).toFixed(1), ly: yFor(l).toFixed(1), color: up ? UP : DN };
+    });
+    const ma20 = this.line(this.ma(closes, 12).map((v, i) => [i * step + step / 2, yFor(v)]));
+    const ma50 = this.line(this.ma(closes, 26).map((v, i) => [i * step + step / 2, yFor(v)]));
+    const vols = closes.map((c, i) => {
+      const h = 8 + ((i * 37) % 26);
+      return { bx: (i * step + step / 2 - bw / 2).toFixed(1), bw: bw.toFixed(1), y: (38 - h).toFixed(1), h: h.toFixed(1), color: i && c >= closes[i - 1] ? UP : DN };
+    });
+    const rsiVals = closes.map((c, i) => 50 + (c - (this.ma(closes, 12)[i] || c)) * 3.6);
+    const rsiPath = this.line(this.fit(rsiVals, 340, 52, 8));
+    const macdVals = closes.map((c, i) => (this.ma(closes, 12)[i] || c) - (this.ma(closes, 26)[i] || c));
+    const sig = this.ma(macdVals, 9);
+    const mMax = Math.max(...macdVals.map(Math.abs), 1);
+    const macdBars = macdVals.map((v, i) => {
+      const h = Math.abs(v) / mMax * 18;
+      return { x: (i * step + step / 2 - bw / 2).toFixed(1), w: bw.toFixed(1), y: (v >= 0 ? 30 - h : 30).toFixed(1), h: Math.max(0.8, h).toFixed(1), color: v >= 0 ? UP : DN };
+    });
+    const mLine = v => this.line(v.map((x, i) => [i * step + step / 2, 30 - x / mMax * 18]));
+
+    const begVals = this.series(cur.t.length * 7 + 3, 64, 0.55, 2.6);
+    const begPts = this.fit(begVals, 340, 150, 8);
+
+    const lEarn = T('Earnings', 'דוח'), lNews = T('News', 'חדשות');
+    const alerts = { NVDA: ['$200 ▲', lEarn], AMD: [lNews], TSLA: ['$300 ▼'], LLY: [lEarn] };
+    const alertList = [
+      ['▲', T('NVDA rises above $200', 'NVDA עולה מעל $200'), T('Push · created Aug 12', 'פוש · נוצר ב-12 באוג׳')],
+      ['📅', T('NVDA earnings', 'דוח רבעוני של NVDA'), T('Remind 1 day before · Nov 18', 'תזכורת יום לפני · 18 בנוב׳')],
+      ['◎', T('AMD news mentions "MI400"', 'אזכור "MI400" בחדשות AMD'), T('Push, major wires', 'פוש, סוכנויות ידיעות')],
+      ['▼', T('TSLA falls below $300', 'TSLA יורד מתחת ל-$300'), T('Push · created Jul 30', 'פוש · נוצר ב-30 ביולי')]
+    ].map(([glyph, title, detail]) => ({ glyph, title, detail, remove: () => {} }));
+
+    const tabs = [
+      ['home', T('Home', 'בית'), 'M4 11l8-7 8 7v8a1 1 0 01-1 1h-5v-6h-4v6H5a1 1 0 01-1-1z'],
+      ['watch', T('Watchlist', 'ווטצ׳ליסט'), 'M6 9a6 6 0 1112 0c0 4 1.5 5.5 1.5 5.5H4.5S6 13 6 9zM10 18a2 2 0 004 0'],
+      ['news', T('News', 'חדשות'), 'M4 5h16v14H4zM7 9h6M7 13h10'],
+      ['pf', T('Portfolio', 'תיק'), 'M3 7h18v12H3zM8 7V5h8v2'],
+      ['more', T('More', 'עוד'), 'M5 12h.01M12 12h.01M19 12h.01']
+    ];
+
+    const moverTab = s.moverTab;
+    const pool = SYMS.slice().sort((a, b) => moverTab === 'Losers' ? a.c - b.c : moverTab === 'Most active' ? parseFloat(b.vol) - parseFloat(a.vol) : b.c - a.c);
+    const filtered = s.sector === 'All' ? pool : pool.filter(x => x.sec === s.sector);
+
+    const types = [
+      ['price', '▲', T('Price threshold', 'רף מחיר'), T('When it crosses a level you set', 'כשהמחיר חוצה רף שקבעת')],
+      ['news', '◎', T('News mention', 'אזכור בחדשות'), T('When a keyword shows up in coverage', 'כשמילת מפתח מופיעה בכיסוי התקשורתי')],
+      ['earn', '📅', T('Earnings report', 'דוח רבעוני'), T('Before or when results land', 'לפני הפרסום או ברגע שהוא יוצא')]
+    ];
+
+    const p = this.props, theme = p.theme ?? 'dark';
+    return Object.assign(this.flowVals(), this.extraVals(), this.guideVals(), this.advVals(), {
+      // shell
+      theme, isDark: theme !== 'light', signal: p.signal ?? 'vivid',
+      isBeg: beg, isAdv: !beg,
+      toggleMode: () => this.setState({ mode: beg ? 'advanced' : 'beginner' }),
+      setBeginner: () => this.setState({ mode: 'beginner' }),
+      setAdvanced: () => this.setState({ mode: 'advanced' }),
+      begPill: this.pill(beg), advPill: this.pill(!beg),
+      begBadge: beg ? 'On' : 'Off', advBadge: beg ? 'Off' : 'On',
+      begCard: this.modeCard(beg), advCard: this.modeCard(!beg),
+      densityRows: [0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => ({ y: (i * 2.9).toFixed(1), x: (i % 3) * 6, w: 96 + ((i * 53) % 140), fill: i % 3 === 0 ? 'var(--color-accent)' : 'var(--line)' })),
+      kicker: tt[1], title: tt[0], headerDir: he ? 'rtl' : 'ltr',
+      lByAccount: T('By account', 'לפי חשבון'), lTracking: T('Tracking', 'במעקב'), lViewMode: T('View mode', 'מצב תצוגה'),
+      lSwitchNote: T('Switching never changes your portfolios, watchlists or alerts.', 'המעבר לא משנה את התיקים, הווטצ׳ליסט או ההתראות.'),
+      lAddConn: T('Connect an institution', 'לחבר מוסד'), lNewAlert: T('New alert', 'התראה חדשה'), lCreateAlert: T('Create alert', 'ליצור התראה'),
+      lNotifyBy: T('Notify me by', 'לעדכן אותי דרך'), lCancel: T('Cancel', 'ביטול'),
+      lWatchSub: T('4 active alerts · 8 tracked', '4 התראות פעילות · 8 במעקב'),
+      lPfToday: T('Your portfolio today', 'התיק שלך היום'),
+      lAddTx: T('Add transaction', 'להוסיף עסקה'), lPortfolio: T('Portfolio', 'תיק'),
+      lConcentration: T('Two thirds of this portfolio sits in semiconductors. Concentration amplifies good days and bad ones alike.', 'שני שלישים מהתיק הזה יושבים בשבבים. ריכוז מגדיל גם את הימים הטובים וגם את הרעים.'),
+      lNewPf: T('New portfolio', 'תיק חדש'), lCreatePf: T('Create portfolio', 'ליצור תיק'), lAddToPf: T('Add to portfolio', 'להוסיף לתיק'),
+      lTheoretical: T('These portfolios are theoretical — nothing is ordered anywhere.', 'התיקים האלה תיאורטיים — שום פקודה לא נשלחת לאף מקום.'),
+      lName: T('Name', 'שם'), lDivIncome: T('Dividend income', 'הכנסה מדיבידנדים'), lStartCash: T('Starting cash', 'מזומן פתיחה'),
+      lTheoPf: T('Theoretical portfolios', 'תיקים תיאורטיים'),
+      lTheoPfHelp: T('Sandbox has no broker behind it — you record its transactions yourself. Useful for testing an idea before it costs anything.', 'ל-Sandbox אין ברוקר מאחוריו — את רושמת בו את העסקאות בעצמך. שימושי לבדוק רעיון לפני שהוא עולה כסף.'),
+      lNewTheoPf: T('New theoretical portfolio', 'תיק תיאורטי חדש'),
+      lPfBlurb: T("Most of today's gain came from NVDA, your largest holding. One day rarely means much — the months are what matter.", 'רוב הרווח היום הגיע מ-NVDA, ההחזקה הגדולה שלך. יום אחד כמעט לא אומר כלום — מה שקובע זה החודשים.'),
+      lWatchlist: T('Watchlist', 'ווטצ׳ליסט'), lSeeAll: T('See all', 'לראות הכול'),
+      lMoversHelp: T('Big one-day moves usually follow news. Tap one to read why.', 'תנועות גדולות ביום אחד באות בעקבות חדשות. אפשר להקיש כדי לקרוא למה.'),
+      lAllMovers: T('All market movers →', 'כל מובילי השוק →'),
+      lEarnWeek: T('Earnings this week', 'דוחות השבוע'),
+      lEarnHelp: T('A quarterly report card. Prices often swing the day it lands.', 'תעודת ציונים רבעונית. המחיר בדרך כלל זז ביום הפרסום.'),
+      lActiveAlerts: T('Active alerts', 'התראות פעילות'), lRemove: T('Remove', 'להסיר'),
+      lAlertNudge: T('An alert is just a nudge — it never buys or sells anything.', 'התראה היא רק תזכורת — היא לא קונה ולא מוכרת כלום.'),
+      lCondition: T('Condition', 'תנאי'), lRises: T('Rises above', 'עולה מעל'), lFalls: T('Falls below', 'יורד מתחת'),
+      lPrice: T('Price', 'מחיר'), lPriceHint: T("That's about 9.6% above today's price.", 'זה בערך 9.6% מעל המחיר של היום.'),
+      lMentions: T('Mentions of', 'אזכורים של'), lKeywords: T('data centre, guidance', 'מרכזי נתונים, תחזית'),
+      lSources: T('Sources', 'מקורות'), lWires: T('Major wires', 'סוכנויות ידיעות'), lFilings: T('SEC filings', 'דיווחים לרשות'),
+      lRemind: T('Remind me', 'להזכיר לי'), lDayBefore: T('1 day before', 'יום לפני'), lMorningOf: T('Morning of', 'בבוקר הפרסום'), lWhenLands: T('When it lands', 'ברגע הפרסום'),
+      lBeginner: T('Beginner', 'מתחילים'), lAdvanced: T('Advanced', 'מקצועי'),
+      lBegBlurb: T('Plain language, one idea per card, the screener hidden until you want it.', 'שפה פשוטה, רעיון אחד לכל כרטיס, והסקרינר מוסתר עד שתרצי אותו.'),
+      lAdvBlurb: T('Every metric on screen, candlesticks with RSI and MACD, analyst ratings, full news feed.', 'כל המדדים על המסך, נרות עם RSI ו-MACD, דירוגי אנליסטים ופיד חדשות מלא.'), screenLabel: s.screen + ' · ' + (beg ? 'beginner' : 'advanced'),
+      isHome: s.screen === 'home', isStock: s.screen === 'stock', isPf: s.screen === 'pf',
+      hasPortfolio: this.props.hasPortfolio ?? true,
+      noPortfolio: !(this.props.hasPortfolio ?? true),
+      lNoPfTitle: T('No portfolio yet', 'עדיין אין תיק'),
+      lNoPfHelp: T('Connect a broker or open a new account to see your holdings here.', 'חברי ברוקר או פתחי חשבון חדש כדי לראות כאן את ההחזקות שלך.'),
+      isWatch: s.screen === 'watch', isMovers: s.screen === 'movers', isMore: s.screen === 'more',
+      isNews: s.screen === 'news', isEarn: s.screen === 'earnings' || (s.screen === 'news' && s.newsTab === 'Calendar'), isCompare: s.screen === 'compare', isSettings: s.screen === 'settings',
+      moreLinks: [
+        ['movers', T('Movers', 'מובילים'), T('Biggest moves in the market today', 'התנועות הגדולות בשוק היום'), 'M4 18l5-5 3 2 8-9M15 6h6v6'],
+        ['steps', T('Your first steps', 'הצעדים הראשונים'), T('Onboarding: app tour, learning library, opening and linking a broker — one step at a time', 'תהליך היכרות: סיור, ספריית למידה, פתיחה וחיבור ברוקר — צעד בכל פעם'), 'M5 12l4 4 10-10'],
+        ['learn', T('Learning library', 'ספריית הלמידה'), T('Short cards in plain words, browse any time', 'כרטיסים קצרים בשפה פשוטה, בכל רגע'), 'M12 4v16M6 8h12M6 16h8'],
+        ['open', T('Open an investment account', 'לפתוח חשבון השקעות'), T('What a broker asks, in five questions', 'מה ברוקר מבקש, בחמש שאלות'), 'M12 5v14M5 12h14'],
+        ['connections', T('Broker connections', 'חיבורי ברוקר'), T('Three linked accounts, one theoretical', 'שלושה חשבונות מחוברים, אחד תיאורטי'), 'M8 12h8M12 8v8M4 4h16v16H4z'],
+        ['advChat', T('Get a recommendation', 'קבלי המלצה'), T('Three questions, then a suggested portfolio', 'שלוש שאלות, ואז הצעה לתיק'), 'M5 6h14M5 11h9M5 16h6'],
+        ['settings', T('Settings', 'הגדרות'), T('Notifications, data, account', 'התראות, נתונים, חשבון'), 'M12 15a3 3 0 100-6 3 3 0 000 6M4 12h2M18 12h2M12 4v2M12 18v2']
+      ].map(([k, label, help, d]) => ({ label, help, d, go: this.go(k) })),
+      tabs: tabs.map(([k, label, d]) => ({ label, d, style: this.tab(s.screen === k), go: this.go(k) })),
+      goWatch: this.go('watch'), goMovers: this.go('movers'),
+      demoLinks: [
+        ['Home in Beginner', () => this.setState({ screen: 'home', mode: 'beginner', alertOpen: false })],
+        ['Home in Advanced', () => this.setState({ screen: 'home', mode: 'advanced', alertOpen: false })],
+        ['NVDA with indicators', () => this.setState({ screen: 'stock', ticker: 'NVDA', mode: 'advanced', alertOpen: false })],
+        ['Create an alert', () => this.setState({ screen: 'watch', alertOpen: true })],
+        ['Mode comparison', () => this.setState({ screen: 'more', alertOpen: false })]
+      ].map(([label, go]) => ({ label, go, style: 'display:block;width:100%;text-align:start;padding:8px 10px;border-radius:var(--radius-sm);border:1px solid var(--color-divider);background:transparent;color:inherit;font:inherit;font-size:16px;cursor:pointer' })),
+
+      // home
+      pfArea: this.area(pfPts, 76), pfLine: this.line(pfPts),
+      pfMetrics: [
+        { k: T('Value', 'שווי'), v: '$48,214', color: 'inherit' }, { k: T('Day', 'יומי'), v: '+0.86%', color: UP }, { k: T('Open P/L', 'רווח פתוח'), v: '+$11.5k', color: UP },
+        { k: 'Beta', v: '1.34', color: 'inherit' }, { k: T('Cash', 'מזומן'), v: '14%', color: 'inherit' }, { k: T('Risk', 'סיכון'), v: T('High', 'גבוה'), color: 'var(--color-accent-300)' }
+      ],
+      homeWatch: SYMS.slice(0, beg ? 4 : 6).map(x => { const r = this.row(x); r.sub = beg ? (he ? (HE_PLAIN[x.t] || x.plain) : x.plain) : x.mc + ' · P/E ' + r.pe; return r; }),
+      moversHeading: beg ? T("What's moving today", 'מה זז היום') : T('Top movers', 'המובילים'),
+      homeMovers: SYMS.slice().sort((a, b) => Math.abs(b.c) - Math.abs(a.c)).slice(0, beg ? 3 : 5).map(x => { const r = this.row(x); r.mid = beg ? (he ? (HE_WHY[x.t] || x.why) : x.why) : x.priceStr + ' · vol ' + x.vol; return r; }),
+      earnings: [
+        { mon: T('Aug', 'אוג׳'), day: '26', line: beg ? T('NVIDIA — its biggest report of the year', 'NVIDIA — הדוח הגדול שלה בשנה') : 'NVDA · est EPS 1.24 · impl. move ±8.4%', right: T('After close', 'אחרי הנעילה') },
+        { mon: T('Aug', 'אוג׳'), day: '27', line: beg ? T('CrowdStrike — cybersecurity', 'CrowdStrike — אבטחת מידע') : 'CRWD · est EPS 0.98 · impl. move ±9.1%', right: T('After close', 'אחרי הנעילה') },
+        { mon: T('Aug', 'אוג׳'), day: '28', line: beg ? T('Dell — PCs and AI servers', 'Dell — מחשבים ושרתי AI') : 'DELL · est EPS 2.31 · impl. move ±7.2%', right: T('After close', 'אחרי הנעילה') }
+      ],
+
+      // stock
+      sd: Object.assign(this.row(cur), { ah: '$183.10', range3m: '18%' }),
+      tfs: ['1D', '1W', '1M', '3M', '1Y'].map(label => ({ label, style: this.chip(s.tf === label), pick: () => this.setState({ tf: label }) })),
+      begArea: this.area(begPts, 150), begLine: this.line(begPts),
+      indicators: [['ma', 'MA 20/50'], ['rsi', 'RSI'], ['macd', 'MACD']].map(([k, label]) => ({
+        label, style: this.chip(s.ind[k]),
+        toggle: () => this.setState({ ind: Object.assign({}, s.ind, { [k]: !s.ind[k] }) })
+      })),
+      showMA: s.ind.ma, showRSI: s.ind.rsi, showMACD: s.ind.macd,
+      gridY: [24, 60, 96, 132].map(y => ({ y })),
+      candles, ma20, ma50, vols, rsiPath, rsiNow: cur.rsi, macdBars, macdLine: mLine(macdVals), signalLine: mLine(sig),
+      ohlc: { o: (cur.p - 1.9).toFixed(2), h: (cur.p + 2.4).toFixed(2), l: (cur.p - 3.1).toFixed(2), c: cur.p.toFixed(2) },
+      statsHeading: beg ? 'The basics' : 'Key statistics',
+      statsBeg: [
+        { k: 'Price', v: '$' + cur.p.toFixed(2), help: 'What one share costs right now' },
+        { k: 'Company size', v: cur.mc, help: 'Every share added together — market cap' },
+        { k: 'Traded today', v: cur.vol + ' shares', help: 'How busy the stock is; high means lots of interest' },
+        { k: 'Price vs earnings', v: cur.pe.toFixed(1) + '×', help: 'Years of current profit to pay for the share' }
+      ],
+      statsAdv: [
+        ['Open', (cur.p - 1.9).toFixed(2)], ['Prev close', (cur.p - cur.p * cur.c / 100).toFixed(2)],
+        ['Day range', (cur.p - 3.1).toFixed(2) + '–' + (cur.p + 2.4).toFixed(2)], ['52w range', '86.62–184.48'],
+        ['Volume', cur.vol], ['Avg vol', '162.4M'], ['Mkt cap', cur.mc], ['P/E', cur.pe.toFixed(1)],
+        ['Fwd P/E', (cur.pe * 0.62).toFixed(1)], ['EPS (ttm)', (cur.p / cur.pe).toFixed(2)],
+        ['Beta', '2.14'], ['Div yield', '0.02%'], ['Short float', '1.1%'], ['RSI(14)', String(cur.rsi)]
+      ].map(([k, v]) => ({ k, v })),
+      newsHeading: beg ? 'Why people are talking about it' : 'News feed',
+      news: beg ? [
+        { tag: 'Earnings', meta: 'Reuters · 2h', head: 'Nvidia guides data-centre revenue above expectations', sum: 'The company told investors it expects to sell more AI chips next quarter than analysts had penciled in.' },
+        { tag: 'Product', meta: 'Bloomberg · 6h', head: 'New Blackwell variant enters volume production', sum: 'A cheaper version of its flagship chip starts shipping, aimed at customers priced out of the top model.' },
+        { tag: 'Analysts', meta: 'Barron\u2019s · 1d', head: 'Two more banks lift price targets above $210', sum: 'Analysts set a target for where they think a share should trade. It is an opinion, not a promise.' }
+      ] : [
+        { tag: null, meta: '16:04 · Reuters', head: 'Nvidia guides data-centre revenue above consensus', sum: null },
+        { tag: null, meta: '15:41 · Bloomberg', head: 'Blackwell Ultra enters volume production at TSMC', sum: null },
+        { tag: null, meta: '14:58 · SEC 8-K', head: 'Item 5.02 — appointment of principal accounting officer', sum: null },
+        { tag: null, meta: '13:22 · Barron\u2019s', head: 'Morgan Stanley raises PT to $215 from $195', sum: null },
+        { tag: null, meta: '11:07 · WSJ', head: 'Hyperscaler capex plans point to sustained AI demand', sum: null },
+        { tag: null, meta: '09:31 · Benzinga', head: 'Unusual options activity in weekly $190 calls', sum: null }
+      ],
+      earnBlurb: beg ? 'Q3 results, after the close. The last four reports beat expectations and the stock moved 6–9% the next day each time.' : 'Q3 · Nov 18 AMC · est EPS 1.24 vs 0.68 y/y · implied move ±8.4% · 4/4 beats',
+
+      // portfolio
+      pfTabs: ALL.map((p, i) => ({
+        name: p.inst ? p.name + ' · ' + p.kind : p.name,
+        dot: p.agg ? 'var(--color-accent)' : p.broker ? 'var(--up)' : p.inst ? 'var(--acc-lite)' : 'transparent',
+        ring: p.agg || p.broker || p.inst ? 'none' : '1px dashed var(--muted)',
+        style: this.chip(i === Math.min(s.pfIdx, ALL.length - 1), true) + ';display:inline-flex;align-items:center;gap:7px;white-space:nowrap',
+        pick: () => this.setState({ pfIdx: i })
+      })),
+      pfHasHoldings: !pf.inst,
+      srcLinked: !!pf.broker || (!!pf.inst && !!pf.logo), srcManual: !pf.broker && !pf.agg && !pf.inst, srcAgg: !!pf.agg, srcLogo: pf.logo || '',
+      srcLogos: realPF.map(x => ({ logo: x.logo, broker: x.broker })),
+      srcTitle: pf.agg ? T('All linked accounts', 'כל החשבונות המחוברים') : pf.inst ? pf.name + ' · ' + pf.kind : pf.broker ? pf.broker + ' ' + pf.acct : T('Sandbox · theoretical', 'Sandbox · תיאורטי'),
+      srcDetail: pf.agg ? T('Pick below which accounts are included — Sandbox stays out', 'בחרי למטה אילו חשבונות נכללים — Sandbox נשאר בחוץ') : pf.inst ? (he ? 'סונכרן ' + pf.synced + ' · לקריאה בלבד' : 'Synced ' + pf.synced + ' · read-only') : pf.broker ? (he ? 'סונכרן ' + pf.synced + ' · לקריאה בלבד' : 'Synced ' + pf.synced + ' · read-only') : T('No broker — you record the transactions', 'בלי ברוקר — את רושמת את העסקאות'),
+      srcAction: pf.agg ? T('Manage', 'לנהל') : pf.broker ? T('Manage', 'לנהל') : T('Link', 'לחבר'),
+      pfIsAgg: !!pf.agg, pfIsManual: !pf.agg && !pf.broker && !pf.inst,
+      lAggPickHelp: T('Tap an account to include or exclude it from the total.', 'לחצי על חשבון כדי לכלול או להוציא אותו מהסך הכולל.'),
+      accountBreakdown: aggPool.map((x, i) => {
+        const on = !aggEx[x.name];
+        return {
+          name: x.inst ? x.name + ' · ' + x.kind : x.name, value: x.total, day: x.day || x.all,
+          dayColor: x.up ? UP : DN,
+          check: on ? '✓' : '',
+          checkStyle: 'width:20px;height:20px;flex:none;border-radius:50%;display:grid;place-items:center;font-size:16px;' + (on ? 'background:var(--color-accent);color:var(--g2)' : 'border:1px solid var(--color-divider);color:transparent'),
+          logoStyle: 'width:26px;height:26px;flex:none;border-radius:7px;background-color:#fff;background-size:contain;background-repeat:no-repeat;background-position:center;' + (x.logo ? 'background-image:url(' + x.logo + ')' : 'background:var(--color-accent-900)'),
+          weight: on ? (num(x.total) / aggTotal * 100).toFixed(1) + '%' : T('excluded', 'לא נכלל'),
+          broker: on ? (num(x.total) / aggTotal * 100).toFixed(1) + '%' : T('excluded', 'לא נכלל'),
+          rowStyle: 'display:flex;align-items:center;gap:10px;width:100%;padding:10px 13px;border:0;border-top:1px solid var(--color-divider);background:transparent;color:inherit;font:inherit;cursor:pointer;text-align:start;opacity:' + (on ? '1' : '.45'),
+          toggle: () => this.setState(st => ({ aggEx: Object.assign({}, st.aggEx, { [x.name]: !(st.aggEx || {})[x.name] }) }))
+        };
+      }),
+      goConnections: () => this.setState({ screen: 'connections' }),
+      isConn: s.screen === 'connections',
+      connLinked: [
+        { logo: window.__resources.a_broker_blink_webp, broker: 'Blink', acct: '••4821', detail: T('Core · brokerage · 7 positions', 'Core · חשבון מסחר · 7 פוזיציות'), value: '$48,214.60', status: T('Live', 'מחובר') },
+        { logo: window.__resources.a_broker_ibkr_png, broker: 'Interactive Brokers', acct: '••7130', detail: T('Global · margin · 4 positions', 'Global · מרווח · 4 פוזיציות'), value: '$12,905.11', status: T('Live', 'מחובר') },
+        { logo: window.__resources.a_broker_colmex_webp, broker: 'Colmex Pro', acct: '••2265', detail: T('Dividend · cash · 4 positions', 'Dividend · מזומן · 4 פוזיציות'), value: '$21,470.02', status: T('Live', 'מחובר') }
+      ],
+      connAvailable: [
+        { initials: 'SC', broker: 'Charles Schwab' }, { initials: 'ET', broker: 'E*TRADE' },
+        { initials: 'VA', broker: 'Vanguard' }, { initials: 'CB', broker: 'Coinbase' },
+        { initials: 'WB', broker: 'Webull' }
+      ],
+      syncRows: [
+        { k: T('Frequency', 'תדירות'), v: T('Every 15 minutes', 'כל 15 דקות') },
+        { k: T('Permissions', 'הרשאות'), v: T('Read positions only', 'קריאת פוזיציות בלבד') },
+        { k: T('History imported', 'היסטוריה שיובאה'), v: T('Back to Jan 2024', 'מינואר 2024') }
+      ],
+      pf: { name: pf.name, total: pf.total, day: pf.day, color: pf.up ? UP : DN },
+      pfArea2: this.area(pfPts2, 110), pfLine2: this.line(pfPts2), benchLine: this.line(bench),
+      donut,
+      holdings: SYMS.slice(0, 6).map((x, i) => {
+        const r = this.row(x), sh = [14, 22, 9, 31, 6, 12][i], val = sh * x.p, plv = [38.2, 12.4, 21.9, 64.8, -8.1, 5.6][i];
+        return { t: x.t, sub: sh + ' sh · avg $' + (x.p * 0.72).toFixed(2), val: '$' + val.toLocaleString('en-US', { maximumFractionDigits: 0 }), pl: this.pct(plv), plColor: this.col(plv), open: r.open };
+      }),
+
+      // watchlist
+      alertCount: 4,
+      watchRows: SYMS.filter(x => (s.wl || []).includes(x.t)).map(x => { const r = this.row(x); r.alerts = alerts[x.t] || []; r.addAlert = () => this.setState({ alertOpen: true, ticker: x.t }); return r; }),
+      inWl: (s.wl || []).includes(s.ticker),
+      toggleWl: () => this.setState(st => {
+        const wl = st.wl || [];
+        return { wl: wl.includes(st.ticker) ? wl.filter(x => x !== st.ticker) : wl.concat(st.ticker), wlFlash: !wl.includes(st.ticker) };
+      }),
+      wlBtnLabel: (s.wl || []).includes(s.ticker) ? '✓ ' + T('In watchlist', 'במעקב') : '＋ ' + T('Watchlist', 'לווטצ׳ליסט'),
+      wlBtnStyle: 'flex:1;font-size:16px;min-height:40px;border-radius:var(--radius-md);font:inherit;cursor:pointer;' + ((s.wl || []).includes(s.ticker)
+        ? 'border:1px solid var(--color-accent);background:var(--color-accent-900);color:var(--color-accent-200)'
+        : 'border:1px solid var(--color-divider);background:var(--sunk);color:inherit'),
+      alertList,
+
+      // movers
+      moverTabs: [['Gainers', 'עולות'], ['Losers', 'יורדות'], ['Most active', 'הנסחרות ביותר']].map(([k, hb]) => ({ label: T(k, hb), style: this.chip(s.moverTab === k), pick: () => this.setState({ moverTab: k }) })),
+      sectorChips: [['All', 'הכול'], ['Technology', 'טכנולוגיה'], ['Consumer', 'צריכה'], ['Financials', 'פיננסים'], ['Energy', 'אנרגיה'], ['Healthcare', 'בריאות']].map(([k, hb]) => ({ label: T(k, hb), style: this.chip(s.sector === k), pick: () => this.setState({ sector: k }) })),
+      moverCards: filtered.slice(0, 6).map((x, i) => {
+        const r = this.row(x);
+        r.why = he ? (HE_WHY[x.t] || x.why) : x.why;
+        r.spark = this.line(this.fit(this.series(x.t.length * 5 + i, 26, x.c / 6, 2), 120, 24, 3));
+        return r;
+      }),
+      moverRows: filtered.map(x => { const r = this.row(x); r.volStr = x.vol; r.rvol = (1.1 + (x.t.length % 4) * 0.4).toFixed(1) + '×'; return r; }),
+
+      // more
+      moreRows: [[T('Notifications', 'התראות'), T('Push, email', 'פוש, אימייל')], [T('Linked brokerages', 'ברוקרים מחוברים'), T('Three accounts', 'שלושה חשבונות')], [T('Default view', 'תצוגת ברירת מחדל'), beg ? T('Beginner', 'מתחילים') : T('Advanced', 'מקצועי')], [T('Language', 'שפה'), T('English', 'עברית')], [T('Currency', 'מטבע'), 'USD'], [T('About SHIFT', 'אודות SHIFT'), 'v1.4']].map(([k, v]) => ({ k, v })),
+
+      // alert sheet
+      alertOpen: s.alertOpen,
+      openAlert: () => this.setState({ alertOpen: true }),
+      closeAlert: () => this.setState({ alertOpen: false }),
+      alertTypes: types.map(([k, glyph, title, help]) => ({ glyph, title, help, check: s.alertKind === k ? '✓' : '', style: this.sheetRow(s.alertKind === k), pick: () => this.setState({ alertKind: k }) })),
+      isPriceAlert: s.alertKind === 'price', isNewsAlert: s.alertKind === 'news', isEarnAlert: s.alertKind === 'earn'
+    });
+  }
+}

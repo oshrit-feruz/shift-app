@@ -1,0 +1,332 @@
+<!-- @dsCard group="Foundations" title="Design system" viewport="1120x900" -->
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&amp;display=swap">
+<style>
+:root{
+  --g1:#1E293B;--g2:#0F172A;
+  --line:#3f424d;--grid:#2b2d3a;--muted:#B4C2D6;--muted-2:#7A8CA6;
+  --acc-pale:#DDD6FE;--acc-lite:#A78BFA;--acc-mid:#8B5CF6;--acc-dim:#7C6BC9;--acc-fill:#4C1D95;
+  --color-bg:#0F172A;--color-surface:rgba(30,41,59,.35);--color-text:#FFFFFF;
+  --color-accent:#8B5CF6;--color-accent-200:#DDD6FE;--color-accent-300:#A78BFA;--color-accent-700:#5B21B6;--color-accent-800:#4C1D95;--color-accent-900:rgba(139,92,246,.14);
+  --color-divider:rgba(146,155,172,.35);
+  --sunk:rgba(0,0,0,.25);--hdr:rgba(15,23,42,.86);--veil:rgba(8,9,14,.6);
+  --up:#2fd18a;--down:#f2564e;
+  --radius-md:12px;--radius-lg:16px;
+  --shadow-sm:0 0 0 1px rgba(146,155,172,.2),0 8px 32px rgba(0,0,0,.25);
+  --font-heading:'Rubik',system-ui,sans-serif;--font-body:'Rubik',system-ui,sans-serif;
+}
+body{margin:0;background:#0F172A;color:#fff;font-family:'Rubik',system-ui,sans-serif}
+a{color:#A78BFA;text-decoration:none}a:hover{color:#DDD6FE}
+</style>
+</helmet>
+
+<div style="min-height:100vh;padding:56px 64px 90px;background:radial-gradient(90% 55% at 18% -12%, #1E293B 0%, #0F172A 60%);color:#fff;font-family:'Rubik',system-ui,sans-serif;box-sizing:border-box">
+
+<div style="max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:64px">
+
+  <div style="display:flex;flex-direction:column;gap:14px">
+    <img src="assets/shift-wordmark.svg" alt="Shift" style="height:30px;width:auto;display:block">
+    <div style="font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:#7A8CA6;font-weight:600">Design system</div>
+    <h1 style="margin:0;font-size:52px;line-height:1.04;letter-spacing:-.02em;font-weight:600;max-width:16ch">The tokens and parts behind Shift</h1>
+    <p style="margin:0;max-width:60ch;font-size:16px;line-height:1.6;color:#B4C2D6;text-wrap:pretty">Every value here is lifted verbatim from the shipping mobile and desktop builds. Dark is the default surface; light mode swaps the ramp but keeps cards dark on purpose, so contrast against the page stays high in both.</p>
+    <div style="display:flex;gap:10px;margin-top:6px;flex-wrap:wrap">
+      <a href="Shift Mobile.dc.html" style="padding:10px 16px;border-radius:10px;border:1px solid rgba(146,155,172,.35);color:#DDD6FE;font-size:14px;font-weight:500">Mobile app →</a>
+      <a href="Shift App.dc.html" style="padding:10px 16px;border-radius:10px;border:1px solid rgba(146,155,172,.35);color:#DDD6FE;font-size:14px;font-weight:500">Desktop app →</a>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:22px">
+    <div style="display:flex;align-items:baseline;gap:14px;border-bottom:1px solid rgba(146,155,172,.25);padding-bottom:12px">
+      <h2 style="margin:0;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:#7A8CA6;font-weight:600">01 — Color, dark</h2>
+      <span style="font-size:14px;color:#7A8CA6">default theme</span>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="font-size:15px;font-weight:600;color:#B4C2D6">Surfaces</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:12px">
+        <div style="border-radius:12px;overflow:hidden;border:1px solid rgba(146,155,172,.25)">
+          <div style="height:76px;background:#0F172A"></div>
+          <div style="padding:10px 12px;background:rgba(30,41,59,.35);display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;font-weight:600">--color-bg</span><span style="font-size:12.5px;color:#7A8CA6;font-family:ui-monospace,monospace">#0F172A</span></div>
+        </div>
+        <div style="border-radius:12px;overflow:hidden;border:1px solid rgba(146,155,172,.25)">
+          <div style="height:76px;background:#1E293B"></div>
+          <div style="padding:10px 12px;background:rgba(30,41,59,.35);display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;font-weight:600">--g1 gradient top</span><span style="font-size:12.5px;color:#7A8CA6;font-family:ui-monospace,monospace">#1E293B</span></div>
+        </div>
+        <div style="border-radius:12px;overflow:hidden;border:1px solid rgba(146,155,172,.25)">
+          <div style="height:76px;background:linear-gradient(#0F172A,#0F172A) padding-box, #0F172A;position:relative"><div style="position:absolute;inset:14px;background:rgba(30,41,59,.35);border-radius:8px;backdrop-filter:blur(12px)"></div></div>
+          <div style="padding:10px 12px;background:rgba(30,41,59,.35);display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;font-weight:600">--color-surface</span><span style="font-size:12.5px;color:#7A8CA6;font-family:ui-monospace,monospace">rgba(30,41,59,.35)</span></div>
+        </div>
+        <div style="border-radius:12px;overflow:hidden;border:1px solid rgba(146,155,172,.25)">
+          <div style="height:76px;background:#0F172A;position:relative"><div style="position:absolute;inset:14px;background:rgba(0,0,0,.25);border-radius:8px"></div></div>
+          <div style="padding:10px 12px;background:rgba(30,41,59,.35);display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;font-weight:600">--sunk</span><span style="font-size:12.5px;color:#7A8CA6;font-family:ui-monospace,monospace">rgba(0,0,0,.25)</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="font-size:15px;font-weight:600;color:#B4C2D6">Accent ramp — violet</div>
+      <div style="display:flex;border-radius:12px;overflow:hidden;border:1px solid rgba(146,155,172,.25)">
+        <div style="flex:1;padding:20px 14px 16px;background:#DDD6FE;display:flex;flex-direction:column;gap:32px"><span style="font-size:12.5px;font-weight:600;color:#1E293B">200</span><span style="font-size:12px;font-family:ui-monospace,monospace;color:#4C1D95">#DDD6FE</span></div>
+        <div style="flex:1;padding:20px 14px 16px;background:#A78BFA;display:flex;flex-direction:column;gap:32px"><span style="font-size:12.5px;font-weight:600;color:#1E293B">300</span><span style="font-size:12px;font-family:ui-monospace,monospace;color:#2b1065">#A78BFA</span></div>
+        <div style="flex:1;padding:20px 14px 16px;background:#8B5CF6;display:flex;flex-direction:column;gap:32px"><span style="font-size:12.5px;font-weight:600;color:#fff">accent</span><span style="font-size:12px;font-family:ui-monospace,monospace;color:#EDE9FE">#8B5CF6</span></div>
+        <div style="flex:1;padding:20px 14px 16px;background:#5B21B6;display:flex;flex-direction:column;gap:32px"><span style="font-size:12.5px;font-weight:600;color:#fff">700</span><span style="font-size:12px;font-family:ui-monospace,monospace;color:#DDD6FE">#5B21B6</span></div>
+        <div style="flex:1;padding:20px 14px 16px;background:#4C1D95;display:flex;flex-direction:column;gap:32px"><span style="font-size:12.5px;font-weight:600;color:#fff">800</span><span style="font-size:12px;font-family:ui-monospace,monospace;color:#DDD6FE">#4C1D95</span></div>
+      </div>
+      <p style="margin:0;font-size:13.5px;line-height:1.6;color:#7A8CA6;max-width:70ch">800 backs icon tiles and pills. 300 carries interactive text. 900 is the same violet at 14% alpha and is the only accent fill used behind body copy.</p>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="font-size:15px;font-weight:600;color:#B4C2D6">Text &amp; lines</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(152px,1fr));gap:12px">
+        <div style="padding:14px;border-radius:12px;border:1px solid rgba(146,155,172,.25);display:flex;flex-direction:column;gap:8px"><span style="font-size:19px;color:#FFFFFF">Primary</span><span style="font-size:12.5px;color:#7A8CA6;font-family:ui-monospace,monospace">#FFFFFF</span></div>
+        <div style="padding:14px;border-radius:12px;border:1px solid rgba(146,155,172,.25);display:flex;flex-direction:column;gap:8px"><span style="font-size:19px;color:#B4C2D6">Muted</span><span style="font-size:12.5px;color:#7A8CA6;font-family:ui-monospace,monospace">#B4C2D6</span></div>
+        <div style="padding:14px;border-radius:12px;border:1px solid rgba(146,155,172,.25);display:flex;flex-direction:column;gap:8px"><span style="font-size:19px;color:#7A8CA6">Muted 2</span><span style="font-size:12.5px;color:#7A8CA6;font-family:ui-monospace,monospace">#7A8CA6</span></div>
+        <div style="padding:14px;border-radius:12px;border:1px solid rgba(146,155,172,.25);display:flex;flex-direction:column;gap:8px"><span style="display:block;height:1px;background:rgba(146,155,172,.35);margin:9px 0"></span><span style="font-size:12.5px;color:#7A8CA6;font-family:ui-monospace,monospace">divider .35</span></div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="font-size:15px;font-weight:600;color:#B4C2D6">Signal — up / down</div>
+      <p style="margin:0;font-size:13.5px;line-height:1.6;color:#7A8CA6;max-width:70ch">Three intensities ship behind a <span style="font-family:ui-monospace,monospace;color:#B4C2D6">data-signal</span> attribute so the same screens can be read by users who find saturated red/green stressful.</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:640px">
+        <div style="padding:14px;border-radius:12px;border:1px solid rgba(146,155,172,.25);display:flex;flex-direction:column;gap:9px">
+          <span style="font-size:12.5px;letter-spacing:.1em;text-transform:uppercase;color:#7A8CA6;font-weight:600">default</span>
+          <span style="font-size:20px;font-weight:600;color:#2fd18a">+0.86%</span>
+          <span style="font-size:20px;font-weight:600;color:#f2564e">−1.24%</span>
+        </div>
+        <div style="padding:14px;border-radius:12px;border:1px solid rgba(146,155,172,.25);display:flex;flex-direction:column;gap:9px">
+          <span style="font-size:12.5px;letter-spacing:.1em;text-transform:uppercase;color:#7A8CA6;font-weight:600">balanced</span>
+          <span style="font-size:20px;font-weight:600;color:#48c795">+0.86%</span>
+          <span style="font-size:20px;font-weight:600;color:#e5675f">−1.24%</span>
+        </div>
+        <div style="padding:14px;border-radius:12px;border:1px solid rgba(146,155,172,.25);display:flex;flex-direction:column;gap:9px">
+          <span style="font-size:12.5px;letter-spacing:.1em;text-transform:uppercase;color:#7A8CA6;font-weight:600">muted</span>
+          <span style="font-size:20px;font-weight:600;color:#5fbf94">+0.86%</span>
+          <span style="font-size:20px;font-weight:600;color:#d9736f">−1.24%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:22px">
+    <div style="display:flex;align-items:baseline;gap:14px;border-bottom:1px solid rgba(146,155,172,.25);padding-bottom:12px">
+      <h2 style="margin:0;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:#7A8CA6;font-weight:600">02 — Color, light</h2>
+      <span style="font-size:14px;color:#7A8CA6">data-theme="light"</span>
+    </div>
+    <div style="border-radius:16px;padding:26px;background:radial-gradient(90% 60% at 20% -10%, #ffffff 0%, #F1F5F9 60%);display:flex;flex-direction:column;gap:18px">
+      <div style="display:flex;flex-wrap:wrap;gap:10px">
+        <div style="width:112px;border-radius:10px;overflow:hidden;border:1px solid rgba(41,43,49,.15)"><div style="height:52px;background:#F1F5F9"></div><div style="padding:8px 10px;background:#fff;font-size:12px;font-family:ui-monospace,monospace;color:#3d4050">#F1F5F9 bg</div></div>
+        <div style="width:112px;border-radius:10px;overflow:hidden;border:1px solid rgba(41,43,49,.15)"><div style="height:52px;background:#C7D2FE"></div><div style="padding:8px 10px;background:#fff;font-size:12px;font-family:ui-monospace,monospace;color:#3d4050">#C7D2FE 200</div></div>
+        <div style="width:112px;border-radius:10px;overflow:hidden;border:1px solid rgba(41,43,49,.15)"><div style="height:52px;background:#818CF8"></div><div style="padding:8px 10px;background:#fff;font-size:12px;font-family:ui-monospace,monospace;color:#3d4050">#818CF8 300</div></div>
+        <div style="width:112px;border-radius:10px;overflow:hidden;border:1px solid rgba(41,43,49,.15)"><div style="height:52px;background:#4F46E5"></div><div style="padding:8px 10px;background:#fff;font-size:12px;font-family:ui-monospace,monospace;color:#3d4050">#4F46E5 accent</div></div>
+        <div style="width:112px;border-radius:10px;overflow:hidden;border:1px solid rgba(41,43,49,.15)"><div style="height:52px;background:#3730A3"></div><div style="padding:8px 10px;background:#fff;font-size:12px;font-family:ui-monospace,monospace;color:#3d4050">#3730A3 800</div></div>
+        <div style="width:112px;border-radius:10px;overflow:hidden;border:1px solid rgba(41,43,49,.15)"><div style="height:52px;background:#1E293B"></div><div style="padding:8px 10px;background:#fff;font-size:12px;font-family:ui-monospace,monospace;color:#3d4050">#1E293B text</div></div>
+      </div>
+      <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
+        <div style="width:280px;padding:15px;border-radius:16px;background:rgba(18,24,41,.8);backdrop-filter:blur(10px);color:#fff;display:flex;flex-direction:column;gap:6px;box-shadow:0 0 0 1px rgba(146,155,172,.25),0 8px 24px rgba(18,24,41,.25)">
+          <span style="font-size:13px;color:#B6BECE;font-weight:700">Portfolio today</span>
+          <span style="font-size:34px;line-height:1.05;font-weight:700">$48,214.60</span>
+          <span style="font-size:15px;font-weight:600;color:#2fd18a">+$412.18 · +0.86%</span>
+        </div>
+        <p style="margin:0;max-width:38ch;font-size:13.5px;line-height:1.6;color:#3d4050">Cards stay dark in light mode. The page lightens, the card doesn't — numbers keep the same weight and the accent ramp shifts from violet to indigo so it still reads against the dark fill.</p>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:22px">
+    <div style="display:flex;align-items:baseline;gap:14px;border-bottom:1px solid rgba(146,155,172,.25);padding-bottom:12px">
+      <h2 style="margin:0;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:#7A8CA6;font-weight:600">03 — Type</h2>
+      <span style="font-size:14px;color:#7A8CA6">Rubik, 300–700</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:0">
+      <div style="display:flex;gap:24px;align-items:baseline;padding:16px 0;border-bottom:1px solid rgba(146,155,172,.18)">
+        <span style="width:150px;flex:none;font-size:12.5px;font-family:ui-monospace,monospace;color:#7A8CA6">42 / 1.05 / 700</span>
+        <span style="font-size:42px;line-height:1.05;font-weight:700">$48,214.60</span>
+        <span style="font-size:13px;color:#7A8CA6;margin-left:auto">Portfolio value</span>
+      </div>
+      <div style="display:flex;gap:24px;align-items:baseline;padding:16px 0;border-bottom:1px solid rgba(146,155,172,.18)">
+        <span style="width:150px;flex:none;font-size:12.5px;font-family:ui-monospace,monospace;color:#7A8CA6">22 / 1.2 / −.01em</span>
+        <span style="font-size:22px;line-height:1.2;letter-spacing:-.01em">Watchlist</span>
+        <span style="font-size:13px;color:#7A8CA6;margin-left:auto">Screen title</span>
+      </div>
+      <div style="display:flex;gap:24px;align-items:baseline;padding:16px 0;border-bottom:1px solid rgba(146,155,172,.18)">
+        <span style="width:150px;flex:none;font-size:12.5px;font-family:ui-monospace,monospace;color:#7A8CA6">16 / 600</span>
+        <span style="font-size:16px;font-weight:600">Track it yourself</span>
+        <span style="font-size:13px;color:#7A8CA6;margin-left:auto">Card title, row label</span>
+      </div>
+      <div style="display:flex;gap:24px;align-items:baseline;padding:16px 0;border-bottom:1px solid rgba(146,155,172,.18)">
+        <span style="width:150px;flex:none;font-size:12.5px;font-family:ui-monospace,monospace;color:#7A8CA6">14 / 1.5</span>
+        <span style="font-size:14px;line-height:1.5;color:#B4C2D6;max-width:46ch">Body copy sits at 14 with a 1.5 leading and the muted grey, so a paragraph never competes with the number above it.</span>
+        <span style="font-size:13px;color:#7A8CA6;margin-left:auto">Body</span>
+      </div>
+      <div style="display:flex;gap:24px;align-items:baseline;padding:16px 0;border-bottom:1px solid rgba(146,155,172,.18)">
+        <span style="width:150px;flex:none;font-size:12.5px;font-family:ui-monospace,monospace;color:#7A8CA6">15 / .08em / 600</span>
+        <span style="font-size:15px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;color:#B4C2D6">Good morning</span>
+        <span style="font-size:13px;color:#7A8CA6;margin-left:auto">Kicker</span>
+      </div>
+      <div style="display:flex;gap:24px;align-items:baseline;padding:16px 0">
+        <span style="width:150px;flex:none;font-size:12.5px;font-family:ui-monospace,monospace;color:#7A8CA6">12 / 500</span>
+        <span style="font-size:12px;font-weight:500;color:#7A8CA6">NASDAQ · Delayed 15m</span>
+        <span style="font-size:13px;color:#7A8CA6;margin-left:auto">Meta, tags</span>
+      </div>
+    </div>
+    <p style="margin:0;font-size:13.5px;line-height:1.6;color:#7A8CA6;max-width:70ch">Every numeral runs inside <span style="font-family:ui-monospace,monospace;color:#B4C2D6">direction:ltr; unicode-bidi:isolate</span> so prices and percentages stay readable when the interface flips to RTL.</p>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:22px">
+    <div style="display:flex;align-items:baseline;gap:14px;border-bottom:1px solid rgba(146,155,172,.25);padding-bottom:12px">
+      <h2 style="margin:0;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:#7A8CA6;font-weight:600">04 — Space, radius, elevation</h2>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:32px">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="font-size:15px;font-weight:600;color:#B4C2D6">Spacing</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;gap:12px"><span style="width:46px;font-size:12.5px;font-family:ui-monospace,monospace;color:#7A8CA6">4</span><span style="height:12px;width:4px;background:#8B5CF6;border-radius:2px"></span></div>
+          <div style="display:flex;align-items:center;gap:12px"><span style="width:46px;font-size:12.5px;font-family:ui-monospace,monospace;color:#7A8CA6">6</span><span style="height:12px;width:6px;background:#8B5CF6;border-radius:2px"></span></div>
+          <div style="display:flex;align-items:center;gap:12px"><span style="width:46px;font-size:12.5px;font-family:ui-monospace,monospace;color:#7A8CA6">8</span><span style="height:12px;width:8px;background:#8B5CF6;border-radius:2px"></span></div>
+          <div style="display:flex;align-items:center;gap:12px"><span style="width:46px;font-size:12.5px;font-family:ui-monospace,monospace;color:#7A8CA6">10</span><span style="height:12px;width:10px;background:#8B5CF6;border-radius:2px"></span></div>
+          <div style="display:flex;align-items:center;gap:12px"><span style="width:46px;font-size:12.5px;font-family:ui-monospace,monospace;color:#7A8CA6">12</span><span style="height:12px;width:12px;background:#8B5CF6;border-radius:2px"></span></div>
+          <div style="display:flex;align-items:center;gap:12px"><span style="width:46px;font-size:12.5px;font-family:ui-monospace,monospace;color:#7A8CA6">16</span><span style="height:12px;width:16px;background:#8B5CF6;border-radius:2px"></span></div>
+          <div style="display:flex;align-items:center;gap:12px"><span style="width:46px;font-size:12.5px;font-family:ui-monospace,monospace;color:#7A8CA6">22</span><span style="height:12px;width:22px;background:#8B5CF6;border-radius:2px"></span></div>
+        </div>
+        <p style="margin:0;font-size:13.5px;line-height:1.6;color:#7A8CA6">Cards use 12–16 padding with a 10–12 internal gap. Screen gutters are 16 on mobile, 44 on desktop.</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="font-size:15px;font-weight:600;color:#B4C2D6">Radius</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <div style="display:flex;flex-direction:column;gap:7px;align-items:center"><span style="width:60px;height:60px;background:rgba(30,41,59,.6);border:1px solid rgba(146,155,172,.3);border-radius:7px"></span><span style="font-size:12px;color:#7A8CA6;font-family:ui-monospace,monospace">7 icon</span></div>
+          <div style="display:flex;flex-direction:column;gap:7px;align-items:center"><span style="width:60px;height:60px;background:rgba(30,41,59,.6);border:1px solid rgba(146,155,172,.3);border-radius:9px"></span><span style="font-size:12px;color:#7A8CA6;font-family:ui-monospace,monospace">9 button</span></div>
+          <div style="display:flex;flex-direction:column;gap:7px;align-items:center"><span style="width:60px;height:60px;background:rgba(30,41,59,.6);border:1px solid rgba(146,155,172,.3);border-radius:12px"></span><span style="font-size:12px;color:#7A8CA6;font-family:ui-monospace,monospace">12 md</span></div>
+          <div style="display:flex;flex-direction:column;gap:7px;align-items:center"><span style="width:60px;height:60px;background:rgba(30,41,59,.6);border:1px solid rgba(146,155,172,.3);border-radius:16px"></span><span style="font-size:12px;color:#7A8CA6;font-family:ui-monospace,monospace">16 card</span></div>
+        </div>
+        <div style="font-size:15px;font-weight:600;color:#B4C2D6;margin-top:8px">Elevation</div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap">
+          <div style="width:130px;height:66px;border-radius:16px;background:rgba(30,41,59,.35);backdrop-filter:blur(12px);box-shadow:0 0 0 1px rgba(146,155,172,.2),0 8px 32px rgba(0,0,0,.25);display:grid;place-items:center;font-size:12.5px;color:#B4C2D6">shadow-sm</div>
+          <div style="width:130px;height:66px;border-radius:16px;background:rgba(30,41,59,.5);backdrop-filter:blur(12px);box-shadow:0 0 0 1px rgba(146,155,172,.3),0 16px 40px rgba(0,0,0,.4);display:grid;place-items:center;font-size:12.5px;color:#B4C2D6">shadow-lg</div>
+        </div>
+        <p style="margin:0;font-size:13.5px;line-height:1.6;color:#7A8CA6">Cards are glass: a translucent fill plus a 12px backdrop blur, with the hairline carried by the shadow's first ring rather than a border.</p>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:22px">
+    <div style="display:flex;align-items:baseline;gap:14px;border-bottom:1px solid rgba(146,155,172,.25);padding-bottom:12px">
+      <h2 style="margin:0;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:#7A8CA6;font-weight:600">05 — Components</h2>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:28px">
+
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="font-size:15px;font-weight:600;color:#B4C2D6">Buttons</div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+          <button style="min-height:44px;padding:0 20px;border:0;border-radius:9px;background:#8B5CF6;color:#fff;font:600 15px 'Rubik',sans-serif;cursor:pointer">Add alert</button>
+          <button style="min-height:44px;padding:0 20px;border:1px solid rgba(146,155,172,.35);border-radius:9px;background:rgba(0,0,0,.25);color:#fff;font:500 15px 'Rubik',sans-serif;cursor:pointer">Compare</button>
+          <button style="min-height:44px;padding:0 16px;border:0;border-radius:9px;background:transparent;color:#A78BFA;font:500 15px 'Rubik',sans-serif;cursor:pointer">Skip</button>
+          <button disabled="" style="min-height:44px;padding:0 20px;border:0;border-radius:9px;background:#8B5CF6;color:#fff;font:600 15px 'Rubik',sans-serif;opacity:.4">Disabled</button>
+        </div>
+        <p style="margin:0;font-size:13.5px;line-height:1.6;color:#7A8CA6">44px minimum height everywhere on mobile. One primary per screen.</p>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="font-size:15px;font-weight:600;color:#B4C2D6">Tags</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <span style="padding:4px 10px;border-radius:999px;font-size:12px;font-weight:500;background:rgba(139,92,246,.2);color:#DDD6FE;border:1px solid rgba(167,139,250,.4)">Advisory</span>
+          <span style="padding:4px 10px;border-radius:999px;font-size:12px;font-weight:500;background:rgba(146,155,172,.16);color:#E2E8F0;border:1px solid rgba(146,155,172,.3)">Neutral</span>
+          <span style="padding:4px 10px;border-radius:999px;font-size:12px;font-weight:500;color:#A78BFA;border:1px solid rgba(167,139,250,.5)">You're here</span>
+          <span style="padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600;background:rgba(47,209,138,.16);color:#2fd18a;border:1px solid rgba(47,209,138,.35)">+2.4%</span>
+        </div>
+        <div style="font-size:15px;font-weight:600;color:#B4C2D6;margin-top:8px">Icon tile</div>
+        <div style="display:flex;gap:10px">
+          <span style="width:30px;height:30px;border-radius:9px;background:rgba(0,0,0,.25);display:grid;place-items:center;color:#DDD6FE"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 18l5-5 3 2 8-9"></path></svg></span>
+          <span style="width:30px;height:30px;border-radius:9px;background:#4C1D95;display:grid;place-items:center;color:#DDD6FE"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 6h14M5 11h9M5 16h6"></path></svg></span>
+          <span style="width:34px;height:34px;border-radius:9px;border:1px solid rgba(146,155,172,.35);background:rgba(0,0,0,.25);display:grid;place-items:center;color:#fff"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg></span>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="font-size:15px;font-weight:600;color:#B4C2D6">Input &amp; segmented</div>
+        <input placeholder="Search a company or ticker" style="min-height:44px;padding:0 14px;border:1px solid rgba(146,155,172,.35);border-radius:9px;background:rgba(0,0,0,.25);color:#fff;font:400 15px 'Rubik',sans-serif;box-sizing:border-box">
+        <div style="display:flex;padding:3px;gap:3px;border-radius:11px;background:rgba(0,0,0,.25);border:1px solid rgba(146,155,172,.25)">
+          <span style="flex:1;text-align:center;padding:9px 0;border-radius:8px;background:#8B5CF6;color:#fff;font-size:14px;font-weight:600">Beginner</span>
+          <span style="flex:1;text-align:center;padding:9px 0;border-radius:8px;color:#B4C2D6;font-size:14px">Advanced</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="flex:1;height:4px;border-radius:3px;background:#3f424d;overflow:hidden;display:block"><span style="display:block;height:100%;width:62%;background:#8B5CF6"></span></span>
+          <span style="font-size:13px;color:#7A8CA6">Step 3 of 5</span>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="font-size:15px;font-weight:600;color:#B4C2D6">List row</div>
+        <div style="border-radius:16px;background:rgba(30,41,59,.35);backdrop-filter:blur(12px);box-shadow:0 0 0 1px rgba(146,155,172,.2),0 8px 32px rgba(0,0,0,.25);overflow:hidden">
+          <div style="display:flex;align-items:center;gap:11px;padding:13px 15px">
+            <span style="width:34px;height:34px;flex:none;border-radius:9px;background:#4C1D95;color:#DDD6FE;display:grid;place-items:center;font-size:13px;font-weight:600">NV</span>
+            <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:600">NVDA</span><span style="font-size:12.5px;color:#7A8CA6">NVIDIA Corp</span></span>
+            <span style="text-align:right;display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:600">$118.42</span><span style="font-size:12.5px;font-weight:600;color:#2fd18a">+2.41%</span></span>
+          </div>
+          <span style="display:block;height:1px;background:rgba(146,155,172,.35)"></span>
+          <div style="display:flex;align-items:center;gap:11px;padding:13px 15px">
+            <span style="width:34px;height:34px;flex:none;border-radius:9px;background:#4C1D95;color:#DDD6FE;display:grid;place-items:center;font-size:13px;font-weight:600">AA</span>
+            <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:600">AAPL</span><span style="font-size:12.5px;color:#7A8CA6">Apple Inc</span></span>
+            <span style="text-align:right;display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:600">$226.05</span><span style="font-size:12.5px;font-weight:600;color:#f2564e">−0.72%</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="font-size:15px;font-weight:600;color:#B4C2D6">Metric strip</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:rgba(146,155,172,.35);border-radius:12px;overflow:hidden">
+          <div style="background:#0F172A;padding:12px 13px;display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;color:#7A8CA6">Day</span><span style="font-size:16px;font-weight:600;color:#2fd18a">+0.86%</span></div>
+          <div style="background:#0F172A;padding:12px 13px;display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;color:#7A8CA6">Month</span><span style="font-size:16px;font-weight:600;color:#2fd18a">+4.10%</span></div>
+          <div style="background:#0F172A;padding:12px 13px;display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;color:#7A8CA6">Year</span><span style="font-size:16px;font-weight:600;color:#f2564e">−2.35%</span></div>
+        </div>
+        <div style="font-size:15px;font-weight:600;color:#B4C2D6;margin-top:8px">Tab bar</div>
+        <div style="display:flex;border-radius:14px;background:rgba(15,23,42,.86);border:1px solid rgba(146,155,172,.25);backdrop-filter:blur(12px);padding:8px 4px">
+          <span style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;color:#A78BFA"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 11l8-6 8 6v8H4z"></path></svg><span style="font-size:11.5px;font-weight:600">Home</span></span>
+          <span style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;color:#7A8CA6"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 18l5-5 3 2 8-9"></path></svg><span style="font-size:11.5px">Movers</span></span>
+          <span style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;color:#7A8CA6"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 6h14M5 11h9M5 16h6"></path></svg><span style="font-size:11.5px">Lists</span></span>
+          <span style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;color:#7A8CA6"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="3"></circle><path d="M12 4v2M12 18v2M4 12h2M18 12h2"></path></svg><span style="font-size:11.5px">Settings</span></span>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="font-size:15px;font-weight:600;color:#B4C2D6">Highlight card</div>
+        <div style="padding:13px;border-radius:16px;border:1px solid #8B5CF6;background:rgba(139,92,246,.14);display:flex;align-items:center;gap:11px">
+          <span style="width:30px;height:30px;flex:none;border-radius:9px;background:#4C1D95;color:#DDD6FE;display:grid;place-items:center;font-size:15px">◉</span>
+          <span style="flex:1"><span style="display:block;font-size:13.5px">Start here</span><span style="display:block;font-size:12.5px;color:#7A8CA6;margin-top:2px">Five short lessons · 2 of 5</span></span>
+          <span style="opacity:.5;font-size:16px">›</span>
+        </div>
+        <p style="margin:0;font-size:13.5px;line-height:1.6;color:#7A8CA6">The accent border plus the 14%-alpha fill is the only "look at this" treatment in the system. One per screen, at most.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:22px">
+    <div style="display:flex;align-items:baseline;gap:14px;border-bottom:1px solid rgba(146,155,172,.25);padding-bottom:12px">
+      <h2 style="margin:0;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:#7A8CA6;font-weight:600">06 — Rules</h2>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:26px">
+      <div style="display:flex;flex-direction:column;gap:7px"><span style="font-size:16px;font-weight:600">Numbers stay LTR</span><p style="margin:0;font-size:14px;line-height:1.6;color:#B4C2D6">Prices, percentages and tickers isolate their direction. Layout mirrors; the figures don't.</p></div>
+      <div style="display:flex;flex-direction:column;gap:7px"><span style="font-size:16px;font-weight:600">Logical properties</span><p style="margin:0;font-size:14px;line-height:1.6;color:#B4C2D6">Use <span style="font-family:ui-monospace,monospace;font-size:13px">inset-inline-end</span> and <span style="font-family:ui-monospace,monospace;font-size:13px">text-align:start</span> so Arabic and Hebrew flip without extra rules.</p></div>
+      <div style="display:flex;flex-direction:column;gap:7px"><span style="font-size:16px;font-weight:600">Two view modes</span><p style="margin:0;font-size:14px;line-height:1.6;color:#B4C2D6">Beginner hides ratios and shows plain-language framing. Advanced exposes metric strips and the screener. Same components, different density.</p></div>
+      <div style="display:flex;flex-direction:column;gap:7px"><span style="font-size:16px;font-weight:600">Colour is never the only signal</span><p style="margin:0;font-size:14px;line-height:1.6;color:#B4C2D6">Every up/down colour is paired with a sign, and the signal palette can be dialled down in Settings.</p></div>
+    </div>
+  </div>
+
+</div>
+</div>
+</x-dc>
+</body>
+</html>
