@@ -33,11 +33,17 @@ export function Card({
     gap,
     flexDirection: row ? 'row' : 'column',
     alignItems: row ? 'center' : undefined,
+    // Explicit 0 rather than undefined: a Card with onClick renders as a
+    // <button>, which without this inherits the UA's default border
+    // (2px outset in Chromium, a hairline on iOS). That made clickable cards
+    // framed and plain ones not — the same component wearing two different
+    // surfaces, and the reason a skeleton card never matched the card that
+    // replaced it. The card's own outline is the 1px ring in --shadow-sm.
     border: highlight
       ? '1px solid var(--color-accent)'
       : outlined
         ? '1px solid var(--color-accent-700)'
-        : undefined,
+        : 0,
     background: highlight ? 'var(--color-accent-900)' : undefined,
     ...style,
   };
