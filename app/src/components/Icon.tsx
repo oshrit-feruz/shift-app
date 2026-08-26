@@ -16,7 +16,8 @@ export type IconName =
   | 'plus'
   | 'steps'
   | 'library'
-  | 'grid';
+  | 'grid'
+  | 'calendar';
 
 const PATHS: Record<IconName, string> = {
   home: 'M4 11l8-7 8 7v8a1 1 0 01-1 1h-5v-6h-4v6H5a1 1 0 01-1-1z',
@@ -34,6 +35,7 @@ const PATHS: Record<IconName, string> = {
   steps: 'M5 12l4 4 10-10',
   library: 'M12 4v16M6 8h12M6 16h8',
   grid: 'M8 12h8M12 8v8M4 4h16v16H4z',
+  calendar: 'M4 5h16v15H4zM4 9h16M8 3v4M16 3v4M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01',
 };
 
 export function Icon({

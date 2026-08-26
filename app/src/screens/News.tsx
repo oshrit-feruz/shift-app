@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Card } from '../components/Card';
+import { Icon } from '../components/Icon';
 import { Tag } from '../components/Tag';
 import { Num } from '../components/Num';
 import { Chip, ChipRail } from '../components/Chip';
@@ -39,6 +40,7 @@ export function NewsScreen({ openAlert }: ScreenProps) {
       <ChipRail>
         {TABS.map(([k, key]) => (
           <Chip key={k} active={tab === k} onClick={() => setTab(k)}>
+            {k === 'Calendar' && <Icon name="calendar" size={14} strokeWidth={1.9} />}
             {t(key)}
           </Chip>
         ))}
@@ -49,75 +51,154 @@ export function NewsScreen({ openAlert }: ScreenProps) {
           state={earnings.state}
           onRetry={earnings.retry}
           skeleton={
-            <Card padding="4px 0" gap={0}>
-              {Array.from({ length: 5 }, (_, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '10px 13px',
-                    borderTop: '1px solid var(--color-divider)',
-                  }}
-                >
-                  <Skeleton width={40} height={40} radius="var(--radius-md)" />
-                  <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <Skeleton width="38%" height={11} />
-                    <Skeleton width="62%" height={9} />
-                  </span>
-                  <Skeleton width={62} height={22} radius={999} />
-                </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+              {Array.from({ length: 3 }, (_, i) => (
+                <Card key={i} padding="4px 0" gap={0}>
+                  <div style={{ padding: '9px 13px 6px' }}>
+                    <Skeleton width={90} height={11} />
+                  </div>
+                  {Array.from({ length: 2 }, (_, j) => (
+                    <div
+                      key={j}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '10px 13px',
+                        borderTop: '1px solid var(--color-divider)',
+                      }}
+                    >
+                      <Skeleton width={40} height={40} radius="var(--radius-md)" />
+                      <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <Skeleton width="38%" height={11} />
+                        <Skeleton width="62%" height={9} />
+                      </span>
+                      <Skeleton width={62} height={22} radius={999} />
+                    </div>
+                  ))}
+                </Card>
               ))}
-            </Card>
+            </div>
           }
         >
-          {(rows) => (
-            <Card padding="4px 0" gap={0}>
-              {rows.map((e, i) => (
-                <div
-                  key={i}
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 13px', borderTop: '1px solid var(--color-divider)' }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => dispatch({ type: 'openStock', ticker: e.ticker })}
-                    style={{
-                      flex: 1,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'flex-start',
-                      gap: 2,
-                      border: 0,
-                      background: 'transparent',
-                      color: 'inherit',
-                      font: 'inherit',
-                      cursor: 'pointer',
-                      textAlign: 'start',
-                    }}
-                  >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                      <Num size={14} weight={600}>
-                        {e.ticker}
-                      </Num>
-                      <Tag variant="outline" fontSize={11}>
-                        {e.when}
-                      </Tag>
-                      <span className="text-muted" style={{ fontSize: 13 }}>
-                        <Num>{e.date}</Num>
-                      </span>
-                    </span>
-                    <span className="text-muted" style={{ fontSize: 12.5 }}>
-                      {t('earn.epsEst')} <Num>{e.epsEst}</Num> · {t('earn.implied')} <Num>{e.impliedMove}</Num>
-                    </span>
-                  </button>
-                  <Button variant="secondary" fontSize={12.5} minHeight={34} onClick={openAlert}>
-                    {t('earn.remind')}
-                  </Button>
-                </div>
-              ))}
-            </Card>
-          )}
+          {(rows) => {
+            // One card per date, the way a calendar groups a day's events
+            // under its own header rather than repeating the date on every
+            // row. EARNINGS is already date-sorted; grouping preserves that
+            // order rather than re-sorting, so nothing here invents an order
+            // the data doesn't already have.
+            const byDate: Array<[string, typeof rows]> = [];
+            for (const e of rows) {
+              const last = byDate[byDate.length - 1];
+              if (last && last[0] === e.date) last[1].push(e);
+              else byDate.push([e.date, [e]]);
+            }
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+                {byDate.map(([date, events]) => {
+                  // "Mon 25" -> weekday + day number, read onto a torn-page
+                  // calendar tile (small weekday over a large day number).
+                  const [weekday, day] = date.split(' ');
+                  return (
+                    <Card key={date} padding="4px 0" gap={0}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 9,
+                          padding: '9px 13px 7px',
+                        }}
+                      >
+                        <Icon name="calendar" size={14} strokeWidth={1.9} />
+                        <span
+                          className="text-muted"
+                          style={{ fontSize: 12, letterSpacing: '.06em', textTransform: 'uppercase' }}
+                        >
+                          <Num>{date}</Num>
+                        </span>
+                      </div>
+                      {events.map((e, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            padding: '10px 13px',
+                            borderTop: '1px solid var(--color-divider)',
+                          }}
+                        >
+                          {/* The calendar-page tile: weekday strip over a big
+                              day number, same date this card's header carries. */}
+                          <span
+                            aria-hidden
+                            style={{
+                              flex: 'none',
+                              width: 40,
+                              borderRadius: 'var(--radius-md)',
+                              overflow: 'hidden',
+                              border: '1px solid var(--color-divider)',
+                              textAlign: 'center',
+                            }}
+                          >
+                            <span
+                              style={{
+                                display: 'block',
+                                fontSize: 9,
+                                fontWeight: 700,
+                                letterSpacing: '.04em',
+                                textTransform: 'uppercase',
+                                color: '#fff',
+                                background: 'var(--down)',
+                                padding: '2px 0',
+                              }}
+                            >
+                              {weekday}
+                            </span>
+                            <span style={{ display: 'block', fontSize: 16, fontWeight: 700, padding: '3px 0' }}>
+                              <Num>{day}</Num>
+                            </span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => dispatch({ type: 'openStock', ticker: e.ticker })}
+                            style={{
+                              flex: 1,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'flex-start',
+                              gap: 2,
+                              border: 0,
+                              background: 'transparent',
+                              color: 'inherit',
+                              font: 'inherit',
+                              cursor: 'pointer',
+                              textAlign: 'start',
+                            }}
+                          >
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                              <Num size={14} weight={600}>
+                                {e.ticker}
+                              </Num>
+                              <Tag variant="outline" fontSize={11}>
+                                {e.when}
+                              </Tag>
+                            </span>
+                            <span className="text-muted" style={{ fontSize: 12.5 }}>
+                              {t('earn.epsEst')} <Num>{e.epsEst}</Num> · {t('earn.implied')} <Num>{e.impliedMove}</Num>
+                            </span>
+                          </button>
+                          <Button variant="secondary" fontSize={12.5} minHeight={34} onClick={openAlert}>
+                            {t('earn.remind')}
+                          </Button>
+                        </div>
+                      ))}
+                    </Card>
+                  );
+                })}
+              </div>
+            );
+          }}
         </DataState>
       ) : (
         <DataState

@@ -472,7 +472,7 @@ export const STRINGS = {
   'news.all': p('All', 'הכול'),
   'news.myWatchlist': p('My watchlist', 'הווטצ׳ליסט שלי'),
   'news.markets': p('Markets', 'שווקים'),
-  'news.calendar': p('Calendar', 'לוח דוחות'),
+  'news.calendar': p('Financial calendar', 'דוחות כספיים'),
   'news.analyst': p('Analyst', 'אנליסטים'),
   'earn.allCompanies': p('All companies', 'כל החברות'),
   'earn.highMove': p('High implied move', 'תנועה צפויה גבוהה'),
