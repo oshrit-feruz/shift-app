@@ -1,9 +1,10 @@
 import type { CSSProperties, MouseEventHandler, ReactNode } from 'react';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'success';
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'success' | 'danger';
 
 /** The app's button. 'success' is the green "Done" variant (distinct from
- *  Continue buttons, per design review). */
+ *  Continue buttons, per design review); 'danger' is the outlined destructive
+ *  variant, which carries its own hit area rather than reading as body copy. */
 export function Button({
   children,
   variant = 'primary',
@@ -32,7 +33,9 @@ export function Button({
         ? 'btn btn-secondary'
         : variant === 'ghost'
           ? 'btn btn-ghost'
-          : 'btn';
+          : variant === 'danger'
+            ? 'btn btn-danger'
+            : 'btn';
   const successStyle: CSSProperties =
     variant === 'success' ? { background: 'var(--up)', color: '#fff', fontWeight: 600 } : {};
   return (

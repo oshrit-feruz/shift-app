@@ -192,7 +192,7 @@ export function SettingsScreen(_: ScreenProps) {
         <SettingsLink label={t('setup.tourRow')} onClick={() => dispatch({ type: 'go', screen: 'tour' })} />
       </Card>
 
-      <Button variant="ghost" alignSelf="flex-start" fontSize={13} style={{ color: 'var(--down)' }}>
+      <Button variant="danger" alignSelf="flex-start" fontSize={13}>
         {t('set.deleteAcct')}
       </Button>
     </div>

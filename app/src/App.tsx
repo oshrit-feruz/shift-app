@@ -161,13 +161,19 @@ function BackToStepsPill() {
         onClick={() => dispatch({ type: 'go', screen: 'steps' })}
         style={{
           pointerEvents: 'auto',
-          padding: '9px 16px',
+          padding: '10px 18px',
           borderRadius: 999,
           border: '1px solid var(--color-accent)',
-          background: 'var(--color-accent-900)',
+          // A solid ground, not the 14%-alpha accent fill: this pill floats
+          // over the background shapes, and a translucent fill let them read
+          // straight through it, so the label was competing with a squiggle.
+          background: 'var(--acc-fill)',
           color: 'var(--color-accent-200)',
           fontSize: 13,
-          boxShadow: 'var(--shadow-md)',
+          fontWeight: 600,
+          boxShadow: 'var(--shadow-lg)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
           minHeight: 0,
         }}
       >

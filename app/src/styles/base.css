@@ -95,13 +95,31 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
   color: inherit;
   background: transparent;
 }
-.btn:disabled { opacity: .4; cursor: default; }
+.btn:disabled { opacity: .4; cursor: default; box-shadow: none; }
+/* Filled controls read as raised: a tight contact shadow plus a soft halo,
+ * collapsing on press so the button feels pushed rather than merely tinted. */
+.btn-primary,
+.btn-secondary,
+.btn-danger { box-shadow: var(--shadow-btn); }
+.btn-primary:active,
+.btn-secondary:active,
+.btn-danger:active { box-shadow: var(--shadow-btn-active); }
 .btn-primary { background: var(--color-accent); color: #fff; }
 .btn-secondary {
   border: 1px solid var(--color-divider);
   background: var(--sunk);
   color: inherit;
   font-weight: 500;
+}
+/* Destructive actions still need a hit area and an edge — as a bare tinted
+ * word "delete account" was indistinguishable from body copy. */
+.btn-danger {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid color-mix(in srgb, var(--down) 55%, transparent);
+  background: color-mix(in srgb, var(--down) 12%, transparent);
+  color: var(--down);
+  font-weight: 600;
 }
 .btn-ghost {
   padding: 0 16px;
