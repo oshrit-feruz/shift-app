@@ -70,10 +70,13 @@ export function TabBar({ current, onGo }: { current: Screen; onGo: (s: Screen) =
             <span
               aria-hidden
               style={{
+                // Stretched top-to-bottom rather than given a fixed height:
+                // a 30px pill covered the icon and left the label hanging
+                // outside it, so the selected tab read as half-highlighted.
                 position: 'absolute',
                 insetInline: 6,
-                top: 4,
-                height: 30,
+                top: 3,
+                bottom: 3,
                 borderRadius: 999,
                 background: 'var(--color-accent-900)',
                 opacity: active ? 1 : 0,
