@@ -28,6 +28,35 @@ export const ADV_ORDER: Screen[] = ['advChat', 'advDisc', 'advDash', 'advConnect
 
 export type InstitutionKey = 'broker' | 'bank' | 'pension' | 'hisht';
 
+export type AlertKind = 'price' | 'news' | 'earn';
+export type TransactionSide = 'buy' | 'sell' | 'div';
+
+export interface SavedAlert {
+  id: string;
+  ticker: string;
+  kind: AlertKind;
+  condition: 'rise' | 'fall';
+  value: string;
+  remind: 'day' | 'morning' | 'lands';
+  sources: { wires: boolean; filings: boolean };
+  notifyBy: { push: boolean; email: boolean };
+}
+
+export interface ManualPortfolio {
+  id: string;
+  name: string;
+  startingCash: number;
+}
+
+export interface ManualTransaction {
+  id: string;
+  side: TransactionSide;
+  ticker: string;
+  shares: number;
+  price: number;
+  date: string;
+}
+
 export interface AppState {
   screen: Screen;
   ticker: string;
@@ -51,6 +80,9 @@ export interface AppState {
   /** portfolio tab index */
   pfIndex: number;
   aggExcluded: Record<string, boolean>;
+  savedAlerts: SavedAlert[];
+  manualPortfolios: ManualPortfolio[];
+  manualTransactions: Record<string, ManualTransaction[]>;
 }
 
 const initial: AppState = {
@@ -70,6 +102,9 @@ const initial: AppState = {
   notificationsRead: false,
   pfIndex: 0,
   aggExcluded: {},
+  savedAlerts: [],
+  manualPortfolios: [],
+  manualTransactions: {},
 };
 
 export type Action =
@@ -87,7 +122,10 @@ export type Action =
   | { type: 'setThreshold'; which: 'up' | 'down'; value: string }
   | { type: 'markNotificationsRead' }
   | { type: 'pfIndex'; index: number }
-  | { type: 'toggleAggAccount'; id: string };
+  | { type: 'toggleAggAccount'; id: string }
+  | { type: 'addAlert'; alert: SavedAlert }
+  | { type: 'addManualPortfolio'; portfolio: ManualPortfolio }
+  | { type: 'addManualTransaction'; portfolioId: string; transaction: ManualTransaction };
 
 function reducer(s: AppState, a: Action): AppState {
   switch (a.type) {
@@ -137,6 +175,18 @@ function reducer(s: AppState, a: Action): AppState {
       return { ...s, pfIndex: a.index };
     case 'toggleAggAccount':
       return { ...s, aggExcluded: { ...s.aggExcluded, [a.id]: !s.aggExcluded[a.id] } };
+    case 'addAlert':
+      return { ...s, savedAlerts: [...s.savedAlerts, a.alert] };
+    case 'addManualPortfolio':
+      return { ...s, manualPortfolios: [...s.manualPortfolios, a.portfolio] };
+    case 'addManualTransaction':
+      return {
+        ...s,
+        manualTransactions: {
+          ...s.manualTransactions,
+          [a.portfolioId]: [...(s.manualTransactions[a.portfolioId] ?? []), a.transaction],
+        },
+      };
     default:
       return s;
   }
@@ -153,6 +203,9 @@ const PERSISTED: Array<keyof AppState> = [
   'stepsDone',
   'alertUpThreshold',
   'alertDownThreshold',
+  'savedAlerts',
+  'manualPortfolios',
+  'manualTransactions',
 ];
 
 function hydrate(): AppState {

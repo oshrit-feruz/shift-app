@@ -7,9 +7,8 @@ import { SegmentedControl } from '../components/SegmentedControl';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { money } from '../lib/format';
+import { useDispatch, type AlertKind } from '../state/appState';
 import type { SymbolInfo } from '../data/types';
-
-type Kind = 'price' | 'news' | 'earn';
 
 /** New-alert sheet. Alerts are notifications only — creating one never
  *  places or schedules any trade. */
@@ -24,16 +23,38 @@ export function AlertSheet({
 }) {
   const { mode } = useTheme();
   const t = useT();
-  const [kind, setKind] = useState<Kind>('price');
+  const dispatch = useDispatch();
+  const [kind, setKind] = useState<AlertKind>('price');
   const [cond, setCond] = useState<'rise' | 'fall'>('rise');
   const [remind, setRemind] = useState<'day' | 'morning' | 'lands'>('day');
+  const [value, setValue] = useState('200.00');
+  const [keywords, setKeywords] = useState(t('alert.keywords'));
+  const [sources, setSources] = useState({ wires: true, filings: true });
+  const [notifyBy, setNotifyBy] = useState({ push: true, email: false });
   const beg = mode === 'beginner';
 
-  const types: Array<{ k: Kind; glyph: string; title: string; help: string }> = [
+  const types: Array<{ k: AlertKind; glyph: string; title: string; help: string }> = [
     { k: 'price', glyph: '▲', title: t('alert.priceType'), help: t('alert.priceHelp') },
     { k: 'news', glyph: '◎', title: t('alert.newsType'), help: t('alert.newsHelp') },
     { k: 'earn', glyph: '📅', title: t('alert.earnType'), help: t('alert.earnHelp') },
   ];
+
+  const submit = () => {
+    dispatch({
+      type: 'addAlert',
+      alert: {
+        id: `alert-${Date.now()}`,
+        ticker: symbol?.ticker ?? '',
+        kind,
+        condition: cond,
+        value: kind === 'price' ? value : kind === 'news' ? keywords : '',
+        remind,
+        sources,
+        notifyBy,
+      },
+    });
+    onClose();
+  };
 
   return (
     <Sheet
@@ -104,7 +125,7 @@ export function AlertSheet({
               fontSize={13}
             />
           </div>
-          <Field label={t('alert.price')} defaultValue="200.00" />
+          <Field label={t('alert.price')} value={value} onChange={(e) => setValue(e.target.value)} />
           {beg && (
             <p className="text-muted" style={{ fontSize: 12.5, margin: 0 }}>
               {t('alert.priceHint')}
@@ -114,15 +135,25 @@ export function AlertSheet({
       )}
       {kind === 'news' && (
         <>
-          <Field label={t('alert.mentions')} defaultValue={t('alert.keywords')} />
+          <Field label={t('alert.mentions')} value={keywords} onChange={(e) => setKeywords(e.target.value)} />
           <div className="field">
             <label>{t('alert.sources')}</label>
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 13 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <input type="checkbox" defaultChecked /> {t('alert.wires')}
+                <input
+                  type="checkbox"
+                  checked={sources.wires}
+                  onChange={(e) => setSources({ ...sources, wires: e.target.checked })}
+                />{' '}
+                {t('alert.wires')}
               </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <input type="checkbox" defaultChecked /> {t('alert.filings')}
+                <input
+                  type="checkbox"
+                  checked={sources.filings}
+                  onChange={(e) => setSources({ ...sources, filings: e.target.checked })}
+                />{' '}
+                {t('alert.filings')}
               </label>
             </div>
           </div>
@@ -148,14 +179,24 @@ export function AlertSheet({
         <label>{t('alert.notifyBy')}</label>
         <div style={{ display: 'flex', gap: 14, fontSize: 13 }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <input type="checkbox" defaultChecked /> {t('alert.push')}
+            <input
+              type="checkbox"
+              checked={notifyBy.push}
+              onChange={(e) => setNotifyBy({ ...notifyBy, push: e.target.checked })}
+            />{' '}
+            {t('alert.push')}
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <input type="checkbox" /> {t('alert.email')}
+            <input
+              type="checkbox"
+              checked={notifyBy.email}
+              onChange={(e) => setNotifyBy({ ...notifyBy, email: e.target.checked })}
+            />{' '}
+            {t('alert.email')}
           </label>
         </div>
       </div>
-      <Button block minHeight={44} onClick={onClose}>
+      <Button block minHeight={44} onClick={submit}>
         {t('alert.create')}
       </Button>
     </Sheet>

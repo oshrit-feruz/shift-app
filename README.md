@@ -97,8 +97,9 @@ Two operational notes for whoever deploys this:
 
 ## ⚠ Needs product sign-off before production
 
-- **Core fund names** (VOO / VEA / IEFA / LQD / VMFXX / EEM in
-  `app/src/lib/advisory.ts`) are realistic placeholders. Which funds the
-  product actually recommends is a material product decision.
+- **Core fund names** (VOO / IEFA / LQD / VMFXX / EEM in
+  `app/src/lib/advisory.ts`) are realistic placeholders. The specific global
+  government-bond instrument is omitted pending approval; all fund choices
+  remain a material product decision.
 - Broker/provider logos in `app/public/assets/` are third-party brand assets
   carried over from the design mockups for demo purposes.

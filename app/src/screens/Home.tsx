@@ -56,8 +56,8 @@ export function HomeScreen(_: ScreenProps) {
                 <div style={{ fontFamily: 'var(--font-heading)', fontSize: 42, lineHeight: 1.05, fontWeight: 700 }}>
                   <Num>{money(main.total)}</Num>
                 </div>
-                <div style={{ color: 'var(--up)', fontSize: 15, fontWeight: 600 }}>
-                  <Num weight={600}>{`+${money((main.total * main.dayPct) / 100)} · ${pct(main.dayPct)}`}</Num>
+                <div style={{ color: signalColor(main.dayPct), fontSize: 15, fontWeight: 600 }}>
+                  <Num weight={600}>{`${main.dayPct >= 0 ? '+' : '−'}${money(Math.abs((main.total * main.dayPct) / 100))} · ${pct(main.dayPct)}`}</Num>
                 </div>
                 <div style={{ marginTop: 10 }}>
                   <AreaChart values={pfSeries} height={76} />

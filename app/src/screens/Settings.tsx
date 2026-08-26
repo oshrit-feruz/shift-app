@@ -144,7 +144,7 @@ export function SettingsScreen(_: ScreenProps) {
                 {help[language]}
               </span>
             </span>
-            <Toggle on={notif[k]} onChange={(v) => setNotif({ ...notif, [k]: v })} />
+            <Toggle label={label[language]} on={notif[k]} onChange={(v) => setNotif({ ...notif, [k]: v })} />
           </div>
         ))}
       </Card>
@@ -260,7 +260,7 @@ function DemoFlagRow({
           {help}
         </span>
       </span>
-      <Toggle on={on} onChange={onChange} />
+      <Toggle label={label} on={on} onChange={onChange} />
     </div>
   );
 }

@@ -18,6 +18,7 @@ import { useLoadable } from '../data/useLoadable';
 import { money, pct, signalColor } from '../lib/format';
 import { TxSheet } from '../sheets/TxSheet';
 import { NewPortfolioSheet } from '../sheets/NewPortfolioSheet';
+import type { Holding, PortfolioSummary } from '../data/types';
 import type { ScreenProps } from '../App';
 
 export function PortfolioScreen(_: ScreenProps) {
@@ -34,7 +35,19 @@ export function PortfolioScreen(_: ScreenProps) {
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <DataState state={portfolios.state} onRetry={portfolios.retry}>
         {(pfs) => {
-          const list = pfs;
+          const manualPortfolios: PortfolioSummary[] = s.manualPortfolios.map((x) => ({
+            id: x.id,
+            kind: 'manual',
+            name: x.name,
+            broker: null,
+            logo: null,
+            acct: 'manual entry',
+            syncedAgo: null,
+            total: x.startingCash,
+            dayPct: 0,
+            allTimePct: 0,
+          }));
+          const list = [...pfs, ...manualPortfolios];
           const pf = list[Math.min(s.pfIndex, list.length - 1)];
           const isAgg = pf.kind === 'aggregate';
           const isManual = pf.kind === 'manual';
@@ -95,10 +108,10 @@ export function PortfolioScreen(_: ScreenProps) {
                     ))}
                   </span>
                 )}
-                {isManual && <LogoTile src={null} dashed label="SB" size={28} />}
+                {isManual && <LogoTile src={null} dashed label={pf.name.slice(0, 2).toUpperCase()} size={28} />}
                 <span style={{ flex: 1, minWidth: 0, marginInlineStart: 10 }}>
                   <span style={{ display: 'block', fontSize: 14 }}>
-                    {isAgg ? t('pf.allLinked') : isManual ? t('pf.sandboxTitle') : `${pf.broker} ${pf.acct}`}
+                    {isAgg ? t('pf.allLinked') : isManual ? pf.name : `${pf.broker} ${pf.acct}`}
                   </span>
                   <span className="text-muted" style={{ display: 'block', fontSize: 12.5 }}>
                     {isAgg
@@ -222,7 +235,7 @@ export function PortfolioScreen(_: ScreenProps) {
               </Card>
 
               <LongTermSavings />
-              <TxSheet open={txOpen} onClose={() => setTxOpen(false)} pfName={pf.name} />
+              <TxSheet open={txOpen} onClose={() => setTxOpen(false)} pfId={pf.id} pfName={pf.name} />
               <NewPortfolioSheet open={newPfOpen} onClose={() => setNewPfOpen(false)} />
             </>
           );
@@ -233,16 +246,45 @@ export function PortfolioScreen(_: ScreenProps) {
 }
 
 function Holdings({ pfId }: { pfId: string }) {
+  const s = useAppState();
   const dispatch = useDispatch();
   const holdings = useLoadable(() => demoService.holdings(pfId), [pfId]);
+  const transactions = s.manualTransactions[pfId] ?? [];
+
+  const withManualTransactions = (rows: Holding[]) => {
+    const merged = new Map(rows.map((row) => [row.ticker, { ...row }]));
+    for (const tx of transactions) {
+      if (tx.side === 'div') continue;
+      const current = merged.get(tx.ticker) ?? {
+        ticker: tx.ticker,
+        shares: 0,
+        avgCost: 0,
+        value: 0,
+        plPct: 0,
+      };
+      if (tx.side === 'buy') {
+        const shares = current.shares + tx.shares;
+        current.avgCost = shares > 0 ? (current.avgCost * current.shares + tx.price * tx.shares) / shares : 0;
+        current.shares = shares;
+        current.value += tx.price * tx.shares;
+      } else {
+        current.shares = Math.max(0, current.shares - tx.shares);
+        current.value = Math.max(0, current.value - tx.price * tx.shares);
+      }
+      merged.set(tx.ticker, current);
+    }
+    return [...merged.values()].filter((row) => row.shares > 0);
+  };
+
   return (
     <DataState state={holdings.state} onRetry={holdings.retry}>
-      {(rows) =>
-        rows.length === 0 ? (
+      {(rows) => {
+        const mergedRows = withManualTransactions(rows);
+        return mergedRows.length === 0 ? (
           <EmptyState>—</EmptyState>
         ) : (
           <>
-            {rows.map((h) => (
+            {mergedRows.map((h) => (
               <ListRow
                 key={h.ticker}
                 title={h.ticker}
@@ -253,8 +295,8 @@ function Holdings({ pfId }: { pfId: string }) {
               />
             ))}
           </>
-        )
-      }
+        );
+      }}
     </DataState>
   );
 }

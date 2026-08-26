@@ -41,8 +41,7 @@ export interface Profile {
  * ETFs/funds the product recommends is a material product decision; these
  * must be reviewed before anything ships. (Flagged in README as well.)
  */
-export const CORE_FUNDS: Record<CoreCategory, string> = {
-  globalGovBonds: 'Vanguard FTSE Developed Markets ETF · VEA',
+export const CORE_FUNDS: Partial<Record<CoreCategory, string>> = {
   developedIndex: 'iShares Core MSCI EAFE ETF · IEFA',
   sp500: 'Vanguard S&P 500 ETF · VOO',
   corporateBonds: 'iShares Investment Grade Corporate Bond ETF · LQD',

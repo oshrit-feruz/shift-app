@@ -28,6 +28,44 @@ export function WatchlistScreen({ openAlert }: ScreenProps) {
   const symbols = useLoadable(() => demoService.symbols(), []);
   const earnLabel = language === 'he' ? 'דוח' : 'Earnings';
   const newsLabel = language === 'he' ? 'חדשות' : 'News';
+  const savedAlerts = s.savedAlerts.map((alert) => {
+    const notify = [alert.notifyBy.push ? t('alert.push') : '', alert.notifyBy.email ? t('alert.email') : '']
+      .filter(Boolean)
+      .join(', ');
+    if (alert.kind === 'price') {
+      return {
+        id: alert.id,
+        glyph: alert.condition === 'rise' ? '▲' : '▼',
+        title: `${alert.ticker} ${t(alert.condition === 'rise' ? 'alert.rises' : 'alert.falls')} $${alert.value}`,
+        detail: notify,
+      };
+    }
+    if (alert.kind === 'news') {
+      return {
+        id: alert.id,
+        glyph: '◎',
+        title: `${alert.ticker} ${t('alert.newsType')} “${alert.value}”`,
+        detail: notify,
+      };
+    }
+    const remindKey =
+      alert.remind === 'day' ? 'alert.dayBefore' : alert.remind === 'morning' ? 'alert.morningOf' : 'alert.whenLands';
+    return {
+      id: alert.id,
+      glyph: '📅',
+      title: `${alert.ticker} ${t('alert.earnType')}`,
+      detail: `${t(remindKey)} · ${notify}`,
+    };
+  });
+  const activeAlerts = [
+    ...savedAlerts,
+    ...ALERTS.map((alert, index) => ({
+      id: `demo-${index}`,
+      glyph: alert.glyph,
+      title: alert.title[language],
+      detail: alert.detail[language],
+    })),
+  ];
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -96,8 +134,8 @@ export function WatchlistScreen({ openAlert }: ScreenProps) {
 
       <Card padding={13} gap={8}>
         <CardTitle>{t('watch.activeAlerts')}</CardTitle>
-        {ALERTS.map((a, i) => (
-          <div key={i} style={{ display: 'flex', gap: 9, paddingTop: 8, borderTop: '1px solid var(--color-divider)' }}>
+        {activeAlerts.map((a) => (
+          <div key={a.id} style={{ display: 'flex', gap: 9, paddingTop: 8, borderTop: '1px solid var(--color-divider)' }}>
             <span
               style={{
                 width: 24,
@@ -114,9 +152,9 @@ export function WatchlistScreen({ openAlert }: ScreenProps) {
               {a.glyph}
             </span>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14 }}>{a.title[language]}</div>
+              <div style={{ fontSize: 14 }}>{a.title}</div>
               <div className="text-muted" style={{ fontSize: 12.5 }}>
-                {a.detail[language]}
+                {a.detail}
               </div>
             </div>
             <Button variant="ghost" fontSize={12.5} style={{ opacity: 0.7, padding: 0 }}>

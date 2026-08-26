@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hardRule, mapProfile, PROFILES, type Answer } from './advisory';
+import { CORE_FUNDS, hardRule, mapProfile, PROFILES, type Answer } from './advisory';
 import { money, pct, signedMoney } from './format';
 
 const all: Answer[] = [1, 2, 3];
@@ -63,6 +63,11 @@ describe('advisory profile mapping', () => {
 
   it('Conservative has no satellite sleeve', () => {
     expect(PROFILES.cons.satellitePct).toBe(0);
+  });
+
+  it('does not recommend an unapproved fund for global government bonds', () => {
+    expect(CORE_FUNDS.globalGovBonds).toBeUndefined();
+    expect(Object.values(CORE_FUNDS).join(' ')).not.toContain('VEA');
   });
 });
 

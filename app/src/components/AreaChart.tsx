@@ -16,7 +16,9 @@ export function AreaChart({
   benchmark?: number[];
 }) {
   const id = useId();
-  const pts = fit(values, width, height, pad);
+  const domainValues = benchmark ? [...values, ...benchmark] : values;
+  const domain = [Math.min(...domainValues), Math.max(...domainValues)] as const;
+  const pts = fit(values, width, height, pad, domain);
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
@@ -34,7 +36,7 @@ export function AreaChart({
       <path d={linePath(pts)} fill="none" stroke="var(--acc-lite)" strokeWidth="1.6" />
       {benchmark && (
         <path
-          d={linePath(fit(benchmark, width, height, pad))}
+          d={linePath(fit(benchmark, width, height, pad, domain))}
           fill="none"
           stroke="var(--muted)"
           strokeWidth="1.1"
