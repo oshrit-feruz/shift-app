@@ -13,6 +13,16 @@
  * really does reach the bottom edge. The 100% line stays as the fallback for
  * anything without dvh support. */
 html, body, #root { height: 100%; }
+/* The document itself never scrolls — the shell is fixed-height and the inner
+ * .scroll-y does the scrolling — so any document-level scroll is overscroll.
+ * `none` refuses the bounce outright; `overflow: hidden` means there is
+ * nothing to bounce in the first place. (overscroll-behavior needs iOS 16+;
+ * on older Safari the bounce remains, which is why overflow carries its own
+ * half of the fix.) */
+html, body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
 @supports (height: 100dvh) {
   html, body, #root { height: 100dvh; }
 }
@@ -260,7 +270,10 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
 }
 
 /* Thin scrollbars inside the phone viewport */
-.scroll-y { overflow-y: auto; scrollbar-width: thin; }
+/* `contain` stops a drag that reaches either end of this scroller from
+ * chaining to the document, which is what let iOS rubber-band the whole app
+ * — shell, header and tab bar together — away from the screen edges. */
+.scroll-y { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 .scroll-x { overflow-x: auto; scrollbar-width: none; }
 .scroll-x::-webkit-scrollbar { display: none; }
 
