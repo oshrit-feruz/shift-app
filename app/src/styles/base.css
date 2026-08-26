@@ -1,0 +1,202 @@
+/*
+ * Base layer — resets, typography and the shared CSS classes the component
+ * library styles against. Every value comes from tokens.css; no raw colors,
+ * radii or shadows may appear in screen code.
+ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--g2);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+button, input, select, textarea, table { font-family: var(--font-body); }
+
+a { color: var(--color-accent); text-decoration: none; }
+a:hover { color: var(--color-accent-300); }
+
+h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 0; }
+
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+/* Numbers, prices, tickers stay LTR when the interface flips to RTL. */
+[data-num], .num {
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Cards (glass) ─────────────────────────────────────────────────────── */
+.card {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.elev-sm { box-shadow: var(--shadow-sm); }
+.elev-md { box-shadow: var(--shadow-md); }
+.elev-lg { box-shadow: var(--shadow-lg); }
+.card-title { font-weight: 600; white-space: nowrap; }
+
+/* Light mode keeps cards dark on purpose — white text forced past inline styles. */
+[data-theme="light"] .card {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #FFFFFF !important;
+  background: var(--color-surface);
+}
+[data-theme="light"] .card .text-muted { color: #B6BECE; }
+
+.text-muted { color: var(--muted); }
+[data-theme="light"] .text-muted { color: var(--muted); }
+
+/* ── Buttons ───────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px; /* mobile tap-target floor */
+  padding: 0 20px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  font: 600 15px var(--font-body);
+  cursor: pointer;
+  white-space: nowrap;
+  color: inherit;
+  background: transparent;
+}
+.btn:disabled { opacity: .4; cursor: default; }
+.btn-primary { background: var(--color-accent); color: #fff; }
+.btn-secondary {
+  border: 1px solid var(--color-divider);
+  background: var(--sunk);
+  color: inherit;
+  font-weight: 500;
+}
+.btn-ghost {
+  padding: 0 16px;
+  background: transparent;
+  color: var(--color-accent-300);
+  font-weight: 500;
+  min-height: 0;
+  border-radius: 6px; /* per review: ghost buttons carry a 6px radius */
+}
+.btn-block { display: flex; width: 100%; }
+
+/* ── Tags ──────────────────────────────────────────────────────────────── */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.tag-accent {
+  background: rgba(139, 92, 246, .2);
+  color: var(--acc-pale);
+  border-color: rgba(167, 139, 250, .4);
+}
+[data-theme="light"] .tag-accent {
+  background: rgba(79, 70, 229, .25);
+  color: #C7D2FE;
+  border-color: rgba(129, 140, 248, .4);
+}
+.tag-neutral {
+  background: rgba(146, 155, 172, .16);
+  color: #E2E8F0;
+  border-color: rgba(146, 155, 172, .3);
+}
+[data-theme="light"] .tag-neutral {
+  background: rgba(146, 155, 172, .2);
+  color: #E2E8F0;
+  border-color: rgba(146, 155, 172, .35);
+}
+.tag-outline { color: var(--acc-lite); border-color: rgba(167, 139, 250, .5); }
+[data-theme="light"] .tag-outline { color: #818CF8; border-color: rgba(129, 140, 248, .5); }
+.tag-up {
+  background: color-mix(in srgb, var(--up) 16%, transparent);
+  color: var(--up);
+  border-color: color-mix(in srgb, var(--up) 35%, transparent);
+  font-weight: 600;
+}
+.tag-down {
+  background: color-mix(in srgb, var(--down) 16%, transparent);
+  color: var(--down);
+  border-color: color-mix(in srgb, var(--down) 35%, transparent);
+  font-weight: 600;
+}
+
+/* ── Fields ────────────────────────────────────────────────────────────── */
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field > label { font-size: 12.5px; color: var(--muted); }
+.input {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-sm);
+  background: var(--sunk);
+  color: var(--color-text);
+  font: 400 15px var(--font-body);
+  width: 100%;
+}
+[data-theme="light"] .input { background: var(--color-surface); color: #FFFFFF; }
+.input::placeholder { color: var(--muted-2); }
+
+/* Segmented control */
+.seg {
+  display: flex;
+  padding: 3px;
+  gap: 3px;
+  border-radius: 11px;
+  background: var(--sunk);
+  border: 1px solid var(--color-divider);
+}
+.seg-opt {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  padding: 9px 0;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-body);
+}
+.seg-opt[data-active="true"] { background: var(--color-accent); color: #fff; font-weight: 600; }
+
+/* ── Motion ────────────────────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes sheetUp {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+.anim-fade-up { animation: fadeUp .22s ease both; }
+
+/* Thin scrollbars inside the phone viewport */
+.scroll-y { overflow-y: auto; scrollbar-width: thin; }
+.scroll-x { overflow-x: auto; scrollbar-width: none; }
+.scroll-x::-webkit-scrollbar { display: none; }

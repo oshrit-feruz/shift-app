@@ -1,0 +1,118 @@
+/*
+ * Shift design tokens — the single source of truth for the app's look.
+ * Lifted verbatim from the shipping design (design-reference/Shift Mobile.dc.html
+ * and Shift Design System.dc.html). Change a value here and it propagates to
+ * every component; nothing else in the codebase declares a color, radius,
+ * shadow or font.
+ *
+ * Three global switches, set as attributes on <html> by ThemeProvider:
+ *   data-theme:  (unset = dark) | "light"
+ *   data-signal: (unset = vivid) | "balanced" | "muted"   — up/down intensity
+ *   dir:         "rtl" (Hebrew, default) | "ltr" (English)
+ */
+
+:root {
+  /* Surfaces & ground */
+  --g1: #1E293B; /* gradient top */
+  --g2: #0F172A; /* page ground */
+  --color-bg: #0F172A;
+  --color-surface: rgba(30, 41, 59, .35); /* glass card fill */
+  --color-text: #FFFFFF;
+
+  /* Lines & muted text */
+  --line: #3f424d;
+  --grid: #2b2d3a;
+  --muted: #B4C2D6;
+  --muted-2: #7A8CA6;
+  --color-divider: rgba(146, 155, 172, .35);
+
+  /* Accent ramp — violet */
+  --acc-pale: #DDD6FE;
+  --acc-lite: #A78BFA;
+  --acc-mid: #8B5CF6;
+  --acc-dim: #7C6BC9;
+  --acc-fill: #4C1D95;
+  --color-accent: #8B5CF6;
+  --color-accent-200: #DDD6FE;
+  --color-accent-300: #A78BFA;
+  --color-accent-700: #5B21B6;
+  --color-accent-800: #4C1D95;
+  --color-accent-900: rgba(139, 92, 246, .14); /* the only accent fill behind body copy */
+
+  /* Special surfaces */
+  --sunk: rgba(0, 0, 0, .25);
+  --hdr: rgba(15, 23, 42, .86);
+  --veil: rgba(8, 9, 14, .6);
+
+  /* Signal — up / down (vivid default) */
+  --up: #2fd18a;
+  --down: #f2564e;
+
+  /* Radii */
+  --radius-sm: 9px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  /* Elevation */
+  --shadow-sm: 0 0 0 1px rgba(146, 155, 172, .2), 0 8px 32px rgba(0, 0, 0, .25);
+  --shadow-md: 0 0 0 1px rgba(146, 155, 172, .25), 0 12px 36px rgba(0, 0, 0, .3);
+  --shadow-lg: 0 0 0 1px rgba(146, 155, 172, .3), 0 16px 40px rgba(0, 0, 0, .4);
+
+  /* Type */
+  --font-heading: 'Rubik', system-ui, sans-serif;
+  --font-body: 'Rubik', system-ui, sans-serif;
+}
+
+[data-signal="balanced"] {
+  --up: #48c795;
+  --down: #e5675f;
+}
+
+[data-signal="muted"] {
+  --up: #5fbf94;
+  --down: #d9736f;
+}
+
+/* Light mode — the page lightens, cards stay dark on purpose (see the design
+   system doc: numbers keep their weight, the accent shifts violet → indigo). */
+[data-theme="light"] {
+  --g1: #ffffff;
+  --g2: #F1F5F9;
+  --line: rgba(41, 43, 49, .15);
+  --grid: rgba(41, 43, 49, .09);
+  --muted: #3d4050;
+  --muted-2: #7a7f96;
+  --acc-pale: #C7D2FE;
+  --acc-lite: #818CF8;
+  --acc-mid: #4F46E5;
+  --acc-dim: #6366F1;
+  --acc-fill: rgba(30, 36, 66, .9);
+  --sunk: rgba(255, 255, 255, .06);
+  --hdr: rgba(241, 245, 249, .88);
+  --veil: rgba(30, 32, 48, .34);
+  --up: #2fd18a;
+  --down: #f2564e;
+  --color-bg: #F1F5F9;
+  --color-surface: rgba(18, 24, 41, .8);
+  --color-text: #1E293B;
+  --color-accent: #4F46E5;
+  --color-accent-200: #C7D2FE;
+  --color-accent-300: #818CF8;
+  --color-accent-700: #4338CA;
+  --color-accent-800: #3730A3;
+  --color-accent-900: rgba(18, 24, 41, .85);
+  --color-divider: rgba(146, 155, 172, .45);
+  --shadow-sm: 0 0 0 1px rgba(146, 155, 172, .25), 0 8px 24px rgba(18, 24, 41, .25);
+  --shadow-md: 0 0 0 1px rgba(146, 155, 172, .25), 0 8px 24px rgba(18, 24, 41, .3);
+  --shadow-lg: 0 0 0 1px rgba(146, 155, 172, .3), 0 16px 40px rgba(18, 24, 41, .35);
+}
+
+[data-theme="light"][data-signal="balanced"] {
+  --up: #1a8f57;
+  --down: #c9403c;
+}
+
+[data-theme="light"][data-signal="muted"] {
+  --up: #3d8f6d;
+  --down: #b45551;
+}

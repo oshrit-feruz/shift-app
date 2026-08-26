@@ -1,0 +1,102 @@
+import { Button } from '../../components/Button';
+import { Tag } from '../../components/Tag';
+import { useDispatch } from '../../state/appState';
+import { useTheme } from '../../theme/ThemeProvider';
+import { useT } from '../../i18n/useT';
+
+/** First-run density picker. Purely a display preference — nothing saved
+ *  depends on it, and it can be skipped. */
+export function FirstRunOverlay() {
+  const dispatch = useDispatch();
+  const { mode, setMode } = useTheme();
+  const t = useT();
+
+  const pick = (m: 'beginner' | 'advanced') => {
+    setMode(m);
+    dispatch({ type: 'firstRunSeen' });
+    dispatch({ type: 'go', screen: 'steps' });
+  };
+
+  return (
+    <div
+      className="anim-fade-up"
+      style={{
+        position: 'absolute',
+        inset: 0,
+        zIndex: 95,
+        background: 'var(--color-bg)',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        gap: 14,
+        padding: '34px 20px',
+      }}
+    >
+      <div>
+        <div className="text-muted" style={{ fontSize: 12.5, letterSpacing: '.1em', textTransform: 'uppercase' }}>
+          {t('firstRun.kicker')}
+        </div>
+        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 23, lineHeight: 1.25, marginTop: 6, whiteSpace: 'normal' }}>
+          {t('firstRun.q')}
+        </div>
+        <p className="text-muted" style={{ fontSize: 13, margin: '8px 0 0' }}>
+          {t('firstRun.help')}
+        </p>
+      </div>
+      {(
+        [
+          ['beginner', t('more.beginner'), t('firstRun.begBadge'), t('firstRun.begBlurb'), false],
+          ['advanced', t('more.advanced'), t('firstRun.advBadge'), t('firstRun.advBlurb'), true],
+        ] as const
+      ).map(([m, name, badge, blurb, dense]) => (
+        <button
+          key={m}
+          type="button"
+          onClick={() => pick(m)}
+          style={{
+            textAlign: 'start',
+            padding: 14,
+            borderRadius: 'var(--radius-md)',
+            border: `1px solid ${mode === m ? 'var(--color-accent)' : 'var(--color-divider)'}`,
+            background: mode === m ? 'var(--color-accent-900)' : 'transparent',
+            color: 'inherit',
+            font: 'inherit',
+            cursor: 'pointer',
+          }}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 15, fontWeight: 600 }}>{name}</span>
+            <Tag variant="outline" fontSize={12}>
+              {badge}
+            </Tag>
+          </span>
+          <span style={{ display: 'block', fontSize: 13, opacity: 0.78, marginTop: 5 }}>{blurb}</span>
+          {/* density sketch */}
+          <svg viewBox="0 0 260 44" style={{ width: '100%', height: 40, marginTop: 9 }} aria-hidden="true">
+            {Array.from({ length: dense ? 9 : 4 }, (_, i) => (
+              <rect
+                key={i}
+                x={dense ? (i % 3) * 88 : 0}
+                y={dense ? Math.floor(i / 3) * 15 : i * 11}
+                width={dense ? 74 : 150 + ((i * 47) % 100)}
+                height={dense ? 4 : 6}
+                rx="2"
+                fill={i === 0 ? 'var(--color-accent)' : 'var(--line)'}
+              />
+            ))}
+          </svg>
+        </button>
+      ))}
+      <Button
+        variant="ghost"
+        alignSelf="center"
+        fontSize={13}
+        onClick={() => {
+          dispatch({ type: 'firstRunSeen' });
+        }}
+      >
+        {t('firstRun.skip')}
+      </Button>
+    </div>
+  );
+}
