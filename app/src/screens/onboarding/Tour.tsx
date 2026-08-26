@@ -7,11 +7,20 @@ import { useTheme } from '../../theme/ThemeProvider';
 import { useT } from '../../i18n/useT';
 import type { ScreenProps } from '../../App';
 
+/**
+ * Pure UI-chrome orientation: things that are true everywhere in the app,
+ * not things to go do. Two cards that used to live here — mode switching and
+ * alerts — are gone on purpose: Steps now opens immediately after this tour
+ * finishes, and its first item ("Choose how much detail you see") and its
+ * alert item ("Set one alert") already taught the same feature, one of them
+ * in near-identical wording, with an actual call-to-action this screen
+ * cannot offer. Keeping both meant reading the same sentence twice in one
+ * continuous flow. If a feature needs an action, it belongs in Steps, not
+ * here — this tour never recommends anything, so it needed no CTA to drop.
+ */
 const TOUR = [
   { icon: 'M4 11l8-7 8 7v8a1 1 0 01-1 1H5a1 1 0 01-1-1z', title: { en: 'Five tabs at the bottom', he: 'חמישה טאבים למטה' }, body: { en: 'Home, watchlist, movers, portfolio and More. Every screen starts from one of these five.', he: 'בית, ווטצ׳ליסט, מובילים, תיק ו״עוד״. כל מסך באפליקציה מתחיל מאחד מחמשת אלה.' } },
-  { icon: 'M12 15a3 3 0 100-6 3 3 0 000 6M4 12h2M18 12h2M12 4v2M12 18v2', title: { en: 'Beginner or Advanced', he: 'מתחילים או מקצועי' }, body: { en: 'In Settings you choose between Beginner and Advanced. Same data, more or less detail — nothing is lost when you switch.', he: 'בהגדרות בוחרים בין מתחילים למקצועי. אותם נתונים, יותר או פחות פירוט — שום דבר לא הולך לאיבוד כשמחליפים.' } },
   { icon: 'M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.35-4.35', title: { en: 'Search from anywhere', he: 'חיפוש מכל מקום' }, body: { en: 'The magnifier in the header finds any company by name or ticker, from any screen.', he: 'הזכוכית המגדלת בכותרת מוצאת כל חברה לפי שם או סימבול, מכל מסך.' } },
-  { icon: 'M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0', title: { en: 'Alerts instead of checking', he: 'התראות במקום לבדוק' }, body: { en: 'On any stock page — Add alert. The app watches the price so you do not have to.', he: 'בכל דף מניה — הוספת התראה. האפליקציה עוקבת אחרי המחיר במקומך.' } },
   { icon: 'M9 11l3 3 9-9M21 12v6a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2h11', title: { en: 'Everything is tappable', he: 'הכול לחיץ' }, body: { en: 'Rows open the company behind them, cards expand, and the back arrow always returns you one step.', he: 'שורות פותחות את החברה שמאחוריהן, כרטיסים נפתחים, וחץ החזרה תמיד מחזיר צעד אחד.' } },
 ];
 
