@@ -1,56 +1,64 @@
 import { Sheet } from '../components/Sheet';
 import { Button } from '../components/Button';
+import { Tag } from '../components/Tag';
 import { useAppState, useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import type { AppNotification } from '../data/types';
 
 /**
- * Notification center. Threshold alerts are informational-only: they carry the
- * fixed "alert only — no action taken" disclaimer at equal prominence, and the
- * only affordance is mark-as-read. Never a confirm/execute button.
+ * Notification center. Entries derive ONLY from alert rules the user actually
+ * configured (personal thresholds, created alerts) — never from placeholder
+ * events — and each demo-fired entry is labeled as a demo trigger. Threshold
+ * alerts are informational-only: they carry the fixed "alert only — no action
+ * taken" disclaimer at equal prominence, and the only affordance is
+ * mark-as-read. Never a confirm/execute button.
  */
-const NOTIFS: AppNotification[] = [
-  {
-    glyph: '▲',
-    title: { en: 'NVDA crossed your +25% alert (currently +27% from entry)', he: 'NVDA חצתה את ההתראה שלך של +25% (כרגע +27% מנקודת הכניסה)' },
-    detail: { en: 'Personal threshold alert', he: 'התראת סף אישית' },
-    ago: { en: '4m', he: 'לפני 4 ד׳' },
-    ticker: 'NVDA',
-    unread: true,
-    isThresholdAlert: true,
-  },
-  {
-    glyph: '✎',
-    title: { en: 'Reuters: NVIDIA lifts data-centre outlook', he: 'רויטרס: NVIDIA מעלה תחזית למרכזי נתונים' },
-    detail: { en: 'News alert · 1 of 3 sources matched', he: 'התראת חדשות · 1 מ-3 מקורות' },
-    ago: { en: '22m', he: 'לפני 22 ד׳' },
-    ticker: 'NVDA',
-    unread: true,
-  },
-  {
-    glyph: '▾',
-    title: { en: 'AMD fell below $150.00', he: 'AMD ירד מתחת ל-$150.00' },
-    detail: { en: 'Price alert · repeating', he: 'התראת מחיר · חוזרת' },
-    ago: { en: '1h', he: 'לפני שעה' },
-    ticker: 'AMD',
-    unread: false,
-  },
-  {
-    glyph: '◫',
-    title: { en: 'LLY reports tomorrow after the close', he: 'LLY מפרסמת מחר אחרי הנעילה' },
-    detail: { en: 'Earnings reminder · Q3 results', he: 'תזכורת דוח · תוצאות רבעון 3' },
-    ago: { en: '3h', he: 'לפני 3 ש׳' },
-    ticker: 'LLY',
-    unread: false,
-  },
-];
-
 export function NotificationsSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const s = useAppState();
   const dispatch = useDispatch();
   const { language } = useTheme();
   const t = useT();
+
+  const notifs: AppNotification[] = [];
+  if (s.alertUpThreshold) {
+    notifs.push({
+      glyph: '▲',
+      title: {
+        en: `NVDA crossed your +${s.alertUpThreshold}% alert`,
+        he: `NVDA חצתה את ההתראה שלך של +${s.alertUpThreshold}%`,
+      },
+      detail: { en: 'Personal threshold alert', he: 'התראת סף אישית' },
+      ago: { en: 'demo', he: 'הדגמה' },
+      ticker: 'NVDA',
+      unread: true,
+      isThresholdAlert: true,
+    });
+  }
+  for (const a of s.alerts) {
+    notifs.push({
+      glyph: a.kind === 'price' ? (a.direction === 'fall' ? '▾' : '▲') : a.kind === 'earn' ? '◫' : '✎',
+      title: {
+        en:
+          a.kind === 'price'
+            ? `${a.ticker} ${a.direction === 'fall' ? 'fell below' : 'rose above'} $${a.level ?? '—'}`
+            : a.kind === 'earn'
+              ? `${a.ticker} reports soon`
+              : `${a.ticker} news alert matched`,
+        he:
+          a.kind === 'price'
+            ? `${a.ticker} ${a.direction === 'fall' ? 'ירד מתחת ל-' : 'עלה מעל '}$${a.level ?? '—'}`
+            : a.kind === 'earn'
+              ? `${a.ticker} מפרסמת דוח בקרוב`
+              : `התראת החדשות על ${a.ticker} הופעלה`,
+      },
+      detail: { en: 'From your alert rule', he: 'מכלל ההתראה שלך' },
+      ago: { en: 'demo', he: 'הדגמה' },
+      ticker: a.ticker,
+      unread: false,
+    });
+  }
+  const NOTIFS = notifs;
   const unread = s.notificationsRead ? 0 : NOTIFS.filter((n) => n.unread).length;
 
   return (
@@ -61,11 +69,20 @@ export function NotificationsSheet({ open, onClose }: { open: boolean; onClose: 
       meta={unread ? t('notif.new', { n: unread }) : t('notif.caughtUp')}
       maxHeight="80%"
     >
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        <Tag variant="neutral" fontSize={11}>
+          {t('data.demo')}
+        </Tag>
+        <span style={{ flex: 1 }} />
         <Button variant="ghost" fontSize={13} onClick={() => dispatch({ type: 'markNotificationsRead' })}>
           {t('notif.markAll')}
         </Button>
       </div>
+      {NOTIFS.length === 0 && (
+        <p className="text-muted" style={{ fontSize: 'var(--fs-sm)', margin: 0, textAlign: 'center', padding: '10px 0' }}>
+          {t('notif.caughtUp')}
+        </p>
+      )}
       {NOTIFS.map((n, i) => (
         <div
           key={i}

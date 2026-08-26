@@ -1,5 +1,8 @@
 import { Icon } from './Icon';
 import { Num } from './Num';
+import { Tag } from './Tag';
+import { demoService } from '../data/demoAdapter';
+import { useT } from '../i18n/useT';
 
 /** Screen header: mark + kicker + search/bell buttons + big title. */
 export function AppHeader({
@@ -15,6 +18,7 @@ export function AppHeader({
   onSearch: () => void;
   onNotifications: () => void;
 }) {
+  const t = useT();
   return (
     <div style={{ flex: 'none', padding: 'calc(14px + env(safe-area-inset-top)) 16px 8px', display: 'flex', alignItems: 'center', gap: 10 }}>
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -47,6 +51,13 @@ export function AppHeader({
           >
             {kicker}
           </div>
+          {/* Global data-honesty marker: every number on screen is demo-backed
+              while the demo adapter is the data source. */}
+          {demoService.isDemo && (
+            <Tag variant="neutral" fontSize={11}>
+              {t('data.demo')}
+            </Tag>
+          )}
           <HeaderIconButton title="Search" onClick={onSearch}>
             <Icon name="search" strokeWidth={2.1} />
           </HeaderIconButton>

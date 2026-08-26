@@ -20,6 +20,7 @@ const base: AppState = {
   aggExcluded: {},
   manualTxs: [],
   manualPortfolios: [],
+  alerts: [],
 };
 
 describe('setupProgress resume guard', () => {

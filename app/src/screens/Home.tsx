@@ -26,6 +26,8 @@ export function HomeScreen(_: ScreenProps) {
   const beg = mode === 'beginner';
   const symbols = useLoadable(() => demoService.symbols(), []);
   const portfolios = useLoadable(() => demoService.portfolios(), []);
+  const metrics = useLoadable(() => demoService.portfolioMetrics(), []);
+  const earnings = useLoadable(() => demoService.earnings(), []);
   const setup = setupProgress(s);
   const pfSeries = demoService.series('home-pf', 60, 0.42, 2.2);
 
@@ -157,16 +159,24 @@ export function HomeScreen(_: ScreenProps) {
       )}
 
       {!beg && (
-        <MetricStrip
-          metrics={[
-            { label: language === 'he' ? 'שווי' : 'Value', value: '$48,214' },
-            { label: language === 'he' ? 'יומי' : 'Day', value: '+0.86%', color: 'var(--up)' },
-            { label: language === 'he' ? 'רווח פתוח' : 'Open P/L', value: '+$11.5k', color: 'var(--up)' },
-            { label: 'Beta', value: '1.34' },
-            { label: language === 'he' ? 'מזומן' : 'Cash', value: '14%' },
-            { label: language === 'he' ? 'סיכון' : 'Risk', value: language === 'he' ? 'גבוה' : 'High', color: 'var(--color-accent-300)' },
-          ]}
-        />
+        <DataState state={metrics.state} onRetry={metrics.retry}>
+          {(m) => (
+            <MetricStrip
+              metrics={[
+                { label: language === 'he' ? 'שווי' : 'Value', value: money(m.total, 0) },
+                { label: language === 'he' ? 'יומי' : 'Day', value: pct(m.dayPct), color: signalColor(m.dayPct) },
+                {
+                  label: language === 'he' ? 'רווח פתוח' : 'Open P/L',
+                  value: `${m.openPl >= 0 ? '+' : '−'}$${(Math.abs(m.openPl) / 1000).toFixed(1)}k`,
+                  color: signalColor(m.openPl),
+                },
+                { label: 'Beta', value: m.beta.toFixed(2) },
+                { label: language === 'he' ? 'מזומן' : 'Cash', value: `${m.cashPct}%` },
+                { label: language === 'he' ? 'סיכון' : 'Risk', value: m.risk[language], color: 'var(--color-accent-300)' },
+              ]}
+            />
+          )}
+        </DataState>
       )}
 
       {/* Watchlist preview */}
@@ -255,17 +265,21 @@ export function HomeScreen(_: ScreenProps) {
       </Card>
 
       {/* Earnings this week */}
+      <DataState state={earnings.state} onRetry={earnings.retry}>
+        {(rows) => {
+          const week = rows.slice(0, 3);
+          return (
       <Card padding={13} gap={7}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <CardTitle>{t('home.earnWeek')}</CardTitle>
-          <Tag variant="neutral">3</Tag>
+          <Tag variant="neutral">{week.length}</Tag>
         </div>
         {beg && (
           <p className="text-muted" style={{ fontSize: 'var(--fs-sm)', margin: 0 }}>
             {t('home.earnHelp')}
           </p>
         )}
-        {HOME_EARNINGS.map((e, i) => (
+        {week.map((e, i) => (
           <ListRow
             key={i}
             padding="7px 0"
@@ -282,44 +296,30 @@ export function HomeScreen(_: ScreenProps) {
                 }}
               >
                 <div style={{ fontSize: 'var(--fs-xs)', letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--acc-lite)', fontWeight: 'var(--fw-medium)' }}>
-                  {language === 'he' ? 'אוג׳' : 'Aug'}
+                  {e.date.split(' ')[0]}
                 </div>
                 <Num size={16} weight={500} style={{ fontFamily: 'var(--font-heading)', color: 'var(--acc-mid)' }}>
-                  {e.day}
+                  {e.date.split(' ')[1] ?? ''}
                 </Num>
               </div>
             }
             title={
               <span style={{ fontSize: 'var(--fs-md)', fontWeight: 'var(--fw-regular)' }}>
-                {beg ? e.beg[language] : e.adv}
+                {beg ? `${e.name} (${e.ticker})` : `${e.ticker} · est EPS ${e.epsEst} · impl. move ${e.impliedMove}`}
               </span>
             }
             trailing={
               <Tag variant="outline" fontSize={12}>
-                {t('home.afterClose')}
+                {e.when === 'AMC' ? t('home.afterClose') : t('home.beforeOpen')}
               </Tag>
             }
           />
         ))}
       </Card>
+          );
+        }}
+      </DataState>
     </div>
   );
 }
 
-const HOME_EARNINGS = [
-  {
-    day: '26',
-    beg: { en: 'NVIDIA — its biggest report of the year', he: 'NVIDIA — הדוח הגדול שלה בשנה' },
-    adv: 'NVDA · est EPS 1.24 · impl. move ±8.4%',
-  },
-  {
-    day: '27',
-    beg: { en: 'CrowdStrike — cybersecurity', he: 'CrowdStrike — אבטחת מידע' },
-    adv: 'CRWD · est EPS 0.98 · impl. move ±9.1%',
-  },
-  {
-    day: '28',
-    beg: { en: 'Dell — PCs and AI servers', he: 'Dell — מחשבים ושרתי AI' },
-    adv: 'DELL · est EPS 2.31 · impl. move ±7.2%',
-  },
-];

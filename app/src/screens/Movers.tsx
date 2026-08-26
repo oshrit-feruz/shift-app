@@ -133,7 +133,7 @@ export function MoversScreen(_: ScreenProps) {
                         <Num>{x.volume}</Num>
                       </Td>
                       <Td color="var(--color-accent-300)">
-                        <Num>{(1.1 + (x.ticker.length % 4) * 0.4).toFixed(1)}×</Num>
+                        <Num>{x.rvol.toFixed(1)}×</Num>
                       </Td>
                     </tr>
                   ))}

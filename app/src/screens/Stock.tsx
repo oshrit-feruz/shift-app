@@ -8,13 +8,14 @@ import { CandleChart } from '../components/CandleChart';
 import { Chip } from '../components/Chip';
 import { ListRow } from '../components/ListRow';
 import { SegmentBar } from '../components/AllocationBar';
-import { DataState } from '../components/DataState';
+import { DataState, EmptyState } from '../components/DataState';
 import { useAppState, useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
 import { money, pct, signalColor } from '../lib/format';
+import type { StockStats } from '../data/types';
 import type { ScreenProps } from '../App';
 
 const TIMEFRAMES = ['1D', '1W', '1M', '3M', '1Y'];
@@ -22,12 +23,16 @@ const TIMEFRAMES = ['1D', '1W', '1M', '3M', '1Y'];
 export function StockScreen({ openAlert }: ScreenProps) {
   const s = useAppState();
   const dispatch = useDispatch();
-  const { mode } = useTheme();
+  const { mode, language } = useTheme();
   const t = useT();
   const beg = mode === 'beginner';
   const [tf, setTf] = useState('3M');
   const [ind, setInd] = useState({ ma: true, rsi: true, macd: false });
   const sym = useLoadable(() => demoService.symbol(s.ticker), [s.ticker]);
+  const stats = useLoadable(() => demoService.stockStats(s.ticker), [s.ticker]);
+  const consensus = useLoadable(() => demoService.analystConsensus(s.ticker), [s.ticker]);
+  const nextEarn = useLoadable(() => demoService.nextEarnings(s.ticker), [s.ticker]);
+  const news = useLoadable(() => demoService.stockNews(s.ticker), [s.ticker]);
   const inWl = s.watchlist.includes(s.ticker);
 
   const closes = demoService.series(`${s.ticker}-candles`, 46, 0.5, 3.4).slice(4);
@@ -46,9 +51,12 @@ export function StockScreen({ openAlert }: ScreenProps) {
                 {`${(x.changePct >= 0 ? '+' : '') + ((x.price * x.changePct) / 100).toFixed(2)} · ${pct(x.changePct)}`}
               </Num>
             </div>
-            <div className="text-muted" style={{ fontSize: 'var(--fs-sm)', marginTop: 3 }}>
-              {t('stock.afterHrs')} <Num>{money(x.price * 1.004)}</Num>
-            </div>
+            {stats.state.status === 'ok' && stats.state.data.afterHours && (
+              <div className="text-muted" style={{ fontSize: 'var(--fs-sm)', marginTop: 3 }}>
+                {t('stock.afterHrs', { when: stats.state.data.afterHours.asOf[language] })}{' '}
+                <Num>{money(stats.state.data.afterHours.price)}</Num>
+              </div>
+            )}
           </div>
 
           <div style={{ display: 'flex', gap: 7 }}>
@@ -88,7 +96,9 @@ export function StockScreen({ openAlert }: ScreenProps) {
             <Card padding={12} gap={0}>
               <AreaChart values={begSeries} height={150} pad={8} />
               <p style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.5, margin: '10px 0 0', opacity: 0.85 }}>
-                {t('stock.chartHelp', { pct: '18%' })}
+                {t('stock.chartHelp', {
+                  pct: `${Math.round(((begSeries[begSeries.length - 1] - begSeries[0]) / begSeries[0]) * 100)}%`,
+                })}
               </p>
             </Card>
           ) : (
@@ -106,9 +116,11 @@ export function StockScreen({ openAlert }: ScreenProps) {
                   </Chip>
                 ))}
               </div>
-              <Num size={12} block style={{ color: 'var(--muted)' }}>
-                {`O ${(x.price - 1.9).toFixed(2)} H ${(x.price + 2.4).toFixed(2)} L ${(x.price - 3.1).toFixed(2)} C ${x.price.toFixed(2)}`}
-              </Num>
+              {stats.state.status === 'ok' && (
+                <Num size={12} block style={{ color: 'var(--muted)' }}>
+                  {`O ${stats.state.data.open.toFixed(2)} H ${stats.state.data.high.toFixed(2)} L ${stats.state.data.low.toFixed(2)} C ${x.price.toFixed(2)}`}
+                </Num>
+              )}
               <CandleChart closes={closes} showMA={ind.ma} showRSI={ind.rsi} showMACD={ind.macd} rsiNow={x.rsi} />
             </Card>
           )}
@@ -128,14 +140,18 @@ export function StockScreen({ openAlert }: ScreenProps) {
                 />
               ))
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
-                {ADV_STATS(x.price, x.marketCap, x.volume, x.pe, x.rsi).map(([k, v], i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 'var(--fs-xs)', padding: '2px 0' }}>
-                    <span className="text-muted">{k}</span>
-                    <Num>{v}</Num>
+              <DataState state={stats.state} onRetry={stats.retry}>
+                {(st) => (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+                    {ADV_STATS(x.price, x.marketCap, x.volume, x.pe, x.rsi, st).map(([k, v], i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 'var(--fs-xs)', padding: '2px 0' }}>
+                        <span className="text-muted">{k}</span>
+                        <Num>{v}</Num>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                )}
+              </DataState>
             )}
           </Card>
 
@@ -148,69 +164,87 @@ export function StockScreen({ openAlert }: ScreenProps) {
                   {t('stock.analystMeta')}
                 </span>
               </div>
-              <SegmentBar
-                segments={[
-                  { value: 31, colorVar: 'var(--up)' },
-                  { value: 11, colorVar: 'var(--acc-mid)' },
-                  { value: 8, colorVar: 'var(--muted-2)' },
-                  { value: 3, colorVar: 'var(--down)' },
-                ]}
-              />
-              <div className="text-muted" style={{ display: 'flex', gap: 9, fontSize: 'var(--fs-xs)' }}>
-                <span>{t('stock.rateSb')}</span>
-                <span>{t('stock.rateB')}</span>
-                <span>{t('stock.rateH')}</span>
-                <span>{t('stock.rateS')}</span>
-              </div>
+              <DataState state={consensus.state} onRetry={consensus.retry}>
+                {(c) => (
+                  <>
+                    <SegmentBar
+                      segments={[
+                        { value: c.strongBuy, colorVar: 'var(--up)' },
+                        { value: c.buy, colorVar: 'var(--acc-mid)' },
+                        { value: c.hold, colorVar: 'var(--muted-2)' },
+                        { value: c.sell, colorVar: 'var(--down)' },
+                      ]}
+                    />
+                    <div className="text-muted" style={{ display: 'flex', gap: 9, fontSize: 'var(--fs-xs)' }}>
+                      <span>{`${t('stock.rateSb')} ${c.strongBuy}`}</span>
+                      <span>{`${t('stock.rateB')} ${c.buy}`}</span>
+                      <span>{`${t('stock.rateH')} ${c.hold}`}</span>
+                      <span>{`${t('stock.rateS')} ${c.sell}`}</span>
+                    </div>
+                  </>
+                )}
+              </DataState>
             </Card>
           )}
 
           <Card padding={12} gap={8}>
             <CardTitle>{beg ? t('stock.newsBeg') : t('stock.newsAdv')}</CardTitle>
-            {(beg ? BEG_NEWS : ADV_NEWS).map((a, i) => (
-              <div key={i} style={{ paddingTop: 8, borderTop: '1px solid var(--color-divider)' }}>
-                <div style={{ display: 'flex', gap: 7, alignItems: 'baseline' }}>
-                  <span className="text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
-                    {a.meta}
-                  </span>
-                </div>
-                <div style={{ fontSize: 'var(--fs-sm)', fontFamily: 'var(--font-heading)', marginTop: 4, lineHeight: 1.35, whiteSpace: 'normal' }}>
-                  {a.head}
-                </div>
-                {a.sum && (
-                  <p style={{ fontSize: 'var(--fs-sm)', margin: '3px 0 0', opacity: 0.76 }}>{a.sum}</p>
-                )}
-              </div>
-            ))}
+            <DataState state={news.state} onRetry={news.retry}>
+              {(items) =>
+                items.length === 0 ? (
+                  <EmptyState>{t('stock.noNews')}</EmptyState>
+                ) : (
+                  <>
+                    {items.map((a, i) => (
+                      <div key={i} style={{ paddingTop: 8, borderTop: '1px solid var(--color-divider)' }}>
+                        <div style={{ display: 'flex', gap: 7, alignItems: 'baseline' }}>
+                          <span className="text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
+                            {`${a.time} · ${a.source} · ${a.tag}`}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 'var(--fs-sm)', fontFamily: 'var(--font-heading)', marginTop: 4, lineHeight: 1.35, whiteSpace: 'normal' }}>
+                          {a.headline}
+                        </div>
+                        {beg && <p style={{ fontSize: 'var(--fs-sm)', margin: '3px 0 0', opacity: 0.76 }}>{a.summary}</p>}
+                      </div>
+                    ))}
+                  </>
+                )
+              }
+            </DataState>
           </Card>
 
-          <Card padding={12} gap={8}>
-            <CardTitle>{t('stock.nextEarn')}</CardTitle>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-              <div
-                style={{
-                  width: 50,
-                  textAlign: 'center',
-                  padding: '6px 0',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--color-accent-900)',
-                  flex: 'none',
-                }}
-              >
-                <div className="text-muted" style={{ fontSize: 'var(--fs-xs)', letterSpacing: '.06em', textTransform: 'uppercase' }}>
-                  {t('stock.nov')}
-                </div>
-                <Num size={17} style={{ fontFamily: 'var(--font-heading)' }}>
-                  18
-                </Num>
-              </div>
-              <p style={{ margin: 0, fontSize: 'var(--fs-sm)', opacity: 0.8 }}>
-                {beg
-                  ? 'Q3 results, after the close. The last four reports beat expectations and the stock moved 6–9% the next day each time.'
-                  : 'Q3 · Nov 18 AMC · est EPS 1.24 vs 0.68 y/y · implied move ±8.4% · 4/4 beats'}
-              </p>
-            </div>
-          </Card>
+          <DataState state={nextEarn.state} onRetry={nextEarn.retry}>
+            {(ne) =>
+              ne == null ? null : (
+                <Card padding={12} gap={8}>
+                  <CardTitle>{t('stock.nextEarn')}</CardTitle>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                    <div
+                      style={{
+                        width: 50,
+                        textAlign: 'center',
+                        padding: '6px 0',
+                        borderRadius: 'var(--radius-md)',
+                        background: 'var(--color-accent-900)',
+                        flex: 'none',
+                      }}
+                    >
+                      <div className="text-muted" style={{ fontSize: 'var(--fs-xs)', letterSpacing: '.06em', textTransform: 'uppercase' }}>
+                        {ne.month[language]}
+                      </div>
+                      <Num size={17} style={{ fontFamily: 'var(--font-heading)' }}>
+                        {ne.day}
+                      </Num>
+                    </div>
+                    <p style={{ margin: 0, fontSize: 'var(--fs-sm)', opacity: 0.8 }}>
+                      {beg ? ne.beg[language] : ne.adv}
+                    </p>
+                  </div>
+                </Card>
+              )
+            }
+          </DataState>
         </div>
       )}
     </DataState>
@@ -224,34 +258,28 @@ const BEG_STATS = (price: number, mc: string, vol: string, pe: number) => [
   { k: 'Price vs earnings', v: `${pe.toFixed(1)}×`, help: 'Years of current profit to pay for the share' },
 ];
 
-const ADV_STATS = (price: number, mc: string, vol: string, pe: number, rsi: number): Array<[string, string]> => [
-  ['Open', (price - 1.9).toFixed(2)],
-  ['Prev close', (price * 0.99).toFixed(2)],
-  ['Day range', `${(price - 3.1).toFixed(2)}–${(price + 2.4).toFixed(2)}`],
-  ['52w range', '86.62–184.48'],
+const ADV_STATS = (
+  price: number,
+  mc: string,
+  vol: string,
+  pe: number,
+  rsi: number,
+  st: StockStats,
+): Array<[string, string]> => [
+  ['Open', st.open.toFixed(2)],
+  ['Prev close', st.prevClose.toFixed(2)],
+  ['Day range', `${st.low.toFixed(2)}–${st.high.toFixed(2)}`],
+  ['52w range', `${st.low52.toFixed(2)}–${st.high52.toFixed(2)}`],
   ['Volume', vol],
-  ['Avg vol', '162.4M'],
+  ['Avg vol', st.avgVol],
   ['Mkt cap', mc],
   ['P/E', pe.toFixed(1)],
-  ['Fwd P/E', (pe * 0.62).toFixed(1)],
+  ['Fwd P/E', st.fwdPe.toFixed(1)],
   ['EPS (ttm)', (price / pe).toFixed(2)],
-  ['Beta', '2.14'],
-  ['Div yield', '0.02%'],
-  ['Short float', '1.1%'],
+  ['Beta', st.beta.toFixed(2)],
+  ['Div yield', st.divYield],
+  ['Short float', st.shortFloat],
   ['RSI(14)', String(rsi)],
 ];
 
-const BEG_NEWS = [
-  { meta: 'Reuters · 2h', head: 'Nvidia guides data-centre revenue above expectations', sum: 'The company told investors it expects to sell more AI chips next quarter than analysts had penciled in.' },
-  { meta: 'Bloomberg · 6h', head: 'New Blackwell variant enters volume production', sum: 'A cheaper version of its flagship chip starts shipping, aimed at customers priced out of the top model.' },
-  { meta: "Barron's · 1d", head: 'Two more banks lift price targets above $210', sum: 'Analysts set a target for where they think a share should trade. It is an opinion, not a promise.' },
-];
 
-const ADV_NEWS = [
-  { meta: '16:04 · Reuters', head: 'Nvidia guides data-centre revenue above consensus', sum: null },
-  { meta: '15:41 · Bloomberg', head: 'Blackwell Ultra enters volume production at TSMC', sum: null },
-  { meta: '14:58 · SEC 8-K', head: 'Item 5.02 — appointment of principal accounting officer', sum: null },
-  { meta: "13:22 · Barron's", head: 'Morgan Stanley raises PT to $215 from $195', sum: null },
-  { meta: '11:07 · WSJ', head: 'Hyperscaler capex plans point to sustained AI demand', sum: null },
-  { meta: '09:31 · Benzinga', head: 'Unusual options activity in weekly $190 calls', sum: null },
-];

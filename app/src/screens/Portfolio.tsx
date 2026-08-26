@@ -196,22 +196,15 @@ export function PortfolioScreen(_: ScreenProps) {
                   <span>
                     <span style={{ color: 'var(--acc-lite)' }}>—</span> {isAgg ? t('pf.allAccounts') : pf.name}
                   </span>
-                  <span>{t('pf.benchmark')}</span>
+                  <span>
+                    {t('pf.benchmark')} · {t('data.demo')}
+                  </span>
                 </div>
               </Card>
 
               <Card padding={14} gap={10}>
                 <CardTitle>{t('pf.allocation')}</CardTitle>
-                <DonutChart
-                  slices={[
-                    { label: 'NVDA', pct: 28, colorVar: ALLOC_COLORS[0] },
-                    { label: 'AMD', pct: 19, colorVar: ALLOC_COLORS[1] },
-                    { label: 'MSFT', pct: 15, colorVar: ALLOC_COLORS[2] },
-                    { label: 'AAPL', pct: 13, colorVar: 'var(--acc-pale)' },
-                    { label: 'LLY', pct: 11, colorVar: 'var(--muted)' },
-                    { label: language === 'he' ? 'מזומן' : 'Cash', pct: 14, colorVar: 'var(--line)' },
-                  ]}
-                />
+                <AllocationDonut pfId={pf.id} pfTotal={pf.total} cashLabel={language === 'he' ? 'מזומן' : 'Cash'} />
                 {beg && (
                   <p className="text-muted" style={{ fontSize: 'var(--fs-sm)', margin: 0 }}>
                     {t('pf.concentration')}
@@ -267,6 +260,33 @@ export function PortfolioScreen(_: ScreenProps) {
   );
 }
 
+/** Allocation donut computed from the SAME holdings the list below renders —
+ *  never a fixed slice list. Cash is the remainder of the account total. */
+function AllocationDonut({ pfId, pfTotal, cashLabel }: { pfId: string; pfTotal: number; cashLabel: string }) {
+  const holdings = useLoadable(() => demoService.holdings(pfId), [pfId]);
+  return (
+    <DataState state={holdings.state} onRetry={holdings.retry}>
+      {(rows) => {
+        if (rows.length === 0) return <EmptyState>—</EmptyState>;
+        const held = rows.reduce((a, h) => a + h.value, 0);
+        const base = Math.max(pfTotal, held);
+        const top = rows
+          .slice()
+          .sort((a, b) => b.value - a.value)
+          .slice(0, 5);
+        const slices = top.map((h, i) => ({
+          label: h.ticker,
+          pct: Math.round((h.value / base) * 100),
+          colorVar: [ALLOC_COLORS[0], ALLOC_COLORS[1], ALLOC_COLORS[2], 'var(--acc-pale)', 'var(--muted)'][i],
+        }));
+        const cashPct = Math.max(0, 100 - slices.reduce((a, x) => a + x.pct, 0));
+        if (cashPct > 0) slices.push({ label: cashLabel, pct: cashPct, colorVar: 'var(--line)' });
+        return <DonutChart slices={slices} />;
+      }}
+    </DataState>
+  );
+}
+
 function Holdings({ pfId }: { pfId: string }) {
   const dispatch = useDispatch();
   const holdings = useLoadable(() => demoService.holdings(pfId), [pfId]);
@@ -299,15 +319,11 @@ function Holdings({ pfId }: { pfId: string }) {
 export function LongTermSavings() {
   const s = useAppState();
   const dispatch = useDispatch();
+  const { language } = useTheme();
   const t = useT();
   const conn = s.advConnections;
-  const rows = (
-    [
-      ['pension', 'conn.pension', '$86,340', '+6.2% YTD'],
-      ['hisht', 'conn.hisht', '$31,120', '+5.4% YTD'],
-      ['bank', 'conn.bank', '$7,860', ''],
-    ] as const
-  ).filter(([k]) => conn[k]);
+  const accounts = useLoadable(() => demoService.longTermAccounts(), []);
+  const connectedKeys = (['pension', 'hisht', 'bank'] as const).filter((k) => conn[k]);
 
   return (
     <Card padding="12px 13px 4px" gap={4}>
@@ -317,7 +333,7 @@ export function LongTermSavings() {
           <Tag variant="outline">{t('pf.readOnly')}</Tag>
         </span>
       </div>
-      {rows.length === 0 ? (
+      {connectedKeys.length === 0 ? (
         <div style={{ padding: '4px 0 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           <p className="text-muted" style={{ fontSize: 'var(--fs-sm)', margin: 0, lineHeight: 1.5 }}>
             {t('pf.longTermEmpty')}
@@ -333,20 +349,47 @@ export function LongTermSavings() {
           </Button>
         </div>
       ) : (
-        rows.map(([k, labelKey, value, ytd]) => (
-          <ListRow
-            key={k}
-            leading={
-              <IconTile size={30} variant="tint" fontSize={13}>
-                <b>{t(labelKey).slice(0, 1)}</b>
-              </IconTile>
-            }
-            title={t(labelKey)}
-            subtitle={`${conn[k] ?? ''} · ${t('pf.syncedAgo')}`}
-            right={<RowValues main={value} sub={ytd || undefined} subColor="var(--up)" />}
-            minHeight={50}
-          />
-        ))
+        <DataState state={accounts.state} onRetry={accounts.retry}>
+          {(accts) => (
+            <>
+              {connectedKeys.map((k) => {
+                const labelKey = k === 'pension' ? 'conn.pension' : k === 'hisht' ? 'conn.hisht' : 'conn.bank';
+                const acct = accts.find((a) => a.key === k);
+                return (
+                  <ListRow
+                    key={k}
+                    leading={
+                      <IconTile size={30} variant="tint" fontSize={13}>
+                        <b>{t(labelKey).slice(0, 1)}</b>
+                      </IconTile>
+                    }
+                    title={t(labelKey)}
+                    subtitle={acct ? `${conn[k] ?? ''} · ${acct.syncedNote[language]}` : (conn[k] ?? '')}
+                    right={
+                      acct ? (
+                        <RowValues
+                          main={money(acct.total, 0)}
+                          sub={acct.ytdPct != null ? `${pct(acct.ytdPct)} YTD` : undefined}
+                          subColor={acct.ytdPct != null ? signalColor(acct.ytdPct) : undefined}
+                        />
+                      ) : (
+                        <span className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+                          {t('connScreen.noBalance')}
+                        </span>
+                      )
+                    }
+                    trailing={
+                      <Tag variant="neutral" fontSize={11}>
+                        {t('data.demo')}
+                      </Tag>
+                    }
+                    minHeight={50}
+                  />
+                );
+              })}
+            </>
+          )}
+        </DataState>
       )}
     </Card>
   );

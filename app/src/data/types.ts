@@ -14,6 +14,8 @@ export interface SymbolInfo {
   plain: { en: string; he: string };
   /** Beginner-mode "why it moved" line (per language). */
   why: { en: string; he: string };
+  /** Relative volume vs the 30-day average. */
+  rvol: number;
 }
 
 /** A Recovery Detector position: ticker, entry, current — deliberately NO
@@ -22,6 +24,49 @@ export interface SatellitePosition {
   ticker: string;
   entryPrice: number;
   currentPrice: number;
+}
+
+/** Per-ticker stats block for the stock page (demo-authored per ticker). */
+export interface StockStats {
+  open: number;
+  high: number;
+  low: number;
+  prevClose: number;
+  low52: number;
+  high52: number;
+  avgVol: string;
+  beta: number;
+  divYield: string;
+  shortFloat: string;
+  fwdPe: number;
+  /** Null when there is no after-hours quote — the UI hides the line. */
+  afterHours: { price: number; asOf: { en: string; he: string } } | null;
+}
+
+/** Analyst ratings distribution for one ticker. */
+export interface AnalystConsensus {
+  strongBuy: number;
+  buy: number;
+  hold: number;
+  sell: number;
+}
+
+/** Next scheduled earnings for one ticker (null = none scheduled/known). */
+export interface NextEarnings {
+  month: { en: string; he: string };
+  day: string;
+  beg: { en: string; he: string };
+  adv: string;
+}
+
+/** Advanced-mode portfolio metric strip. */
+export interface PortfolioMetrics {
+  total: number;
+  dayPct: number;
+  openPl: number;
+  beta: number;
+  cashPct: number;
+  risk: { en: string; he: string };
 }
 
 export interface Holding {
@@ -113,6 +158,8 @@ export interface LongTermAccount {
   key: 'pension' | 'hisht' | 'bank';
   total: number;
   ytdPct: number | null;
+  /** When this account last synced — comes from the data source, never a UI constant. */
+  syncedNote: { en: string; he: string };
 }
 
 /**

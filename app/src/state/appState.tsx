@@ -39,6 +39,17 @@ export interface ManualTx {
   date: string;
 }
 
+/** A user-created price/news/earnings alert — informational only, never a trade. */
+export interface UserAlert {
+  id: string;
+  kind: 'price' | 'news' | 'earn';
+  ticker: string;
+  direction?: 'rise' | 'fall';
+  level?: number;
+  keywords?: string;
+  created: string;
+}
+
 /** A user-created theoretical portfolio (no broker behind it). */
 export interface ManualPortfolio {
   id: string;
@@ -72,6 +83,8 @@ export interface AppState {
   /** self-directed manual records (persisted; never executed anywhere) */
   manualTxs: ManualTx[];
   manualPortfolios: ManualPortfolio[];
+  /** informational alerts the user actually created (never placeholders) */
+  alerts: UserAlert[];
 }
 
 const initial: AppState = {
@@ -93,6 +106,7 @@ const initial: AppState = {
   aggExcluded: {},
   manualTxs: [],
   manualPortfolios: [],
+  alerts: [],
 };
 
 export type Action =
@@ -112,7 +126,9 @@ export type Action =
   | { type: 'pfIndex'; index: number }
   | { type: 'toggleAggAccount'; id: string }
   | { type: 'addManualTx'; tx: ManualTx }
-  | { type: 'createPortfolio'; name: string; startCash: number };
+  | { type: 'createPortfolio'; name: string; startCash: number }
+  | { type: 'createAlert'; alert: Omit<UserAlert, 'id'> }
+  | { type: 'removeAlert'; id: string };
 
 function reducer(s: AppState, a: Action): AppState {
   switch (a.type) {
@@ -168,6 +184,12 @@ function reducer(s: AppState, a: Action): AppState {
       const id = `manual-${Date.now().toString(36)}`;
       return { ...s, manualPortfolios: [...s.manualPortfolios, { id, name: a.name, startCash: a.startCash }] };
     }
+    case 'createAlert': {
+      const id = `alert-${Date.now().toString(36)}-${s.alerts.length}`;
+      return { ...s, alerts: [...s.alerts, { ...a.alert, id }] };
+    }
+    case 'removeAlert':
+      return { ...s, alerts: s.alerts.filter((x) => x.id !== a.id) };
     default:
       return s;
   }
@@ -186,6 +208,7 @@ const PERSISTED: Array<keyof AppState> = [
   'alertDownThreshold',
   'manualTxs',
   'manualPortfolios',
+  'alerts',
 ];
 
 function hydrate(): AppState {

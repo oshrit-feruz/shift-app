@@ -3,23 +3,28 @@ import { Card, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Tag } from '../components/Tag';
 import { Num } from '../components/Num';
+import { ListRow, RowValues } from '../components/ListRow';
 import { LogoTile } from '../components/TickerTile';
-import { InstitutionRows } from './advisory/InstitutionRows';
+import { DataState } from '../components/DataState';
+import { InstitutionRows, brokerName } from './advisory/InstitutionRows';
 import { NewPortfolioSheet } from '../sheets/NewPortfolioSheet';
+import { useAppState } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
+import { demoService } from '../data/demoAdapter';
+import { useLoadable } from '../data/useLoadable';
+import { money, pct, signalColor } from '../lib/format';
 import type { ScreenProps } from '../App';
 
-const LINKED = [
-  { logo: '/assets/broker-blink.webp', broker: 'Blink', acct: '••4821', detail: { en: 'Core · brokerage · 7 positions', he: 'Core · חשבון מסחר · 7 פוזיציות' }, value: '$48,214.60' },
-  { logo: '/assets/broker-ibkr.png', broker: 'Interactive Brokers', acct: '••7130', detail: { en: 'Global · margin · 4 positions', he: 'Global · מרווח · 4 פוזיציות' }, value: '$12,905.11' },
-  { logo: '/assets/broker-colmex.webp', broker: 'Colmex Pro', acct: '••2265', detail: { en: 'Dividend · cash · 4 positions', he: 'Dividend · מזומן · 4 פוזיציות' }, value: '$21,470.02' },
-];
-
 export function ConnectionsScreen(_: ScreenProps) {
+  const s = useAppState();
   const { language } = useTheme();
   const t = useT();
   const [newPfOpen, setNewPfOpen] = useState(false);
+  const portfolios = useLoadable(() => demoService.portfolios(), []);
+  // Only accounts the user actually connected appear here — nothing is
+  // pre-linked, and every number comes from the (demo) data service.
+  const connectedBroker = s.advConnections.broker ?? (s.advBroker ? brokerName(s.advBroker) : null);
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
@@ -31,34 +36,46 @@ export function ConnectionsScreen(_: ScreenProps) {
       </Card>
 
       <Card padding="4px 0" gap={0}>
-        {LINKED.map((c, i) => (
-          <div
-            key={i}
-            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 13px', borderTop: '1px solid var(--color-divider)' }}
-          >
-            <LogoTile src={c.logo} />
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontSize: 'var(--fs-md)' }}>
-                {c.broker}{' '}
-                <span className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
-                  <Num>{c.acct}</Num>
-                </span>
-              </span>
-              <span
-                className="text-muted"
-                style={{ display: 'block', fontSize: 'var(--fs-xs)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-              >
-                {c.detail[language]}
-              </span>
-            </span>
-            <span style={{ textAlign: 'end', whiteSpace: 'nowrap', display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-end' }}>
-              <Num size={14}>{c.value}</Num>
-              <Tag variant="accent" fontSize={11}>
-                {t('connScreen.live')}
-              </Tag>
-            </span>
-          </div>
-        ))}
+        <DataState state={portfolios.state} onRetry={portfolios.retry}>
+          {(pfs) => {
+            const linked = pfs.filter((x) => x.kind === 'linked' && x.broker === connectedBroker);
+            if (linked.length === 0) {
+              return (
+                <p className="text-muted" style={{ fontSize: 'var(--fs-sm)', margin: 0, padding: '10px 13px', lineHeight: 1.5 }}>
+                  {t('connScreen.none')}
+                </p>
+              );
+            }
+            return (
+              <>
+                {linked.map((c) => (
+                  <ListRow
+                    key={c.id}
+                    padding="11px 13px"
+                    leading={<LogoTile src={c.logo} />}
+                    title={
+                      <span style={{ fontSize: 'var(--fs-md)', fontWeight: 'var(--fw-regular)' }}>
+                        {c.broker}{' '}
+                        <span className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+                          <Num>{c.acct}</Num>
+                        </span>
+                      </span>
+                    }
+                    subtitle={t('pf.synced', { when: c.syncedAgo?.[language] ?? '' })}
+                    right={
+                      <span style={{ whiteSpace: 'nowrap', display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-end' }}>
+                        <RowValues main={money(c.total)} sub={pct(c.dayPct)} subColor={signalColor(c.dayPct)} />
+                        <Tag variant="neutral" fontSize={11}>
+                          {t('data.demo')}
+                        </Tag>
+                      </span>
+                    }
+                  />
+                ))}
+              </>
+            );
+          }}
+        </DataState>
       </Card>
 
       <Card padding="4px 0" gap={0}>

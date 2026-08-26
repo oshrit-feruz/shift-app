@@ -86,6 +86,7 @@ export const STRINGS = {
     'A quarterly report card. Prices often swing the day it lands.',
     'תעודת ציונים רבעונית. המחיר בדרך כלל זז ביום הפרסום.',
   ),
+  'home.beforeOpen': p('Before the open', 'לפני הפתיחה'),
   'home.afterClose': p('After close', 'אחרי הנעילה'),
 
   // ── Setup banner / resume ─────────────────────────────────────────────
@@ -295,7 +296,8 @@ export const STRINGS = {
   'buy.finish': p('Done — to the dashboard', 'סיימנו — לדשבורד'),
 
   // ── Stock page ────────────────────────────────────────────────────────
-  'stock.afterHrs': p('Aug 21, 4:00 PM ET · after hrs', '21 באוג׳, 16:00 ET · אחרי המסחר'),
+  'stock.afterHrs': p('{when} · after hrs', '{when} · אחרי המסחר'),
+  'stock.noNews': p('No recent stories for this ticker', 'אין כתבות עדכניות על הנייר הזה'),
   'stock.inWatchlist': p('In watchlist', 'במעקב'),
   'stock.toWatchlist': p('Watchlist', 'לווטצ׳ליסט'),
   'stock.addAlert': p('Add alert', 'הוספת התראה'),
@@ -368,7 +370,13 @@ export const STRINGS = {
   'pf.benchmark': p('- - S&P 500', '- - S&P 500'),
 
   // ── Watchlist / alerts ────────────────────────────────────────────────
-  'watch.sub': p('4 active alerts · 8 tracked', '4 התראות פעילות · 8 במעקב'),
+  'watch.sub': p('{alerts} active alerts · {tracked} tracked', '{alerts} התראות פעילות · {tracked} במעקב'),
+  'watch.noAlerts': p('No alerts yet — create one with ＋', 'עוד אין התראות — אפשר ליצור אחת עם ＋'),
+  'alertRow.rise': p('{ticker} rises above {level}', '{ticker} עולה מעל {level}'),
+  'alertRow.fall': p('{ticker} falls below {level}', '{ticker} יורד מתחת ל-{level}'),
+  'alertRow.earn': p('{ticker} earnings reminder', 'תזכורת דוח של {ticker}'),
+  'alertRow.news': p('{ticker} news alert', 'התראת חדשות על {ticker}'),
+  'alertRow.created': p('Push · created {date}', 'פוש · נוצר ב-{date}'),
   'watch.newAlert': p('New alert', 'התראה חדשה'),
   'watch.tracking': p('Tracking', 'במעקב'),
   'watch.activeAlerts': p('Active alerts', 'התראות פעילות'),
@@ -426,6 +434,7 @@ export const STRINGS = {
   // ── Notifications ─────────────────────────────────────────────────────
   'notif.title': p('Notifications', 'התראות'),
   'notif.new': p('{n} new', '{n} חדשות'),
+  'notif.demo': p('Demo trigger', 'הפעלת הדגמה'),
   'notif.caughtUp': p('all caught up', 'הכול מעודכן'),
   'notif.markAll': p('Mark all read', 'לסמן הכול כנקרא'),
   'notif.manageRules': p('Manage alert rules', 'לנהל כללי התראה'),
@@ -537,7 +546,9 @@ export const STRINGS = {
     'ברוקרים, בנק, פנסיה וקרן השתלמות במקום אחד. SHIFT קורא יתרות ופוזיציות ולא יכול להזיז כסף.',
   ),
   'connScreen.add': p('Connect an institution', 'לחבר מוסד'),
-  'connScreen.live': p('Live', 'מחובר'),
+  'connScreen.live': p('Connected', 'מחובר'),
+  'connScreen.none': p('Nothing is connected yet. Connect a broker or institution below — read-only.', 'עוד לא חובר כלום. אפשר לחבר ברוקר או מוסד למטה — לקריאה בלבד.'),
+  'connScreen.noBalance': p('Balance unavailable', 'היתרה אינה זמינה'),
   'connScreen.theo': p('Theoretical portfolios', 'תיקים תיאורטיים'),
   'connScreen.theoHelp': p(
     'Sandbox has no broker behind it — you record its transactions yourself. Useful for testing an idea before it costs anything.',

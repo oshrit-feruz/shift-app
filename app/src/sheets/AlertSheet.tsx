@@ -8,6 +8,7 @@ import { Num } from '../components/Num';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
+import { useDispatch } from '../state/appState';
 import { money } from '../lib/format';
 import type { SymbolInfo } from '../data/types';
 
@@ -26,9 +27,12 @@ export function AlertSheet({
 }) {
   const { mode } = useTheme();
   const t = useT();
+  const dispatch = useDispatch();
   const [kind, setKind] = useState<Kind>('price');
   const [cond, setCond] = useState<'rise' | 'fall'>('rise');
   const [remind, setRemind] = useState<'day' | 'morning' | 'lands'>('day');
+  const [level, setLevel] = useState('200.00');
+  const [keywords, setKeywords] = useState('');
   const beg = mode === 'beginner';
 
   const types: Array<{ k: Kind; glyph: string; title: string; help: string }> = [
@@ -77,7 +81,7 @@ export function AlertSheet({
               fontSize={13}
             />
           </div>
-          <Field label={t('alert.price')} defaultValue="200.00" />
+          <Field label={t('alert.price')} value={level} onChange={(e) => setLevel(e.target.value)} />
           {beg && (
             <p className="text-muted" style={{ fontSize: 'var(--fs-xs)', margin: 0 }}>
               {t('alert.priceHint')}
@@ -87,7 +91,7 @@ export function AlertSheet({
       )}
       {kind === 'news' && (
         <>
-          <Field label={t('alert.mentions')} defaultValue={t('alert.keywords')} />
+          <Field label={t('alert.mentions')} value={keywords} placeholder={t('alert.keywords')} onChange={(e) => setKeywords(e.target.value)} />
           <div className="field">
             <label>{t('alert.sources')}</label>
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 'var(--fs-sm)' }}>
@@ -128,7 +132,25 @@ export function AlertSheet({
           </label>
         </div>
       </div>
-      <Button block minHeight={44} onClick={onClose}>
+      <Button
+        block
+        minHeight={44}
+        disabled={kind === 'price' && !(parseFloat(level.replace(/[^0-9.]/g, '')) > 0)}
+        onClick={() => {
+          dispatch({
+            type: 'createAlert',
+            alert: {
+              kind,
+              ticker: symbol?.ticker ?? 'NVDA',
+              direction: kind === 'price' ? cond : undefined,
+              level: kind === 'price' ? parseFloat(level.replace(/[^0-9.]/g, '')) || undefined : undefined,
+              keywords: kind === 'news' && keywords ? keywords : undefined,
+              created: new Date().toISOString().slice(0, 10),
+            },
+          });
+          onClose();
+        }}
+      >
         {t('alert.create')}
       </Button>
     </Sheet>

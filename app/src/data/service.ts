@@ -1,10 +1,15 @@
 import type {
+  AnalystConsensus,
   EarningsEvent,
   Loadable,
+  LongTermAccount,
   NewsItem,
+  NextEarnings,
+  PortfolioMetrics,
   PortfolioSummary,
   Holding,
   SatellitePosition,
+  StockStats,
   SymbolInfo,
 } from './types';
 
@@ -26,7 +31,15 @@ export interface DataService {
   portfolios(): Promise<Loadable<PortfolioSummary[]>>;
   holdings(portfolioId: string): Promise<Loadable<Holding[]>>;
   news(): Promise<Loadable<NewsItem[]>>;
+  /** Stories for one ticker only — ok([]) when none (rendered as honestly empty). */
+  stockNews(ticker: string): Promise<Loadable<NewsItem[]>>;
   earnings(): Promise<Loadable<EarningsEvent[]>>;
+  stockStats(ticker: string): Promise<Loadable<StockStats>>;
+  analystConsensus(ticker: string): Promise<Loadable<AnalystConsensus>>;
+  nextEarnings(ticker: string): Promise<Loadable<NextEarnings | null>>;
+  portfolioMetrics(): Promise<Loadable<PortfolioMetrics>>;
+  /** Long-term savings totals by kind — totals only, never holdings. */
+  longTermAccounts(): Promise<Loadable<LongTermAccount[]>>;
   /** Daily close series for charts (seeded/demo or real). */
   series(key: string, n: number, drift: number, vol: number): number[];
 }
