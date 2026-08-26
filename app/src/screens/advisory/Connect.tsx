@@ -4,9 +4,10 @@ import { Icon } from '../../components/Icon';
 import { LogoTile } from '../../components/TickerTile';
 import { FlowStepper } from './FlowStepper';
 import { InstitutionRows, brokerName } from './InstitutionRows';
-import { useAppState, useDispatch, type AppState } from '../../state/appState';
+import { useAppState, useDispatch } from '../../state/appState';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useT } from '../../i18n/useT';
+import { BROKER_URLS } from '../../lib/brokerLinks';
 import type { ScreenProps } from '../../App';
 
 const BROKERS = [
@@ -14,12 +15,6 @@ const BROKERS = [
   { key: 'ibkr' as const, name: 'Interactive Brokers', logo: '/assets/broker-ibkr.png', help: { en: 'The widest market access, lowest fees at larger amounts.', he: 'הגישה הרחבה ביותר לשווקים, והעמלות הנמוכות בסכומים גדולים.' } },
   { key: 'colmex' as const, name: 'Colmex Pro', logo: '/assets/broker-colmex.webp', help: { en: 'Israeli service with phone support in Hebrew.', he: 'שירות ישראלי עם תמיכה טלפונית בעברית.' } },
 ];
-
-const BROKER_URLS: Record<NonNullable<AppState['advBroker']>, string> = {
-  blink: 'https://heyblink.com/',
-  ibkr: 'https://www.interactivebrokers.com/en/accounts/individual.php',
-  colmex: 'https://my.colmexpro.com/signup?lang=he',
-};
 
 /**
  * Broker selection + read-only account connections — one page, two behaviours:

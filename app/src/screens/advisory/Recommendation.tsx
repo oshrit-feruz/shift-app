@@ -7,6 +7,8 @@ import { ListRow, RowValues } from '../../components/ListRow';
 import { TickerTile } from '../../components/TickerTile';
 import { DataState, EmptyState } from '../../components/DataState';
 import { SkeletonList } from '../../components/Skeleton';
+import { BuyAtBrokerButton } from '../../components/BuyAtBrokerButton';
+import { fundTicker, hasAnyTradeDeepLink } from '../../lib/brokerLinks';
 import { FlowStepper } from './FlowStepper';
 import { useAppState, useDispatch } from '../../state/appState';
 import { useT } from '../../i18n/useT';
@@ -82,6 +84,7 @@ export function AdvisoryRecommendation(_: ScreenProps) {
               pct={c.pct}
               fund={CORE_FUNDS[c.category]}
               colorVar={ALLOC_COLORS[i % ALLOC_COLORS.length]}
+              action={<BuyAtBrokerButton ticker={fundTicker(CORE_FUNDS[c.category])} />}
             />
           ))}
         </div>
@@ -140,6 +143,14 @@ export function AdvisoryRecommendation(_: ScreenProps) {
             {t('rec.satInfoOnly')}
           </p>
         )}
+        {/* Says plainly who executes, and — while no per-symbol link is
+            configured — what the button will actually do. */}
+        {s.advBroker && (
+          <p className="text-muted" style={{ fontSize: 12, margin: 0, lineHeight: 1.5 }}>
+            {t('buy.handoffNote')}
+            {!hasAnyTradeDeepLink() && ` ${t('buy.noDeepLink')}`}
+          </p>
+        )}
         <DataState
           state={sat.state}
           onRetry={sat.retry}
@@ -176,6 +187,7 @@ export function AdvisoryRecommendation(_: ScreenProps) {
                           }
                         />
                       }
+                      trailing={<BuyAtBrokerButton ticker={x.ticker} />}
                       minHeight={52}
                       onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}
                     />

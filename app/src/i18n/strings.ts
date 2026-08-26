@@ -290,6 +290,20 @@ export const STRINGS = {
     'This is what the recommendation looks like as an order list. Nothing is bought here — when you are ready, it happens at your broker.',
     'כך ההמלצה נראית כרשימת קנייה. שום דבר לא נקנה כאן — כשתהיי מוכנה, זה קורה אצל הברוקר שלך.',
   ),
+  'buy.atBroker': p('Buy at {broker}', 'לקנות ב-{broker}'),
+  'buy.openAt': p('Opens {broker} at this instrument', 'נפתח ב-{broker} על נייר הערך הזה'),
+  'buy.copyAndOpen': p(
+    'Copies the ticker and opens {broker} — search for it there',
+    'מעתיק את הסימול ופותח את {broker} — צריך לחפש אותו שם',
+  ),
+  'buy.handoffNote': p(
+    'Shift places no orders. These buttons open your broker, where you decide and execute yourself.',
+    'Shift לא שולח פקודות. הכפתורים פותחים את הברוקר שלך, ושם את מחליטה ומבצעת בעצמך.',
+  ),
+  'buy.noDeepLink': p(
+    'A direct per-stock link is not set up yet, so the broker opens on its home page with the ticker copied.',
+    'קישור ישיר לכל מניה עדיין לא מוגדר, ולכן הברוקר נפתח בעמוד הבית עם הסימול מועתק.',
+  ),
   'buy.example': p('Example with $10,000', 'דוגמה עם $10,000'),
   'buy.finish': p('Done — to the dashboard', 'סיימנו — לדשבורד'),
 

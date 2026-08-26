@@ -253,6 +253,11 @@ export function setupProgress(s: AppState) {
     incomplete,
     pct: Math.round((s.advStage / 5) * 100),
     stepLabel: Math.min(s.advStage, 4) + 1,
-    resumeScreen: ADV_ORDER[Math.min(s.advStage, 4)],
+    // A flow still in progress resumes where it stopped. A finished one
+    // (advStage 5) goes back to the recommendation, not to the last step:
+    // clamping to ADV_ORDER[4] sent every completed user to the first-purchase
+    // simulation forever, which reads as being dropped mid-tutorial with no
+    // recommendation in sight.
+    resumeScreen: s.advStage >= 5 ? 'advDash' : ADV_ORDER[Math.min(s.advStage, 4)],
   };
 }
