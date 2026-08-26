@@ -1,4 +1,5 @@
 import { Card, CardTitle } from '../components/Card';
+import { ListRow } from '../components/ListRow';
 import { Button } from '../components/Button';
 import { Toggle } from '../components/Toggle';
 import { SegmentedControl } from '../components/SegmentedControl';
@@ -23,7 +24,7 @@ export function SettingsScreen(_: ScreenProps) {
       {/* Mode pill */}
       <Card padding="10px 12px" gap={6}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ flex: 1, fontSize: 15 }}>{t('set.modeRow')}</span>
+          <span style={{ flex: 1, fontSize: 'var(--fs-base)' }}>{t('set.modeRow')}</span>
           <div style={{ width: 200 }}>
             <SegmentedControl
               options={[
@@ -36,7 +37,7 @@ export function SettingsScreen(_: ScreenProps) {
             />
           </div>
         </div>
-        <p className="text-muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.4 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--fs-sm)', margin: 0, lineHeight: 1.4 }}>
           {t('set.modeHelp')}
         </p>
       </Card>
@@ -45,7 +46,7 @@ export function SettingsScreen(_: ScreenProps) {
       <Card padding="12px 13px" gap={9}>
         <CardTitle size={15}>{t('set.appearance')}</CardTitle>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ flex: 1, fontSize: 14 }}>{t('set.theme')}</span>
+          <span style={{ flex: 1, fontSize: 'var(--fs-md)' }}>{t('set.theme')}</span>
           <div style={{ width: 170 }}>
             <SegmentedControl<Theme>
               options={[
@@ -59,7 +60,7 @@ export function SettingsScreen(_: ScreenProps) {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ flex: 1, fontSize: 14 }}>{t('set.language')}</span>
+          <span style={{ flex: 1, fontSize: 'var(--fs-md)' }}>{t('set.language')}</span>
           <div style={{ width: 170 }}>
             <SegmentedControl<Language>
               options={[
@@ -73,7 +74,7 @@ export function SettingsScreen(_: ScreenProps) {
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <span style={{ fontSize: 14 }}>{t('set.signal')}</span>
+          <span style={{ fontSize: 'var(--fs-md)' }}>{t('set.signal')}</span>
           <SegmentedControl<Signal>
             options={[
               { value: 'vivid', label: t('set.signalVivid') },
@@ -84,7 +85,7 @@ export function SettingsScreen(_: ScreenProps) {
             onChange={setSignal}
             fontSize={13}
           />
-          <p className="text-muted" style={{ fontSize: 12.5, margin: 0 }}>
+          <p className="text-muted" style={{ fontSize: 'var(--fs-xs)', margin: 0 }}>
             {t('set.signalHelp')}
           </p>
         </div>
@@ -93,12 +94,12 @@ export function SettingsScreen(_: ScreenProps) {
       {/* Price-alert thresholds — informational only, opt-in, blank by default */}
       <Card padding="12px 13px" gap={9}>
         <CardTitle size={15}>{t('thresh.title')}</CardTitle>
-        <div className="text-muted" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
+        <div className="text-muted" style={{ fontSize: 'var(--fs-xs)', lineHeight: 1.5 }}>
           {t('thresh.help')}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 9, borderTop: '1px solid var(--color-divider)', paddingTop: 9 }}>
           <div className="field">
-            <label style={{ fontSize: 13 }}>{t('thresh.up')}</label>
+            <label style={{ fontSize: 'var(--fs-sm)' }}>{t('thresh.up')}</label>
             <input
               className="input"
               type="number"
@@ -108,7 +109,7 @@ export function SettingsScreen(_: ScreenProps) {
             />
           </div>
           <div className="field">
-            <label style={{ fontSize: 13 }}>{t('thresh.down')}</label>
+            <label style={{ fontSize: 'var(--fs-sm)' }}>{t('thresh.down')}</label>
             <input
               className="input"
               type="number"
@@ -134,18 +135,14 @@ export function SettingsScreen(_: ScreenProps) {
             ['movers', { en: 'Unusual movers', he: 'תנועות חריגות' }, { en: 'Watchlist moves over 5%', he: 'תנועה מעל 5% בווטצ׳ליסט' }],
           ] as const
         ).map(([k, label, help]) => (
-          <div
+          <ListRow
             key={k}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 44, padding: '8px 12px', borderTop: '1px solid var(--color-divider)' }}
-          >
-            <span style={{ flex: 1 }}>
-              <span style={{ display: 'block', fontSize: 14 }}>{label[language]}</span>
-              <span className="text-muted" style={{ display: 'block', fontSize: 12.5 }}>
-                {help[language]}
-              </span>
-            </span>
-            <Toggle on={notif[k]} onChange={(v) => setNotif({ ...notif, [k]: v })} />
-          </div>
+            minHeight={44}
+            padding="8px 12px"
+            title={<span style={{ fontSize: 'var(--fs-md)', fontWeight: 'var(--fw-regular)' }}>{label[language]}</span>}
+            subtitle={help[language]}
+            trailing={<Toggle on={notif[k]} onChange={(v) => setNotif({ ...notif, [k]: v })} />}
+          />
         ))}
       </Card>
 
@@ -221,33 +218,24 @@ function SettingsLink({
   accent?: boolean;
 }) {
   return (
-    <button
-      type="button"
+    <ListRow
       onClick={onClick}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        width: '100%',
-        minHeight: 46,
-        padding: '10px 13px',
-        border: 0,
-        borderTop: '1px solid var(--color-divider)',
-        background: 'transparent',
-        color: 'inherit',
-        font: 'inherit',
-        cursor: 'pointer',
-        textAlign: 'start',
-      }}
-    >
-      <span style={{ flex: 1, fontSize: 14, color: accent ? 'var(--color-accent-200)' : undefined }}>{label}</span>
-      {meta != null && (
-        <span className="text-muted" style={{ fontSize: 13 }}>
-          {meta}
+      minHeight={46}
+      padding="10px 13px"
+      title={
+        <span style={{ fontSize: 'var(--fs-md)', fontWeight: 'var(--fw-regular)', color: accent ? 'var(--color-accent-200)' : undefined }}>
+          {label}
         </span>
-      )}
-      <span style={{ opacity: 0.45 }}>›</span>
-    </button>
+      }
+      right={
+        meta != null ? (
+          <span className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
+            {meta}
+          </span>
+        ) : undefined
+      }
+      trailing={<span style={{ opacity: 0.45 }}>›</span>}
+    />
   );
 }
 
@@ -263,14 +251,12 @@ function DemoFlagRow({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 44, padding: '8px 12px', borderTop: '1px solid var(--color-divider)' }}>
-      <span style={{ flex: 1 }}>
-        <span style={{ display: 'block', fontSize: 14 }}>{label}</span>
-        <span className="text-muted" style={{ display: 'block', fontSize: 12.5 }}>
-          {help}
-        </span>
-      </span>
-      <Toggle on={on} onChange={onChange} />
-    </div>
+    <ListRow
+      minHeight={44}
+      padding="8px 12px"
+      title={<span style={{ fontSize: 'var(--fs-md)', fontWeight: 'var(--fw-regular)' }}>{label}</span>}
+      subtitle={help}
+      trailing={<Toggle on={on} onChange={onChange} />}
+    />
   );
 }

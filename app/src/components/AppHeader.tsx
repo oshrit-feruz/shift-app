@@ -24,7 +24,7 @@ export function AppHeader({
               width: 24,
               height: 24,
               flex: 'none',
-              borderRadius: 7,
+              borderRadius: 'var(--radius-ghost)',
               backgroundColor: 'var(--color-surface)',
               backgroundImage: 'url(/assets/shift-mark.svg)',
               backgroundSize: 'contain',
@@ -35,11 +35,11 @@ export function AppHeader({
           <div
             className="text-muted"
             style={{
-              fontSize: 14,
+              fontSize: 'var(--fs-md)',
               letterSpacing: '.08em',
               textTransform: 'uppercase',
               flex: 1,
-              fontWeight: 600,
+              fontWeight: 'var(--fw-semibold)',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
@@ -60,10 +60,10 @@ export function AppHeader({
                   insetInlineEnd: -4,
                   minWidth: 17,
                   height: 17,
-                  borderRadius: 9,
+                  borderRadius: 'var(--radius-sm)',
                   background: 'var(--down)',
-                  color: '#fff',
-                  fontSize: 11,
+                  color: 'var(--color-on-accent)',
+                  fontSize: 'var(--fs-2xs)',
                   display: 'grid',
                   placeItems: 'center',
                 }}
@@ -73,7 +73,7 @@ export function AppHeader({
             )}
           </HeaderIconButton>
         </div>
-        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 22, lineHeight: 1.2, letterSpacing: '-.01em' }}>
+        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--fs-2xl)', lineHeight: 1.2, letterSpacing: '-.01em' }}>
           {title}
         </div>
       </div>

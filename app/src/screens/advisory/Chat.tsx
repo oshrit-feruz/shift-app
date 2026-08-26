@@ -1,4 +1,5 @@
 import { Card } from '../../components/Card';
+import { ListRow } from '../../components/ListRow';
 import { Button } from '../../components/Button';
 import { Tag } from '../../components/Tag';
 import { ChatBubble } from '../../components/ChatBubble';
@@ -35,11 +36,11 @@ export function AdvisoryChat(_: ScreenProps) {
           <Tag variant="accent" fontSize={12}>
             {t('adv.tag')}
           </Tag>
-          <span className="text-muted" style={{ fontSize: 12.5 }}>
+          <span className="text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
             {t('adv.noAction')}
           </span>
         </div>
-        <p className="text-muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.5 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--fs-xs)', margin: 0, lineHeight: 1.5 }}>
           {t('adv.chatIntro')}
         </p>
       </Card>
@@ -54,33 +55,20 @@ export function AdvisoryChat(_: ScreenProps) {
 
       {asking && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7, paddingTop: 2 }}>
-          <div className="text-muted" style={{ fontSize: 12.5, letterSpacing: '.08em', textTransform: 'uppercase' }}>
+          <div className="text-muted" style={{ fontSize: 'var(--fs-xs)', letterSpacing: '.08em', textTransform: 'uppercase' }}>
             {t('adv.pickOne')}
           </div>
           {QUESTIONS[ans.length].opts.map(([v, label]) => (
-            <button
+            <ListRow
               key={v}
-              type="button"
+              boxed
+              well
+              minHeight={46}
+              padding="11px 13px"
               onClick={() => dispatch({ type: 'advAnswer', value: v })}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 9,
-                minHeight: 46,
-                padding: '11px 13px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--color-divider)',
-                background: 'var(--sunk)',
-                color: 'inherit',
-                font: 'inherit',
-                fontSize: 14,
-                cursor: 'pointer',
-                textAlign: 'start',
-              }}
-            >
-              <span style={{ flex: 1 }}>{t(label)}</span>
-              <span style={{ opacity: 0.45, fontSize: 14 }}>›</span>
-            </button>
+              title={<span style={{ fontSize: 'var(--fs-md)', fontWeight: 'var(--fw-regular)' }}>{t(label)}</span>}
+              trailing={<span style={{ opacity: 0.45, fontSize: 'var(--fs-md)' }}>›</span>}
+            />
           ))}
         </div>
       )}
@@ -88,26 +76,33 @@ export function AdvisoryChat(_: ScreenProps) {
       {!asking && profileKey && (
         <>
           <Card padding={14} gap={9} highlight>
-            <div className="text-muted" style={{ fontSize: 12.5, letterSpacing: '.1em', textTransform: 'uppercase' }}>
+            <div className="text-muted" style={{ fontSize: 'var(--fs-xs)', letterSpacing: '.1em', textTransform: 'uppercase' }}>
               {t('adv.yourProfile')}
             </div>
-            <div style={{ fontFamily: 'var(--font-heading)', fontSize: 26, lineHeight: 1.1 }}>
+            <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--fs-3xl)', lineHeight: 1.1 }}>
               {t(`profile.${profileKey}` as StringKey)}
             </div>
-            <p style={{ fontSize: 13.5, lineHeight: 1.55, margin: 0, opacity: 0.85 }}>
+            <p style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.55, margin: 0, opacity: 0.85 }}>
               {t(`profile.${profileKey}.blurb` as StringKey)}
               {hardRule(ans) && ` ${t('profile.hardNote')}`}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingTop: 2 }}>
               {ANSWER_LABELS.map((labelKey, i) => (
-                <div key={labelKey} style={{ display: 'flex', gap: 9, fontSize: 13, padding: '5px 0', borderTop: '1px solid var(--color-divider)' }}>
-                  <span className="text-muted" style={{ width: 78, flex: 'none' }}>
-                    {t(labelKey)}
-                  </span>
-                  <span style={{ flex: 1 }}>
-                    {ans[i] ? t(QUESTIONS[i].opts.find((o) => o[0] === ans[i])![1]) : '—'}
-                  </span>
-                </div>
+                <ListRow
+                  key={labelKey}
+                  minHeight={0}
+                  padding="5px 0"
+                  leading={
+                    <span className="text-muted" style={{ width: 78, flex: 'none', fontSize: 'var(--fs-sm)' }}>
+                      {t(labelKey)}
+                    </span>
+                  }
+                  title={
+                    <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-regular)' }}>
+                      {ans[i] ? t(QUESTIONS[i].opts.find((o) => o[0] === ans[i])![1]) : '—'}
+                    </span>
+                  }
+                />
               ))}
             </div>
             <span style={{ alignSelf: 'flex-start' }}>
@@ -133,9 +128,9 @@ export function AdvisoryChat(_: ScreenProps) {
               <Tag variant="neutral" fontSize={12}>
                 {t('adv.fromLibrary')}
               </Tag>
-              <span style={{ fontSize: 14, fontWeight: 600 }}>{t('adv.eduChatTitle')}</span>
+              <span style={{ fontSize: 'var(--fs-md)', fontWeight: 'var(--fw-semibold)' }}>{t('adv.eduChatTitle')}</span>
             </div>
-            <p className="text-muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+            <p className="text-muted" style={{ fontSize: 'var(--fs-sm)', margin: 0, lineHeight: 1.5 }}>
               {t('adv.eduChatBody')}
             </p>
             <Button variant="ghost" fontSize={12.5} alignSelf="flex-start" style={{ padding: 0 }} onClick={() => dispatch({ type: 'go', screen: 'learn' })}>

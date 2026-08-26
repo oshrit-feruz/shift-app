@@ -1,4 +1,6 @@
 import { Card } from '../../components/Card';
+import { IconTile } from '../../components/IconTile';
+import { ListRow } from '../../components/ListRow';
 import { Button } from '../../components/Button';
 import { useAppState, useDispatch, type Screen } from '../../state/appState';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -44,44 +46,31 @@ export function StepsScreen(_: ScreenProps) {
             key={x.key}
             style={{
               height: 4,
-              borderRadius: 3,
+              borderRadius: 'var(--radius-xs)',
               flex: i === curIdx ? 2 : 1,
               background: s.stepsDone[x.key] || i === curIdx ? 'var(--color-accent)' : 'var(--line)',
             }}
           />
         ))}
       </div>
-      <div className="text-muted" style={{ fontSize: 13 }}>
+      <div className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
         {t('steps.progress', { done: doneN, total: STEPS.length })}
       </div>
 
       {cur ? (
         <Card padding={18} gap={0} highlight>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span
-              style={{
-                width: 30,
-                height: 30,
-                flex: 'none',
-                borderRadius: '50%',
-                background: 'var(--color-accent)',
-                color: 'var(--g2)',
-                display: 'grid',
-                placeItems: 'center',
-                fontSize: 14,
-                fontWeight: 600,
-              }}
-            >
-              {curIdx + 1}
-            </span>
-            <span className="text-muted" style={{ fontSize: 12.5, letterSpacing: '.09em', textTransform: 'uppercase' }}>
+            <IconTile size={30} circle variant="solid" fontSize={14}>
+              <b>{curIdx + 1}</b>
+            </IconTile>
+            <span className="text-muted" style={{ fontSize: 'var(--fs-xs)', letterSpacing: '.09em', textTransform: 'uppercase' }}>
               {t('steps.now')}
             </span>
           </div>
-          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 19, lineHeight: 1.3, marginTop: 11, whiteSpace: 'normal' }}>
+          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--fs-xl)', lineHeight: 1.3, marginTop: 11, whiteSpace: 'normal' }}>
             {cur.title[language]}
           </div>
-          <p style={{ fontSize: 13.5, lineHeight: 1.55, margin: '8px 0 0', opacity: 0.85 }}>{cur.how[language]}</p>
+          <p style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.55, margin: '8px 0 0', opacity: 0.85 }}>{cur.how[language]}</p>
           <Button
             block
             minHeight={46}
@@ -110,8 +99,8 @@ export function StepsScreen(_: ScreenProps) {
         </Card>
       ) : (
         <Card padding={18} gap={8} highlight>
-          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 19 }}>{t('steps.allDone')}</div>
-          <p style={{ fontSize: 13.5, margin: 0, opacity: 0.85 }}>{t('steps.allDoneBody')}</p>
+          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--fs-xl)' }}>{t('steps.allDone')}</div>
+          <p style={{ fontSize: 'var(--fs-sm)', margin: 0, opacity: 0.85 }}>{t('steps.allDoneBody')}</p>
           <Button block minHeight={46} fontSize={13.5} onClick={() => dispatch({ type: 'go', screen: 'home' })}>
             {t('steps.goApp')}
           </Button>
@@ -123,53 +112,29 @@ export function StepsScreen(_: ScreenProps) {
           if (i === curIdx) return null;
           const done = !!s.stepsDone[st.key];
           return (
-            <button
+            <ListRow
               key={st.key}
-              type="button"
               onClick={() => dispatch({ type: 'stepDone', key: st.key, done: !done })}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 11,
-                width: '100%',
-                minHeight: 46,
-                padding: '9px 13px',
-                border: 0,
-                borderTop: '1px solid var(--color-divider)',
-                background: 'transparent',
-                color: 'inherit',
-                font: 'inherit',
-                cursor: 'pointer',
-                textAlign: 'start',
-              }}
-            >
-              <span
-                style={{
-                  width: 22,
-                  height: 22,
-                  flex: 'none',
-                  borderRadius: '50%',
-                  display: 'grid',
-                  placeItems: 'center',
-                  fontSize: 12,
-                  border: `1px solid ${done ? 'transparent' : 'var(--color-divider)'}`,
-                  background: done ? 'var(--color-accent-800)' : 'transparent',
-                  color: done ? 'var(--color-accent-200)' : 'inherit',
-                }}
-              >
-                {done ? '✓' : i + 1}
-              </span>
-              <span
-                style={{
-                  flex: 1,
-                  fontSize: 14,
-                  opacity: done ? 0.5 : 0.78,
-                  textDecoration: done ? 'line-through' : undefined,
-                }}
-              >
-                {st.title[language]}
-              </span>
-            </button>
+              minHeight={46}
+              padding="9px 13px"
+              leading={
+                <IconTile size={22} circle variant={done ? 'accent' : 'outline'} fontSize={12}>
+                  {done ? '✓' : i + 1}
+                </IconTile>
+              }
+              title={
+                <span
+                  style={{
+                    fontSize: 'var(--fs-md)',
+                    fontWeight: 'var(--fw-regular)',
+                    opacity: done ? 0.5 : 0.78,
+                    textDecoration: done ? 'line-through' : undefined,
+                  }}
+                >
+                  {st.title[language]}
+                </span>
+              }
+            />
           );
         })}
       </Card>

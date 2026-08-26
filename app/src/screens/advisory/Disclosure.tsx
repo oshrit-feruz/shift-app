@@ -1,4 +1,6 @@
 import { Card, CardTitle } from '../../components/Card';
+import { IconTile } from '../../components/IconTile';
+import { ListRow } from '../../components/ListRow';
 import { Button } from '../../components/Button';
 import { FlowStepper } from './FlowStepper';
 import { useDispatch } from '../../state/appState';
@@ -17,30 +19,28 @@ export function AdvisoryDisclosure(_: ScreenProps) {
       <FlowStepper />
       <Card padding={14} gap={6}>
         <CardTitle>{t('disc.title')}</CardTitle>
-        <p className="text-muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.55 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--fs-sm)', margin: 0, lineHeight: 1.55 }}>
           {t('disc.lead')}
         </p>
       </Card>
       <Card padding="4px 0" gap={0}>
         {POINTS.map((k, i) => (
-          <div key={k} style={{ display: 'flex', gap: 10, padding: '11px 13px', borderTop: '1px solid var(--color-divider)' }}>
-            <span
-              style={{
-                width: 20,
-                height: 20,
-                flex: 'none',
-                borderRadius: 6,
-                background: 'var(--color-accent-900)',
-                color: 'var(--color-accent-200)',
-                display: 'grid',
-                placeItems: 'center',
-                fontSize: 12,
-              }}
-            >
-              {i + 1}
-            </span>
-            <span style={{ flex: 1, fontSize: 13.5, lineHeight: 1.5 }}>{t(k)}</span>
-          </div>
+          <ListRow
+            key={k}
+            align="start"
+            minHeight={0}
+            padding="11px 13px"
+            leading={
+              <IconTile size={20} variant="tint" fontSize={12}>
+                {i + 1}
+              </IconTile>
+            }
+            title={
+              <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-regular)', lineHeight: 1.5, whiteSpace: 'normal' }}>
+                {t(k)}
+              </span>
+            }
+          />
         ))}
       </Card>
       <Button block minHeight={46} onClick={() => dispatch({ type: 'advGoto', screen: 'advDash', stage: 2 })}>

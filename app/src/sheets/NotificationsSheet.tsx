@@ -105,30 +105,30 @@ export function NotificationsSheet({ open, onClose }: { open: boolean; onClose: 
                 width: 26,
                 height: 26,
                 flex: 'none',
-                borderRadius: 8,
+                borderRadius: 'var(--radius-sm)',
                 background: 'var(--color-accent-900)',
                 color: 'var(--color-accent-300)',
                 display: 'grid',
                 placeItems: 'center',
-                fontSize: 13,
+                fontSize: 'var(--fs-sm)',
               }}
             >
               {n.glyph}
             </span>
             <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontSize: 14, whiteSpace: 'normal' }}>{n.title[language]}</span>
-              <span className="text-muted" style={{ display: 'block', fontSize: 12.5, marginTop: 1 }}>
+              <span style={{ display: 'block', fontSize: 'var(--fs-md)', whiteSpace: 'normal' }}>{n.title[language]}</span>
+              <span className="text-muted" style={{ display: 'block', fontSize: 'var(--fs-xs)', marginTop: 1 }}>
                 {n.detail[language]}
               </span>
             </span>
-            <span className="text-muted" style={{ fontSize: 12.5, whiteSpace: 'nowrap' }}>
+            <span className="text-muted" style={{ fontSize: 'var(--fs-xs)', whiteSpace: 'nowrap' }}>
               {n.ago[language]}
             </span>
           </button>
           {n.isThresholdAlert && (
             <>
               {/* Equal-prominence disclaimer: same size as the title, not fine print. */}
-              <p style={{ fontSize: 14, lineHeight: 1.5, margin: 0, whiteSpace: 'normal' }}>{t('thresh.disclaimer')}</p>
+              <p style={{ fontSize: 'var(--fs-md)', lineHeight: 1.5, margin: 0, whiteSpace: 'normal' }}>{t('thresh.disclaimer')}</p>
               <Button
                 variant="secondary"
                 fontSize={13}

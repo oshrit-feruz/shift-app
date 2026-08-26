@@ -10,7 +10,7 @@ export function ProgressDots({ total, current, done }: { total: number; current:
           style={{
             width: i === current ? 18 : 6,
             height: 6,
-            borderRadius: 4,
+            borderRadius: 'var(--radius-xs)',
             background:
               i === current
                 ? 'var(--color-accent)'
@@ -33,7 +33,7 @@ export function SegmentDots({ total, current }: { total: number; current: number
           key={i}
           style={{
             height: 4,
-            borderRadius: 3,
+            borderRadius: 'var(--radius-xs)',
             flex: i === current ? 2 : 1,
             background: i <= current ? 'var(--color-accent)' : 'var(--line)',
           }}
@@ -48,7 +48,7 @@ export function ProgressTrack({ pct, label }: { pct: number; label?: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <span
-        style={{ flex: 1, height: 4, borderRadius: 3, background: 'var(--line)', overflow: 'hidden', display: 'block' }}
+        style={{ flex: 1, height: 4, borderRadius: 'var(--radius-xs)', background: 'var(--line)', overflow: 'hidden', display: 'block' }}
       >
         <span style={{ display: 'block', height: '100%', width: `${pct}%`, background: 'var(--color-accent)' }} />
       </span>

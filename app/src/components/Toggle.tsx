@@ -10,7 +10,7 @@ export function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) =
         width: 38,
         height: 22,
         flex: 'none',
-        borderRadius: 12,
+        borderRadius: 'var(--radius-md)',
         border: '1px solid var(--color-divider)',
         cursor: 'pointer',
         padding: 2,
@@ -23,7 +23,7 @@ export function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) =
         style={{
           width: 16,
           height: 16,
-          borderRadius: 9,
+          borderRadius: 'var(--radius-sm)',
           display: 'block',
           background: on ? 'var(--color-accent-300)' : 'var(--muted)',
         }}

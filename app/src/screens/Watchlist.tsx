@@ -2,6 +2,7 @@ import { Card, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Tag } from '../components/Tag';
 import { ListRow, RowValues } from '../components/ListRow';
+import { IconTile } from '../components/IconTile';
 import { TickerTile } from '../components/TickerTile';
 import { DataState } from '../components/DataState';
 import { useAppState, useDispatch } from '../state/appState';
@@ -32,7 +33,7 @@ export function WatchlistScreen({ openAlert }: ScreenProps) {
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span className="text-muted" style={{ fontSize: 13, flex: 1 }}>
+        <span className="text-muted" style={{ fontSize: 'var(--fs-sm)', flex: 1 }}>
           {t('watch.sub')}
         </span>
         <Button fontSize={13} minHeight={36} onClick={openAlert}>
@@ -77,7 +78,7 @@ export function WatchlistScreen({ openAlert }: ScreenProps) {
                           border: '1px solid var(--color-divider)',
                           background: 'transparent',
                           color: 'var(--color-accent)',
-                          fontSize: 15,
+                          fontSize: 'var(--fs-base)',
                           cursor: 'pointer',
                         }}
                         aria-label={t('watch.newAlert')}
@@ -97,35 +98,27 @@ export function WatchlistScreen({ openAlert }: ScreenProps) {
       <Card padding={13} gap={8}>
         <CardTitle>{t('watch.activeAlerts')}</CardTitle>
         {ALERTS.map((a, i) => (
-          <div key={i} style={{ display: 'flex', gap: 9, paddingTop: 8, borderTop: '1px solid var(--color-divider)' }}>
-            <span
-              style={{
-                width: 24,
-                height: 24,
-                flex: 'none',
-                borderRadius: 7,
-                background: 'var(--color-accent-900)',
-                color: 'var(--color-accent-300)',
-                display: 'grid',
-                placeItems: 'center',
-                fontSize: 12,
-              }}
-            >
-              {a.glyph}
-            </span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14 }}>{a.title[language]}</div>
-              <div className="text-muted" style={{ fontSize: 12.5 }}>
-                {a.detail[language]}
-              </div>
-            </div>
-            <Button variant="ghost" fontSize={12.5} style={{ opacity: 0.7, padding: 0 }}>
-              {t('watch.remove')}
-            </Button>
-          </div>
+          <ListRow
+            key={i}
+            align="start"
+            padding="8px 0 0"
+            minHeight={0}
+            leading={
+              <IconTile size={24} variant="tint" fontSize={12}>
+                {a.glyph}
+              </IconTile>
+            }
+            title={<span style={{ fontSize: 'var(--fs-md)', fontWeight: 'var(--fw-regular)' }}>{a.title[language]}</span>}
+            subtitle={a.detail[language]}
+            trailing={
+              <Button variant="ghost" fontSize={12.5} style={{ opacity: 0.7, padding: 0 }}>
+                {t('watch.remove')}
+              </Button>
+            }
+          />
         ))}
         {beg && (
-          <p className="text-muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>
+          <p className="text-muted" style={{ fontSize: 'var(--fs-xs)', margin: '4px 0 0' }}>
             {t('watch.alertNudge')}
           </p>
         )}

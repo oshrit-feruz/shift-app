@@ -34,7 +34,7 @@ export function Button({
           ? 'btn btn-ghost'
           : 'btn';
   const successStyle: CSSProperties =
-    variant === 'success' ? { background: 'var(--up)', color: '#fff', fontWeight: 600 } : {};
+    variant === 'success' ? { background: 'var(--up)', color: 'var(--color-on-accent)', fontWeight: 'var(--fw-semibold)' } : {};
   return (
     <button
       type="button"

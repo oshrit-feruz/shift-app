@@ -48,10 +48,14 @@
   --up: #2fd18a;
   --down: #f2564e;
 
-  /* Radii */
+  /* Radii — xs is the design's Nocturne radius-sm (4px, sub-elements: bars,
+     dots, small fills); sm is the Shift control radius (buttons, icon tiles). */
+  --radius-xs: 4px;
   --radius-sm: 9px;
   --radius-md: 12px;
   --radius-lg: 16px;
+  --radius-pill: 999px;
+  --radius-ghost: 6px; /* ghost buttons only, per design review */
 
   /* Elevation */
   --shadow-sm: 0 0 0 1px rgba(146, 155, 172, .2), 0 8px 32px rgba(0, 0, 0, .25);
@@ -61,6 +65,51 @@
   /* Type */
   --font-heading: 'Rubik', system-ui, sans-serif;
   --font-body: 'Rubik', system-ui, sans-serif;
+
+  /* Type scale — every on-screen font size maps to one of these steps.
+     (Numeric display sizes at the end are for hero numbers only.) */
+  --fs-2xs: 11px;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 14px;
+  --fs-base: 15px;
+  --fs-lg: 16px;
+  --fs-xl: 18px;
+  --fs-2xl: 22px;
+  --fs-3xl: 26px;
+  --fs-4xl: 30px;
+  --fs-num-lg: 42px;
+  --fs-num-xl: 52px;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* Spacing scale — shared gaps/paddings for components. */
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 10px;
+  --space-6: 13px;
+  --space-7: 16px;
+  --space-8: 24px;
+
+  /* Derived fills — one place for the "10% accent" tint screens kept
+     synthesizing inline, and the fixed on-accent ink. */
+  --color-accent-tint: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  --color-on-accent: #fff;
+
+  /* Fixed inks for surfaces that stay dark in both themes (glass cards keep
+     a dark fill in light mode — see the light-mode block below). */
+  --color-card-text: #FFFFFF;
+  --color-card-muted: #B6BECE;
+  --color-tag-neutral-ink: #E2E8F0;
+  --color-logo-bg: #fff; /* white backing behind third-party ticker/provider logos */
+
+  /* Sheet scrim + divider hairline (Sheet component). */
+  --sheet-scrim: rgba(30, 41, 59, .45);
+  --hairline: rgba(146, 155, 172, .22);
 }
 
 [data-signal="balanced"] {

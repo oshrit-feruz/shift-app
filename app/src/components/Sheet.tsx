@@ -36,10 +36,10 @@ export function Sheet({
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%',
-          background: 'rgba(30,41,59,.45)',
+          background: 'var(--sheet-scrim)',
           backdropFilter: 'blur(40px) saturate(1.4)',
           WebkitBackdropFilter: 'blur(40px) saturate(1.4)',
-          borderTop: '1px solid rgba(146,155,172,.22)',
+          borderTop: '1px solid var(--hairline)',
           borderTopLeftRadius: 20,
           borderTopRightRadius: 20,
           boxShadow: 'var(--shadow-lg)',
@@ -54,11 +54,11 @@ export function Sheet({
       >
         <div style={{ width: 38, height: 4, borderRadius: 2, background: 'var(--line)', alignSelf: 'center' }} />
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 18, whiteSpace: 'nowrap', flex: 'none' }}>
+          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--fs-xl)', whiteSpace: 'nowrap', flex: 'none' }}>
             {title}
           </div>
           {meta != null && (
-            <span className="text-muted" style={{ fontSize: 13 }}>
+            <span className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
               {meta}
             </span>
           )}
@@ -66,7 +66,7 @@ export function Sheet({
           <button
             type="button"
             className="btn btn-ghost"
-            style={{ padding: 0, fontSize: 15, opacity: 0.6 }}
+            style={{ padding: 0, fontSize: 'var(--fs-base)', opacity: 0.6 }}
             onClick={onClose}
             aria-label="Close"
           >

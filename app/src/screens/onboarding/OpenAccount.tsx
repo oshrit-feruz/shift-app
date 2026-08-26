@@ -3,6 +3,7 @@ import { Card, CardTitle } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Num } from '../../components/Num';
 import { Chip } from '../../components/Chip';
+import { OptionCard } from '../../components/OptionCard';
 import { SegmentDots } from '../../components/Progress';
 import { useDispatch } from '../../state/appState';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -91,41 +92,29 @@ export function OpenAccountScreen(_: ScreenProps) {
   const [title, body] = OPEN[language][step];
   const docsReady = Object.values(docs).filter(Boolean).length;
 
-  const pickStyle = (on: boolean): React.CSSProperties => ({
-    display: 'block',
-    width: '100%',
-    padding: 15,
-    borderRadius: 'var(--radius-md)',
-    textAlign: 'start',
-    font: 'inherit',
-    color: 'inherit',
-    cursor: 'pointer',
-    background: on ? 'var(--color-accent-900)' : 'var(--color-surface)',
-    border: `1px solid ${on ? 'var(--color-accent)' : 'var(--color-divider)'}`,
-  });
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 4 }}>
       <SegmentDots total={5} current={step} />
       <div>
-        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 22, lineHeight: 1.25, marginTop: 5, whiteSpace: 'normal' }}>{title}</div>
-        <p style={{ fontSize: 14, lineHeight: 1.55, margin: '8px 0 0', opacity: 0.85 }}>{body}</p>
+        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--fs-2xl)', lineHeight: 1.25, marginTop: 5, whiteSpace: 'normal' }}>{title}</div>
+        <p style={{ fontSize: 'var(--fs-md)', lineHeight: 1.55, margin: '8px 0 0', opacity: 0.85 }}>{body}</p>
       </div>
 
       {step === 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {KINDS[language].map(([k, name, note]) => (
-            <button key={k} type="button" style={pickStyle(kind === k)} onClick={() => setKind(k)}>
+            <OptionCard key={k} active={kind === k} filled padding={15} onClick={() => setKind(k)}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <RadioDot on={kind === k} />
                 <span style={{ flex: 1 }}>
-                  <span style={{ display: 'block', fontSize: 14 }}>{name}</span>
-                  <span className="text-muted" style={{ display: 'block', fontSize: 13, marginTop: 2 }}>
+                  <span style={{ display: 'block', fontSize: 'var(--fs-md)' }}>{name}</span>
+                  <span className="text-muted" style={{ display: 'block', fontSize: 'var(--fs-sm)', marginTop: 2 }}>
                     {note}
                   </span>
                 </span>
               </span>
-            </button>
+            </OptionCard>
           ))}
         </div>
       )}
@@ -135,16 +124,17 @@ export function OpenAccountScreen(_: ScreenProps) {
           {DOCS[language].map(([k, name, note]) => {
             const on = !!docs[k];
             return (
-              <button key={k} type="button" style={{ ...pickStyle(on), display: 'flex', alignItems: 'center', gap: 10 }} onClick={() => setDocs({ ...docs, [k]: !on })}>
+              <OptionCard key={k} active={on} filled padding={15} onClick={() => setDocs({ ...docs, [k]: !on })}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span
                   style={{
                     width: 22,
                     height: 22,
                     flex: 'none',
-                    borderRadius: 6,
+                    borderRadius: 'var(--radius-ghost)',
                     display: 'grid',
                     placeItems: 'center',
-                    fontSize: 13,
+                    fontSize: 'var(--fs-sm)',
                     border: `1px solid ${on ? 'transparent' : 'var(--color-divider)'}`,
                     background: on ? 'var(--color-accent)' : 'transparent',
                     color: 'var(--g2)',
@@ -153,15 +143,16 @@ export function OpenAccountScreen(_: ScreenProps) {
                   {on ? '✓' : ''}
                 </span>
                 <span style={{ flex: 1, textAlign: 'start' }}>
-                  <span style={{ display: 'block', fontSize: 14 }}>{name}</span>
-                  <span className="text-muted" style={{ display: 'block', fontSize: 13, marginTop: 2 }}>
+                  <span style={{ display: 'block', fontSize: 'var(--fs-md)' }}>{name}</span>
+                  <span className="text-muted" style={{ display: 'block', fontSize: 'var(--fs-sm)', marginTop: 2 }}>
                     {note}
                   </span>
+                  </span>
                 </span>
-              </button>
+              </OptionCard>
             );
           })}
-          <div className="text-muted" style={{ fontSize: 13 }}>
+          <div className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
             {t('open.docsReady', { n: docsReady })}
           </div>
         </div>
@@ -170,12 +161,12 @@ export function OpenAccountScreen(_: ScreenProps) {
       {step === 2 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {ACCTS[language].map(([k, name, note]) => (
-            <button key={k} type="button" style={pickStyle(acct === k)} onClick={() => setAcct(k)}>
-              <span style={{ display: 'block', fontSize: 14 }}>{name}</span>
-              <span className="text-muted" style={{ display: 'block', fontSize: 13, marginTop: 3, lineHeight: 1.45 }}>
+            <OptionCard key={k} active={acct === k} filled padding={15} onClick={() => setAcct(k)}>
+              <span style={{ display: 'block', fontSize: 'var(--fs-md)' }}>{name}</span>
+              <span className="text-muted" style={{ display: 'block', fontSize: 'var(--fs-sm)', marginTop: 3, lineHeight: 1.45 }}>
                 {note}
               </span>
-            </button>
+            </OptionCard>
           ))}
         </div>
       )}
@@ -186,7 +177,7 @@ export function OpenAccountScreen(_: ScreenProps) {
             <Num size={30} style={{ fontFamily: 'var(--font-heading)' }}>
               {'$' + fund.toLocaleString('en-US')}
             </Num>
-            <span className="text-muted" style={{ fontSize: 13 }}>
+            <span className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
               {t('open.toStart')}
             </span>
           </div>
@@ -207,7 +198,7 @@ export function OpenAccountScreen(_: ScreenProps) {
               {t('open.moreLater')}
             </text>
           </svg>
-          <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
+          <p className="text-muted" style={{ fontSize: 'var(--fs-sm)', margin: 0 }}>
             {language === 'he'
               ? 'העברה בנקאית נכנסת בדרך כלל בתוך יום עד שלושה ימי עסקים. כסף שיושב בחשבון הוא עדיין שלך ועדיין לא מושקע, עד שתקני משהו.'
               : 'A bank transfer usually lands in one to three working days. Money sitting in the account is still yours and still uninvested until you buy something.'}
@@ -218,23 +209,23 @@ export function OpenAccountScreen(_: ScreenProps) {
       {step === 4 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {BUYS[language].map(([k, name, note]) => (
-            <button key={k} type="button" style={pickStyle(firstBuy === k)} onClick={() => setFirstBuy(k)}>
+            <OptionCard key={k} active={firstBuy === k} filled padding={15} onClick={() => setFirstBuy(k)}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <RadioDot on={firstBuy === k} />
                 <span style={{ flex: 1 }}>
-                  <span style={{ display: 'block', fontSize: 14 }}>{name}</span>
-                  <span className="text-muted" style={{ display: 'block', fontSize: 13, marginTop: 2, lineHeight: 1.45 }}>
+                  <span style={{ display: 'block', fontSize: 'var(--fs-md)' }}>{name}</span>
+                  <span className="text-muted" style={{ display: 'block', fontSize: 'var(--fs-sm)', marginTop: 2, lineHeight: 1.45 }}>
                     {note}
                   </span>
                 </span>
               </span>
-            </button>
+            </OptionCard>
           ))}
           <Card padding={14} gap={6} style={{ marginTop: 2 }}>
             <CardTitle size={14}>
               {language === 'he' ? 'מה קורה אחרי שלוחצים קנייה' : 'What happens after you press buy'}
             </CardTitle>
-            <p className="text-muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+            <p className="text-muted" style={{ fontSize: 'var(--fs-sm)', margin: 0, lineHeight: 1.5 }}>
               {language === 'he'
                 ? 'הפקודה מתבצעת בשניות בשעות המסחר. תראי אותה בפוזיציות, ומשם התפקיד היחיד הוא לא לגעת.'
                 : 'The order fills in seconds during market hours. You will see it in your positions, and from then on the only job is leaving it alone.'}

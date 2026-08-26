@@ -80,7 +80,7 @@ export function MoversScreen(_: ScreenProps) {
                       </Num>
                       <span
                         className="text-muted"
-                        style={{ fontSize: 13, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                        style={{ fontSize: 'var(--fs-sm)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                       >
                         {x.name}
                       </span>
@@ -89,7 +89,7 @@ export function MoversScreen(_: ScreenProps) {
                       </Num>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 13, opacity: 0.76, flex: 1 }}>{x.why[language]}</span>
+                      <span style={{ fontSize: 'var(--fs-sm)', opacity: 0.76, flex: 1 }}>{x.why[language]}</span>
                       <Sparkline
                         values={demoService.series(`spark-${x.ticker}-${i}`, 26, x.changePct / 6, 2)}
                         color={signalColor(x.changePct)}
@@ -103,7 +103,7 @@ export function MoversScreen(_: ScreenProps) {
 
           return (
             <Card padding="6px 10px 4px" gap={0}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-xs)' }}>
                 <thead>
                   <tr>
                     <Th align="start">{t('movers.colSym')}</Th>
@@ -151,7 +151,7 @@ function Th({ children, align = 'end' }: { children: React.ReactNode; align?: 's
   return (
     <th
       className="text-muted"
-      style={{ textAlign: align, fontWeight: 500, padding: '8px 4px', borderBottom: '1px solid var(--color-divider)' }}
+      style={{ textAlign: align, fontWeight: 'var(--fw-medium)', padding: '8px 4px', borderBottom: '1px solid var(--color-divider)' }}
     >
       {children}
     </th>

@@ -1,9 +1,10 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 
 /**
  * The generic tappable list row: optional leading tile, title + subtitle,
- * optional right-aligned value pair, divider on top. Used by watchlist rows,
- * holdings, search results, menu rows — never re-implemented inline.
+ * optional right-aligned value pair, divider on top (or `boxed` for the
+ * bordered stand-alone row). Used by watchlist rows, holdings, search
+ * results, menu rows, movers — never re-implemented inline.
  */
 export function ListRow({
   leading,
@@ -14,7 +15,11 @@ export function ListRow({
   onClick,
   minHeight = 48,
   divider = true,
-  padding = '8px 0',
+  boxed = false,
+  well = false,
+  padding,
+  titleWeight = 'var(--fw-semibold)',
+  align = 'center',
 }: {
   leading?: ReactNode;
   title: ReactNode;
@@ -24,19 +29,26 @@ export function ListRow({
   onClick?: () => void;
   minHeight?: number;
   divider?: boolean;
+  /** Bordered, rounded stand-alone row (movers preview, option lists). */
+  boxed?: boolean;
+  /** Sunken fill inside a boxed row (chat answer options). */
+  well?: boolean;
   padding?: string;
+  titleWeight?: CSSProperties['fontWeight'];
+  /** 'start' aligns columns to the top (multi-line headlines). */
+  align?: 'center' | 'start';
 }) {
   const inner = (
     <>
       {leading}
       <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: 'block', fontSize: 15, fontWeight: 600 }}>{title}</span>
+        <span style={{ display: 'block', fontSize: 'var(--fs-base)', fontWeight: titleWeight }}>{title}</span>
         {subtitle != null && (
           <span
             className="text-muted"
             style={{
               display: 'block',
-              fontSize: 13,
+              fontSize: 'var(--fs-sm)',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
@@ -50,15 +62,21 @@ export function ListRow({
       {trailing}
     </>
   );
-  const style = {
+  const style: CSSProperties = {
     display: 'flex',
-    alignItems: 'center',
+    alignItems: align === 'start' ? 'flex-start' : 'center',
     gap: 10,
     width: '100%',
     minHeight,
-    padding,
-    borderTop: divider ? '1px solid var(--color-divider)' : undefined,
-  } as const;
+    padding: padding ?? (boxed ? '8px 11px' : '8px 0'),
+    ...(boxed
+      ? {
+          border: '1px solid var(--color-divider)',
+          borderRadius: 'var(--radius-md)',
+          background: well ? 'var(--sunk)' : undefined,
+        }
+      : { borderTop: divider ? '1px solid var(--color-divider)' : undefined }),
+  };
   if (onClick) {
     return (
       <button
@@ -66,8 +84,8 @@ export function ListRow({
         onClick={onClick}
         style={{
           ...style,
-          background: 'transparent',
-          border: 0,
+          background: boxed && well ? 'var(--sunk)' : 'transparent',
+          border: boxed ? style.border : 0,
           borderTop: style.borderTop,
           color: 'inherit',
           font: 'inherit',
@@ -94,11 +112,14 @@ export function RowValues({
 }) {
   return (
     <>
-      <span data-num="" style={{ display: 'block', fontSize: 14 }}>
+      <span data-num="" style={{ display: 'block', fontSize: 'var(--fs-md)' }}>
         {main}
       </span>
       {sub != null && (
-        <span data-num="" style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: subColor }}>
+        <span
+          data-num=""
+          style={{ display: 'block', fontSize: 'var(--fs-xs)', fontWeight: 'var(--fw-semibold)', color: subColor }}
+        >
           {sub}
         </span>
       )}

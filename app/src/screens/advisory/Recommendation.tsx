@@ -40,14 +40,14 @@ export function AdvisoryRecommendation(_: ScreenProps) {
           </Tag>
         </div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 23 }}>{t(`profile.${profileKey}` as StringKey)}</div>
+          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--fs-2xl)' }}>{t(`profile.${profileKey}` as StringKey)}</div>
           <span style={{ marginInlineStart: 'auto' }}>
             <Button variant="ghost" fontSize={12.5} style={{ padding: 0 }} onClick={() => dispatch({ type: 'advReset' })}>
               {t('adv.redoChat')}
             </Button>
           </span>
         </div>
-        <p style={{ fontSize: 13.5, lineHeight: 1.55, margin: 0, opacity: 0.85 }}>{t('rec.coreSatIntro')}</p>
+        <p style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.55, margin: 0, opacity: 0.85 }}>{t('rec.coreSatIntro')}</p>
       </Card>
 
       {/* Core — specific fund per category, not just a percentage. Fund names
@@ -59,14 +59,14 @@ export function AdvisoryRecommendation(_: ScreenProps) {
             {100 - profile.satellitePct}%
           </Num>
         </div>
-        <p className="text-muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.5 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--fs-xs)', margin: 0, lineHeight: 1.5 }}>
           {t('rec.coreHelp')}
         </p>
         <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', padding: '8px 10px', borderRadius: 'var(--radius-sm)', background: 'var(--sunk)' }}>
           <Tag variant="neutral" fontSize={12}>
             {t('adv.fromLibrary')}
           </Tag>
-          <span className="text-muted" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
+          <span className="text-muted" style={{ fontSize: 'var(--fs-xs)', lineHeight: 1.5 }}>
             {t('rec.eduCoreBody')}
           </span>
         </div>
@@ -91,7 +91,7 @@ export function AdvisoryRecommendation(_: ScreenProps) {
               <Num size={12.5} style={{ color: 'var(--muted)' }}>
                 {profile.satellitePct}%
               </Num>
-              <span className="text-muted" style={{ fontSize: 12.5 }}>
+              <span className="text-muted" style={{ fontSize: 'var(--fs-xs)' }}>
                 {t('rec.ofPortfolio')}
               </span>
               <span style={{ marginInlineStart: 'auto' }}>
@@ -100,12 +100,12 @@ export function AdvisoryRecommendation(_: ScreenProps) {
                 </Tag>
               </span>
             </div>
-            <p className="text-muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.5 }}>
+            <p className="text-muted" style={{ fontSize: 'var(--fs-xs)', margin: 0, lineHeight: 1.5 }}>
               {t('rec.satHelp')}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
               {SAT_RULES.map((k) => (
-                <div key={k} style={{ display: 'flex', gap: 8, fontSize: 12.5, lineHeight: 1.45 }}>
+                <div key={k} style={{ display: 'flex', gap: 8, fontSize: 'var(--fs-xs)', lineHeight: 1.45 }}>
                   <span style={{ color: 'var(--color-accent-200)', flex: 'none' }}>·</span>
                   <span className="text-muted" style={{ flex: 1 }}>
                     {t(k)}
@@ -158,7 +158,7 @@ export function AdvisoryRecommendation(_: ScreenProps) {
 
       <Card padding={13} gap={8}>
         <CardTitle>{t('rec.nextStep')}</CardTitle>
-        <p className="text-muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--fs-sm)', margin: 0, lineHeight: 1.5 }}>
           {t('rec.nextStepHelp')}
         </p>
         <Button block minHeight={44} onClick={() => dispatch({ type: 'advGoto', screen: 'advConnect', stage: 3 })}>

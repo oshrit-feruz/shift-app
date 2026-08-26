@@ -6,32 +6,36 @@ export function Chip({
   active = false,
   onClick,
   big = false,
+  well = false,
 }: {
   children: ReactNode;
   active?: boolean;
+  /** Without onClick the chip renders as a passive <span> (status pills). */
   onClick?: () => void;
   big?: boolean;
+  /** Sunken neutral fill when idle (status/stepper pills). */
+  well?: boolean;
 }) {
+  const style = {
+    padding: big ? '7px 13px' : '6px 12px',
+    borderRadius: 'var(--radius-pill)',
+    font: 'inherit',
+    fontSize: 'var(--fs-sm)',
+    whiteSpace: 'nowrap',
+    cursor: onClick ? 'pointer' : undefined,
+    flex: 'none',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 7,
+    border: `1px solid ${active ? 'var(--color-accent)' : 'var(--color-divider)'}`,
+    background: active ? 'var(--color-accent-900)' : well ? 'var(--sunk)' : 'transparent',
+    color: active ? 'var(--color-accent-300)' : 'inherit',
+  } as const;
+  if (!onClick) {
+    return <span style={style}>{children}</span>;
+  }
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        padding: big ? '7px 13px' : '6px 12px',
-        borderRadius: 999,
-        font: 'inherit',
-        fontSize: 13,
-        whiteSpace: 'nowrap',
-        cursor: 'pointer',
-        flex: 'none',
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 7,
-        border: `1px solid ${active ? 'var(--color-accent)' : 'var(--color-divider)'}`,
-        background: active ? 'var(--color-accent-900)' : 'transparent',
-        color: active ? 'var(--color-accent-300)' : 'inherit',
-      }}
-    >
+    <button type="button" onClick={onClick} style={style}>
       {children}
     </button>
   );

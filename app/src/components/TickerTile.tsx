@@ -35,14 +35,14 @@ export function TickerTile({ ticker, size = 34 }: { ticker: string; size?: numbe
     display: 'grid',
     placeItems: 'center' as const,
     fontSize: size < 30 ? 9 : 10.5,
-    fontWeight: 600,
+    fontWeight: 'var(--fw-semibold)',
   };
   if (url) {
     return (
       <span
         style={{
           ...base,
-          backgroundColor: '#fff',
+          backgroundColor: 'var(--color-logo-bg)',
           backgroundImage: `url(${url})`,
           backgroundSize: '74%',
           backgroundPosition: 'center',
@@ -77,14 +77,14 @@ export function LogoTile({
           width: size,
           height: size,
           flex: 'none',
-          borderRadius: 7,
+          borderRadius: 'var(--radius-ghost)',
           border: dashed ? '1px dashed var(--muted)' : undefined,
           background: dashed ? 'transparent' : 'var(--color-accent-900)',
           color: dashed ? 'var(--muted)' : 'var(--color-accent-200)',
           display: 'grid',
           placeItems: 'center',
-          fontSize: 11,
-          fontWeight: 600,
+          fontSize: 'var(--fs-2xs)',
+          fontWeight: 'var(--fw-semibold)',
         }}
       >
         {label ?? ''}
@@ -97,8 +97,8 @@ export function LogoTile({
         width: size,
         height: size,
         flex: 'none',
-        borderRadius: 7,
-        backgroundColor: '#fff',
+        borderRadius: 'var(--radius-ghost)',
+        backgroundColor: 'var(--color-logo-bg)',
         backgroundImage: `url(${src})`,
         backgroundSize: 'contain',
         backgroundPosition: 'center',

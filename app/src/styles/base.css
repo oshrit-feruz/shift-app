@@ -13,7 +13,7 @@ body {
   background: var(--g2);
   color: var(--color-text);
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: var(--fs-base);
   line-height: 1.5;
 }
 
@@ -46,16 +46,16 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
 .elev-sm { box-shadow: var(--shadow-sm); }
 .elev-md { box-shadow: var(--shadow-md); }
 .elev-lg { box-shadow: var(--shadow-lg); }
-.card-title { font-weight: 600; white-space: nowrap; }
+.card-title { font-weight: var(--fw-semibold); white-space: nowrap; }
 
 /* Light mode keeps cards dark on purpose — white text forced past inline styles. */
 [data-theme="light"] .card {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  color: #FFFFFF !important;
+  color: var(--color-card-text) !important;
   background: var(--color-surface);
 }
-[data-theme="light"] .card .text-muted { color: #B6BECE; }
+[data-theme="light"] .card .text-muted { color: var(--color-card-muted); }
 
 .text-muted { color: var(--muted); }
 [data-theme="light"] .text-muted { color: var(--muted); }
@@ -70,14 +70,14 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
   padding: 0 20px;
   border: 0;
   border-radius: var(--radius-sm);
-  font: 600 15px var(--font-body);
+  font: var(--fw-semibold) var(--fs-base) var(--font-body);
   cursor: pointer;
   white-space: nowrap;
   color: inherit;
   background: transparent;
 }
 .btn:disabled { opacity: .4; cursor: default; }
-.btn-primary { background: var(--color-accent); color: #fff; }
+.btn-primary { background: var(--color-accent); color: var(--color-on-accent); }
 .btn-secondary {
   border: 1px solid var(--color-divider);
   background: var(--sunk);
@@ -90,7 +90,7 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
   color: var(--color-accent-300);
   font-weight: 500;
   min-height: 0;
-  border-radius: 6px; /* per review: ghost buttons carry a 6px radius */
+  border-radius: var(--radius-ghost); /* per review: ghost buttons carry a 6px radius */
 }
 .btn-block { display: flex; width: 100%; }
 
@@ -101,8 +101,8 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
   gap: 4px;
   padding: 4px 10px;
   border-radius: 999px;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
   border: 1px solid transparent;
   white-space: nowrap;
 }
@@ -113,21 +113,21 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
 }
 [data-theme="light"] .tag-accent {
   background: rgba(79, 70, 229, .25);
-  color: #C7D2FE;
+  color: var(--acc-pale);
   border-color: rgba(129, 140, 248, .4);
 }
 .tag-neutral {
   background: rgba(146, 155, 172, .16);
-  color: #E2E8F0;
+  color: var(--color-tag-neutral-ink);
   border-color: rgba(146, 155, 172, .3);
 }
 [data-theme="light"] .tag-neutral {
   background: rgba(146, 155, 172, .2);
-  color: #E2E8F0;
+  color: var(--color-tag-neutral-ink);
   border-color: rgba(146, 155, 172, .35);
 }
 .tag-outline { color: var(--acc-lite); border-color: rgba(167, 139, 250, .5); }
-[data-theme="light"] .tag-outline { color: #818CF8; border-color: rgba(129, 140, 248, .5); }
+[data-theme="light"] .tag-outline { color: var(--acc-lite); border-color: rgba(129, 140, 248, .5); }
 .tag-up {
   background: color-mix(in srgb, var(--up) 16%, transparent);
   color: var(--up);
@@ -143,7 +143,7 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
 
 /* ── Fields ────────────────────────────────────────────────────────────── */
 .field { display: flex; flex-direction: column; gap: 5px; }
-.field > label { font-size: 12.5px; color: var(--muted); }
+.field > label { font-size: var(--fs-xs); color: var(--muted); }
 .input {
   min-height: 44px;
   padding: 0 14px;
@@ -151,10 +151,10 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
   border-radius: var(--radius-sm);
   background: var(--sunk);
   color: var(--color-text);
-  font: 400 15px var(--font-body);
+  font: var(--fw-regular) var(--fs-base) var(--font-body);
   width: 100%;
 }
-[data-theme="light"] .input { background: var(--color-surface); color: #FFFFFF; }
+[data-theme="light"] .input { background: var(--color-surface); color: var(--color-card-text); }
 .input::placeholder { color: var(--muted-2); }
 
 /* Segmented control */
@@ -176,14 +176,14 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
   padding: 9px 0;
   border-radius: 8px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--fs-md);
   cursor: pointer;
   white-space: nowrap;
   border: 0;
   background: transparent;
   font-family: var(--font-body);
 }
-.seg-opt[data-active="true"] { background: var(--color-accent); color: #fff; font-weight: 600; }
+.seg-opt[data-active="true"] { background: var(--color-accent); color: var(--color-on-accent); font-weight: var(--fw-semibold); }
 
 /* ── Motion ────────────────────────────────────────────────────────────── */
 @keyframes fadeUp {

@@ -1,4 +1,8 @@
 import { useState } from 'react';
+import { Chip } from '../../components/Chip';
+import { IconTile } from '../../components/IconTile';
+import { ListRow } from '../../components/ListRow';
+import { LogoTile } from '../../components/TickerTile';
 import { useAppState, useDispatch, type InstitutionKey } from '../../state/appState';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useT } from '../../i18n/useT';
@@ -76,110 +80,43 @@ export function InstitutionRows() {
         const chosen = s.advConnections[inst.key] ?? (inst.key === 'broker' && s.advBroker ? brokerName(s.advBroker) : undefined);
         const openNow = openKey === inst.key;
         return (
-          <div key={inst.key} style={{ display: 'flex', flexDirection: 'column', borderTop: '1px solid var(--color-divider)' }}>
-            <button
-              type="button"
+          <div key={inst.key} style={{ display: 'flex', flexDirection: 'column' }}>
+            <ListRow
               onClick={() => setOpenKey(openNow ? null : inst.key)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                minHeight: 54,
-                padding: '9px 13px',
-                background: 'transparent',
-                border: 0,
-                color: 'inherit',
-                font: 'inherit',
-                cursor: 'pointer',
-                textAlign: 'start',
-                width: '100%',
-              }}
-            >
-              <span
-                style={{
-                  width: 32,
-                  height: 32,
-                  flex: 'none',
-                  borderRadius: 'var(--radius-sm)',
-                  background: 'var(--color-accent-900)',
-                  color: 'var(--color-accent-200)',
-                  display: 'grid',
-                  placeItems: 'center',
-                  fontSize: 14,
-                  fontWeight: 600,
-                }}
-              >
-                {inst.initial[language]}
-              </span>
-              <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block', fontSize: 13.5 }}>{t(inst.label)}</span>
-                <span className="text-muted" style={{ display: 'block', fontSize: 12.5 }}>
-                  {chosen ?? t('conn.choose')}
-                </span>
-              </span>
-              <span
-                style={{
-                  flex: 'none',
-                  whiteSpace: 'nowrap',
-                  padding: '7px 13px',
-                  borderRadius: 999,
-                  fontSize: 12.5,
-                  ...(chosen
-                    ? {
-                        border: '1px solid var(--color-accent)',
-                        background: 'var(--color-accent-900)',
-                        color: 'var(--color-accent-200)',
-                      }
-                    : { border: '1px solid var(--color-divider)', background: 'var(--sunk)', color: 'inherit' }),
-                }}
-              >
-                {chosen ? t('conn.connected') : openNow ? t('conn.close') : t('conn.connect')}
-              </span>
-            </button>
+              minHeight={54}
+              padding="9px 13px"
+              leading={
+                <IconTile size={32} variant="tint" fontSize={14}>
+                  <b>{inst.initial[language]}</b>
+                </IconTile>
+              }
+              title={<span style={{ fontSize: 'var(--fs-sm)', fontWeight: 'var(--fw-regular)' }}>{t(inst.label)}</span>}
+              subtitle={chosen ?? t('conn.choose')}
+              trailing={
+                <Chip active={!!chosen} well big>
+                  {chosen ? t('conn.connected') : openNow ? t('conn.close') : t('conn.connect')}
+                </Chip>
+              }
+            />
             {openNow && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '0 13px 13px' }}>
                 {inst.providers.map((prov) => {
                   const label = prov.label[language];
                   const selected = chosen === label;
                   return (
-                    <button
+                    <Chip
                       key={prov.label.en}
-                      type="button"
+                      big
+                      well
+                      active={selected}
                       onClick={() => {
                         dispatch({ type: 'advConnect', inst: inst.key, provider: selected ? null : label });
                         setOpenKey(null);
                       }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 7,
-                        padding: '8px 13px',
-                        borderRadius: 999,
-                        font: 'inherit',
-                        fontSize: 13,
-                        cursor: 'pointer',
-                        ...(selected
-                          ? { border: '1px solid var(--color-accent)', background: 'var(--color-accent-800)', color: 'var(--acc-pale)' }
-                          : { border: '1px solid var(--color-divider)', background: 'var(--sunk)', color: 'inherit' }),
-                      }}
                     >
-                      {prov.logo && (
-                        <span
-                          style={{
-                            width: 18,
-                            height: 18,
-                            flex: 'none',
-                            borderRadius: 5,
-                            backgroundColor: '#fff',
-                            backgroundImage: `url(${prov.logo})`,
-                            backgroundSize: 'contain',
-                            backgroundRepeat: 'no-repeat',
-                            backgroundPosition: 'center',
-                          }}
-                        />
-                      )}
+                      {prov.logo && <LogoTile src={prov.logo} size={18} />}
                       {label}
-                    </button>
+                    </Chip>
                   );
                 })}
               </div>

@@ -34,7 +34,7 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder={t('search.placeholder')}
-            style={{ paddingInlineStart: 32, height: 38, minHeight: 38, fontSize: 14 }}
+            style={{ paddingInlineStart: 32, height: 38, minHeight: 38, fontSize: 'var(--fs-md)' }}
           />
         </label>
         <Button
@@ -56,7 +56,7 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
               : syms.slice(0, 5);
             return (
               <>
-                <div className="text-muted" style={{ fontSize: 12.5, letterSpacing: '.09em', textTransform: 'uppercase', padding: '6px 0' }}>
+                <div className="text-muted" style={{ fontSize: 'var(--fs-xs)', letterSpacing: '.09em', textTransform: 'uppercase', padding: '6px 0' }}>
                   {query ? t('search.matches', { n: hits.length }) : t('search.recent')}
                 </div>
                 {hits.map((x) => (
@@ -76,10 +76,10 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
                 ))}
                 {query && hits.length === 0 && (
                   <div style={{ padding: '34px 8px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 14 }}>
+                    <div style={{ fontSize: 'var(--fs-md)' }}>
                       {t('search.noMatch')} “{q}”
                     </div>
-                    <div className="text-muted" style={{ fontSize: 13, marginTop: 4 }}>
+                    <div className="text-muted" style={{ fontSize: 'var(--fs-sm)', marginTop: 4 }}>
                       {t('search.noMatchHelp')}
                     </div>
                   </div>

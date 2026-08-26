@@ -16,7 +16,7 @@ export function AllocationBar({
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <div style={{ display: 'flex', gap: 8, fontSize: 14, alignItems: 'baseline' }}>
+      <div style={{ display: 'flex', gap: 8, fontSize: 'var(--fs-md)', alignItems: 'baseline' }}>
         <span style={{ flex: 1 }}>{name}</span>
         {amount != null && (
           <Num size={13} style={{ color: 'var(--muted)' }}>
@@ -25,12 +25,29 @@ export function AllocationBar({
         )}
         <Num>{pct}%</Num>
       </div>
-      {fund != null && <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{fund}</span>}
-      <span style={{ height: 6, borderRadius: 4, background: 'var(--line)', overflow: 'hidden' }}>
+      {fund != null && <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--muted)' }}>{fund}</span>}
+      <span style={{ height: 6, borderRadius: 'var(--radius-xs)', background: 'var(--line)', overflow: 'hidden' }}>
         <span
-          style={{ display: 'block', height: '100%', width: `${pct}%`, borderRadius: 4, background: colorVar }}
+          style={{ display: 'block', height: '100%', width: `${pct}%`, borderRadius: 'var(--radius-xs)', background: colorVar }}
         />
       </span>
+    </div>
+  );
+}
+
+/** Proportional multi-segment bar (analyst consensus, distributions). */
+export function SegmentBar({
+  segments,
+  height = 6,
+}: {
+  segments: Array<{ value: number; colorVar: string }>;
+  height?: number;
+}) {
+  return (
+    <div style={{ display: 'flex', height, borderRadius: 'var(--radius-xs)', overflow: 'hidden', gap: 1 }}>
+      {segments.map((s, i) => (
+        <div key={i} style={{ flex: s.value, background: s.colorVar }} />
+      ))}
     </div>
   );
 }

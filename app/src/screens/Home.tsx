@@ -6,6 +6,7 @@ import { Num } from '../components/Num';
 import { AreaChart } from '../components/AreaChart';
 import { MetricStrip } from '../components/MetricStrip';
 import { ListRow, RowValues } from '../components/ListRow';
+import { IconTile } from '../components/IconTile';
 import { TickerTile } from '../components/TickerTile';
 import { DataState } from '../components/DataState';
 import { ProgressTrack } from '../components/Progress';
@@ -37,8 +38,8 @@ export function HomeScreen(_: ScreenProps) {
             if (!main) {
               return (
                 <Card padding={18} gap={8} style={{ textAlign: 'center', alignItems: 'center' }}>
-                  <span style={{ fontFamily: 'var(--font-heading)', fontSize: 18 }}>{t('home.noPfTitle')}</span>
-                  <p className="text-muted" style={{ fontSize: 14, margin: 0, lineHeight: 1.5 }}>
+                  <span style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--fs-xl)' }}>{t('home.noPfTitle')}</span>
+                  <p className="text-muted" style={{ fontSize: 'var(--fs-md)', margin: 0, lineHeight: 1.5 }}>
                     {t('home.noPfHelp')}
                   </p>
                   <Button
@@ -52,17 +53,17 @@ export function HomeScreen(_: ScreenProps) {
             }
             return (
               <Card padding={15} gap={0}>
-                <div style={{ fontSize: 13, opacity: 0.75, fontWeight: 700 }}>{t('home.pfToday')}</div>
-                <div style={{ fontFamily: 'var(--font-heading)', fontSize: 42, lineHeight: 1.05, fontWeight: 700 }}>
+                <div style={{ fontSize: 'var(--fs-sm)', opacity: 0.75, fontWeight: 'var(--fw-bold)' }}>{t('home.pfToday')}</div>
+                <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--fs-num-lg)', lineHeight: 1.05, fontWeight: 'var(--fw-bold)' }}>
                   <Num>{money(main.total)}</Num>
                 </div>
-                <div style={{ color: 'var(--up)', fontSize: 15, fontWeight: 600 }}>
+                <div style={{ color: 'var(--up)', fontSize: 'var(--fs-base)', fontWeight: 'var(--fw-semibold)' }}>
                   <Num weight={600}>{`+${money((main.total * main.dayPct) / 100)} · ${pct(main.dayPct)}`}</Num>
                 </div>
                 <div style={{ marginTop: 10 }}>
                   <AreaChart values={pfSeries} height={76} />
                 </div>
-                <p style={{ fontSize: 14, lineHeight: 1.5, margin: '10px 0 0', opacity: 0.85, fontWeight: 500 }}>
+                <p style={{ fontSize: 'var(--fs-md)', lineHeight: 1.5, margin: '10px 0 0', opacity: 0.85, fontWeight: 'var(--fw-medium)' }}>
                   {t('home.pfBlurb')}
                 </p>
               </Card>
@@ -81,9 +82,9 @@ export function HomeScreen(_: ScreenProps) {
           }
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 15, fontWeight: 600 }}>{t('setup.banner')}</span>
+            <span style={{ fontSize: 'var(--fs-base)', fontWeight: 'var(--fw-semibold)' }}>{t('setup.banner')}</span>
             <span style={{ flex: 1 }} />
-            <span style={{ color: 'var(--color-accent-200)', fontSize: 14 }}>{t('setup.resume')} ›</span>
+            <span style={{ color: 'var(--color-accent-200)', fontSize: 'var(--fs-md)' }}>{t('setup.resume')} ›</span>
           </div>
           <ProgressTrack pct={setup.pct} label={t('setup.stepOf', { n: setup.stepLabel })} />
         </Card>
@@ -92,25 +93,13 @@ export function HomeScreen(_: ScreenProps) {
       {/* Two tracks */}
       <Card padding={16} gap={10}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span
-            style={{
-              width: 26,
-              height: 26,
-              flex: 'none',
-              borderRadius: 8,
-              background: 'var(--sunk)',
-              display: 'grid',
-              placeItems: 'center',
-              color: 'var(--color-accent-200)',
-            }}
-            aria-hidden="true"
-          >
+          <IconTile size={26} variant="sunk">
             <Icon name="trend" size={14} />
-          </span>
-          <span style={{ fontSize: 15, fontWeight: 600, flex: 1 }}>{t('home.trackSelf')}</span>
+          </IconTile>
+          <span style={{ fontSize: 'var(--fs-base)', fontWeight: 'var(--fw-semibold)', flex: 1 }}>{t('home.trackSelf')}</span>
           <Tag variant="outline">{t('home.trackHere')}</Tag>
         </div>
-        <p className="text-muted" style={{ fontSize: 14, margin: 0, lineHeight: 1.5 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--fs-md)', margin: 0, lineHeight: 1.5 }}>
           {t('home.trackSelfSub')}
         </p>
         <Divider />
@@ -132,27 +121,15 @@ export function HomeScreen(_: ScreenProps) {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
-            <span
-              style={{
-                width: 26,
-                height: 26,
-                flex: 'none',
-                borderRadius: 8,
-                background: 'var(--color-accent-800)',
-                display: 'grid',
-                placeItems: 'center',
-                color: 'var(--color-accent-200)',
-              }}
-              aria-hidden="true"
-            >
+            <IconTile size={26} variant="accent">
               <Icon name="list" size={14} />
-            </span>
-            <span style={{ fontSize: 15, fontWeight: 600, flex: 1, color: 'var(--color-accent-300)' }}>
+            </IconTile>
+            <span style={{ fontSize: 'var(--fs-base)', fontWeight: 'var(--fw-semibold)', flex: 1, color: 'var(--color-accent-300)' }}>
               {t('home.trackAdvisor')}
             </span>
             <Tag variant="accent">{t('adv.tag')}</Tag>
           </div>
-          <p className="text-muted" style={{ fontSize: 14, margin: 0, lineHeight: 1.5 }}>
+          <p className="text-muted" style={{ fontSize: 'var(--fs-md)', margin: 0, lineHeight: 1.5 }}>
             {t('home.trackAdvisorSub')}
           </p>
         </button>
@@ -166,28 +143,16 @@ export function HomeScreen(_: ScreenProps) {
           gap={11}
           onClick={() => dispatch({ type: 'go', screen: 'learn' })}
         >
-          <span
-            style={{
-              width: 30,
-              height: 30,
-              flex: 'none',
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--color-accent-800)',
-              color: 'var(--color-accent-200)',
-              display: 'grid',
-              placeItems: 'center',
-              fontSize: 15,
-            }}
-          >
+          <IconTile size={30} variant="accent" fontSize={15}>
             ◉
-          </span>
+          </IconTile>
           <span style={{ flex: 1 }}>
-            <span style={{ display: 'block', fontSize: 13.5 }}>{t('home.startHere')}</span>
-            <span className="text-muted" style={{ display: 'block', fontSize: 12.5, marginTop: 2 }}>
+            <span style={{ display: 'block', fontSize: 'var(--fs-sm)' }}>{t('home.startHere')}</span>
+            <span className="text-muted" style={{ display: 'block', fontSize: 'var(--fs-xs)', marginTop: 2 }}>
               {t('home.startHereSub')}
             </span>
           </span>
-          <span style={{ opacity: 0.5, fontSize: 15 }}>›</span>
+          <span style={{ opacity: 0.5, fontSize: 'var(--fs-base)' }}>›</span>
         </Card>
       )}
 
@@ -237,7 +202,7 @@ export function HomeScreen(_: ScreenProps) {
       <Card padding={13} gap={8}>
         <CardTitle>{beg ? t('home.moversBeg') : t('home.moversAdv')}</CardTitle>
         {beg && (
-          <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
+          <p className="text-muted" style={{ fontSize: 'var(--fs-sm)', margin: 0 }}>
             {t('home.moversHelp')}
           </p>
         )}
@@ -249,44 +214,37 @@ export function HomeScreen(_: ScreenProps) {
                 .sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct))
                 .slice(0, beg ? 3 : 5)
                 .map((x) => (
-                  <button
+                  <ListRow
                     key={x.ticker}
-                    type="button"
+                    boxed
+                    minHeight={44}
                     onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 9,
-                      minHeight: 44,
-                      padding: '8px 11px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--color-divider)',
-                      background: 'transparent',
-                      color: 'inherit',
-                      font: 'inherit',
-                      cursor: 'pointer',
-                      textAlign: 'start',
-                    }}
-                  >
-                    <Num size={14} weight={600} style={{ width: 48 }}>
-                      {x.ticker}
-                    </Num>
-                    <span
-                      style={{
-                        flex: 1,
-                        fontSize: 13,
-                        opacity: 0.8,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {beg ? x.why[language] : `${money(x.price)} · vol ${x.volume}`}
-                    </span>
-                    <Num size={13.5} style={{ color: signalColor(x.changePct) }}>
-                      {pct(x.changePct)}
-                    </Num>
-                  </button>
+                    leading={
+                      <Num size={14} weight={600} style={{ width: 48 }}>
+                        {x.ticker}
+                      </Num>
+                    }
+                    title={
+                      <span
+                        style={{
+                          display: 'block',
+                          fontSize: 'var(--fs-sm)',
+                          fontWeight: 'var(--fw-regular)',
+                          opacity: 0.8,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {beg ? x.why[language] : `${money(x.price)} · vol ${x.volume}`}
+                      </span>
+                    }
+                    right={
+                      <Num size={13.5} style={{ color: signalColor(x.changePct) }}>
+                        {pct(x.changePct)}
+                      </Num>
+                    }
+                  />
                 ))}
             </div>
           )}
@@ -303,44 +261,45 @@ export function HomeScreen(_: ScreenProps) {
           <Tag variant="neutral">3</Tag>
         </div>
         {beg && (
-          <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
+          <p className="text-muted" style={{ fontSize: 'var(--fs-sm)', margin: 0 }}>
             {t('home.earnHelp')}
           </p>
         )}
         {HOME_EARNINGS.map((e, i) => (
-          <div
+          <ListRow
             key={i}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '7px 0',
-              borderTop: '1px solid var(--color-divider)',
-            }}
-          >
-            <div
-              style={{
-                width: 55,
-                height: 55,
-                flex: 'none',
-                textAlign: 'center',
-                padding: 4,
-                border: '1px dashed var(--color-text)',
-                borderRadius: 8,
-              }}
-            >
-              <div style={{ fontSize: 12.5, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--acc-lite)', fontWeight: 500 }}>
-                {language === 'he' ? 'אוג׳' : 'Aug'}
+            padding="7px 0"
+            leading={
+              <div
+                style={{
+                  width: 55,
+                  height: 55,
+                  flex: 'none',
+                  textAlign: 'center',
+                  padding: 4,
+                  border: '1px dashed var(--color-text)',
+                  borderRadius: 'var(--radius-sm)',
+                }}
+              >
+                <div style={{ fontSize: 'var(--fs-xs)', letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--acc-lite)', fontWeight: 'var(--fw-medium)' }}>
+                  {language === 'he' ? 'אוג׳' : 'Aug'}
+                </div>
+                <Num size={16} weight={500} style={{ fontFamily: 'var(--font-heading)', color: 'var(--acc-mid)' }}>
+                  {e.day}
+                </Num>
               </div>
-              <Num size={16} weight={500} style={{ fontFamily: 'var(--font-heading)', color: 'var(--acc-mid)' }}>
-                {e.day}
-              </Num>
-            </div>
-            <div style={{ flex: 1, fontSize: 14 }}>{beg ? e.beg[language] : e.adv}</div>
-            <Tag variant="outline" fontSize={12}>
-              {t('home.afterClose')}
-            </Tag>
-          </div>
+            }
+            title={
+              <span style={{ fontSize: 'var(--fs-md)', fontWeight: 'var(--fw-regular)' }}>
+                {beg ? e.beg[language] : e.adv}
+              </span>
+            }
+            trailing={
+              <Tag variant="outline" fontSize={12}>
+                {t('home.afterClose')}
+              </Tag>
+            }
+          />
         ))}
       </Card>
     </div>

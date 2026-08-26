@@ -31,8 +31,8 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
             {t('adv.noAction')}
           </Tag>
         </div>
-        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 22 }}>{t('buy.title')}</div>
-        <p className="text-muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--fs-2xl)' }}>{t('buy.title')}</div>
+        <p className="text-muted" style={{ fontSize: 'var(--fs-sm)', margin: 0, lineHeight: 1.5 }}>
           {t('buy.help')}
         </p>
       </Card>
@@ -40,7 +40,7 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
       <Card padding={13} gap={9}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
           <CardTitle>{t(`profile.${profileKey}` as StringKey)}</CardTitle>
-          <span className="text-muted" style={{ fontSize: 13 }}>
+          <span className="text-muted" style={{ fontSize: 'var(--fs-sm)' }}>
             {t('buy.example')}
           </span>
         </div>
@@ -57,7 +57,7 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
           ))}
           {profile.satellitePct > 0 && (
             <div
-              style={{ display: 'flex', gap: 8, fontSize: 13.5, alignItems: 'center', paddingTop: 6, borderTop: '1px solid var(--color-divider)' }}
+              style={{ display: 'flex', gap: 8, fontSize: 'var(--fs-sm)', alignItems: 'center', paddingTop: 6, borderTop: '1px solid var(--color-divider)' }}
             >
               <Tag variant="accent" fontSize={12}>
                 Recovery Detector

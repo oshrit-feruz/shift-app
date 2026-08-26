@@ -49,8 +49,8 @@ export function TourScreen(_: ScreenProps) {
             <path d={card.icon} />
           </svg>
         </span>
-        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 21, lineHeight: 1.25, whiteSpace: 'normal' }}>{card.title[language]}</div>
-        <p style={{ fontSize: 13.5, lineHeight: 1.6, margin: 0, opacity: 0.85 }}>{card.body[language]}</p>
+        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--fs-2xl)', lineHeight: 1.25, whiteSpace: 'normal' }}>{card.title[language]}</div>
+        <p style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.6, margin: 0, opacity: 0.85 }}>{card.body[language]}</p>
       </Card>
       <div style={{ display: 'flex', gap: 8 }}>
         {i > 0 && (

@@ -62,7 +62,7 @@ export function LearnScreen(_: ScreenProps) {
           borderRadius: 'var(--radius-md)',
         }}
       >
-        <span className="text-muted" style={{ fontSize: 12.5, flex: 1 }}>
+        <span className="text-muted" style={{ fontSize: 'var(--fs-xs)', flex: 1 }}>
           {t('learn.sub')}
         </span>
         <Button variant="ghost" fontSize={14} onClick={() => dispatch({ type: 'go', screen: 'home' })}>
@@ -82,8 +82,8 @@ export function LearnScreen(_: ScreenProps) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
           {GLOSSARY[language].map(([k, v]) => (
             <div key={k} style={{ display: 'flex', gap: 11, alignItems: 'baseline' }}>
-              <span style={{ width: 82, flex: 'none', fontSize: 14, fontWeight: 600 }}>{k}</span>
-              <span style={{ flex: 1, fontSize: 13, opacity: 0.82, lineHeight: 1.45 }}>{v}</span>
+              <span style={{ width: 82, flex: 'none', fontSize: 'var(--fs-md)', fontWeight: 'var(--fw-semibold)' }}>{k}</span>
+              <span style={{ flex: 1, fontSize: 'var(--fs-sm)', opacity: 0.82, lineHeight: 1.45 }}>{v}</span>
             </div>
           ))}
         </div>
@@ -92,8 +92,8 @@ export function LearnScreen(_: ScreenProps) {
       )}
 
       <div>
-        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 22, lineHeight: 1.25, whiteSpace: 'normal' }}>{page.title[language]}</div>
-        <p style={{ fontSize: 14.5, lineHeight: 1.55, margin: '9px 0 0', opacity: 0.85 }}>{page.body[language]}</p>
+        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--fs-2xl)', lineHeight: 1.25, whiteSpace: 'normal' }}>{page.title[language]}</div>
+        <p style={{ fontSize: 'var(--fs-md)', lineHeight: 1.55, margin: '9px 0 0', opacity: 0.85 }}>{page.body[language]}</p>
       </div>
 
       <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>

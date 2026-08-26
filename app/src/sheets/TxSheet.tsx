@@ -54,7 +54,7 @@ export function TxSheet({ open, onClose, pfName }: { open: boolean; onClose: () 
       <div
         style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 'var(--radius-md)', background: 'var(--sunk)' }}
       >
-        <span className="text-muted" style={{ fontSize: 13, flex: 1 }}>
+        <span className="text-muted" style={{ fontSize: 'var(--fs-sm)', flex: 1 }}>
           {verb} <Num>{`${sh} × ${ticker}`}</Num>{' '}
           <Num>{`@ $${px.toFixed(2)}`}</Num>
         </span>
@@ -65,7 +65,7 @@ export function TxSheet({ open, onClose, pfName }: { open: boolean; onClose: () 
         </Num>
       </div>
       {mode === 'beginner' && (
-        <p className="text-muted" style={{ fontSize: 12.5, margin: 0 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--fs-xs)', margin: 0 }}>
           {t('pf.theoretical')}
         </p>
       )}

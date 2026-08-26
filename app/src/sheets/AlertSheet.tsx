@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Sheet } from '../components/Sheet';
+import { OptionCard } from '../components/OptionCard';
+import { IconTile } from '../components/IconTile';
 import { Button } from '../components/Button';
 import { Field } from '../components/Field';
 import { Num } from '../components/Num';
@@ -44,49 +46,20 @@ export function AlertSheet({
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {types.map((a) => (
-          <button
-            key={a.k}
-            type="button"
-            onClick={() => setKind(a.k)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              width: '100%',
-              minHeight: 52,
-              padding: '9px 11px',
-              borderRadius: 'var(--radius-md)',
-              cursor: 'pointer',
-              font: 'inherit',
-              color: 'inherit',
-              textAlign: 'start',
-              border: `1px solid ${kind === a.k ? 'var(--color-accent)' : 'var(--color-divider)'}`,
-              background: kind === a.k ? 'color-mix(in srgb, var(--color-accent) 10%, transparent)' : 'transparent',
-            }}
-          >
-            <span
-              style={{
-                width: 28,
-                height: 28,
-                flex: 'none',
-                borderRadius: 8,
-                background: 'var(--color-accent-900)',
-                color: 'var(--color-accent-300)',
-                display: 'grid',
-                placeItems: 'center',
-                fontSize: 13,
-              }}
-            >
-              {a.glyph}
-            </span>
-            <span style={{ flex: 1 }}>
-              <span style={{ display: 'block', fontSize: 13.5 }}>{a.title}</span>
-              <span className="text-muted" style={{ display: 'block', fontSize: 12.5 }}>
-                {a.help}
+          <OptionCard key={a.k} active={kind === a.k} onClick={() => setKind(a.k)} padding="9px 11px" minHeight={52}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <IconTile size={28} variant="tint" fontSize={13}>
+                {a.glyph}
+              </IconTile>
+              <span style={{ flex: 1 }}>
+                <span style={{ display: 'block', fontSize: 'var(--fs-sm)' }}>{a.title}</span>
+                <span className="text-muted" style={{ display: 'block', fontSize: 'var(--fs-xs)' }}>
+                  {a.help}
+                </span>
               </span>
+              <span style={{ color: 'var(--color-accent)', fontSize: 'var(--fs-md)' }}>{kind === a.k ? '✓' : ''}</span>
             </span>
-            <span style={{ color: 'var(--color-accent)', fontSize: 14 }}>{kind === a.k ? '✓' : ''}</span>
-          </button>
+          </OptionCard>
         ))}
       </div>
 
@@ -106,7 +79,7 @@ export function AlertSheet({
           </div>
           <Field label={t('alert.price')} defaultValue="200.00" />
           {beg && (
-            <p className="text-muted" style={{ fontSize: 12.5, margin: 0 }}>
+            <p className="text-muted" style={{ fontSize: 'var(--fs-xs)', margin: 0 }}>
               {t('alert.priceHint')}
             </p>
           )}
@@ -117,7 +90,7 @@ export function AlertSheet({
           <Field label={t('alert.mentions')} defaultValue={t('alert.keywords')} />
           <div className="field">
             <label>{t('alert.sources')}</label>
-            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 13 }}>
+            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 'var(--fs-sm)' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <input type="checkbox" defaultChecked /> {t('alert.wires')}
               </label>
@@ -146,7 +119,7 @@ export function AlertSheet({
 
       <div className="field">
         <label>{t('alert.notifyBy')}</label>
-        <div style={{ display: 'flex', gap: 14, fontSize: 13 }}>
+        <div style={{ display: 'flex', gap: 14, fontSize: 'var(--fs-sm)' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <input type="checkbox" defaultChecked /> {t('alert.push')}
           </label>

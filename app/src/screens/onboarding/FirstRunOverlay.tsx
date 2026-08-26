@@ -33,13 +33,13 @@ export function FirstRunOverlay() {
       }}
     >
       <div>
-        <div className="text-muted" style={{ fontSize: 12.5, letterSpacing: '.1em', textTransform: 'uppercase' }}>
+        <div className="text-muted" style={{ fontSize: 'var(--fs-xs)', letterSpacing: '.1em', textTransform: 'uppercase' }}>
           {t('firstRun.kicker')}
         </div>
-        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 23, lineHeight: 1.25, marginTop: 6, whiteSpace: 'normal' }}>
+        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--fs-2xl)', lineHeight: 1.25, marginTop: 6, whiteSpace: 'normal' }}>
           {t('firstRun.q')}
         </div>
-        <p className="text-muted" style={{ fontSize: 13, margin: '8px 0 0' }}>
+        <p className="text-muted" style={{ fontSize: 'var(--fs-sm)', margin: '8px 0 0' }}>
           {t('firstRun.help')}
         </p>
       </div>
@@ -65,12 +65,12 @@ export function FirstRunOverlay() {
           }}
         >
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 15, fontWeight: 600 }}>{name}</span>
+            <span style={{ fontSize: 'var(--fs-base)', fontWeight: 'var(--fw-semibold)' }}>{name}</span>
             <Tag variant="outline" fontSize={12}>
               {badge}
             </Tag>
           </span>
-          <span style={{ display: 'block', fontSize: 13, opacity: 0.78, marginTop: 5 }}>{blurb}</span>
+          <span style={{ display: 'block', fontSize: 'var(--fs-sm)', opacity: 0.78, marginTop: 5 }}>{blurb}</span>
           {/* density sketch */}
           <svg viewBox="0 0 260 44" style={{ width: '100%', height: 40, marginTop: 9 }} aria-hidden="true">
             {Array.from({ length: dense ? 9 : 4 }, (_, i) => (

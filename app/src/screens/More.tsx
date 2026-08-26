@@ -1,5 +1,8 @@
 import { Card, CardTitle } from '../components/Card';
 import { Icon, type IconName } from '../components/Icon';
+import { IconTile } from '../components/IconTile';
+import { ListRow } from '../components/ListRow';
+import { OptionCard } from '../components/OptionCard';
 import { Tag } from '../components/Tag';
 import { useDispatch, type Screen } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
@@ -43,61 +46,33 @@ export function MoreScreen(_: ScreenProps) {
             onClick={() => setMode('advanced')}
           />
         </div>
-        <p className="text-muted" style={{ fontSize: 12, margin: 0 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--fs-xs)', margin: 0 }}>
           {t('more.switchNote')}
         </p>
       </Card>
 
       <Card padding="6px 0" gap={0}>
         {LINKS.map((r) => (
-          <button
+          <ListRow
             key={r.screen}
-            type="button"
             onClick={() => dispatch({ type: 'go', screen: r.screen })}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 14,
-              width: '100%',
-              minHeight: 50,
-              padding: '11px 13px',
-              border: 0,
-              borderTop: '1px solid var(--color-divider)',
-              background: 'transparent',
-              color: 'inherit',
-              font: 'inherit',
-              cursor: 'pointer',
-              textAlign: 'start',
-            }}
-          >
-            <span
-              style={{
-                width: 33,
-                height: 33,
-                flex: 'none',
-                borderRadius: 8,
-                background: 'var(--color-accent-900)',
-                color: 'var(--color-accent-300)',
-                display: 'grid',
-                placeItems: 'center',
-              }}
-            >
-              <Icon name={r.icon} size={19} strokeWidth={1.7} />
-            </span>
-            <span style={{ flex: 1 }}>
-              <span style={{ display: 'block', fontSize: 14.5, fontWeight: 500 }}>{t(r.label)}</span>
-              <span className="text-muted" style={{ display: 'block', fontSize: 13 }}>
-                {t(r.help)}
-              </span>
-            </span>
-            <span style={{ opacity: 0.4, fontSize: 15 }}>›</span>
-          </button>
+            minHeight={50}
+            padding="11px 13px"
+            leading={
+              <IconTile size={33} variant="tint">
+                <Icon name={r.icon} size={19} strokeWidth={1.7} />
+              </IconTile>
+            }
+            title={<span style={{ fontSize: 'var(--fs-md)', fontWeight: 'var(--fw-medium)' }}>{t(r.label)}</span>}
+            subtitle={t(r.help)}
+            trailing={<span style={{ opacity: 0.4, fontSize: 'var(--fs-base)' }}>›</span>}
+          />
         ))}
       </Card>
 
       <Card padding={13} gap={4}>
         <CardTitle>{t('more.screener')}</CardTitle>
-        <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--fs-sm)', margin: 0 }}>
           {t('more.screenerHelp')}
         </p>
       </Card>
@@ -119,29 +94,14 @@ function ModeCard({
   onClick: () => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        display: 'block',
-        width: '100%',
-        textAlign: 'start',
-        padding: 12,
-        borderRadius: 'var(--radius-md)',
-        cursor: 'pointer',
-        font: 'inherit',
-        color: 'inherit',
-        border: `1px solid ${active ? 'var(--color-accent)' : 'var(--color-divider)'}`,
-        background: active ? 'color-mix(in srgb, var(--color-accent) 10%, transparent)' : 'transparent',
-      }}
-    >
+    <OptionCard active={active} onClick={onClick}>
       <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 14, fontWeight: 600 }}>{name}</span>
+        <span style={{ fontSize: 'var(--fs-md)', fontWeight: 'var(--fw-semibold)' }}>{name}</span>
         <Tag variant="outline" fontSize={12}>
           {badge}
         </Tag>
       </span>
-      <span style={{ display: 'block', fontSize: 13, opacity: 0.78, marginTop: 3 }}>{blurb}</span>
-    </button>
+      <span style={{ display: 'block', fontSize: 'var(--fs-sm)', opacity: 0.78, marginTop: 3 }}>{blurb}</span>
+    </OptionCard>
   );
 }
