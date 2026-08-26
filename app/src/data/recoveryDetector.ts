@@ -29,7 +29,13 @@
 
 import { ok, unavailable, type Loadable, type SatellitePosition, type SatelliteSignal } from './types';
 
-const API_BASE = 'https://stock-screener-7lvr.onrender.com';
+/**
+ * Same-origin path — the dev server (vite.config.ts server.proxy) and the
+ * production host (vercel.json rewrites) both forward /rd/... to the engine
+ * at stock-screener-7lvr.onrender.com, so the browser never makes a
+ * cross-origin call and CORS cannot silently break this surface.
+ */
+const API_BASE = '/rd';
 export const RECOVERY_DETECTOR_URL = `${API_BASE}/api/screener`;
 export const RECOVERY_DETECTOR_POSITIONS_URL = `${API_BASE}/api/beta/dashboard`;
 
