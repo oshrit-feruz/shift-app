@@ -16,7 +16,9 @@ const TOUR = [
 ];
 
 /** App tour — short, UI-only, skippable. Independent of the other onboarding
- *  pieces. */
+ *  pieces. Finishing the last card flows into the "first steps" checklist;
+ *  skipping exits to home (skipping the tour is not opting into more
+ *  onboarding). */
 export function TourScreen(_: ScreenProps) {
   const dispatch = useDispatch();
   const { language } = useTheme();
@@ -61,7 +63,7 @@ export function TourScreen(_: ScreenProps) {
         <Button
           style={{ flex: 1 }}
           minHeight={48}
-          onClick={() => (i >= TOUR.length - 1 ? dispatch({ type: 'go', screen: 'home' }) : setI(i + 1))}
+          onClick={() => (i >= TOUR.length - 1 ? dispatch({ type: 'go', screen: 'steps' }) : setI(i + 1))}
         >
           {i === TOUR.length - 1 ? t('tour.done') : t('tour.next')}
         </Button>
