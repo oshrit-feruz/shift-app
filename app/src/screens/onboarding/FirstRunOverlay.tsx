@@ -1,23 +1,44 @@
+import { useState } from 'react';
 import { Button } from '../../components/Button';
 import { Tag } from '../../components/Tag';
 import { useDispatch } from '../../state/appState';
-import { useTheme } from '../../theme/ThemeProvider';
+import { useTheme, type Language } from '../../theme/ThemeProvider';
 import { useT } from '../../i18n/useT';
 
-/** First-run density picker. Purely a display preference — nothing saved
- *  depends on it, and it can be skipped. */
+/**
+ * First-run flow: language, then density. Purely display preferences —
+ * nothing saved depends on either, and each step is skippable. On a genuinely
+ * fresh session (no `firstRunSeen` flag) this always fires before the app is
+ * usable; finishing (or skipping the density step) always routes into the
+ * App Tour, since that — not the "first steps" checklist — is the intended
+ * first thing a brand-new user sees. The App Tour and "first steps" remain
+ * independently reachable later from Settings either way.
+ *
+ * Language and density both read/write the SAME `useTheme()` state that
+ * Settings' own toggles use (see screens/Settings.tsx) — there is only ever
+ * one language/mode value, so a choice made here is exactly what Settings
+ * shows afterward, not a separate setting that could drift out of sync.
+ */
 export function FirstRunOverlay() {
   const dispatch = useDispatch();
-  const { mode, setMode } = useTheme();
+  const { mode, setMode, language, setLanguage } = useTheme();
   const t = useT();
+  const [step, setStep] = useState<'lang' | 'density'>('lang');
 
-  const pick = (m: 'beginner' | 'advanced') => {
-    setMode(m);
+  const finish = () => {
     dispatch({ type: 'firstRunSeen' });
-    dispatch({ type: 'go', screen: 'steps' });
+    dispatch({ type: 'go', screen: 'tour' });
+  };
+  const pickDensity = (m: 'beginner' | 'advanced') => {
+    setMode(m);
+    finish();
+  };
+  const pickLanguage = (l: Language) => {
+    setLanguage(l);
+    setStep('density');
   };
 
-  return (
+  const shell = (children: React.ReactNode) => (
     <div
       className="anim-fade-up"
       style={{
@@ -32,6 +53,57 @@ export function FirstRunOverlay() {
         padding: '34px 20px',
       }}
     >
+      {children}
+    </div>
+  );
+
+  if (step === 'lang') {
+    // Before a language is chosen there is no single language to write this
+    // screen's copy in, so — deliberately, unlike every other screen — its
+    // text is bilingual inline rather than sourced from strings.ts.
+    return shell(
+      <>
+        <div>
+          <div className="text-muted" style={{ fontSize: 12.5, letterSpacing: '.1em', textTransform: 'uppercase' }}>
+            Language · שפה
+          </div>
+          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 23, lineHeight: 1.25, marginTop: 6 }}>
+            בחרי שפה · Choose your language
+          </div>
+        </div>
+        {(
+          [
+            ['he', 'עברית', 'Hebrew · RTL'],
+            ['en', 'English', 'אנגלית · LTR'],
+          ] as const
+        ).map(([l, name, sub]) => (
+          <button
+            key={l}
+            type="button"
+            onClick={() => pickLanguage(l)}
+            style={{
+              textAlign: 'start',
+              padding: 14,
+              borderRadius: 'var(--radius-md)',
+              border: `1px solid ${language === l ? 'var(--color-accent)' : 'var(--color-divider)'}`,
+              background: language === l ? 'var(--color-accent-900)' : 'transparent',
+              color: 'inherit',
+              font: 'inherit',
+              cursor: 'pointer',
+            }}
+          >
+            <span style={{ fontSize: 15, fontWeight: 600 }}>{name}</span>
+            <span className="text-muted" style={{ display: 'block', fontSize: 12.5, marginTop: 3 }}>
+              {sub}
+            </span>
+          </button>
+        ))}
+      </>,
+    );
+  }
+
+  return shell(
+    <>
       <div>
         <div className="text-muted" style={{ fontSize: 12.5, letterSpacing: '.1em', textTransform: 'uppercase' }}>
           {t('firstRun.kicker')}
@@ -52,7 +124,7 @@ export function FirstRunOverlay() {
         <button
           key={m}
           type="button"
-          onClick={() => pick(m)}
+          onClick={() => pickDensity(m)}
           style={{
             textAlign: 'start',
             padding: 14,
@@ -87,16 +159,9 @@ export function FirstRunOverlay() {
           </svg>
         </button>
       ))}
-      <Button
-        variant="ghost"
-        alignSelf="center"
-        fontSize={13}
-        onClick={() => {
-          dispatch({ type: 'firstRunSeen' });
-        }}
-      >
+      <Button variant="ghost" alignSelf="center" fontSize={13} onClick={finish}>
         {t('firstRun.skip')}
       </Button>
-    </div>
+    </>,
   );
 }
