@@ -607,7 +607,7 @@ export const STRINGS = {
   'tour.skip': p('Skip', 'דלגי'),
   'tour.back': p('Back', 'חזרה'),
   'tour.next': p('Next', 'הבא'),
-  'tour.done': p('Done — to the app', 'סיימתי — לאפליקציה'),
+  'tour.done': p('Done — to your first steps', 'סיימתי — לצעדים הראשונים'),
   'steps.progress': p('{done} of {total} done', '{done} מתוך {total} הושלמו'),
   'steps.now': p('Do this now', 'הצעד הבא'),
   'steps.markDone': p('Mark as done', 'סמני כבוצע'),

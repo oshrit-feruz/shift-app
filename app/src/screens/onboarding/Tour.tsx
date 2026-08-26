@@ -61,7 +61,14 @@ export function TourScreen(_: ScreenProps) {
         <Button
           style={{ flex: 1 }}
           minHeight={48}
-          onClick={() => (i >= TOUR.length - 1 ? dispatch({ type: 'go', screen: 'home' }) : setI(i + 1))}
+          onClick={() =>
+            // Finishing the tour (as opposed to skipping it) moves straight
+            // into the first-steps guide — the tour is UI orientation, Steps
+            // is the actual onboarding checklist, and someone who watched
+            // the whole tour has just signalled they want to be walked
+            // through the app rather than dropped back on Home.
+            i >= TOUR.length - 1 ? dispatch({ type: 'go', screen: 'steps' }) : setI(i + 1)
+          }
         >
           {i === TOUR.length - 1 ? t('tour.done') : t('tour.next')}
         </Button>
