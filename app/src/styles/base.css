@@ -6,7 +6,16 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
+/* 100% resolves against a viewport that mobile browsers shrink as their
+ * toolbars collapse, which leaves a strip below the shell showing flat page
+ * background instead of the gradient and shape layer. dvh tracks the visual
+ * viewport, so the shell — and the background layer pinned to its inset —
+ * really does reach the bottom edge. The 100% line stays as the fallback for
+ * anything without dvh support. */
 html, body, #root { height: 100%; }
+@supports (height: 100dvh) {
+  html, body, #root { height: 100dvh; }
+}
 
 body {
   margin: 0;
@@ -294,4 +303,15 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
   clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
+}
+
+/* Row lists inside a card set `border-top` on every row so the rows separate
+ * from each other. On the first row that border has nothing above it to
+ * separate from, so it renders as a stray line hugging the card's top edge.
+ * `!important` is required because those borders are inline styles on the
+ * rows; the alternative was an `i > 0` guard duplicated across ~20 call sites,
+ * which drifts the moment a new list is added. A first child that genuinely
+ * needs a rule above it should draw it as its own element, not as its border. */
+.card > *:first-child {
+  border-top: 0 !important;
 }

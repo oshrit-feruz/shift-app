@@ -31,6 +31,7 @@ import { NotificationsSheet } from './sheets/NotificationsSheet';
 import { AlertSheet } from './sheets/AlertSheet';
 import { useT as useTranslate } from './i18n/useT';
 import { Button } from './components/Button';
+import { SHELL_ID } from './components/Sheet';
 
 const SCREENS: Record<Screen, (p: ScreenProps) => JSX.Element> = {
   home: HomeScreen,
@@ -102,6 +103,9 @@ export function App() {
           zIndex: 0,
         }}
         data-screen-label={s.screen}
+        // Sheets portal here so they escape the screen's stacking context —
+        // see components/Sheet.tsx.
+        id={SHELL_ID}
       >
         <BackgroundShapes />
         <AppHeader

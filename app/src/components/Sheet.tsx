@@ -1,9 +1,24 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useDismissAnimation } from '../lib/useDismissAnimation';
+
+/** The phone-frame element sheets mount into (set in App.tsx). */
+export const SHELL_ID = 'app-shell';
 
 /**
  * Bottom sheet over a veil — the app's one modal treatment. Glass ground,
  * grab handle, sheetUp animation. Clicking the veil dismisses.
+ *
+ * Rendered through a portal into the app shell rather than in place. Sheets
+ * opened from inside a screen (TxSheet, NewPortfolioSheet) sit under
+ * `.anim-fade-up`, whose filling opacity animation makes it a stacking
+ * context — so the sheet's z-index was scoped to that screen and the floating
+ * tab bar, a positioned sibling higher up, painted over the sheet's lower
+ * half. Portalling to the shell puts the sheet in the same stacking context
+ * as the tab bar, where its z-index actually outranks it.
+ *
+ * The shell is the portal target rather than document.body so the sheet stays
+ * inside the centred phone frame instead of spanning a desktop window.
  */
 export function Sheet({
   open,
@@ -22,8 +37,12 @@ export function Sheet({
 }) {
   // Stays mounted through the exit so closing is animated, not a cut.
   const { mounted, closing } = useDismissAnimation(open, 200);
+  // Resolved after mount: on the very first render the shell is still being
+  // committed, so the node does not exist yet.
+  const [host, setHost] = useState<HTMLElement | null>(null);
+  useEffect(() => setHost(document.getElementById(SHELL_ID)), []);
   if (!mounted) return null;
-  return (
+  const sheet = (
     <div
       style={{
         position: 'absolute',
@@ -83,4 +102,6 @@ export function Sheet({
       </div>
     </div>
   );
+  // Before the host resolves, render in place rather than not at all.
+  return host ? createPortal(sheet, host) : sheet;
 }
