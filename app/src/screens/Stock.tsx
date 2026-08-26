@@ -7,7 +7,7 @@ import { AreaChart } from '../components/AreaChart';
 import { CandleChart } from '../components/CandleChart';
 import { Chip } from '../components/Chip';
 import { DataState } from '../components/DataState';
-import { Skeleton } from '../components/Skeleton';
+import { Skeleton, SkeletonCard } from '../components/Skeleton';
 import { useAppState, useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
@@ -42,9 +42,9 @@ export function StockScreen({ openAlert }: ScreenProps) {
             <Skeleton width="52%" height={28} />
             <Skeleton width="38%" height={13} />
           </div>
-          <Skeleton height={188} radius="var(--radius-lg)" />
-          <Skeleton height={132} radius="var(--radius-lg)" />
-          <Skeleton height={150} radius="var(--radius-lg)" />
+          <SkeletonCard height={188} lines={3} />
+          <SkeletonCard height={132} lines={2} />
+          <SkeletonCard height={150} lines={3} />
         </div>
       }
     >

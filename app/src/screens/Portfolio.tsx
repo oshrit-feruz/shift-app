@@ -9,7 +9,7 @@ import { Chip, ChipRail } from '../components/Chip';
 import { ListRow, RowValues } from '../components/ListRow';
 import { LogoTile } from '../components/TickerTile';
 import { DataState, EmptyState } from '../components/DataState';
-import { Skeleton, SkeletonList } from '../components/Skeleton';
+import { Skeleton, SkeletonCard, SkeletonList } from '../components/Skeleton';
 import { ALLOC_COLORS } from '../components/AllocationBar';
 import { useAppState, useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
@@ -48,12 +48,12 @@ export function PortfolioScreen(_: ScreenProps) {
               <Skeleton width={104} height={38} radius={999} />
             </div>
             <Skeleton height={36} radius="var(--radius-md)" />
-            <Skeleton height={81} radius="var(--radius-lg)" />
-            <Skeleton height={247} radius="var(--radius-lg)" />
-            <Skeleton height={229} radius="var(--radius-lg)" />
-            <Skeleton height={239} radius="var(--radius-lg)" />
-            <Skeleton height={292} radius="var(--radius-lg)" />
-            <Skeleton height={147} radius="var(--radius-lg)" />
+            <SkeletonCard height={81} lines={1} />
+            <SkeletonCard height={247} lines={4} />
+            <SkeletonCard height={229} lines={3} />
+            <SkeletonCard height={239} lines={4} />
+            <SkeletonCard height={292} lines={5} />
+            <SkeletonCard height={147} lines={2} />
           </>
         }
       >

@@ -5,7 +5,7 @@ import { Num } from '../components/Num';
 import { Chip, ChipRail } from '../components/Chip';
 import { Button } from '../components/Button';
 import { DataState } from '../components/DataState';
-import { Skeleton, SkeletonList } from '../components/Skeleton';
+import { Skeleton, SkeletonCard, SkeletonList } from '../components/Skeleton';
 import { useAppState, useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
@@ -128,7 +128,7 @@ export function NewsScreen({ openAlert }: ScreenProps) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                 {/* Card count and height measured off the loaded feed. */}
                 {Array.from({ length: 7 }, (_, i) => (
-                  <Skeleton key={i} height={141} radius="var(--radius-lg)" />
+                  <SkeletonCard key={i} height={141} padding={14} />
                 ))}
               </div>
             ) : (

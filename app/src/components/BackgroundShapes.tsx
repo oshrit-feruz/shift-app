@@ -13,9 +13,9 @@
  * comes from scale and overlap instead — the four spans are large and run into
  * each other, so there is no flat band without anything repeating.
  *
- * Every shape renders at full opacity. The cards in front are glass, so the
- * layer shows through them — if body copy starts competing with a shape, the
- * dial to turn is the default opacity below, in one place.
+ * Shapes are sized close to the design's originals rather than blown up to
+ * force coverage: oversized paths read as foreground objects crossing the
+ * cards instead of as backdrop. Opacity is one dial, defaulted below.
  */
 
 interface Shape {
@@ -46,11 +46,11 @@ const VB = { curl: '0 0 533 232', loop: '0 0 317 310', ribbon: '0 0 339 345', ho
 
 /** Ordered top to bottom. Spans overlap so no band is left flat. */
 const SHAPES: Shape[] = [
-  { d: CURL, viewBox: VB.curl, fill: 'var(--acc-mid)', top: '-4%', left: '-14%', width: '128%' },
-  { d: LOOP, viewBox: VB.loop, fill: 'var(--acc-dim)', top: '16%', left: '38%', width: '96%', rotate: 14 },
-  { d: RIBBON, viewBox: VB.ribbon, fill: '#E52319', top: '40%', left: '-30%', width: '104%', rotate: -47 },
+  { d: CURL, viewBox: VB.curl, fill: 'var(--acc-mid)', top: '-2%', left: '-8%', width: '88%' },
+  { d: LOOP, viewBox: VB.loop, fill: 'var(--acc-dim)', top: '20%', left: '62%', width: '60%', rotate: 14 },
+  { d: RIBBON, viewBox: VB.ribbon, fill: '#E52319', top: '44%', left: '-18%', width: '65%', rotate: -47 },
   // The green accent, kept low in the frame as the design places it.
-  { d: HOOK, viewBox: VB.hook, fill: 'var(--up)', top: '68%', left: '24%', width: '78%' },
+  { d: HOOK, viewBox: VB.hook, fill: 'var(--up)', top: '70%', left: '28%', width: '70%' },
 ];
 
 export function BackgroundShapes() {
@@ -67,7 +67,7 @@ export function BackgroundShapes() {
             top: sh.top,
             left: sh.left,
             width: sh.width,
-            opacity: sh.opacity ?? 1,
+            opacity: sh.opacity ?? 0.75,
             transform: sh.rotate ? `rotate(${sh.rotate}deg)` : undefined,
           }}
         >

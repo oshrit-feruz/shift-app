@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { Card } from './Card';
 import { ListRow } from './ListRow';
 
 /**
@@ -157,5 +158,34 @@ export function SkeletonText({
         />
       ))}
     </span>
+  );
+}
+
+/**
+ * A whole-card placeholder that IS a Card, so it carries the same glass
+ * surface — background, blur, radius, shadow — as the content replacing it.
+ *
+ * A bare shimmer block was standing in for whole cards, which meant the
+ * material changed at load: a flat rectangle became glass, and behind it the
+ * background shapes went from painted-over to showing through. Reusing Card
+ * keeps the surface identical and leaves only the contents to fade in.
+ *
+ * `height` is fixed so the swap holds its layout; the lines inside are the
+ * loading signal and are clipped rather than allowed to change that height.
+ */
+export function SkeletonCard({
+  height,
+  lines = 3,
+  padding = 13,
+}: {
+  height: number;
+  lines?: number;
+  padding?: number | string;
+}) {
+  return (
+    <Card padding={padding} gap={9} style={{ height, overflow: 'hidden', flex: 'none' }}>
+      <Skeleton width="46%" height={12} />
+      <SkeletonText lines={lines} fontSize={13} />
+    </Card>
   );
 }

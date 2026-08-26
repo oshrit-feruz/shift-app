@@ -5,7 +5,7 @@ import { Chip, ChipRail } from '../components/Chip';
 import { Sparkline } from '../components/AreaChart';
 import { TickerTile } from '../components/TickerTile';
 import { DataState } from '../components/DataState';
-import { Skeleton, SkeletonList } from '../components/Skeleton';
+import { SkeletonCard, SkeletonList } from '../components/Skeleton';
 import { useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
@@ -63,7 +63,7 @@ export function MoversScreen(_: ScreenProps) {
           beg ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
               {Array.from({ length: 6 }, (_, i) => (
-                <Skeleton key={i} height={78} radius="var(--radius-lg)" />
+                <SkeletonCard key={i} height={78} lines={1} padding={12} />
               ))}
             </div>
           ) : (
