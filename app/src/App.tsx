@@ -111,7 +111,15 @@ export function App() {
           onSearch={() => setSearchOpen(true)}
           onNotifications={() => setNotifOpen(true)}
         />
-        <div className="scroll-y" style={{ flex: 1, minHeight: 0, padding: '6px 16px 22px' }}>
+        <div
+          className="scroll-y"
+          style={{
+            flex: 1,
+            minHeight: 0,
+            // Bottom padding clears the floating TabBar, which is out of flow.
+            padding: '6px 16px calc(90px + env(safe-area-inset-bottom))',
+          }}
+        >
           <ScreenView openAlert={() => setAlertOpen(true)} />
         </div>
         <BackToStepsPill />
@@ -135,7 +143,8 @@ function BackToStepsPill() {
     <div
       style={{
         position: 'absolute',
-        bottom: 96,
+        // Sits just above the floating TabBar, safe-area included.
+        bottom: 'calc(86px + env(safe-area-inset-bottom))',
         insetInline: 0,
         display: 'flex',
         justifyContent: 'center',

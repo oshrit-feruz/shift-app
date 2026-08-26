@@ -11,18 +11,26 @@ const TABS: Array<{ screen: Screen; icon: IconName; label: StringKey }> = [
   { screen: 'more', icon: 'more', label: 'nav.more' },
 ];
 
-/** Bottom tab bar — blurred header ground, centered icons. */
+/**
+ * Bottom tab bar — a floating blurred pill above the content.
+ * It sits out of flow, so the scroll area under it carries the matching
+ * bottom padding (see App.tsx) to keep the last row clear of the bar.
+ */
 export function TabBar({ current, onGo }: { current: Screen; onGo: (s: Screen) => void }) {
   const translate = useT();
   return (
     <div
       style={{
-        flex: 'none',
-        padding: '6px 8px calc(14px + env(safe-area-inset-bottom))',
-        borderTop: '1px solid var(--color-divider)',
+        position: 'absolute',
+        insetInline: 12,
+        bottom: 'calc(10px + env(safe-area-inset-bottom))',
+        zIndex: 50,
+        padding: '6px 6px',
+        borderRadius: 999,
         background: 'var(--hdr)',
-        backdropFilter: 'blur(10px)',
-        WebkitBackdropFilter: 'blur(10px)',
+        boxShadow: 'var(--shadow-lg)',
+        backdropFilter: 'blur(14px)',
+        WebkitBackdropFilter: 'blur(14px)',
         display: 'flex',
       }}
     >
@@ -44,6 +52,7 @@ export function TabBar({ current, onGo }: { current: Screen; onGo: (s: Screen) =
               minHeight: 52,
               padding: '7px 0',
               border: 0,
+              borderRadius: 999,
               background: 'transparent',
               cursor: 'pointer',
               font: 'inherit',
