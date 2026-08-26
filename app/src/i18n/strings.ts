@@ -290,6 +290,11 @@ export const STRINGS = {
     'This is what the recommendation looks like as an order list. Nothing is bought here — when you are ready, it happens at your broker.',
     'כך ההמלצה נראית כרשימת קנייה. שום דבר לא נקנה כאן — כשתהיי מוכנה, זה קורה אצל הברוקר שלך.',
   ),
+  'buy.connectFirst': p('Connect a broker', 'לחבר ברוקר'),
+  'buy.connectFirstHelp': p(
+    'Pick a broker to enable buying this instrument there',
+    'בחירת ברוקר תפעיל קנייה של נייר הערך הזה אצלו',
+  ),
   'buy.atBroker': p('Buy at {broker}', 'לקנות ב-{broker}'),
   'buy.openAt': p('Opens {broker} at this instrument', 'נפתח ב-{broker} על נייר הערך הזה'),
   'buy.copyAndOpen': p(
