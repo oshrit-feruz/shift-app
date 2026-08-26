@@ -5,7 +5,7 @@ import { Tag } from '../components/Tag';
 import { Num } from '../components/Num';
 import { Chip, ChipRail } from '../components/Chip';
 import { Button } from '../components/Button';
-import { DataState } from '../components/DataState';
+import { DataState, EmptyState } from '../components/DataState';
 import { Skeleton, SkeletonCard, SkeletonList } from '../components/Skeleton';
 import { useAppState, useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
@@ -32,6 +32,8 @@ export function NewsScreen({ openAlert }: ScreenProps) {
   const t = useT();
   const beg = mode === 'beginner';
   const [tab, setTab] = useState('All');
+  const [calFilter, setCalFilter] = useState<'all' | 'watchlist' | 'highMove'>('all');
+  const [calDay, setCalDay] = useState<string | null>(null);
   const news = useLoadable(() => demoService.news(), []);
   const earnings = useLoadable(() => demoService.earnings(), []);
 
@@ -52,6 +54,18 @@ export function NewsScreen({ openAlert }: ScreenProps) {
           onRetry={earnings.retry}
           skeleton={
             <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+              <Card padding={13} gap={7}>
+                <Skeleton width={140} height={13} />
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <Skeleton width={92} height={26} radius={999} />
+                  <Skeleton width={92} height={26} radius={999} />
+                </div>
+              </Card>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {Array.from({ length: 4 }, (_, i) => (
+                  <Skeleton key={i} width={68} height={62} radius="var(--radius-md)" />
+                ))}
+              </div>
               {Array.from({ length: 3 }, (_, i) => (
                 <Card key={i} padding="4px 0" gap={0}>
                   <div style={{ padding: '9px 13px 6px' }}>
@@ -82,120 +96,224 @@ export function NewsScreen({ openAlert }: ScreenProps) {
           }
         >
           {(rows) => {
-            // One card per date, the way a calendar groups a day's events
+            // Filter first, then group — a filter that emptied a day should
+            // drop that day's header too, not leave a heading with nothing
+            // under it.
+            const filtered = rows.filter((e) => {
+              if (calFilter === 'watchlist') return s.watchlist.includes(e.ticker);
+              if (calFilter === 'highMove') return parseFloat(e.impliedMove.replace(/[±%]/g, '')) >= 7;
+              return true;
+            });
+
+            // One group per date, the way a calendar groups a day's events
             // under its own header rather than repeating the date on every
             // row. EARNINGS is already date-sorted; grouping preserves that
             // order rather than re-sorting, so nothing here invents an order
             // the data doesn't already have.
             const byDate: Array<[string, typeof rows]> = [];
-            for (const e of rows) {
+            for (const e of filtered) {
               const last = byDate[byDate.length - 1];
               if (last && last[0] === e.date) last[1].push(e);
               else byDate.push([e.date, [e]]);
             }
+            const shown = calDay ? byDate.filter(([date]) => date === calDay) : byDate;
+
             return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-                {byDate.map(([date, events]) => {
-                  // "Mon 25" -> weekday + day number, read onto a torn-page
-                  // calendar tile (small weekday over a large day number).
-                  const [weekday, day] = date.split(' ');
-                  return (
-                    <Card key={date} padding="4px 0" gap={0}>
-                      <div
+                <Card padding={13} gap={7}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: 'var(--font-heading)', fontSize: 16 }}>{t('title.earnings')}</span>
+                    <span className="text-muted" style={{ fontSize: 12.5 }}>
+                      {t('earn.weekOf', { n: rows.length })}
+                    </span>
+                  </div>
+                  <ChipRail>
+                    <Chip active={calFilter === 'all'} onClick={() => setCalFilter('all')}>
+                      {t('earn.allCompanies')}
+                    </Chip>
+                    <Chip active={calFilter === 'watchlist'} onClick={() => setCalFilter('watchlist')}>
+                      {t('earn.myWatchlist')}
+                    </Chip>
+                    <Chip active={calFilter === 'highMove'} onClick={() => setCalFilter('highMove')}>
+                      {t('earn.highMove')}
+                    </Chip>
+                  </ChipRail>
+                </Card>
+
+                {/* Week-at-a-glance day strip. Tapping a day filters the
+                    cards below to it; tapping the active day again clears
+                    the filter, since a calendar's day picker toggles rather
+                    than getting stuck selected. */}
+                <ChipRail>
+                  {byDate.map(([date, events]) => {
+                    const [weekday, day] = date.split(' ');
+                    const active = calDay === date;
+                    return (
+                      <button
+                        key={date}
+                        type="button"
+                        onClick={() => setCalDay(active ? null : date)}
                         style={{
+                          flex: 'none',
                           display: 'flex',
+                          flexDirection: 'column',
                           alignItems: 'center',
-                          gap: 9,
-                          padding: '9px 13px 7px',
+                          gap: 3,
+                          width: 68,
+                          padding: '8px 6px',
+                          borderRadius: 'var(--radius-md)',
+                          border: `1px solid ${active ? 'var(--color-accent)' : 'var(--color-divider)'}`,
+                          background: active ? 'var(--color-accent-900)' : 'var(--color-surface)',
+                          color: 'inherit',
+                          font: 'inherit',
+                          cursor: 'pointer',
                         }}
                       >
-                        <Icon name="calendar" size={14} strokeWidth={1.9} />
                         <span
                           className="text-muted"
-                          style={{ fontSize: 12, letterSpacing: '.06em', textTransform: 'uppercase' }}
+                          style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase' }}
                         >
-                          <Num>{date}</Num>
+                          {weekday}
                         </span>
-                      </div>
-                      {events.map((e, i) => (
-                        <div
-                          key={i}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 10,
-                            padding: '10px 13px',
-                            borderTop: '1px solid var(--color-divider)',
-                          }}
-                        >
-                          {/* The calendar-page tile: weekday strip over a big
-                              day number, same date this card's header carries. */}
+                        <Num size={17} weight={700}>
+                          {day}
+                        </Num>
+                        <span className="text-muted" style={{ fontSize: 10 }}>
+                          {t('earn.reports', { n: events.length })}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </ChipRail>
+
+                {shown.length === 0 ? (
+                  <EmptyState>{t('earn.noneMatch')}</EmptyState>
+                ) : (
+                  shown.map(([date, events]) => {
+                    // "Mon 25" -> weekday + day number, read onto a torn-page
+                    // calendar tile (small weekday over a large day number).
+                    const [weekday, day] = date.split(' ');
+                    return (
+                      <Card key={date} padding="4px 0" gap={0}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 13px 7px' }}>
+                          <Icon name="calendar" size={14} strokeWidth={1.9} />
                           <span
-                            aria-hidden
-                            style={{
-                              flex: 'none',
-                              width: 40,
-                              borderRadius: 'var(--radius-md)',
-                              overflow: 'hidden',
-                              border: '1px solid var(--color-divider)',
-                              textAlign: 'center',
-                            }}
+                            className="text-muted"
+                            style={{ fontSize: 12, letterSpacing: '.06em', textTransform: 'uppercase' }}
                           >
-                            <span
+                            <Num>{date}</Num>
+                          </span>
+                        </div>
+                        {events.map((e, i) => {
+                          const surprise = parseFloat(e.lastSurprise);
+                          return (
+                            <div
+                              key={i}
                               style={{
-                                display: 'block',
-                                fontSize: 9,
-                                fontWeight: 700,
-                                letterSpacing: '.04em',
-                                textTransform: 'uppercase',
-                                color: '#fff',
-                                background: 'var(--down)',
-                                padding: '2px 0',
+                                display: 'flex',
+                                gap: 10,
+                                padding: '10px 13px',
+                                borderTop: '1px solid var(--color-divider)',
                               }}
                             >
-                              {weekday}
-                            </span>
-                            <span style={{ display: 'block', fontSize: 16, fontWeight: 700, padding: '3px 0' }}>
-                              <Num>{day}</Num>
-                            </span>
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => dispatch({ type: 'openStock', ticker: e.ticker })}
-                            style={{
-                              flex: 1,
-                              display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: 'flex-start',
-                              gap: 2,
-                              border: 0,
-                              background: 'transparent',
-                              color: 'inherit',
-                              font: 'inherit',
-                              cursor: 'pointer',
-                              textAlign: 'start',
-                            }}
-                          >
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                              <Num size={14} weight={600}>
-                                {e.ticker}
-                              </Num>
-                              <Tag variant="outline" fontSize={11}>
-                                {e.when}
-                              </Tag>
-                            </span>
-                            <span className="text-muted" style={{ fontSize: 12.5 }}>
-                              {t('earn.epsEst')} <Num>{e.epsEst}</Num> · {t('earn.implied')} <Num>{e.impliedMove}</Num>
-                            </span>
-                          </button>
-                          <Button variant="secondary" fontSize={12.5} minHeight={34} onClick={openAlert}>
-                            {t('earn.remind')}
-                          </Button>
-                        </div>
-                      ))}
-                    </Card>
-                  );
-                })}
+                              {/* The calendar-page tile: weekday strip over a
+                                  big day number, same date this card's header
+                                  carries. */}
+                              <span
+                                aria-hidden
+                                style={{
+                                  flex: 'none',
+                                  width: 40,
+                                  height: 40,
+                                  borderRadius: 'var(--radius-md)',
+                                  overflow: 'hidden',
+                                  border: '1px solid var(--color-divider)',
+                                  textAlign: 'center',
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    display: 'block',
+                                    fontSize: 9,
+                                    fontWeight: 700,
+                                    letterSpacing: '.04em',
+                                    textTransform: 'uppercase',
+                                    color: '#fff',
+                                    background: 'var(--down)',
+                                    padding: '2px 0',
+                                  }}
+                                >
+                                  {weekday}
+                                </span>
+                                <span style={{ display: 'block', fontSize: 16, fontWeight: 700, padding: '3px 0' }}>
+                                  <Num>{day}</Num>
+                                </span>
+                              </span>
+                              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                                <button
+                                  type="button"
+                                  onClick={() => dispatch({ type: 'openStock', ticker: e.ticker })}
+                                  style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'flex-start',
+                                    gap: 2,
+                                    border: 0,
+                                    background: 'transparent',
+                                    color: 'inherit',
+                                    font: 'inherit',
+                                    cursor: 'pointer',
+                                    textAlign: 'start',
+                                  }}
+                                >
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                                    <Num size={14} weight={600}>
+                                      {e.ticker}
+                                    </Num>
+                                    <Tag variant="outline" fontSize={11}>
+                                      {e.when}
+                                    </Tag>
+                                    <span className="text-muted" style={{ fontSize: 12.5 }}>
+                                      {e.name}
+                                    </span>
+                                  </span>
+                                </button>
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    flexWrap: 'wrap',
+                                    columnGap: 12,
+                                    rowGap: 2,
+                                    fontSize: 11.5,
+                                  }}
+                                >
+                                  <Stat label={t('earn.mktCap')} value={e.mktCap} />
+                                  <Stat label={t('earn.epsEst')} value={e.epsEst} />
+                                  <Stat label={t('earn.revEst')} value={e.revEst} />
+                                  <Stat label={t('earn.implied')} value={e.impliedMove} />
+                                  <Stat
+                                    label={t('earn.lastSurprise')}
+                                    value={e.lastSurprise}
+                                    color={Number.isNaN(surprise) ? undefined : signalColor(surprise)}
+                                  />
+                                </div>
+                                <Button
+                                  variant="secondary"
+                                  fontSize={12.5}
+                                  minHeight={32}
+                                  alignSelf="flex-start"
+                                  onClick={openAlert}
+                                >
+                                  {t('earn.remind')}
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </Card>
+                    );
+                  })
+                )}
               </div>
             );
           }}
@@ -301,5 +419,17 @@ export function NewsScreen({ openAlert }: ScreenProps) {
         </DataState>
       )}
     </div>
+  );
+}
+
+/** One label:value pair in an earnings row's stats line. */
+function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
+  return (
+    <span style={{ display: 'inline-flex', gap: 4 }}>
+      <span className="text-muted">{label}</span>
+      <Num weight={600} style={{ color }}>
+        {value}
+      </Num>
+    </span>
   );
 }

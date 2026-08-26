@@ -82,8 +82,12 @@ export interface EarningsEvent {
   when: 'AMC' | 'BMO';
   ticker: string;
   name: string;
+  mktCap: string;
   epsEst: string;
+  revEst: string;
   impliedMove: string;
+  /** Signed surprise from the company's last reported quarter, e.g. '+8.1%'. */
+  lastSurprise: string;
 }
 
 export interface ActiveAlert {

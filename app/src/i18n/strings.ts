@@ -480,6 +480,13 @@ export const STRINGS = {
   'earn.implied': p('implied', 'תנועה משתמעת'),
   'earn.remind': p('Remind', 'תזכורת'),
   'earn.reports': p('{n} rep.', '{n} דוחות'),
+  'earn.myWatchlist': p('My watchlist', 'הווטצ׳ליסט שלי'),
+  'earn.revEst': p('Rev est', 'צפי הכנסות'),
+  'earn.mktCap': p('Mkt cap', 'שווי שוק'),
+  'earn.lastSurprise': p('Last surprise', 'הפתעה אחרונה'),
+  'earn.weekOf': p('{n} companies report this week', '{n} חברות מדווחות השבוע'),
+  'earn.noneMatch': p('No reports match this filter', 'אין דוחות שתואמים לסינון הזה'),
+
 
   // ── Compare ───────────────────────────────────────────────────────────
   'cmp.indexed': p('Indexed to 100 at the start of the window', 'מנורמל ל-100 בתחילת התקופה'),

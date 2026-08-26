@@ -92,7 +92,6 @@ export function App() {
       <div
         style={{
           width: '100%',
-          maxWidth: 430,
           height: '100%',
           display: 'flex',
           flexDirection: 'column',

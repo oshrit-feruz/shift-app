@@ -95,15 +95,15 @@ const NEWS: NewsItem[] = [
 ];
 
 const EARNINGS: EarningsEvent[] = [
-  { date: 'Mon 25', when: 'AMC', ticker: 'LLY', name: 'Eli Lilly', epsEst: '$1.52', impliedMove: '±6.4%' },
-  { date: 'Mon 25', when: 'BMO', ticker: 'XOM', name: 'Exxon Mobil', epsEst: '$1.88', impliedMove: '±3.1%' },
-  { date: 'Tue 26', when: 'AMC', ticker: 'CRM', name: 'Salesforce', epsEst: '$2.74', impliedMove: '±7.8%' },
-  { date: 'Tue 26', when: 'BMO', ticker: 'JPM', name: 'JPMorgan Chase', epsEst: '$4.41', impliedMove: '±2.6%' },
-  { date: 'Wed 27', when: 'AMC', ticker: 'NVDA', name: 'NVIDIA', epsEst: '$1.24', impliedMove: '±8.9%' },
-  { date: 'Wed 27', when: 'AMC', ticker: 'CRWD', name: 'CrowdStrike', epsEst: '$0.96', impliedMove: '±9.2%' },
-  { date: 'Thu 28', when: 'AMC', ticker: 'AMD', name: 'Advanced Micro', epsEst: '$1.14', impliedMove: '±7.4%' },
-  { date: 'Thu 28', when: 'BMO', ticker: 'BABA', name: 'Alibaba', epsEst: '$2.09', impliedMove: '±6.8%' },
-  { date: 'Fri 29', when: 'BMO', ticker: 'MRVL', name: 'Marvell Technology', epsEst: '$0.62', impliedMove: '±9.8%' },
+  { date: 'Mon 25', when: 'AMC', ticker: 'LLY', name: 'Eli Lilly', mktCap: '742B', epsEst: '$1.52', revEst: '$12.9B', impliedMove: '±6.4%', lastSurprise: '+8.1%' },
+  { date: 'Mon 25', when: 'BMO', ticker: 'XOM', name: 'Exxon Mobil', mktCap: '486B', epsEst: '$1.88', revEst: '$88.1B', impliedMove: '±3.1%', lastSurprise: '+2.4%' },
+  { date: 'Tue 26', when: 'AMC', ticker: 'CRM', name: 'Salesforce', mktCap: '241B', epsEst: '$2.74', revEst: '$9.4B', impliedMove: '±7.8%', lastSurprise: '+4.9%' },
+  { date: 'Tue 26', when: 'BMO', ticker: 'JPM', name: 'JPMorgan Chase', mktCap: '801B', epsEst: '$4.41', revEst: '$42.7B', impliedMove: '±2.6%', lastSurprise: '+3.2%' },
+  { date: 'Wed 27', when: 'AMC', ticker: 'NVDA', name: 'NVIDIA', mktCap: '4.45T', epsEst: '$1.24', revEst: '$54.2B', impliedMove: '±8.9%', lastSurprise: '+11.4%' },
+  { date: 'Wed 27', when: 'AMC', ticker: 'CRWD', name: 'CrowdStrike', mktCap: '92B', epsEst: '$0.96', revEst: '$1.2B', impliedMove: '±9.2%', lastSurprise: '-2.8%' },
+  { date: 'Thu 28', when: 'AMC', ticker: 'AMD', name: 'Advanced Micro', mktCap: '277B', epsEst: '$1.14', revEst: '$8.9B', impliedMove: '±7.4%', lastSurprise: '+6.2%' },
+  { date: 'Thu 28', when: 'BMO', ticker: 'BABA', name: 'Alibaba', mktCap: '214B', epsEst: '$2.09', revEst: '$34.1B', impliedMove: '±6.8%', lastSurprise: '+5.4%' },
+  { date: 'Fri 29', when: 'BMO', ticker: 'MRVL', name: 'Marvell Technology', mktCap: '78B', epsEst: '$0.62', revEst: '$1.9B', impliedMove: '±9.8%', lastSurprise: '+3.9%' },
 ];
 
 const LATENCY_MS = 250;
