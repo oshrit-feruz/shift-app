@@ -7,9 +7,15 @@
  * left bands of flat background at the top and bottom. Percentages keep the
  * layer covering the whole shell at any height.
  *
- * `--up` at full opacity is the one loud accent in the set and appears once,
- * on purpose. Everything else sits at 0.06 so it reads as texture, never as
- * content competing with the cards in front of it.
+ * Each of the four paths appears EXACTLY ONCE. An earlier pass covered the
+ * taller shell by repeating them ten times over; at 96% width the same curl
+ * showing up three times reads as a tiling artefact, not as texture. Coverage
+ * comes from scale and overlap instead — the four spans are large and run into
+ * each other, so there is no flat band without anything repeating.
+ *
+ * Every shape sits at 10% opacity, the green accent included, so the layer
+ * reads as texture and never as content competing with the cards in front of
+ * it.
  */
 
 interface Shape {
@@ -38,19 +44,15 @@ const HOOK =
 
 const VB = { curl: '0 0 533 232', loop: '0 0 317 310', ribbon: '0 0 339 345', hook: '0 0 362 359' };
 
-/** Ordered top to bottom; the spans overlap so no band is left flat. */
+/** Ordered top to bottom. Spans overlap so no band is left flat. */
 const SHAPES: Shape[] = [
-  { d: CURL, viewBox: VB.curl, fill: 'var(--acc-mid)', top: '-3%', left: '-10%', width: '96%' },
-  { d: LOOP, viewBox: VB.loop, fill: 'var(--acc-dim)', top: '4%', left: '62%', width: '62%', rotate: 18 },
-  { d: RIBBON, viewBox: VB.ribbon, fill: '#E52319', top: '16%', left: '-18%', width: '70%', rotate: -47 },
-  { d: HOOK, viewBox: VB.hook, fill: 'var(--acc-dim)', top: '28%', left: '48%', width: '72%', rotate: 24 },
-  { d: LOOP, viewBox: VB.loop, fill: 'var(--acc-mid)', top: '42%', left: '-16%', width: '66%', rotate: -12 },
-  { d: CURL, viewBox: VB.curl, fill: 'var(--acc-dim)', top: '54%', left: '34%', width: '88%', rotate: 12 },
-  { d: RIBBON, viewBox: VB.ribbon, fill: 'var(--acc-mid)', top: '66%', left: '-20%', width: '74%', rotate: 28 },
-  // The one loud accent, kept low in the frame as the design places it.
-  { d: HOOK, viewBox: VB.hook, fill: 'var(--up)', top: '76%', left: '28%', width: '70%', opacity: 1 },
-  { d: LOOP, viewBox: VB.loop, fill: 'var(--acc-dim)', top: '86%', left: '52%', width: '64%', rotate: -22 },
-  { d: CURL, viewBox: VB.curl, fill: 'var(--acc-mid)', top: '94%', left: '-12%', width: '92%', rotate: -8 },
+  { d: CURL, viewBox: VB.curl, fill: 'var(--acc-mid)', top: '-4%', left: '-14%', width: '128%' },
+  { d: LOOP, viewBox: VB.loop, fill: 'var(--acc-dim)', top: '16%', left: '38%', width: '96%', rotate: 14 },
+  { d: RIBBON, viewBox: VB.ribbon, fill: '#E52319', top: '40%', left: '-30%', width: '104%', rotate: -47 },
+  // The green accent, kept low in the frame as the design places it. It sits
+  // at the same 10% as the rest: at full opacity it read as a foreground
+  // object crossing the cards rather than as background texture.
+  { d: HOOK, viewBox: VB.hook, fill: 'var(--up)', top: '68%', left: '24%', width: '78%' },
 ];
 
 export function BackgroundShapes() {
@@ -67,7 +69,7 @@ export function BackgroundShapes() {
             top: sh.top,
             left: sh.left,
             width: sh.width,
-            opacity: sh.opacity ?? 0.06,
+            opacity: sh.opacity ?? 0.1,
             transform: sh.rotate ? `rotate(${sh.rotate}deg)` : undefined,
           }}
         >
