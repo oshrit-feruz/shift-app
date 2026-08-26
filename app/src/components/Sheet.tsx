@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useDismissAnimation } from '../lib/useDismissAnimation';
 
 /**
  * Bottom sheet over a veil — the app's one modal treatment. Glass ground,
@@ -19,7 +20,9 @@ export function Sheet({
   children: ReactNode;
   maxHeight?: string;
 }) {
-  if (!open) return null;
+  // Stays mounted through the exit so closing is animated, not a cut.
+  const { mounted, closing } = useDismissAnimation(open, 200);
+  if (!mounted) return null;
   return (
     <div
       style={{
@@ -29,6 +32,7 @@ export function Sheet({
         background: 'var(--veil)',
         display: 'flex',
         alignItems: 'flex-end',
+        animation: closing ? 'fadeOut .2s ease both' : 'veilIn .2s ease both',
       }}
       onClick={onClose}
     >
@@ -47,7 +51,9 @@ export function Sheet({
           display: 'flex',
           flexDirection: 'column',
           gap: 11,
-          animation: 'sheetUp .22s ease both',
+          animation: closing
+            ? 'sheetDown .2s cubic-bezier(.4, 0, 1, 1) both'
+            : 'sheetUp .26s cubic-bezier(.22, .61, .36, 1) both',
           maxHeight,
           overflowY: 'auto',
         }}

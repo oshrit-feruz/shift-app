@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useDismissAnimation } from '../lib/useDismissAnimation';
 import { Button } from '../components/Button';
 import { Icon } from '../components/Icon';
 import { ListRow, RowValues } from '../components/ListRow';
@@ -16,12 +17,13 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
   const t = useT();
   const [q, setQ] = useState('');
   const symbols = useLoadable(() => demoService.symbols(), []);
-  if (!open) return null;
+  const { mounted, closing } = useDismissAnimation(open, 170);
+  if (!mounted) return null;
   const query = q.trim().toLowerCase();
 
   return (
     <div
-      className="anim-fade-up"
+      className={closing ? 'anim-fade-out' : 'anim-fade-up'}
       style={{ position: 'absolute', inset: 0, zIndex: 90, background: 'var(--color-bg)', display: 'flex', flexDirection: 'column' }}
     >
       <div style={{ flex: 'none', padding: 'calc(14px + env(safe-area-inset-top)) 16px 10px', display: 'flex', alignItems: 'center', gap: 9 }}>

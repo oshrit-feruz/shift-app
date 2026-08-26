@@ -56,13 +56,41 @@ export function TabBar({ current, onGo }: { current: Screen; onGo: (s: Screen) =
               background: 'transparent',
               cursor: 'pointer',
               font: 'inherit',
+              position: 'relative',
+              transition: 'color .2s ease',
               color: active
                 ? 'var(--color-accent-200)'
                 : 'color-mix(in srgb, var(--color-text) 45%, transparent)',
             }}
           >
-            <Icon name={t.icon} size={22} strokeWidth={1.7} />
-            <span style={{ fontSize: 10.5, lineHeight: 1, fontWeight: active ? 600 : 400 }}>
+            {/* The pill sits behind the icon and fades in on the active tab.
+                Background/opacity only — the bar contains no glass, but the
+                app-wide rule against transforms near backdrop-filter makes an
+                opacity crossfade the safer idiom to keep everywhere. */}
+            <span
+              aria-hidden
+              style={{
+                position: 'absolute',
+                insetInline: 6,
+                top: 4,
+                height: 30,
+                borderRadius: 999,
+                background: 'var(--color-accent-900)',
+                opacity: active ? 1 : 0,
+                transition: 'opacity .2s ease',
+              }}
+            />
+            <span style={{ position: 'relative', display: 'flex' }}>
+              <Icon name={t.icon} size={22} strokeWidth={1.7} />
+            </span>
+            <span
+              style={{
+                position: 'relative',
+                fontSize: 10.5,
+                lineHeight: 1,
+                fontWeight: active ? 600 : 400,
+              }}
+            >
               {translate(t.label)}
             </span>
           </button>

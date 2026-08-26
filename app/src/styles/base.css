@@ -200,7 +200,55 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
   from { transform: translateY(100%); }
   to { transform: none; }
 }
-.anim-fade-up { animation: fadeUp .22s ease both; }
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes sheetDown {
+  from { transform: none; }
+  to { transform: translateY(100%); }
+}
+/* The veil is a plain overlay with no glass descendants, so opacity here is
+ * free of the backdrop-filter trap that rules transforms out on screens. */
+@keyframes veilIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Screen changes stay opacity-only for the reason in the Motion note above;
+ * the easing is what makes them read as a settle rather than a blink. */
+.anim-fade-up { animation: fadeUp .26s cubic-bezier(.22, .61, .36, 1) both; }
+.anim-fade-out { animation: fadeOut .16s ease both; }
+
+/* Interactive polish: colour/opacity/background only — never transform on
+ * anything that contains a glass card. */
+.btn,
+.card[data-clickable='true'],
+.seg-opt,
+.chip {
+  transition:
+    background-color .18s ease,
+    border-color .18s ease,
+    color .18s ease,
+    opacity .18s ease,
+    box-shadow .18s ease;
+}
+.tap { transition: opacity .12s ease; }
+.tap:active { opacity: .6; }
+
+/* One place decides that motion is unwelcome. Durations collapse rather than
+ * animations being removed, so nothing depends on an animationend that would
+ * then never fire. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 /* Thin scrollbars inside the phone viewport */
 .scroll-y { overflow-y: auto; scrollbar-width: thin; }

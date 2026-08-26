@@ -60,15 +60,21 @@ export function ListRow({
     borderTop: divider ? '1px solid var(--color-divider)' : undefined,
   } as const;
   if (onClick) {
+    // `borderTop` is pulled out of the spread on purpose. A re-assignment
+    // cannot reorder a key that the spread already introduced, so writing
+    // `...style, border: 0, borderTop: style.borderTop` left borderTop at its
+    // original (earlier) position and `border: 0` won — every clickable row
+    // silently lost its divider. Destructured out, it lands after the reset.
+    const { borderTop, ...base } = style;
     return (
       <button
         type="button"
         onClick={onClick}
         style={{
-          ...style,
+          ...base,
           background: 'transparent',
           border: 0,
-          borderTop: style.borderTop,
+          borderTop,
           color: 'inherit',
           font: 'inherit',
           cursor: 'pointer',
