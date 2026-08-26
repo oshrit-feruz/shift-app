@@ -86,94 +86,102 @@ export function AdvisoryRecommendation(_: ScreenProps) {
         </div>
       </Card>
 
+      {/* The allocation card is advice, so it stays gated on the profile
+          actually having a satellite sleeve. */}
       {profile.satellitePct > 0 && (
-        <>
-          <Card padding={13} gap={9} outlined>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-              <CardTitle>{t('rec.satellite')}</CardTitle>
-              <Num size={12.5} style={{ color: 'var(--muted)' }}>
-                {profile.satellitePct}%
-              </Num>
-              <span className="text-muted" style={{ fontSize: 12.5 }}>
-                {t('rec.ofPortfolio')}
-              </span>
-              <span style={{ marginInlineStart: 'auto' }}>
-                <Tag variant="accent" fontSize={12}>
-                  Recovery Detector
-                </Tag>
-              </span>
-            </div>
-            <p className="text-muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.5 }}>
-              {t('rec.satHelp')}
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-              {SAT_RULES.map((k) => (
-                <div key={k} style={{ display: 'flex', gap: 8, fontSize: 12.5, lineHeight: 1.45 }}>
-                  <span style={{ color: 'var(--color-accent-200)', flex: 'none' }}>·</span>
-                  <span className="text-muted" style={{ flex: 1 }}>
-                    {t(k)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          {/* Live screener output: the engine's BUY candidates for today —
-              ticker, price, drawdown from the 52-week high, composite score.
-              Honest empty state when the engine picks nothing. */}
-          <Card padding="13px 13px 4px" gap={7}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-              <CardTitle>{t('rec.satPositions')}</CardTitle>
-              <span style={{ marginInlineStart: 'auto' }}>
-                <Tag variant="outline" fontSize={12}>
-                  {t('rec.livePrices')}
-                </Tag>
-              </span>
-            </div>
-            <DataState state={sat.state} onRetry={sat.retry}>
-              {(signals) =>
-                signals.length === 0 ? (
-                  <EmptyState>{t('rec.noPositions')}</EmptyState>
-                ) : (
-                  <>
-                    {signals.map((x) => {
-                      // Live rows may omit any number. A missing value renders
-                      // as "—"; it is never guessed, defaulted to zero, or
-                      // back-filled. Drawdown is how far the ticker sits below
-                      // its 52-week high, so it is shown as a negative move.
-                      const priceStr = x.price === null ? DASH : money(x.price);
-                      const ddStr = x.drawdownPct === null ? DASH : pct(-x.drawdownPct, 1);
-                      const scoreStr =
-                        x.compositeScore === null ? DASH : x.compositeScore.toFixed(2);
-                      return (
-                        <ListRow
-                          key={x.ticker}
-                          leading={<TickerTile ticker={x.ticker} />}
-                          title={x.ticker}
-                          subtitle={
-                            <Num>{`${t('rec.fromHigh')} ${ddStr} · ${t('rec.score')} ${scoreStr}`}</Num>
-                          }
-                          right={
-                            <RowValues
-                              main={priceStr}
-                              sub={ddStr}
-                              subColor={
-                                x.drawdownPct === null ? 'var(--muted)' : signalColor(-x.drawdownPct)
-                              }
-                            />
-                          }
-                          minHeight={52}
-                          onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}
-                        />
-                      );
-                    })}
-                  </>
-                )
-              }
-            </DataState>
-          </Card>
-        </>
+        <Card padding={13} gap={9} outlined>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+            <CardTitle>{t('rec.satellite')}</CardTitle>
+            <Num size={12.5} style={{ color: 'var(--muted)' }}>
+              {profile.satellitePct}%
+            </Num>
+            <span className="text-muted" style={{ fontSize: 12.5 }}>
+              {t('rec.ofPortfolio')}
+            </span>
+            <span style={{ marginInlineStart: 'auto' }}>
+              <Tag variant="accent" fontSize={12}>
+                Recovery Detector
+              </Tag>
+            </span>
+          </div>
+          <p className="text-muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.5 }}>
+            {t('rec.satHelp')}
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            {SAT_RULES.map((k) => (
+              <div key={k} style={{ display: 'flex', gap: 8, fontSize: 12.5, lineHeight: 1.45 }}>
+                <span style={{ color: 'var(--color-accent-200)', flex: 'none' }}>·</span>
+                <span className="text-muted" style={{ flex: 1 }}>
+                  {t(k)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
       )}
+
+      {/* Live screener output: the engine's BUY candidates for today —
+          ticker, price, drawdown from the 52-week high, composite score.
+          Honest empty state when the engine picks nothing. */}
+      <Card padding="13px 13px 4px" gap={7}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          <CardTitle>{t('rec.satPositions')}</CardTitle>
+          <span style={{ marginInlineStart: 'auto' }}>
+            <Tag variant="outline" fontSize={12}>
+              {t('rec.livePrices')}
+            </Tag>
+          </span>
+        </div>
+        {/* With no satellite sleeve the engine's picks are not advice for
+            this profile, so say so rather than letting the list imply it. */}
+        {profile.satellitePct === 0 && (
+          <p className="text-muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.5 }}>
+            {t('rec.satInfoOnly')}
+          </p>
+        )}
+        <DataState state={sat.state} onRetry={sat.retry}>
+          {(signals) =>
+            signals.length === 0 ? (
+              <EmptyState>{t('rec.noPositions')}</EmptyState>
+            ) : (
+              <>
+                {signals.map((x) => {
+                  // Live rows may omit any number. A missing value renders
+                  // as "—"; it is never guessed, defaulted to zero, or
+                  // back-filled. Drawdown is how far the ticker sits below
+                  // its 52-week high, so it is shown as a negative move.
+                  const priceStr = x.price === null ? DASH : money(x.price);
+                  const ddStr = x.drawdownPct === null ? DASH : pct(-x.drawdownPct, 1);
+                  const scoreStr =
+                    x.compositeScore === null ? DASH : x.compositeScore.toFixed(2);
+                  return (
+                    <ListRow
+                      key={x.ticker}
+                      leading={<TickerTile ticker={x.ticker} />}
+                      title={x.ticker}
+                      subtitle={
+                        <Num>{`${t('rec.fromHigh')} ${ddStr} · ${t('rec.score')} ${scoreStr}`}</Num>
+                      }
+                      right={
+                        <RowValues
+                          main={priceStr}
+                          sub={ddStr}
+                          subColor={
+                            x.drawdownPct === null ? 'var(--muted)' : signalColor(-x.drawdownPct)
+                          }
+                        />
+                      }
+                      minHeight={52}
+                      onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}
+                    />
+                  );
+                })}
+              </>
+            )
+          }
+        </DataState>
+      </Card>
+
 
       <Card padding={13} gap={8}>
         <CardTitle>{t('rec.nextStep')}</CardTitle>

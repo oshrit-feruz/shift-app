@@ -233,6 +233,10 @@ export const STRINGS = {
   'rec.satOpenPositions': p('Recovery Detector — open positions right now', 'Recovery Detector — פוזיציות פתוחות כרגע'),
   'rec.satPositions': p("Today's candidates", 'המועמדות של היום'),
   'rec.livePrices': p('Live prices', 'מחירים חיים'),
+  'rec.satInfoOnly': p(
+    "Information only — your profile has no satellite sleeve, so these are not part of your recommendation.",
+    'מידע בלבד — בפרופיל שלך אין רכיב Satellite, ולכן אלה לא חלק מההמלצה שלך.',
+  ),
   'rec.noPositions': p('No candidates today', 'אין מועמדות היום'),
   'rec.fromHigh': p('from high', 'מהשיא'),
   'rec.score': p('score', 'ציון'),
