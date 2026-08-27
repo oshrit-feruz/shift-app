@@ -157,6 +157,47 @@ request/response pair to test. The `api/` directory has its own
 `tsconfig.json` (`npm run typecheck:api`) since it's excluded from the main
 app's `src`-scoped one and isn't bundled into the client build.
 
+**A third live surface: real-time price-crossing alerts.** A saved 'price'
+alert (`app/src/sheets/AlertSheet.tsx`) is watched against Alpaca's free IEX
+real-time trade stream, connected to directly from the browser
+(`app/src/data/alpacaLive.ts`, `useLiveQuotes.ts`) — there is no server in
+this loop, for the same reason the Recovery Detector engine is mirrored
+rather than called live: a WebSocket needs an always-on process to hold it,
+and neither Vercel functions (invocation-scoped) nor this project's free
+Render host (sleeps after ~15 min idle) can be that process. The browser
+holding the connection while a tab is open needs nothing beyond those two
+files.
+
+Crossing detection (`app/src/lib/priceAlerts.ts`, unit-tested) fires once
+on an actual side flip — below→above for a "rises above" alert, above→below
+for "falls below" — never on every tick that happens to land past the
+threshold, and never on the first price read for an alert already past its
+line. `PriceAlertWatcher.tsx` runs this for every saved price alert,
+recording each crossing in state (surfaced in `NotificationsSheet` with the
+same fixed disclaimer and mark-as-read affordance as every other alert —
+informational only) and firing a browser `Notification` when permission has
+been granted.
+
+**Data honesty caveat specific to this feed:** IEX is one exchange, not the
+consolidated tape every other exchange also trades on. For a liquid ticker
+this tracks the broker's price closely; for a thin one it can lag or gap.
+It is a real trade the instant it happens — not delayed — but it is not
+necessarily the same print as your broker's. Anywhere this price is shown,
+the UI says "IEX", not just "live" (`live.iexNote` in `i18n/strings.ts`).
+
+**Required environment variables (client-side, unlike `EODHD_API_KEY`):**
+`VITE_ALPACA_KEY_ID` and `VITE_ALPACA_SECRET_KEY` — see `app/.env.example`.
+Alpaca's WebSocket auth happens from the browser by design, so these ARE
+bundled into the client and are visible to anyone who opens devtools.
+
+> ⚠ **These must be paper-trading keys, never a live-trading key pair.** A
+> leaked pair can only read market data and place fake paper orders on an
+> account with no real money behind it. Get a free pair at
+> [app.alpaca.markets](https://app.alpaca.markets) → Paper Trading → API
+> Keys. Leaving them unset does not break the app — price-alert crossing
+> detection just stays inactive, and the alert sheet shows an
+> "unconfigured" hint instead of a live price.
+
 ## ⚠ Needs product sign-off before production
 
 - **Core fund names** (VOO / IEFA / LQD / VMFXX / EEM in

@@ -51,7 +51,24 @@ export function NotificationsSheet({ open, onClose }: { open: boolean; onClose: 
   const dispatch = useDispatch();
   const { language } = useTheme();
   const t = useT();
-  const unread = s.notificationsRead ? 0 : NOTIFS.filter((n) => n.unread).length;
+
+  // Real crossings, fired by PriceAlertWatcher against the live IEX feed,
+  // shown first — the same isThresholdAlert shape and disclaimer as the
+  // scripted demo entries below, just with a real ticker and price.
+  const liveNotifs: AppNotification[] = s.firedPriceAlerts.map((a) => {
+    const dir = a.condition === 'rise' ? t('alert.rises') : t('alert.falls');
+    return {
+      glyph: a.condition === 'rise' ? '▲' : '▾',
+      title: { en: `${a.ticker} ${dir} $${a.value}`, he: `${a.ticker} ${dir} $${a.value}` },
+      detail: { en: 'Personal threshold alert · IEX', he: 'התראת סף אישית · IEX' },
+      ago: { en: new Date(a.ts).toLocaleTimeString(), he: new Date(a.ts).toLocaleTimeString() },
+      ticker: a.ticker,
+      unread: true,
+      isThresholdAlert: true,
+    };
+  });
+  const allNotifs = [...liveNotifs, ...NOTIFS];
+  const unread = s.notificationsRead ? 0 : allNotifs.filter((n) => n.unread).length;
 
   return (
     <Sheet
@@ -66,7 +83,7 @@ export function NotificationsSheet({ open, onClose }: { open: boolean; onClose: 
           {t('notif.markAll')}
         </Button>
       </div>
-      {NOTIFS.map((n, i) => (
+      {allNotifs.map((n, i) => (
         <div
           key={i}
           style={{

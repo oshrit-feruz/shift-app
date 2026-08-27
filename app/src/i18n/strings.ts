@@ -421,6 +421,19 @@ export const STRINGS = {
   'alert.email': p('Email', 'אימייל'),
   'alert.cancel': p('Cancel', 'ביטול'),
 
+  // ── Live price feed (Alpaca IEX) ────────────────────────────────────────
+  'live.badge': p('Live', 'לייב'),
+  'live.iexNote': p(
+    'IEX real-time price — may differ slightly from your broker.',
+    'מחיר IEX בזמן אמת — עשוי להיות שונה מעט מהברוקר שלך.',
+  ),
+  'live.connecting': p('Connecting to live price…', 'מתחבר למחיר חי…'),
+  'live.unconfigured': p(
+    'Live price crossing needs an Alpaca API key — see README.',
+    'לזיהוי חציית מחיר בזמן אמת צריך מפתח API של Alpaca — ראו README.',
+  ),
+  'live.error': p('Live price unavailable right now.', 'מחיר חי לא זמין כרגע.'),
+
   // ── Price-alert thresholds (Settings) ─────────────────────────────────
   'thresh.title': p('Price alerts', 'התראות מחיר'),
   'thresh.help': p(

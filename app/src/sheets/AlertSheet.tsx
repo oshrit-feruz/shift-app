@@ -9,6 +9,7 @@ import { useT } from '../i18n/useT';
 import { money } from '../lib/format';
 import { useDispatch, type AlertKind } from '../state/appState';
 import type { SymbolInfo } from '../data/types';
+import { useLiveQuotes } from '../data/useLiveQuotes';
 
 /** New-alert sheet. Alerts are notifications only — creating one never
  *  places or schedules any trade. */
@@ -32,6 +33,10 @@ export function AlertSheet({
   const [sources, setSources] = useState({ wires: true, filings: true });
   const [notifyBy, setNotifyBy] = useState({ push: true, email: false });
   const beg = mode === 'beginner';
+
+  const liveTicker = kind === 'price' && symbol ? [symbol.ticker] : [];
+  const { prices: livePrices, status: liveStatus } = useLiveQuotes(liveTicker);
+  const livePrice = symbol ? livePrices[symbol.ticker] : undefined;
 
   const types: Array<{ k: AlertKind; glyph: string; title: string; help: string }> = [
     { k: 'price', glyph: '▲', title: t('alert.priceType'), help: t('alert.priceHelp') },
@@ -131,6 +136,18 @@ export function AlertSheet({
               {t('alert.priceHint')}
             </p>
           )}
+          <p className="text-muted" style={{ fontSize: 12.5, margin: 0 }}>
+            {liveStatus === 'open' && livePrice != null && (
+              <>
+                <span style={{ color: 'var(--color-accent)' }}>● {t('live.badge')}</span>{' '}
+                <Num>{money(livePrice)}</Num> · {t('live.iexNote')}
+              </>
+            )}
+            {liveStatus === 'open' && livePrice == null && t('live.connecting')}
+            {liveStatus === 'connecting' && t('live.connecting')}
+            {liveStatus === 'unconfigured' && t('live.unconfigured')}
+            {liveStatus === 'error' && t('live.error')}
+          </p>
         </>
       )}
       {kind === 'news' && (

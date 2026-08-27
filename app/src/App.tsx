@@ -28,6 +28,7 @@ import { FirstRunOverlay } from './screens/onboarding/FirstRunOverlay';
 import { SearchOverlay } from './sheets/SearchOverlay';
 import { NotificationsSheet } from './sheets/NotificationsSheet';
 import { AlertSheet } from './sheets/AlertSheet';
+import { PriceAlertWatcher } from './components/PriceAlertWatcher';
 import { useT as useTranslate } from './i18n/useT';
 import { Button } from './components/Button';
 import { SHELL_ID } from './components/Sheet';
@@ -84,7 +85,7 @@ export function App() {
   const title = s.screen === 'stock' ? (currentSymbol?.name ?? s.ticker) : t(titleKey);
   const kicker = s.screen === 'stock' ? s.ticker : t(kickerKey);
 
-  const unread = s.notificationsRead ? 0 : 2;
+  const unread = s.notificationsRead ? 0 : 2 + s.firedPriceAlerts.length;
   const ScreenView = SCREENS[s.screen];
 
   // There is one shared scroll container across every screen (no per-route
@@ -155,6 +156,7 @@ export function App() {
         <NotificationsSheet open={notifOpen} onClose={() => setNotifOpen(false)} />
         <AlertSheet open={alertOpen} onClose={() => setAlertOpen(false)} symbol={currentSymbol ?? null} />
         {!s.firstRunSeen && <FirstRunOverlay />}
+        <PriceAlertWatcher />
       </div>
     </div>
   );
