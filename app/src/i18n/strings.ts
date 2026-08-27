@@ -428,6 +428,14 @@ export const STRINGS = {
     'מחיר IEX בזמן אמת — עשוי להיות שונה מעט מהברוקר שלך.',
   ),
   'live.connecting': p('Connecting to live price…', 'מתחבר למחיר חי…'),
+  'live.waiting': p(
+    'Connected — waiting for the first IEX trade.',
+    'מחובר — ממתין לעסקה הראשונה ב-IEX.',
+  ),
+  'live.marketClosed': p(
+    'Connected. The US market is closed, so no trades are printing — the alert still arms and will fire on a crossing once trading resumes.',
+    'מחובר. שוק ארה״ב סגור ולכן אין עסקאות — ההתראה עדיין נדרכת ותופעל בחצייה כשהמסחר יתחדש.',
+  ),
   'live.unconfigured': p(
     'Live price crossing needs an Alpaca API key — see README.',
     'לזיהוי חציית מחיר בזמן אמת צריך מפתח API של Alpaca — ראו README.',

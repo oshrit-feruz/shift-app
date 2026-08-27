@@ -10,6 +10,7 @@ import { money } from '../lib/format';
 import { useDispatch, type AlertKind } from '../state/appState';
 import type { SymbolInfo } from '../data/types';
 import { useLiveQuotes } from '../data/useLiveQuotes';
+import { marketSession } from '../lib/marketHours';
 
 /** New-alert sheet. Alerts are notifications only — creating one never
  *  places or schedules any trade. */
@@ -147,7 +148,13 @@ export function AlertSheet({
                 <Num>{money(livePrice)}</Num> · {t('live.iexNote')}
               </>
             )}
-            {liveStatus === 'open' && livePrice == null && t('live.connecting')}
+            {/* Connected but priceless is NOT "connecting" — the socket is
+                open and authenticated, there is simply nothing to print.
+                Overnight that is the permanent, correct state, so say which
+                of the two it is rather than implying work still in flight. */}
+            {liveStatus === 'open' &&
+              livePrice == null &&
+              t(marketSession(new Date()) === 'closed' ? 'live.marketClosed' : 'live.waiting')}
             {liveStatus === 'connecting' && t('live.connecting')}
             {liveStatus === 'unconfigured' && t('live.unconfigured')}
             {liveStatus === 'error' && t('live.error')}
