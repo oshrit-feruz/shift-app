@@ -84,17 +84,14 @@ export function summarize(content: string | null): string {
   const src = content.slice(0, WORKING_MAX_CHARS);
 
   let text = '';
-  let inTag = false;
   let pendingSpace = false;
   for (let i = 0; i < src.length; i += 1) {
     const ch = src[i];
-    // Strip <...> markup.
-    if (inTag) {
-      if (ch === '>') inTag = false;
-      continue;
-    }
-    if (ch === '<') {
-      inTag = true;
+    // Strip markup — but only where "<" actually begins a tag. A bare "<" is
+    // ordinary text in financial copy ("guidance is < 5%"), and treating it
+    // as markup silently swallows the rest of the sentence.
+    if (ch === '<' && looksLikeTag(src, i)) {
+      i = src.indexOf('>', i + 1);
       continue;
     }
     // Collapse any run of whitespace to a single space, emitted lazily so a
@@ -120,6 +117,27 @@ export function summarize(content: string | null): string {
     out = (lastSpace > 0 ? cut.slice(0, lastSpace) : cut).trim() + '…';
   }
   return out;
+}
+
+/**
+ * Does the "<" at `i` begin an HTML tag?
+ *
+ * Two conditions, and both are needed:
+ * - the next character is a letter, "/" or "!" — so "< 5%" and "<= 3" stay
+ *   text, since no tag name starts with a space or an equals sign;
+ * - a ">" closes it before any further "<" — so "margins < 30% and volumes >
+ *   2m" is not read as one long tag just because a ">" appears later in the
+ *   sentence, which is the trap a plain indexOf falls into.
+ */
+function looksLikeTag(src: string, i: number): boolean {
+  const next = src[i + 1];
+  if (next === undefined) return false;
+  const isName = (next >= 'a' && next <= 'z') || (next >= 'A' && next <= 'Z') || next === '/' || next === '!';
+  if (!isName) return false;
+  const close = src.indexOf('>', i + 1);
+  if (close === -1) return false;
+  const nextOpen = src.indexOf('<', i + 1);
+  return nextOpen === -1 || nextOpen > close;
 }
 
 /** Whitespace, without a regex so the scan above stays allocation-free. */

@@ -60,6 +60,19 @@ describe('mapArticle', () => {
     });
   });
 
+  it('keeps a bare "<" as text instead of swallowing the sentence', () => {
+    // Financial copy says "guidance is < 5%". Treating every "<" as an
+    // unterminated tag dropped everything after it — real text lost to a
+    // markup rule.
+    expect(summarize('Guidance is < 5%. Revenue rose.')).toBe('Guidance is < 5%. Revenue rose.');
+    expect(summarize('Unclosed <tag and more text here.')).toBe('Unclosed <tag and more text here.');
+    expect(summarize('Margins < 30% and volumes > 2m units.')).toContain('< 30%');
+  });
+
+  it('still strips complete markup', () => {
+    expect(summarize('<p>Real <b>tag</b> stripped.</p> Second.')).toBe('Real tag stripped. Second.');
+  });
+
   describe('adversarial input', () => {
     // The cleanup expressions are quadratic on a run of one repeated
     // character. Measured before the input bound was added: 80KB of "<"

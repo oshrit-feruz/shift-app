@@ -48,7 +48,14 @@ export function compactMoney(v: number): string {
     [1e6, 'M'],
     [1e3, 'K'],
   ];
-  const [scale, suffix] = SCALES.find(([min]) => abs >= min) ?? [1, ''];
+  let [scale, suffix] = SCALES.find(([min]) => abs >= min) ?? [1, ''];
+  if (suffix !== '') {
+    // Rounding can cross the boundary: 999,999 / 1e3 is 999.999, which
+    // .toFixed(1) renders as "1000.0" — so the value would read "$1000.0K"
+    // instead of "$1.0M". Promote to the next scale when that happens.
+    const promoted = SCALES.find(([min]) => min > scale && abs * 1000 >= min * 999.95);
+    if (Number((abs / scale).toFixed(1)) >= 1000 && promoted) [scale, suffix] = promoted;
+  }
   const body = suffix === '' ? Math.round(abs).toString() : (abs / scale).toFixed(1);
   return (neg ? '−' : '') + '$' + body + suffix;
 }

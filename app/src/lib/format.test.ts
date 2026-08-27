@@ -19,6 +19,18 @@ describe('compactMoney', () => {
     expect(compactMoney(5.4e9)).not.toBe(compactMoney(5.5e9));
   });
 
+  it('promotes a mantissa that rounds up across a suffix boundary', () => {
+    // 999,999 / 1e3 is 999.999, which .toFixed(1) renders as "1000.0" — so
+    // this used to read "$1000.0K" instead of "$1.0M".
+    expect(compactMoney(999_999)).toBe('$1.0M');
+    expect(compactMoney(999_999_999)).toBe('$1.0B');
+    expect(compactMoney(999_999_999_999)).toBe('$1.0T');
+    // Values that do not cross the boundary are untouched.
+    expect(compactMoney(999_949)).toBe('$999.9K');
+    expect(compactMoney(1_000)).toBe('$1.0K');
+    expect(compactMoney(-999_999)).toBe('−$1.0M');
+  });
+
   it('returns the plain figure below 1,000', () => {
     expect(compactMoney(999)).toBe('$999');
     expect(compactMoney(0)).toBe('$0');
