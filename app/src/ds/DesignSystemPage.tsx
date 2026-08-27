@@ -170,7 +170,28 @@ export function DesignSystemPage() {
               </div>
               <Note>
                 Cards are glass: a translucent fill plus a 12px backdrop blur, with the hairline carried by the shadow's
-                first ring rather than a border.
+                first ring rather than a border. The specular rim rides inside these same shadow tokens, so a surface
+                cannot take the elevation without taking the material.
+              </Note>
+
+              <SubTitle>Glass</SubTitle>
+              <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                <div className="card elev-sm" style={{ width: 130, height: 66, display: 'grid', placeItems: 'center', fontSize: 12.5, color: 'var(--muted)' }}>
+                  card
+                </div>
+                <div className="glass-bar elev-lg" style={{ width: 130, height: 66, borderRadius: 999, display: 'grid', placeItems: 'center', fontSize: 12.5, color: 'var(--muted)' }}>
+                  bar
+                </div>
+                <div className="glass-sheet elev-lg" style={{ width: 130, height: 66, borderRadius: 20, display: 'grid', placeItems: 'center', fontSize: 12.5, color: 'var(--muted)' }}>
+                  sheet
+                </div>
+              </div>
+              <Note>
+                Three depths of one material — card, bar, sheet — differing only in how much they blur and how far they
+                lift the colour behind them. It is an approximation of iOS's Liquid Glass, not the real material: the web
+                has no API for that one. Tint and specular are here; refraction (the background bending at the rim) is
+                not, because it costs an SVG displacement map per pane and these panes sit over live charts. Turn on
+                "reduce transparency" and all three go opaque.
               </Note>
             </div>
           </div>
@@ -294,6 +315,11 @@ export function DesignSystemPage() {
             <Rule title="No execution, ever">
               Money-touching actions show a confirmation/disclosure or refer out to the user's own broker. Alerts inform;
               they never trade.
+            </Rule>
+            <Rule title="One material, three depths">
+              The tint and specular values live once in tokens.css; base.css turns them into .card, .glass-bar and
+              .glass-sheet. No screen writes its own backdrop-filter, which is what lets one place in base.css take the
+              transparency back out everywhere at once.
             </Rule>
             <Rule title="Honest data">
               Loading, empty and unavailable states are real states. A missing number renders as missing — never as a

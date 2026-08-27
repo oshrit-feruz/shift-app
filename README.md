@@ -20,7 +20,13 @@ npm run build      # tsc --noEmit + vite build (app + design-system page)
   verbatim from the design. Three global switches set as attributes on `<html>`:
   `data-theme` (dark default / light), `data-signal` (vivid / balanced / muted
   gain-loss colors), `dir` (rtl Hebrew default / ltr English). Change a token
-  here and it propagates everywhere; no screen declares its own colors.
+  here and it propagates everywhere; no screen declares its own colors. Glass
+  lives here too: the tint recipes and the specular rim that approximate iOS's
+  Liquid Glass (the native material has no web API, and refraction is left out
+  on purpose — it would cost an SVG displacement map per pane, over live
+  charts). Panes wear it via `.card`, `.glass-bar` and `.glass-sheet`, never by
+  writing their own `backdrop-filter`, which is what lets one
+  `prefers-reduced-transparency` query take the translucency back out.
 - **`app/src/components/`** — the component library (Card, Button, Tag,
   TickerTile, ListRow, AllocationBar, DonutChart, CandleChart, Sheet, ChatBubble,
   TabBar, …). Screens in `app/src/screens/` compose only these.

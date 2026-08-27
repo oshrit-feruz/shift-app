@@ -88,6 +88,7 @@ export function TabBar({ current, onGo }: { current: Screen; onGo: (s: Screen) =
   return (
     <div
       ref={barRef}
+      className="glass-bar"
       style={{
         position: 'absolute',
         insetInline: 12,
@@ -95,10 +96,7 @@ export function TabBar({ current, onGo }: { current: Screen; onGo: (s: Screen) =
         zIndex: 50,
         padding: '6px 6px',
         borderRadius: 999,
-        background: 'var(--hdr)',
         boxShadow: 'var(--shadow-lg)',
-        backdropFilter: 'blur(14px)',
-        WebkitBackdropFilter: 'blur(14px)',
         display: 'flex',
       }}
     >
