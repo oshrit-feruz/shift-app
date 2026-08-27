@@ -17,6 +17,19 @@ const DEFAULT_UPSTREAM_TIMEOUT_MS = 10_000;
 const MAX_ROWS = 400;
 
 /**
+ * EODHD wraps the rows in { earnings: [...] }; a bare array is tolerated too,
+ * since a shape we half-recognise is better handled explicitly than assumed.
+ * Null means "not a shape we understand", which the caller reports rather
+ * than treating as an empty week.
+ */
+function extractRows(body: unknown): unknown[] | null {
+  if (Array.isArray(body)) return body;
+  if (typeof body !== 'object' || body === null) return null;
+  const wrapped = (body as Record<string, unknown>).earnings;
+  return Array.isArray(wrapped) ? wrapped : null;
+}
+
+/**
  * Builds the handler with an injectable upstream timeout (see api/news.ts for
  * why). The default export is this with the real budget.
  *
@@ -115,13 +128,7 @@ export function createHandler(timeoutMs: number) {
       clearTimeout(timeout);
     }
 
-    // EODHD wraps the rows in { earnings: [...] }; tolerate a bare array too,
-    // since a shape we half-recognise is better handled than assumed.
-    const rows = Array.isArray(body)
-      ? body
-      : typeof body === 'object' && body !== null && Array.isArray((body as Record<string, unknown>).earnings)
-        ? ((body as Record<string, unknown>).earnings as unknown[])
-        : null;
+    const rows = extractRows(body);
     if (rows === null) {
       console.error('/api/earnings: upstream response had an unexpected shape');
       return res

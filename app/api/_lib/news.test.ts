@@ -60,6 +60,25 @@ describe('mapArticle', () => {
     });
   });
 
+  describe('adversarial input', () => {
+    // The cleanup expressions are quadratic on a run of one repeated
+    // character. Measured before the input bound was added: 80KB of "<"
+    // took ~7s and the sentence split ~9.7s, against the function's own 10s
+    // budget — one oversized article body could consume the whole request.
+    // Content comes from an upstream feed, so its size is not ours to trust.
+    it.each([
+      ['angle brackets', '<'.repeat(200_000)],
+      ['whitespace', ' '.repeat(200_000) + 'x'],
+      ['no sentence terminator', 'a'.repeat(200_000)],
+      ['alternating tags', '<a> '.repeat(50_000)],
+    ])('stays linear on %s', (_label, input) => {
+      const t0 = performance.now();
+      const out = summarize(input);
+      expect(performance.now() - t0).toBeLessThan(150);
+      expect(out.length).toBeLessThanOrEqual(280);
+    });
+  });
+
   describe('symbols (general market feed)', () => {
     it('strips the exchange suffix and uppercases', () => {
       expect(mapSymbols(['AAPL.US', 'msft.us'])).toEqual(['AAPL', 'MSFT']);

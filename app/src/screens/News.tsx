@@ -33,18 +33,21 @@ export function NewsScreen(_props: ScreenProps) {
         ))}
       </ChipRail>
 
-      {tab === 'Calendar' ? (
-        <CalendarTab watchlist={s.watchlist} />
-      ) : tab === 'My watchlist' ? (
-        <WatchlistFeed tickers={s.watchlist} />
-      ) : (
-        /* All / Markets / Analyst all read the one general market feed.
-           Upstream has no topic filter this app can trust to be exhaustive,
-           and inventing a client-side split of a real feed would present a
-           guess as a category — so they share the feed rather than pretending
-           to filter it. */
-        <MarketFeed />
-      )}
+      <TabBody tab={tab} watchlist={s.watchlist} />
     </div>
   );
+}
+
+/**
+ * Which feed a tab shows.
+ *
+ * All / Markets / Analyst share the one general market feed: upstream has no
+ * topic filter this app can trust to be exhaustive, and splitting a real feed
+ * client-side would present a guess as a category. They read the same data
+ * rather than pretending to filter it.
+ */
+function TabBody({ tab, watchlist }: { tab: string; watchlist: string[] }) {
+  if (tab === 'Calendar') return <CalendarTab watchlist={watchlist} />;
+  if (tab === 'My watchlist') return <WatchlistFeed tickers={watchlist} />;
+  return <MarketFeed />;
 }

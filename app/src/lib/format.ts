@@ -40,8 +40,15 @@ export function compactMoney(v: number): string {
   if (!Number.isFinite(v)) return '—';
   const neg = v < 0;
   const abs = Math.abs(v);
-  const [scale, suffix] =
-    abs >= 1e12 ? [1e12, 'T'] : abs >= 1e9 ? [1e9, 'B'] : abs >= 1e6 ? [1e6, 'M'] : abs >= 1e3 ? [1e3, 'K'] : [1, ''];
+  // A table rather than chained ternaries: the thresholds read in order and
+  // adding one is a single line.
+  const SCALES: Array<[number, string]> = [
+    [1e12, 'T'],
+    [1e9, 'B'],
+    [1e6, 'M'],
+    [1e3, 'K'],
+  ];
+  const [scale, suffix] = SCALES.find(([min]) => abs >= min) ?? [1, ''];
   const body = suffix === '' ? Math.round(abs).toString() : (abs / scale).toFixed(1);
   return (neg ? '−' : '') + '$' + body + suffix;
 }

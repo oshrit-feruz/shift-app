@@ -78,11 +78,15 @@ export function mapEarning(raw: unknown): EarningsRow | null {
   const reportDate = parseIsoDate(e.report_date);
   if (!reportDate) return null;
 
-  const t = typeof e.before_after_market === 'string' ? e.before_after_market.trim().toUpperCase() : '';
   // Anything we do not recognise becomes null rather than being coerced to a
   // side — guessing "after the close" for an unknown value would put a real
-  // number next to a made-up fact about when it lands.
-  const timing = t === 'BEFOREMARKET' || t === 'BMO' ? 'BMO' : t === 'AFTERMARKET' || t === 'AMC' ? 'AMC' : null;
+  // number next to a made-up fact about when it lands. A lookup rather than
+  // chained ternaries so a new upstream spelling is one line here.
+  const t = typeof e.before_after_market === 'string' ? e.before_after_market.trim().toUpperCase() : '';
+  const TIMINGS: Record<string, 'BMO' | 'AMC'> = {
+    BEFOREMARKET: 'BMO', BMO: 'BMO', AFTERMARKET: 'AMC', AMC: 'AMC',
+  };
+  const timing = TIMINGS[t] ?? null;
 
   return {
     ticker: code,
