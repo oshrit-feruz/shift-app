@@ -58,10 +58,30 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
   display: flex;
   flex-direction: column;
   background: var(--color-surface);
+  /* Painted over the fill, so the pane catches light across its top-start
+   * corner instead of reading as a flat translucent rectangle. */
+  background-image: var(--glass-sheen);
   border-radius: var(--radius-lg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: var(--glass-tint-card);
+  -webkit-backdrop-filter: var(--glass-tint-card);
 }
+/* The card is one of three depths of the same material. The bar and the
+ * sheet get classes rather than inline styles for the same reason the card
+ * does: the reduced-transparency fallback at the bottom of this file has to
+ * be able to reach every pane from one place. */
+.glass-bar {
+  background: var(--hdr);
+  background-image: var(--glass-sheen);
+  backdrop-filter: var(--glass-tint-bar);
+  -webkit-backdrop-filter: var(--glass-tint-bar);
+}
+.glass-sheet {
+  background: var(--glass-sheet-fill);
+  background-image: var(--glass-sheen);
+  backdrop-filter: var(--glass-tint-sheet);
+  -webkit-backdrop-filter: var(--glass-tint-sheet);
+}
+
 .elev-sm { box-shadow: var(--shadow-sm); }
 .elev-md { box-shadow: var(--shadow-md); }
 .elev-lg { box-shadow: var(--shadow-lg); }
@@ -69,10 +89,11 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
 
 /* Light mode keeps cards dark on purpose — white text forced past inline styles. */
 [data-theme="light"] .card {
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: var(--glass-tint-card);
+  -webkit-backdrop-filter: var(--glass-tint-card);
   color: #FFFFFF !important;
   background: var(--color-surface);
+  background-image: var(--glass-sheen);
 }
 [data-theme="light"] .card .text-muted { color: #B6BECE; }
 
@@ -290,6 +311,32 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ── Reduced transparency ──────────────────────────────────────────────── */
+/* The counterpart to the rule above: one place decides that see-through is
+ * unwelcome. iOS surfaces this setting prominently and readers who turn it on
+ * are usually telling us that text over a moving background is hard to read —
+ * which, on an app whose numbers sit on glass over live charts, is a
+ * legibility problem and not a taste one. The blur goes everywhere (the
+ * floating pills carry theirs inline), and the panes swap their translucent
+ * fill for the opaque equivalent of the same surface. */
+@media (prefers-reduced-transparency: reduce) {
+  *,
+  *::before,
+  *::after {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .card,
+  .glass-sheet {
+    background-color: var(--surface-solid);
+    background-image: none;
+  }
+  .glass-bar {
+    background-color: var(--hdr-solid);
+    background-image: none;
   }
 }
 

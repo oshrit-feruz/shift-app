@@ -45,7 +45,11 @@ export function Card({
       : outlined
         ? '1px solid var(--color-accent-700)'
         : '1px solid var(--color-divider)',
-    background: highlight ? 'var(--color-accent-900)' : undefined,
+    // backgroundColor, not the `background` shorthand: the shorthand would
+    // reset the sheen .card paints as its background-image, so the one
+    // highlighted card on a screen would be the only pane without a
+    // specular highlight.
+    backgroundColor: highlight ? 'var(--color-accent-900)' : undefined,
     ...style,
   };
   if (onClick) {

@@ -50,14 +50,15 @@ export function LearnScreen(_: ScreenProps) {
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 4 }}>
+      {/* The same glass as every other pane, via .card rather than a copy of
+          the material inline — which also means light mode stops painting
+          muted dark text onto this surface, which stays dark by design. */}
       <div
+        className="card"
         style={{
-          display: 'flex',
+          flexDirection: 'row',
           alignItems: 'center',
           gap: 8,
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          background: 'var(--color-surface)',
           padding: 12,
           borderRadius: 'var(--radius-md)',
         }}

@@ -48,6 +48,42 @@
   --up: #2fd18a;
   --down: #f2564e;
 
+  /* Glass — the Liquid Glass material, as far as the web reaches.
+   * Apple's Liquid Glass is a native material (SwiftUI `.glassEffect()`); no
+   * CSS property exposes it, so these tokens rebuild the two traits that
+   * carry most of its read:
+   *   tint      — the pane pulls colour and light out of whatever is behind
+   *               it (saturate + brightness on top of the blur), rather than
+   *               only frosting it
+   *   specular  — a bright rim where light catches the top edge and a faint
+   *               bounce along the bottom, which is what makes a pane read as
+   *               a solid slab of glass instead of a blurred rectangle
+   * The third trait — refraction, the background bending at the rim — is
+   * deliberately absent. It needs an SVG displacement map per pane, and this
+   * app puts glass cards on top of live charts; the GPU cost is not worth it.
+   * The specular lives inside the elevation tokens below, so every surface
+   * that was already glass gets it without opting in.
+   */
+  --glass-tint-card: blur(12px) saturate(1.7) brightness(1.06);
+  --glass-tint-bar: blur(16px) saturate(1.8) brightness(1.08);
+  --glass-tint-sheet: blur(40px) saturate(1.9) brightness(1.04);
+  --glass-specular:
+    inset 0 1px 0 rgba(255, 255, 255, .3),
+    inset 0 -1px 0 rgba(255, 255, 255, .06);
+  /* Angled so the highlight falls across the top-start corner the way a real
+   * pane catches a light source, not as a flat top-to-bottom wash. */
+  --glass-sheen: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, .13) 0%,
+    rgba(255, 255, 255, .04) 26%,
+    rgba(255, 255, 255, 0) 58%
+  );
+  --glass-sheet-fill: rgba(30, 41, 59, .45);
+  /* What the panes fall back to when the reader has asked for less
+   * transparency (see base.css) — the same surfaces, opaque. */
+  --surface-solid: #1E293B;
+  --hdr-solid: #161F33;
+
   /* Radii */
   --radius-sm: 9px;
   --radius-md: 12px;
@@ -58,9 +94,11 @@
    * elevation rather than the cards' ring-plus-halo. */
   --shadow-btn: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 16px rgba(0, 0, 0, .26);
   --shadow-btn-active: 0 1px 2px rgba(0, 0, 0, .32);
-  --shadow-sm: 0 0 0 1px rgba(146, 155, 172, .2), 0 8px 32px rgba(0, 0, 0, .25);
-  --shadow-md: 0 0 0 1px rgba(146, 155, 172, .25), 0 12px 36px rgba(0, 0, 0, .3);
-  --shadow-lg: 0 0 0 1px rgba(146, 155, 172, .3), 0 16px 40px rgba(0, 0, 0, .4);
+  /* Every consumer of these three is a glass pane, so the specular rim
+   * rides along with the elevation rather than needing its own class. */
+  --shadow-sm: var(--glass-specular), 0 0 0 1px rgba(146, 155, 172, .2), 0 8px 32px rgba(0, 0, 0, .25);
+  --shadow-md: var(--glass-specular), 0 0 0 1px rgba(146, 155, 172, .25), 0 12px 36px rgba(0, 0, 0, .3);
+  --shadow-lg: var(--glass-specular), 0 0 0 1px rgba(146, 155, 172, .3), 0 16px 40px rgba(0, 0, 0, .4);
 
   /* Type */
   --font-heading: 'Rubik', system-ui, sans-serif;
@@ -108,9 +146,28 @@
   --color-divider: rgba(146, 155, 172, .45);
   --shadow-btn: 0 1px 2px rgba(18, 24, 41, .18), 0 6px 16px rgba(18, 24, 41, .16);
   --shadow-btn-active: 0 1px 2px rgba(18, 24, 41, .2);
-  --shadow-sm: 0 0 0 1px rgba(146, 155, 172, .25), 0 8px 24px rgba(18, 24, 41, .25);
-  --shadow-md: 0 0 0 1px rgba(146, 155, 172, .25), 0 8px 24px rgba(18, 24, 41, .3);
-  --shadow-lg: 0 0 0 1px rgba(146, 155, 172, .3), 0 16px 40px rgba(18, 24, 41, .35);
+  --shadow-sm: var(--glass-specular), 0 0 0 1px rgba(146, 155, 172, .25), 0 8px 24px rgba(18, 24, 41, .25);
+  --shadow-md: var(--glass-specular), 0 0 0 1px rgba(146, 155, 172, .25), 0 8px 24px rgba(18, 24, 41, .3);
+  --shadow-lg: var(--glass-specular), 0 0 0 1px rgba(146, 155, 172, .3), 0 16px 40px rgba(18, 24, 41, .35);
+  /* Cards stay dark in light mode, so the rim stays a white highlight; the
+   * bar and header are near-white, where the same rim would be invisible, so
+   * they take a dark bottom edge instead. Less blur, less lift: a light
+   * ground has less colour under the pane to pull up. */
+  --glass-tint-card: blur(10px) saturate(1.5) brightness(1.02);
+  --glass-tint-bar: blur(14px) saturate(1.5) brightness(1.01);
+  --glass-tint-sheet: blur(36px) saturate(1.6) brightness(1.02);
+  --glass-specular:
+    inset 0 1px 0 rgba(255, 255, 255, .34),
+    inset 0 -1px 0 rgba(18, 24, 41, .05);
+  --glass-sheen: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, .1) 0%,
+    rgba(255, 255, 255, .03) 26%,
+    rgba(255, 255, 255, 0) 58%
+  );
+  --glass-sheet-fill: rgba(18, 24, 41, .62);
+  --surface-solid: #121829;
+  --hdr-solid: #E9EEF5;
 }
 
 [data-theme="light"][data-signal="balanced"] {

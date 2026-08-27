@@ -57,11 +57,9 @@ export function Sheet({
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        className="glass-sheet"
         style={{
           width: '100%',
-          background: 'rgba(30,41,59,.45)',
-          backdropFilter: 'blur(40px) saturate(1.4)',
-          WebkitBackdropFilter: 'blur(40px) saturate(1.4)',
           borderTop: '1px solid rgba(146,155,172,.22)',
           borderTopLeftRadius: 20,
           borderTopRightRadius: 20,
