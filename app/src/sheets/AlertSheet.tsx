@@ -40,8 +40,9 @@ export function AlertSheet({
   // otherwise the default kind==='price' plus a symbol keeps the feed
   // subscribed for a sheet nobody is looking at.
   const liveTicker = open && kind === 'price' && symbol ? [symbol.ticker] : [];
-  const { prices: livePrices, status: liveStatus } = useLiveQuotes(liveTicker);
+  const { prices: livePrices, status: liveStatus, isLive } = useLiveQuotes(liveTicker);
   const livePrice = symbol ? livePrices[symbol.ticker] : undefined;
+  const isLivePrice = symbol ? isLive(symbol.ticker) : false;
 
   const types: Array<{ k: AlertKind; glyph: string; title: string; help: string }> = [
     { k: 'price', glyph: '▲', title: t('alert.priceType'), help: t('alert.priceHelp') },
@@ -142,12 +143,21 @@ export function AlertSheet({
             </p>
           )}
           <p className="text-muted" style={{ fontSize: 12.5, margin: 0 }}>
-            {liveStatus === 'open' && livePrice != null && (
-              <>
-                <span style={{ color: 'var(--color-accent)' }}>● {t('live.badge')}</span>{' '}
-                <Num>{money(livePrice)}</Num> · {t('live.iexNote')}
-              </>
-            )}
+            {/* A price from the REST snapshot is the last trade, possibly
+                days old over a weekend — it gets the muted "last trade"
+                label, never the live dot. Only a price we actually saw
+                stream in is presented as live. */}
+            {livePrice != null &&
+              (isLivePrice ? (
+                <>
+                  <span style={{ color: 'var(--color-accent)' }}>● {t('live.badge')}</span>{' '}
+                  <Num>{money(livePrice)}</Num> · {t('live.iexNote')}
+                </>
+              ) : (
+                <>
+                  {t('live.lastTrade')} <Num>{money(livePrice)}</Num> · {t('live.lastTradeNote')}
+                </>
+              ))}
             {/* Connected but priceless is NOT "connecting" — the socket is
                 open and authenticated, there is simply nothing to print.
                 Overnight that is the permanent, correct state, so say which
@@ -155,7 +165,7 @@ export function AlertSheet({
             {liveStatus === 'open' &&
               livePrice == null &&
               t(marketSession(new Date()) === 'closed' ? 'live.marketClosed' : 'live.waiting')}
-            {liveStatus === 'connecting' && t('live.connecting')}
+            {liveStatus === 'connecting' && livePrice == null && t('live.connecting')}
             {liveStatus === 'unconfigured' && t('live.unconfigured')}
             {liveStatus === 'error' && t('live.error')}
           </p>

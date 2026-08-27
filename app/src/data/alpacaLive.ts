@@ -193,3 +193,71 @@ class AlpacaLiveFeed {
 }
 
 export const alpacaLiveFeed = new AlpacaLiveFeed();
+
+const ALPACA_SNAPSHOT_URL = 'https://data.alpaca.markets/v2/stocks/snapshots';
+const SNAPSHOT_TIMEOUT_MS = 10_000;
+
+/**
+ * The last trade Alpaca saw for each ticker, however long ago that was.
+ *
+ * The WebSocket only ever pushes NEW trades, so on its own it shows nothing
+ * until the next print — for a whole closed weekend, or for as long as a
+ * quiet ticker goes untraded mid-session. This REST snapshot is what gives
+ * the UI an immediate starting price in both cases.
+ *
+ * Data-honesty contract, same as api/news.ts and recoveryDetector.ts: any
+ * failure (unconfigured, network, non-2xx, unparseable, unexpected shape)
+ * resolves to an empty map, and a ticker whose snapshot carries no usable
+ * trade price is simply absent from the result. It never invents or
+ * back-fills a price. Callers must treat a missing entry as "unknown", and
+ * must label what they do get as a LAST trade, not a live one — the
+ * timestamp can be days old over a holiday weekend.
+ */
+export async function fetchLastTrades(tickers: string[]): Promise<Record<string, number>> {
+  const key = import.meta.env.VITE_ALPACA_KEY_ID as string | undefined;
+  const secret = import.meta.env.VITE_ALPACA_SECRET_KEY as string | undefined;
+  if (!key || !secret || tickers.length === 0) return {};
+
+  const url = new URL(ALPACA_SNAPSHOT_URL);
+  url.searchParams.set('symbols', tickers.join(','));
+  // The free tier is IEX-only; asking for the default SIP feed 403s.
+  url.searchParams.set('feed', 'iex');
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), SNAPSHOT_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'APCA-API-KEY-ID': key, 'APCA-API-SECRET-KEY': secret },
+    });
+    if (!res.ok) {
+      console.error(`Alpaca snapshot returned ${res.status}`);
+      return {};
+    }
+    const body: unknown = await res.json();
+    if (typeof body !== 'object' || body === null) return {};
+
+    const out: Record<string, number> = {};
+    // Alpaca returns either {SYMBOL: snapshot} or {snapshots: {SYMBOL: ...}}
+    // depending on the endpoint revision; accept both rather than pinning to
+    // whichever one happens to be live today.
+    const raw = body as Record<string, unknown>;
+    const container = (typeof raw.snapshots === 'object' && raw.snapshots !== null ? raw.snapshots : raw) as Record<
+      string,
+      unknown
+    >;
+    for (const [ticker, snap] of Object.entries(container)) {
+      if (typeof snap !== 'object' || snap === null) continue;
+      const trade = (snap as Record<string, unknown>).latestTrade;
+      if (typeof trade !== 'object' || trade === null) continue;
+      const price = (trade as Record<string, unknown>).p;
+      if (typeof price === 'number' && Number.isFinite(price)) out[ticker] = price;
+    }
+    return out;
+  } catch (err) {
+    console.error('Alpaca snapshot fetch failed:', err);
+    return {};
+  } finally {
+    clearTimeout(timeout);
+  }
+}

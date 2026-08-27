@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useAppState, useDispatch } from '../state/appState';
 import { alpacaLiveFeed } from '../data/alpacaLive';
+import { useTickerSubscription } from '../data/useTickerSubscription';
 import { didCross, sideFor, type Side } from '../lib/priceAlerts';
 import { useT } from '../i18n/useT';
 
@@ -43,13 +44,12 @@ export function PriceAlertWatcher() {
   const sidesRef = useRef(new Map<string, Side>());
   const askedPermission = useRef(false);
 
-  // Explicit comparator — see the matching note in useLiveQuotes.ts.
-  const key = [...new Set(tickers)].sort((a, b) => a.localeCompare(b)).join(',');
-  useEffect(() => {
-    const list = key ? key.split(',') : [];
-    list.forEach((ticker) => alpacaLiveFeed.subscribe(ticker));
-    return () => list.forEach((ticker) => alpacaLiveFeed.unsubscribe(ticker));
-  }, [key]);
+  // Deliberately subscription-only: this watcher never seeds itself from the
+  // REST snapshot that useLiveQuotes uses for display. A crossing must be
+  // something we actually observed happen on the live stream — deriving one
+  // by comparing a days-old weekend close against the first Monday print
+  // would fire an alert for a gap nobody watched cross.
+  useTickerSubscription(tickers);
 
   useEffect(() => {
     if (askedPermission.current || !priceAlerts.some((a) => a.notifyBy.push)) return;

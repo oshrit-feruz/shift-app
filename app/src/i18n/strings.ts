@@ -432,6 +432,11 @@ export const STRINGS = {
     'Connected — waiting for the first IEX trade.',
     'מחובר — ממתין לעסקה הראשונה ב-IEX.',
   ),
+  'live.lastTrade': p('Last trade', 'עסקה אחרונה'),
+  'live.lastTradeNote': p(
+    'Last IEX trade, not a live price — the market is closed. The alert is armed and will fire on a crossing once trading resumes.',
+    'העסקה האחרונה ב-IEX, לא מחיר חי — השוק סגור. ההתראה דרוכה ותופעל בחצייה כשהמסחר יתחדש.',
+  ),
   'live.marketClosed': p(
     'Connected. The US market is closed, so no trades are printing — the alert still arms and will fire on a crossing once trading resumes.',
     'מחובר. שוק ארה״ב סגור ולכן אין עסקאות — ההתראה עדיין נדרכת ותופעל בחצייה כשהמסחר יתחדש.',
