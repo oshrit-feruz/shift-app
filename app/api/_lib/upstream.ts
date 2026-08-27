@@ -131,6 +131,8 @@ export async function fetchUpstreamJson(
   provider: string,
   route: string,
   fetchImpl: typeof fetch = fetch,
+  /** 'text' for a provider that answers CSV; the body then comes back as a string. */
+  as: 'json' | 'text' = 'json',
 ): Promise<UpstreamResult> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -141,7 +143,7 @@ export async function fetchUpstreamJson(
       return { ok: false, failure: classifyUpstreamStatus(res.status, provider) };
     }
     try {
-      return { ok: true, body: await res.json() };
+      return { ok: true, body: as === 'text' ? await res.text() : await res.json() };
     } catch (err) {
       // An abort firing mid-body-read is a timeout, not a malformed body:
       // the response may have been perfectly valid and simply too slow, so

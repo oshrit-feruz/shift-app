@@ -3,18 +3,6 @@
  * they can be unit-tested without a request/response pair or a mocked fetch.
  */
 
-export interface UpstreamEarning {
-  code?: unknown;
-  report_date?: unknown;
-  date?: unknown;
-  before_after_market?: unknown;
-  currency?: unknown;
-  actual?: unknown;
-  estimate?: unknown;
-  difference?: unknown;
-  percent?: unknown;
-}
-
 export interface EarningsRow {
   /** Bare uppercased ticker, exchange suffix stripped ("AAPL.US" -> "AAPL"). */
   ticker: string;
@@ -56,47 +44,6 @@ export function toNumber(v: unknown): number | null {
     return Number.isFinite(n) ? n : null;
   }
   return null;
-}
-
-/**
- * Map one upstream calendar row.
- *
- * Returns null without a usable ticker or a real report date — those two are
- * what make a row placeable on a calendar at all, and a row that cannot be
- * placed or identified has nothing to render. Every other field is nullable
- * on purpose: a scheduled-but-not-yet-reported quarter genuinely has no
- * `actual`, and a company with no analyst coverage genuinely has no
- * `estimate`. Those render as "—" rather than being filled in.
- */
-export function mapEarning(raw: unknown): EarningsRow | null {
-  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
-  const e = raw as UpstreamEarning;
-
-  const code = typeof e.code === 'string' ? e.code.trim().split('.')[0].toUpperCase() : '';
-  if (!code || !/^[A-Z0-9-]{1,15}$/.test(code)) return null;
-
-  const reportDate = parseIsoDate(e.report_date);
-  if (!reportDate) return null;
-
-  // Anything we do not recognise becomes null rather than being coerced to a
-  // side — guessing "after the close" for an unknown value would put a real
-  // number next to a made-up fact about when it lands. A lookup rather than
-  // chained ternaries so a new upstream spelling is one line here.
-  const t = typeof e.before_after_market === 'string' ? e.before_after_market.trim().toUpperCase() : '';
-  const TIMINGS: Record<string, 'BMO' | 'AMC'> = {
-    BEFOREMARKET: 'BMO', BMO: 'BMO', AFTERMARKET: 'AMC', AMC: 'AMC',
-  };
-  const timing = TIMINGS[t] ?? null;
-
-  return {
-    ticker: code,
-    reportDate,
-    periodEnd: parseIsoDate(e.date),
-    timing,
-    actual: toNumber(e.actual),
-    estimate: toNumber(e.estimate),
-    surprisePct: toNumber(e.percent),
-  };
 }
 
 /**

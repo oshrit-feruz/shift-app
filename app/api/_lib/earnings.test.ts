@@ -1,20 +1,27 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mapEarning, parseIsoDate, toNumber, validateRange, MAX_RANGE_DAYS } from './earnings.js';
+import { parseIsoDate, toNumber, validateRange, MAX_RANGE_DAYS } from './earnings.js';
 import { createHandler } from '../earnings.js';
 import { itMeetsTheFailureContract, makeRes } from './failureContract.js';
 
-/** Shaped like EODHD's calendar rows. */
-const ROW = {
-  code: 'NVDA.US',
-  report_date: '2026-02-25',
-  date: '2026-01-25',
-  before_after_market: 'AfterMarket',
-  currency: 'USD',
-  actual: 1.24,
-  estimate: 1.18,
-  difference: 0.06,
-  percent: 5.08,
-};
+/** Shaped like Alpha Vantage's EARNINGS_CALENDAR CSV — the market-wide feed. */
+const CSV_HEADER = 'symbol,name,reportDate,fiscalDateEnding,estimate,currency,timeOfTheDay';
+const csvRow = (symbol: string, reportDate: string) =>
+  `${symbol},"${symbol} INCORPORATED",${reportDate},2026-07-31,2.35,USD,post-market`;
+const calendarCsv = (...rows: string[]) => [CSV_HEADER, ...rows].join('\n');
+
+/** Shaped like EARNINGS' quarterlyEarnings — one company's reported quarters. */
+const history = (...rows: Array<{ reportedDate: string; fiscalDateEnding?: string }>) => ({
+  symbol: 'NVDA',
+  quarterlyEarnings: rows.map((r) => ({
+    fiscalDateEnding: r.fiscalDateEnding ?? '2026-07-31',
+    reportedDate: r.reportedDate,
+    reportedEPS: '1.24',
+    estimatedEPS: '1.18',
+    surprise: '0.06',
+    surprisePercentage: '5.08',
+    reportTime: 'post-market',
+  })),
+});
 
 describe('parseIsoDate', () => {
   it('accepts a real calendar date', () => {
@@ -40,57 +47,6 @@ describe('toNumber', () => {
   });
 });
 
-describe('mapEarning', () => {
-  it('maps a full row', () => {
-    expect(mapEarning(ROW)).toEqual({
-      ticker: 'NVDA',
-      reportDate: '2026-02-25',
-      periodEnd: '2026-01-25',
-      timing: 'AMC',
-      actual: 1.24,
-      estimate: 1.18,
-      surprisePct: 5.08,
-    });
-  });
-
-  it('keeps a not-yet-reported quarter, with a null actual', () => {
-    // Scheduled but unreported is the normal state for a future date; it is
-    // not a broken row and must not be dropped.
-    const m = mapEarning({ ...ROW, actual: null, percent: null, report_date: '2026-11-18' });
-    expect(m?.reportDate).toBe('2026-11-18');
-    expect(m?.actual).toBeNull();
-    expect(m?.estimate).toBe(1.18);
-  });
-
-  it('maps both spellings of the timing field, and nulls an unknown one', () => {
-    expect(mapEarning({ ...ROW, before_after_market: 'BeforeMarket' })?.timing).toBe('BMO');
-    expect(mapEarning({ ...ROW, before_after_market: 'AMC' })?.timing).toBe('AMC');
-    // Guessing a side would put a real number next to an invented fact.
-    for (const v of ['during', '', null, 7]) {
-      expect(mapEarning({ ...ROW, before_after_market: v })?.timing, String(v)).toBeNull();
-    }
-  });
-
-  it('drops a row with no usable ticker or no real report date', () => {
-    for (const bad of [
-      { ...ROW, code: '' },
-      { ...ROW, code: 'A B.US' },
-      { ...ROW, code: null },
-      { ...ROW, report_date: '2026-02-31' },
-      { ...ROW, report_date: null },
-      null,
-      [ROW],
-      'nope',
-    ]) {
-      expect(mapEarning(bad), JSON.stringify(bad)).toBeNull();
-    }
-  });
-
-  it('strips the exchange suffix', () => {
-    expect(mapEarning({ ...ROW, code: 'brk-b.us' })?.ticker).toBe('BRK-B');
-  });
-});
-
 describe('validateRange', () => {
   it('accepts a normal window', () => {
     expect(validateRange('2026-08-24', '2026-08-30')).toBeNull();
@@ -113,12 +69,12 @@ const handler = createHandler(5000);
 const GOOD = { from: '2026-08-24', to: '2026-08-30' };
 
 describe('earnings handler', () => {
-  beforeEach(() => { process.env.EODHD_API_KEY = 'test-key'; });
+  beforeEach(() => { process.env.ALPHAVANTAGE_API_KEY = 'test-key'; });
   afterEach(() => { vi.restoreAllMocks(); });
 
   it('returns mapped rows, sorted by report date, and never leaks the key', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ earnings: [{ ...ROW, report_date: '2026-08-28' }, { ...ROW, code: 'AAPL.US', report_date: '2026-08-25' }] }), { status: 200 }),
+      new Response(calendarCsv(csvRow('NVDA', '2026-08-28'), csvRow('AAPL', '2026-08-25')), { status: 200 }),
     ) as unknown as typeof fetch;
     const res = makeRes();
     await handler({ method: 'GET', query: GOOD }, res);
@@ -128,20 +84,69 @@ describe('earnings handler', () => {
     expect(JSON.stringify(res._body)).not.toContain('test-key');
   });
 
-  it('accepts a bare array as well as the wrapped shape', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify([ROW]), { status: 200 })) as unknown as typeof fetch;
+  // Upstream returns a whole horizon and a whole company history; the caller
+  // asked about a window, so anything outside it is not an answer to the
+  // question and must not be returned as one.
+  it('keeps only the rows inside the requested window', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(
+        calendarCsv(csvRow('IN', '2026-08-25'), csvRow('BEFORE', '2026-08-23'), csvRow('AFTER', '2026-08-31')),
+        { status: 200 },
+      ),
+    ) as unknown as typeof fetch;
     const res = makeRes();
     await handler({ method: 'GET', query: GOOD }, res);
+    expect((res._body as { earnings: Array<{ ticker: string }> }).earnings.map((e) => e.ticker)).toEqual(['IN']);
+  });
+
+  // Company names in this feed carry commas; splitting on "," alone would
+  // shift every later column and put a name where a date belongs.
+  it('reads a quoted company name containing a comma without shifting columns', async () => {
+    const row = 'BRK-B,"BERKSHIRE HATHAWAY, INC",2026-08-26,2026-06-30,4.51,USD,pre-market';
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(calendarCsv(row), { status: 200 })) as unknown as typeof fetch;
+    const res = makeRes();
+    await handler({ method: 'GET', query: GOOD }, res);
+    expect((res._body as { earnings: Array<Record<string, unknown>> }).earnings[0]).toMatchObject({
+      ticker: 'BRK-B', reportDate: '2026-08-26', timing: 'BMO', estimate: 4.51,
+    });
+  });
+
+  it("returns a ticker's reported quarters, with the figures", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(history({ reportedDate: '2026-08-27' })), { status: 200 }),
+    ) as unknown as typeof fetch;
+    const res = makeRes();
+    await handler({ method: 'GET', query: { ...GOOD, ticker: 'nvda' } }, res);
     expect(res._status).toBe(200);
-    expect((res._body as { earnings: unknown[] }).earnings).toHaveLength(1);
+    expect((res._body as { earnings: Array<Record<string, unknown>> }).earnings[0]).toMatchObject({
+      ticker: 'NVDA', reportDate: '2026-08-27', actual: 1.24, estimate: 1.18, surprisePct: 5.08, timing: 'AMC',
+    });
   });
 
   it('treats a window with no reports as a legitimate empty result, not an error', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ earnings: [] }), { status: 200 })) as unknown as typeof fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(calendarCsv(), { status: 200 })) as unknown as typeof fetch;
     const res = makeRes();
     await handler({ method: 'GET', query: GOOD }, res);
     expect(res._status).toBe(200);
     expect((res._body as { earnings: unknown[] }).earnings).toEqual([]);
+  });
+
+  // The provider reports a spent quota with HTTP 200 and a JSON note, on the
+  // CSV route too. Read as a body, that is an empty week — so the app would
+  // answer "nobody reports this week" from a response holding no data at all.
+  it.each([
+    ['a daily quota notice', { Information: 'You have reached the 25 requests per day limit.' }, 'upstream_rate_limited'],
+    ['a throttle note', { Note: 'Thank you for using Alpha Vantage! Our standard API rate limit is...' }, 'upstream_rate_limited'],
+    ['a rejected request', { 'Error Message': 'Invalid API call.' }, 'upstream_error'],
+  ])('reports %s rather than an empty week', async (_label, body, error) => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(body), { status: 200 }),
+    ) as unknown as typeof fetch;
+    const res = makeRes();
+    await handler({ method: 'GET', query: GOOD }, res);
+    expect(res._status).toBe(502);
+    expect(res._body).toMatchObject({ error });
+    expect(res._headers['Cache-Control']).toBeUndefined();
   });
 
   // The same failure contract as /api/news: the calendar sits in specific
@@ -150,18 +155,36 @@ describe('earnings handler', () => {
   // someone retrying a subscription problem.
   itMeetsTheFailureContract(handler, createHandler, GOOD);
 
+  // The mirror of the calendar rule: quarters that all failed to map are a
+  // shape we did not understand, not a company that has never reported.
+  it('refuses to read an all-unusable history as a company with no reports', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ symbol: 'NVDA', quarterlyEarnings: [{ reportedDate: 'sometime' }] }), { status: 200 }),
+    ) as unknown as typeof fetch;
+    const res = makeRes();
+    await handler({ method: 'GET', query: { ...GOOD, ticker: 'NVDA' } }, res);
+    expect(res._status).toBe(502);
+    expect(res._body).toMatchObject({ error: 'bad_response' });
+  });
+
   it('scopes to one ticker when asked, and to the whole market when not', async () => {
     let seen = '';
     globalThis.fetch = vi.fn().mockImplementation((url: URL) => {
       seen = String(url);
-      return Promise.resolve(new Response(JSON.stringify({ earnings: [] }), { status: 200 }));
+      return Promise.resolve(
+        String(url).includes('EARNINGS_CALENDAR')
+          ? new Response(calendarCsv(), { status: 200 })
+          : new Response(JSON.stringify(history()), { status: 200 }),
+      );
     }) as unknown as typeof fetch;
 
     await handler({ method: 'GET', query: { ...GOOD, ticker: 'nvda' } }, makeRes());
-    expect(seen).toContain('symbols=NVDA.US');
+    expect(seen).toContain('function=EARNINGS&');
+    expect(seen).toContain('symbol=NVDA');
 
     await handler({ method: 'GET', query: GOOD }, makeRes());
-    expect(seen).not.toContain('symbols=');
+    expect(seen).toContain('function=EARNINGS_CALENDAR');
+    expect(seen).not.toContain('symbol=');
   });
 
   it.each([
@@ -184,15 +207,12 @@ describe('earnings handler', () => {
   });
 
   it('reports truncation instead of silently dropping the tail of a week', async () => {
-    // EODHD's calendar has no pagination and returns every row in the range;
-    // their docs put a year near 120,000, so a market week runs to thousands.
-    // A bound is right for a mobile client — a silent one is not, because the
+    // The feed has no pagination and returns its whole horizon at once. A
+    // bound is right for a mobile client — a silent one is not, because the
     // caller would treat a partial week as the whole week.
-    const many = Array.from({ length: 450 }, (_, i) => ({
-      ...ROW, code: `T${i}.US`, report_date: '2026-08-25',
-    }));
+    const many = Array.from({ length: 450 }, (_, i) => csvRow(`T${i}`, '2026-08-25'));
     globalThis.fetch = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ earnings: many }), { status: 200 }),
+      new Response(calendarCsv(...many), { status: 200 }),
     ) as unknown as typeof fetch;
     const res = makeRes();
     await handler({ method: 'GET', query: GOOD }, res);
@@ -204,7 +224,7 @@ describe('earnings handler', () => {
 
   it('reports truncated:false when everything fit', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ earnings: [ROW] }), { status: 200 }),
+      new Response(calendarCsv(csvRow('NVDA', '2026-08-25')), { status: 200 }),
     ) as unknown as typeof fetch;
     const res = makeRes();
     await handler({ method: 'GET', query: GOOD }, res);
@@ -239,16 +259,18 @@ describe('earnings handler', () => {
   });
 
   it('caches a success and never a failure', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ earnings: [] }), { status: 200 })) as unknown as typeof fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(calendarCsv(), { status: 200 })) as unknown as typeof fetch;
     const okRes = makeRes();
     await handler({ method: 'GET', query: GOOD }, okRes);
-    expect(okRes._headers['Cache-Control']).toBe('public, max-age=0, s-maxage=900');
+    // Six hours: the free key allows only tens of requests a day, so a short
+    // TTL would spend the quota on freshness nobody can perceive.
+    expect(okRes._headers['Cache-Control']).toBe('public, max-age=0, s-maxage=21600');
 
     for (const f of [
       () => vi.fn().mockResolvedValue(new Response('nope', { status: 503 })),
       () => vi.fn().mockRejectedValue(new Error('boom')),
-      () => vi.fn().mockResolvedValue(new Response('not json', { status: 200 })),
-      () => vi.fn().mockResolvedValue(new Response(JSON.stringify({ nope: true }), { status: 200 })),
+      () => vi.fn().mockResolvedValue(new Response('', { status: 200 })),
+      () => vi.fn().mockResolvedValue(new Response('nothing,like,a,calendar', { status: 200 })),
     ]) {
       globalThis.fetch = f() as unknown as typeof fetch;
       const errRes = makeRes();
@@ -260,7 +282,7 @@ describe('earnings handler', () => {
   });
 
   it('reports misconfiguration without calling upstream', async () => {
-    delete process.env.EODHD_API_KEY;
+    delete process.env.ALPHAVANTAGE_API_KEY;
     const spy = vi.fn();
     globalThis.fetch = spy as unknown as typeof fetch;
     const res = makeRes();

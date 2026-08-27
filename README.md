@@ -218,10 +218,10 @@ Both were caught by looking at the rendered screen, not by a passing test.
 | --- | --- | --- |
 | News screen · הכול / שווקים / אנליסטים | `/api/news` with **no** ticker — EODHD's general market feed | 5 credits |
 | News screen · הווטצ׳ליסט שלי | `/api/news?ticker=` once per followed stock | 10 credits × watchlist size |
-| News screen · דוחות כספיים | `/api/earnings?from=&to=` — this calendar week | 1 credit |
+| News screen · דוחות כספיים | `/api/earnings?from=&to=` — this calendar week | 1 Alpha Vantage call |
 | Stock page · חדשות | `/api/news?ticker=` | 10 credits |
 | Stock page · דוחות (filed revenue) | engine `/api/stock/{ticker}/fundamentals` | — |
-| Stock page · רבעונים שדווחו | `/api/earnings?ticker=&from=&to=` — 12 quarters | 1 credit |
+| Stock page · רבעונים שדווחו | `/api/earnings?ticker=&from=&to=` — 12 quarters | 1 Alpha Vantage call |
 | Satellite card | the daily mirror in this repo | none |
 
 The general feed is why the browsable news screen is cheap: EODHD's `s`
@@ -245,32 +245,66 @@ re-introducing the full text the proxy exists to avoid.
 
 ### Earnings calendar (`app/api/earnings.ts`)
 
-Proxies EODHD's calendar so the key stays server-side. One endpoint answers
-two questions — the whole market in a window, or one ticker's history — and
-upstream charges **one credit per request** regardless of how many rows come
-back, which is why a full week of the market costs the same as one stock.
+Proxies **Alpha Vantage** so the key stays server-side. One route answers two
+questions from two upstream functions: `EARNINGS_CALENDAR` for the whole
+market in a window, `EARNINGS` for one company's reported quarters. Neither
+takes a date range — one returns a fixed horizon, the other a whole history —
+so the window is applied after mapping, in the function.
 
-It is also the only way to get a stock's **past** results: the engine's
-fundamentals route takes no period parameter and returns only the newest
-filing. `actual` is null for a quarter that has not been reported yet — shown
-as scheduled rather than hidden, since "when is the next report" is part of
-what the card answers.
+**Why not EODHD, which serves the news feed.** Its calendar and fundamentals
+endpoints both answer `403` on this account's key: the Calendar API is in
+EODHD's ALL-IN-ONE plan ($99.99/mo) and earnings history sits inside the
+Fundamentals feed ($59.99/mo), while this key covers the News API. Alpha
+Vantage answers both on a free key — verified against their live API before
+the switch: 122 quarters for IBM with actual, estimate and surprise, and
+~1,570 scheduled reports for a three-month horizon. The route's response
+shape is unchanged, so the client was untouched by the switch and switching
+back is this file plus its adapter.
 
-The client window is **derived** from the endpoint's own `MAX_RANGE_DAYS`
-rather than hand-written twice (`app/src/data/earnings.ts`): EODHD 500s on
-very wide ranges, the function refuses them with a 400, and a client asking
-for one would get nothing at all. A test asserts the two stay in agreement —
-the same publisher/reader discipline the screener mirror uses.
+**One honest difference, stated on screen.** `EARNINGS_CALENDAR` lists only
+reports that have **not happened yet**, so the week calendar shows who is due
+to report and carries no `actual` for a company that already has. The
+calendar says so above the week rather than leaving a reader to conclude the
+app thinks Monday's reporter is still pending. Per-stock history is
+unaffected — `EARNINGS` carries the reported figures.
+
+**Two traps this provider sets, both handled:**
+
+1. It reports its own failures with **HTTP 200** and a JSON body carrying
+   `Information`, `Note` or `Error Message` — including on the CSV route. A
+   caller that checks only the status reads a spent quota as an empty week.
+   `readApiError()` runs before anything is mapped, and a quota notice
+   becomes `upstream_rate_limited`.
+2. When it rejects a key on the CSV route it answers the **real header plus
+   one junk line**, which parses cleanly to zero rows. Found by calling the
+   live API, not by reading docs. Data lines that *all* fail to map are now
+   an unreadable body, never an empty week; a header with no data lines is
+   still a legitimate quiet week.
+
+The free key allows only tens of requests a day, which is why the successful
+response carries `s-maxage=21600` (six hours) rather than the news route's
+minute: a scheduled report date does not move between two page loads, and a
+short TTL would spend the day's quota on freshness nobody can perceive and
+then start answering "quota reached" to real readers.
 
 The calendar week is anchored **Monday–Sunday**, not "the next seven days",
 so the day strip reads as a calendar week instead of sliding forward daily.
+The client's history window is **derived** from the endpoint's own
+`MAX_RANGE_DAYS` rather than hand-written twice
+(`app/src/data/earnings.ts`), with a test asserting the two stay in
+agreement — the same publisher/reader discipline the screener mirror uses.
 
-**Required environment variable:** `EODHD_API_KEY` — the account's EODHD API
-key, added in the Vercel dashboard under **Project → Settings → Environment
-Variables**, scoped to Production, Preview, and Development so PR previews
-and local `vercel dev` also work. It is read only server-side
-(`process.env.EODHD_API_KEY`); it must never be given a `VITE_` prefix, which
-would bundle it into the client build.
+**Required environment variables**, both added in the Vercel dashboard under
+**Project → Settings → Environment Variables**, scoped to Production,
+Preview, and Development so PR previews and local `vercel dev` also work:
+
+| Variable | Used by |
+| --- | --- |
+| `EODHD_API_KEY` | `/api/news` — the news feed |
+| `ALPHAVANTAGE_API_KEY` | `/api/earnings` — the calendar and per-stock history |
+
+Both are read only server-side and neither may be given a `VITE_` prefix,
+which would bundle it into the client build.
 
 Pure request/response mapping lives in `app/api/_lib/news.ts` (unit-tested in
 `news.test.ts`) so it doesn't require mocking global `fetch` or a Vercel

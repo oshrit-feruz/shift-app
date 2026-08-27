@@ -123,6 +123,15 @@ export function CalendarTab({ watchlist }: { watchlist: string[] }) {
               </ChipRail>
             )}
 
+            {/* The provider's market-wide feed carries only reports that
+                have not happened yet. Left unsaid, a reader who knows a
+                company reported on Monday would read its absence — or a
+                "scheduled" row — as the app being wrong rather than the feed
+                being forward-looking. */}
+            <span className="text-muted" style={{ fontSize: 12.5, padding: '0 2px' }}>
+              {t('earn.scheduledOnly')}
+            </span>
+
             {/* Say it plainly when the endpoint had more than it sent: a
                 partial week rendered as the whole week is the quiet kind of
                 inaccuracy this app exists to avoid. */}

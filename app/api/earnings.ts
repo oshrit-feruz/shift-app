@@ -1,9 +1,22 @@
-import { isValidTicker, resolveSymbol } from './_lib/news.js';
-import { mapEarning, parseIsoDate, validateRange, type EarningsRow } from './_lib/earnings.js';
+import { isValidTicker } from './_lib/news.js';
+import { parseIsoDate, validateRange, type EarningsRow } from './_lib/earnings.js';
+import {
+  mapHistoryRow,
+  parseCalendarCsv,
+  readApiError,
+  withinRange,
+} from './_lib/alphavantage.js';
 import { failureBody, fetchUpstreamJson } from './_lib/upstream.js';
 import { type ApiRequest, type ApiResponse } from './_lib/http.js';
 
-const EODHD_CALENDAR_URL = 'https://eodhd.com/api/calendar/earnings';
+const ALPHAVANTAGE_URL = 'https://www.alphavantage.co/query';
+/**
+ * How far ahead the market-wide calendar looks. The feed offers 3, 6 and 12
+ * months for the same single request, and the response is filtered to the
+ * caller's window anyway, so the shortest horizon that always covers a
+ * requested week is the one that keeps the payload smallest.
+ */
+const CALENDAR_HORIZON = '3month';
 /**
  * Upstream budget, wider than the news route's: a market-wide week is
  * thousands of rows in one uncompressed JSON body, and the platform limit in
@@ -14,9 +27,9 @@ const DEFAULT_UPSTREAM_TIMEOUT_MS = 20_000;
 /**
  * Upper bound on rows returned in one response.
  *
- * EODHD's calendar has no pagination and returns every record in the range —
- * their own docs put a full year at roughly 120,000 rows, so a market-wide
- * week is on the order of a couple of thousand. A bound is therefore right
+ * The calendar feed has no pagination and returns its whole horizon in one
+ * response — around 1,500 rows for three months, of which a single week is a
+ * few hundred at reporting-season peak. A bound is therefore right
  * for a mobile client, but a SILENT one is not: dropping the tail of a week
  * while answering 200 tells the caller it has the whole week when it does
  * not. The response says when it truncated and how many rows existed, and
@@ -24,38 +37,60 @@ const DEFAULT_UPSTREAM_TIMEOUT_MS = 20_000;
  */
 const MAX_ROWS = 400;
 
+/** Parse text that should be JSON, without throwing. Null when it is not. */
+function safeJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
 /**
- * EODHD wraps the rows in { earnings: [...] }; a bare array is tolerated too,
- * since a shape we half-recognise is better handled explicitly than assumed.
- * Null means "not a shape we understand", which the caller reports rather
- * than treating as an empty week.
+ * The market-wide calendar, from the CSV body. Null means "not a shape we
+ * understand", which the caller reports rather than treating as a quiet week.
  */
-function extractRows(body: unknown): unknown[] | null {
-  if (Array.isArray(body)) return body;
+function readCalendar(body: unknown): EarningsRow[] | null {
+  return typeof body === 'string' ? parseCalendarCsv(body) : null;
+}
+
+/**
+ * One company's reported quarters, from EARNINGS' quarterlyEarnings array.
+ * A body without that array is unreadable, not an empty history.
+ */
+function readHistory(body: unknown, ticker: string): EarningsRow[] | null {
   if (typeof body !== 'object' || body === null) return null;
-  const wrapped = (body as Record<string, unknown>).earnings;
-  return Array.isArray(wrapped) ? wrapped : null;
+  const rows = (body as Record<string, unknown>).quarterlyEarnings;
+  if (!Array.isArray(rows)) return null;
+  const mapped = rows.map((r) => mapHistoryRow(ticker, r)).filter((e): e is EarningsRow => e !== null);
+  // Same rule as the calendar: quarters that all failed to map mean a shape
+  // we did not understand, not a company that has never reported.
+  return mapped.length === 0 && rows.length > 0 ? null : mapped;
 }
 
 /**
  * Builds the handler with an injectable upstream timeout (see api/news.ts for
  * why). The default export is this with the real budget.
  *
- * Proxies EODHD's earnings-calendar API so the key stays server-side. Two
- * shapes of question, same endpoint, because upstream answers both from one
- * route:
- *   /api/earnings?from=&to=              -> every company reporting in a window
- *   /api/earnings?ticker=NVDA&from=&to=  -> one company's reports in a window
+ * Proxies Alpha Vantage's earnings data so the key stays server-side. Two
+ * shapes of question, answered by two upstream functions behind one route:
+ *   /api/earnings?from=&to=              -> every company due to report in a window
+ *   /api/earnings?ticker=NVDA&from=&to=  -> one company's reported quarters
  *
- * The second is how a stock's PAST results are read: the calendar carries
- * history as well as scheduled reports, with `actual` filled in once a
- * quarter has been reported and null before that. The engine's own
- * fundamentals route cannot answer this — it takes no period parameter and
- * returns only the newest filing.
+ * The second is how a stock's PAST results are read; the engine's own
+ * fundamentals route cannot answer it, taking no period parameter and
+ * returning only the newest filing.
  *
- * Cheap by comparison with the news feed: upstream charges one API credit per
- * request here regardless of how many rows come back, which is why a whole
- * week of the market costs the same as one ticker.
+ * The route's response shape is unchanged from when EODHD served it, so the
+ * whole client is untouched by the switch — and switching back, if that key
+ * ever covers the Calendar API, is this file and its adapter.
+ *
+ * ONE HONEST DIFFERENCE, carried rather than hidden: the market-wide feed
+ * lists only reports that have not happened yet, so a week's calendar shows
+ * who is DUE to report and no `actual` for anyone who already has. Per-stock
+ * history is unaffected. The UI says so on the calendar rather than leaving
+ * a reader to infer that a company which reported on Monday is still
+ * pending.
  *
  * Data-honesty contract, as everywhere else in this app: any failure returns
  * an error status for the frontend to render as "unavailable" — never stale
@@ -108,44 +143,73 @@ export function createHandler(timeoutMs: number) {
         .json({ error: 'invalid_range', message: 'The date range is inverted or wider than this endpoint allows.' });
     }
 
-    const apiKey = process.env.EODHD_API_KEY;
+    const apiKey = process.env.ALPHAVANTAGE_API_KEY;
     if (!apiKey) {
-      console.error('/api/earnings: EODHD_API_KEY is not set');
+      console.error('/api/earnings: ALPHAVANTAGE_API_KEY is not set');
       return res.status(500).json({ error: 'not_configured', message: 'Earnings service is not configured.' });
     }
 
-    const upstreamUrl = new URL(EODHD_CALENDAR_URL);
-    upstreamUrl.searchParams.set('api_token', apiKey);
-    upstreamUrl.searchParams.set('fmt', 'json');
-    upstreamUrl.searchParams.set('from', from as string);
-    upstreamUrl.searchParams.set('to', to as string);
-    if (ticker !== null) upstreamUrl.searchParams.set('symbols', resolveSymbol(ticker.toUpperCase()));
+    // Two upstream questions, two functions. Neither takes a date range —
+    // EARNINGS returns a company's whole history and EARNINGS_CALENDAR a
+    // fixed horizon — so the window is applied here, after mapping.
+    const upstreamUrl = new URL(ALPHAVANTAGE_URL);
+    upstreamUrl.searchParams.set('apikey', apiKey);
+    if (ticker !== null) {
+      upstreamUrl.searchParams.set('function', 'EARNINGS');
+      upstreamUrl.searchParams.set('symbol', ticker.toUpperCase());
+    } else {
+      upstreamUrl.searchParams.set('function', 'EARNINGS_CALENDAR');
+      upstreamUrl.searchParams.set('horizon', CALENDAR_HORIZON);
+    }
 
-    const result = await fetchUpstreamJson(upstreamUrl, timeoutMs, 'earnings', '/api/earnings');
+    // The calendar answers CSV; the per-company history answers JSON.
+    const result = await fetchUpstreamJson(
+      upstreamUrl,
+      timeoutMs,
+      'earnings',
+      '/api/earnings',
+      fetch,
+      ticker === null ? 'text' : 'json',
+    );
     if (!result.ok) return res.status(result.failure.status).json(failureBody(result.failure));
-    const body = result.body;
 
-    const rows = extractRows(body);
-    if (rows === null) {
+    // Alpha Vantage reports its own failures with HTTP 200 and a JSON body,
+    // including on the CSV route — so a spent daily quota looks exactly like
+    // a successful empty week unless it is read first. Answering "no reports"
+    // to a quota error would be this app's worst failure mode: a confident
+    // claim made from a response that contained no data at all.
+    const notice = readApiError(typeof result.body === 'string' ? safeJson(result.body) : result.body);
+    if (notice !== null) {
+      console.error(`/api/earnings: provider notice (${notice.kind}): ${notice.detail}`);
+      const failure =
+        notice.kind === 'rate_limited'
+          ? { error: 'upstream_rate_limited', message: "The earnings provider's request quota has been reached." }
+          : { error: 'upstream_error', message: 'The earnings provider refused the request.' };
+      return res.status(502).json(failure);
+    }
+
+    const mapped = ticker === null ? readCalendar(result.body) : readHistory(result.body, ticker.toUpperCase());
+    if (mapped === null) {
       console.error('/api/earnings: upstream response had an unexpected shape');
       return res
         .status(502)
         .json({ error: 'bad_response', message: 'The earnings provider returned an unexpected shape.' });
     }
 
-    const all: EarningsRow[] = rows
-      .map(mapEarning)
-      .filter((e): e is EarningsRow => e !== null)
-      .sort((a, b) => a.reportDate.localeCompare(b.reportDate));
+    const all: EarningsRow[] = withinRange(mapped, from as string, to as string).sort((a, b) =>
+      a.reportDate.localeCompare(b.reportDate),
+    );
     const earnings = all.slice(0, MAX_ROWS);
     const truncated = all.length > earnings.length;
 
     // Success only, like /api/news — an error must never be frozen and served
-    // for the TTL. Longer than the news TTL because a calendar changes on the
-    // scale of hours, not minutes: a scheduled report date does not move
-    // between two page loads, so a shorter window would spend quota for no
-    // freshness anyone can perceive.
-    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=900');
+    // for the TTL. Six hours rather than the news route's minute, for two
+    // reasons that point the same way: a scheduled report date does not move
+    // between two page loads, and the free provider key allows only tens of
+    // requests a day, so a short TTL would spend the day's quota on freshness
+    // nobody can perceive and then start answering "quota reached" to real
+    // readers.
+    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=21600');
     return res.status(200).json({
       ticker: ticker === null ? null : ticker.toUpperCase(),
       from,

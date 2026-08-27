@@ -385,6 +385,13 @@ export const STRINGS = {
     'אף אחד מהדוחות המוצגים לא תואם — אבל השבוע נטען רק חלקית, ייתכן שיש נוספים.',
   ),
   'earn.weekEmpty': p('No companies report this week.', 'אין חברות שמדווחות השבוע.'),
+  // The market-wide feed lists only reports that have not happened yet, so a
+  // reader who sees a company they know reported on Monday must not conclude
+  // the app thinks it is still pending. Said plainly, once, above the week.
+  'earn.scheduledOnly': p(
+    'This calendar lists scheduled reports. Results that have already been published appear on each stock’s page.',
+    'היומן מציג דוחות מתוזמנים. תוצאות שכבר פורסמו מופיעות בדף של כל מניה.',
+  ),
   'stock.nextEarn': p('Next earnings', 'הדוח הבא'),
   'stock.nov': p('Nov', 'נוב׳'),
   'stock.chartHelp': p(
