@@ -19,9 +19,14 @@ interface ApiResponse {
 
 const EODHD_NEWS_URL = 'https://eodhd.com/api/news';
 const MAX_ARTICLES = 10;
-const UPSTREAM_TIMEOUT_MS = 10_000;
+const DEFAULT_UPSTREAM_TIMEOUT_MS = 10_000;
 
 /**
+ * Builds the handler with an injectable upstream timeout, so a test can
+ * exercise a stalled-body timeout in milliseconds instead of waiting out the
+ * real 10s budget. The default export below — what Vercel actually calls in
+ * production — is just this with the real timeout.
+ *
  * Proxies EODHD's News API so the API key never reaches the browser: it's
  * read from the server-only EODHD_API_KEY environment variable and never
  * placed in a VITE_-prefixed variable or any response body.
@@ -35,70 +40,81 @@ const UPSTREAM_TIMEOUT_MS = 10_000;
  * than 5 recent articles for a ticker, that shorter real list is returned
  * as-is rather than padded out to a minimum count.
  */
-export default async function handler(req: ApiRequest, res: ApiResponse) {
-  if (req.method !== 'GET') {
-    res.setHeader('Allow', 'GET');
-    return res.status(405).json({ error: 'method_not_allowed', message: 'Use GET.' });
-  }
+export function createHandler(timeoutMs: number) {
+  return async function handler(req: ApiRequest, res: ApiResponse) {
+    if (req.method !== 'GET') {
+      res.setHeader('Allow', 'GET');
+      return res.status(405).json({ error: 'method_not_allowed', message: 'Use GET.' });
+    }
 
-  const tickerParam = req.query.ticker;
-  const ticker = (Array.isArray(tickerParam) ? tickerParam[0] : tickerParam)?.trim();
-  if (!ticker) {
-    return res.status(400).json({ error: 'missing_ticker', message: 'Query param "ticker" is required.' });
-  }
-  if (!isValidTicker(ticker)) {
-    return res.status(400).json({ error: 'invalid_ticker', message: 'Ticker contains unsupported characters.' });
-  }
+    const tickerParam = req.query.ticker;
+    const ticker = (Array.isArray(tickerParam) ? tickerParam[0] : tickerParam)?.trim();
+    if (!ticker) {
+      return res.status(400).json({ error: 'missing_ticker', message: 'Query param "ticker" is required.' });
+    }
+    if (!isValidTicker(ticker)) {
+      return res.status(400).json({ error: 'invalid_ticker', message: 'Ticker contains unsupported characters.' });
+    }
 
-  const apiKey = process.env.EODHD_API_KEY;
-  if (!apiKey) {
-    // A deploy/config problem, not a caller error — logged for us, generic for callers.
-    console.error('/api/news: EODHD_API_KEY is not set');
-    return res.status(500).json({ error: 'not_configured', message: 'News service is not configured.' });
-  }
+    const apiKey = process.env.EODHD_API_KEY;
+    if (!apiKey) {
+      // A deploy/config problem, not a caller error — logged for us, generic for callers.
+      console.error('/api/news: EODHD_API_KEY is not set');
+      return res.status(500).json({ error: 'not_configured', message: 'News service is not configured.' });
+    }
 
-  const upstreamUrl = new URL(EODHD_NEWS_URL);
-  upstreamUrl.searchParams.set('s', resolveSymbol(ticker.toUpperCase()));
-  upstreamUrl.searchParams.set('api_token', apiKey);
-  upstreamUrl.searchParams.set('fmt', 'json');
-  upstreamUrl.searchParams.set('limit', String(MAX_ARTICLES));
+    const upstreamUrl = new URL(EODHD_NEWS_URL);
+    upstreamUrl.searchParams.set('s', resolveSymbol(ticker.toUpperCase()));
+    upstreamUrl.searchParams.set('api_token', apiKey);
+    upstreamUrl.searchParams.set('fmt', 'json');
+    upstreamUrl.searchParams.set('limit', String(MAX_ARTICLES));
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
-  let upstreamRes: Response;
-  try {
-    upstreamRes = await fetch(upstreamUrl, { signal: controller.signal });
-  } catch (err) {
-    console.error('/api/news: upstream fetch failed:', err);
-    return res.status(502).json({ error: 'upstream_unavailable', message: 'Could not reach the news provider.' });
-  } finally {
-    clearTimeout(timeout);
-  }
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    // The timeout must stay active through body parsing, not just until
+    // fetch() resolves: fetch() can resolve as soon as headers arrive, while
+    // the body is still streaming in. Clearing the timer any earlier would
+    // let a stalled body hang well past timeoutMs — so upstreamRes.json() is
+    // inside the same try, and the timer is only cleared in the outer finally.
+    let body: unknown = null;
+    try {
+      const upstreamRes = await fetch(upstreamUrl, { signal: controller.signal });
+      if (!upstreamRes.ok) {
+        console.error(`/api/news: upstream returned ${upstreamRes.status}`);
+        return res.status(502).json({ error: 'upstream_error', message: 'The news provider returned an error.' });
+      }
+      try {
+        body = await upstreamRes.json();
+      } catch (err) {
+        // Covers both malformed JSON and an abort firing mid-body-read — either
+        // way the upstream response couldn't be read, which is what this
+        // status is for.
+        console.error('/api/news: upstream response was not valid JSON:', err);
+        return res
+          .status(502)
+          .json({ error: 'bad_response', message: 'The news provider returned an unreadable response.' });
+      }
+    } catch (err) {
+      console.error('/api/news: upstream fetch failed:', err);
+      return res.status(502).json({ error: 'upstream_unavailable', message: 'Could not reach the news provider.' });
+    } finally {
+      clearTimeout(timeout);
+    }
 
-  if (!upstreamRes.ok) {
-    console.error(`/api/news: upstream returned ${upstreamRes.status}`);
-    return res.status(502).json({ error: 'upstream_error', message: 'The news provider returned an error.' });
-  }
+    if (!Array.isArray(body)) {
+      console.error('/api/news: upstream response was not an array');
+      return res
+        .status(502)
+        .json({ error: 'bad_response', message: 'The news provider returned an unexpected shape.' });
+    }
 
-  let body: unknown;
-  try {
-    body = await upstreamRes.json();
-  } catch (err) {
-    console.error('/api/news: upstream response was not valid JSON:', err);
-    return res
-      .status(502)
-      .json({ error: 'bad_response', message: 'The news provider returned an unreadable response.' });
-  }
+    const articles: NewsArticle[] = body
+      .map(mapArticle)
+      .filter((a): a is NewsArticle => a !== null)
+      .slice(0, MAX_ARTICLES);
 
-  if (!Array.isArray(body)) {
-    console.error('/api/news: upstream response was not an array');
-    return res.status(502).json({ error: 'bad_response', message: 'The news provider returned an unexpected shape.' });
-  }
-
-  const articles: NewsArticle[] = body
-    .map(mapArticle)
-    .filter((a): a is NewsArticle => a !== null)
-    .slice(0, MAX_ARTICLES);
-
-  return res.status(200).json({ ticker: ticker.toUpperCase(), articles });
+    return res.status(200).json({ ticker: ticker.toUpperCase(), articles });
+  };
 }
+
+export default createHandler(DEFAULT_UPSTREAM_TIMEOUT_MS);

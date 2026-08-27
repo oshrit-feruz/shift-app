@@ -17,11 +17,11 @@ describe('summarize', () => {
     expect(summarize('<p>Hello   <b>world</b>.</p>')).toBe('Hello world.');
   });
 
-  it('hard-caps very long content with a trailing ellipsis', () => {
+  it('hard-caps very long content at 280 chars including the ellipsis', () => {
     const long = 'word '.repeat(100) + '.';
     const s = summarize(long);
     expect(s.endsWith('…')).toBe(true);
-    expect(s.length).toBeLessThanOrEqual(281);
+    expect(s.length).toBeLessThanOrEqual(280);
   });
 });
 
@@ -70,6 +70,17 @@ describe('mapArticle', () => {
 
   it('drops a row with no link rather than inventing one', () => {
     expect(mapArticle({ title: 'Headline only' })).toBeNull();
+  });
+
+  it('drops a row whose link is not a real http(s) URL', () => {
+    expect(mapArticle({ title: 'Headline', link: 'not a url' })).toBeNull();
+    expect(mapArticle({ title: 'Headline', link: 'javascript:alert(1)' })).toBeNull();
+    expect(mapArticle({ title: 'Headline', link: '/relative/path' })).toBeNull();
+    expect(mapArticle({ title: 'Headline', link: 'ftp://example.com/a' })).toBeNull();
+  });
+
+  it('accepts a well-formed http (not just https) URL', () => {
+    expect(mapArticle({ title: 'Headline', link: 'http://example.com/a' })?.url).toBe('http://example.com/a');
   });
 
   it('drops non-object rows', () => {

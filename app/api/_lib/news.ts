@@ -56,7 +56,9 @@ export function summarize(content: string | null): string {
     .map((s) => s.trim())
     .join(' ');
   if (out.length > SUMMARY_MAX_CHARS) {
-    out = out.slice(0, SUMMARY_MAX_CHARS).replace(/\s+\S*$/, '').trim() + '…';
+    // Reserve one character for the ellipsis so the result never exceeds
+    // SUMMARY_MAX_CHARS overall.
+    out = out.slice(0, SUMMARY_MAX_CHARS - 1).replace(/\s+\S*$/, '').trim() + '…';
   }
   return out;
 }
@@ -79,17 +81,29 @@ export function deriveSource(a: UpstreamArticle, url: string | null): string {
   return 'Unknown';
 }
 
+/** True only for a well-formed http(s) URL — never a relative path, javascript:, or other scheme. */
+function isHttpUrl(u: string): boolean {
+  try {
+    const parsed = new URL(u);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Maps one raw EODHD news item to the shape /api/news returns. A row missing
- * a headline or link is dropped rather than filled in with a placeholder —
- * a malformed upstream entry is skipped, never invented.
+ * a headline, missing a link, or whose link isn't a real http(s) URL is
+ * dropped rather than filled in with a placeholder or forwarded as-is — a
+ * malformed or unsafe upstream entry is skipped, never invented or passed
+ * through unchecked to the frontend (which renders it as a clickable link).
  */
 export function mapArticle(raw: unknown): NewsArticle | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const a = raw as UpstreamArticle;
   const headline = firstString(a.title, a.headline);
   const url = firstString(a.link, a.url);
-  if (!headline || !url) return null;
+  if (!headline || !url || !isHttpUrl(url)) return null;
   const publishedAt = firstString(a.date, a.published_at, a.pubDate) ?? '';
   const summary = summarize(firstString(a.content));
   return { headline, source: deriveSource(a, url), publishedAt, summary, url };
