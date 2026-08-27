@@ -365,6 +365,7 @@ export const STRINGS = {
   'stock.epsEst': p('est.', 'צפי'),
   'stock.beat': p('beat', 'מעל הצפי'),
   'stock.miss': p('miss', 'מתחת לצפי'),
+  'stock.inline': p('in line', 'בדיוק כצפי'),
   'news.feedEmpty': p('No market news right now.', 'אין חדשות שוק כרגע.'),
   'news.watchlistEmpty': p(
     'No recent news for the stocks you follow.',
@@ -378,6 +379,10 @@ export const STRINGS = {
   'earn.truncated': p(
     'Showing {shown} of {total} reports this week.',
     'מוצגים {shown} מתוך {total} דוחות השבוע.',
+  ),
+  'earn.noneInShown': p(
+    'None of the reports shown match — but this week is only partly loaded, so there may be others.',
+    'אף אחד מהדוחות המוצגים לא תואם — אבל השבוע נטען רק חלקית, ייתכן שיש נוספים.',
   ),
   'earn.weekEmpty': p('No companies report this week.', 'אין חברות שמדווחות השבוע.'),
   'stock.nextEarn': p('Next earnings', 'הדוח הבא'),

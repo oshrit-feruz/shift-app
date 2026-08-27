@@ -135,7 +135,11 @@ export function CalendarTab({ watchlist }: { watchlist: string[] }) {
 
             {shown.length === 0 ? (
               <Card padding={12} gap={8}>
-                <EmptyState>{t(onlyWatchlist ? 'earn.noneMatch' : 'earn.weekEmpty')}</EmptyState>
+                {/* "Nothing matches" is a claim about the whole week, and it
+                    is only ours to make when we have the whole week. On a
+                    truncated response a watched ticker may sit in the rows
+                    that were dropped, so say what is actually known. */}
+                <EmptyState>{t(emptyMessageKey(onlyWatchlist, page.truncated))}</EmptyState>
               </Card>
             ) : (
               shown.map(([d, events]) => (
@@ -154,6 +158,22 @@ export function CalendarTab({ watchlist }: { watchlist: string[] }) {
       }}
     </DataState>
   );
+}
+
+/**
+ * Which empty state is honest here.
+ *
+ * The filtered-to-nothing case depends on whether the week is complete: with
+ * every row in hand, "no match" is a fact; with a truncated response it is a
+ * guess dressed as one, because the ticker may be in the rows that were
+ * dropped.
+ */
+export function emptyMessageKey(
+  onlyWatchlist: boolean,
+  truncated: boolean,
+): 'earn.noneMatch' | 'earn.noneInShown' | 'earn.weekEmpty' {
+  if (!onlyWatchlist) return 'earn.weekEmpty';
+  return truncated ? 'earn.noneInShown' : 'earn.noneMatch';
 }
 
 /** Short weekday name for a bare YYYY-MM-DD, formatted in UTC so it does not

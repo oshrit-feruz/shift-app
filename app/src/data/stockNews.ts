@@ -48,22 +48,43 @@ function str(v: unknown): string | null {
  * impossible dates, so shape alone is not enough.
  */
 function validTimestamp(raw: string): string {
-  // Anchored at BOTH ends: matching only the prefix let "2026-08-26T99:00:00Z"
-  // and "2026-08-26junk" through. The rendered label only uses the date part,
-  // so a bad time would not show — but publishedAt is also the reverse-chron
-  // sort key, and an impossible hour sorts above every real one.
-  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/.exec(
-    raw.trim(),
-  );
+  // Split date from time rather than expressing the whole grammar as one
+  // pattern. The single-regex version was both incomplete — it let "+24:00"
+  // and "+03:60" through, since only the local clock fields were checked —
+  // and complex enough that Sonar flagged it. Two small patterns plus
+  // numeric range checks are easier to be sure about than one large one.
+  const text = raw.trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})(.*)$/.exec(text);
   if (!m) return '';
-  const [, y, mo, d, hh, mm, ss] = m;
-  if (Number(hh ?? 0) > 23 || Number(mm ?? 0) > 59 || Number(ss ?? 0) > 60) return '';
+  const [, y, mo, d, rest] = m;
+
   const back = new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d)));
-  return back.getUTCFullYear() === Number(y) &&
-    back.getUTCMonth() === Number(mo) - 1 &&
-    back.getUTCDate() === Number(d)
-    ? raw
-    : '';
+  // Round-trip guard: Date.UTC silently normalises impossible dates.
+  if (
+    back.getUTCFullYear() !== Number(y) ||
+    back.getUTCMonth() !== Number(mo) - 1 ||
+    back.getUTCDate() !== Number(d)
+  ) {
+    return '';
+  }
+
+  // Date only is a legitimate provider format.
+  if (rest === '') return raw;
+
+  const t = /^[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/.exec(rest);
+  if (!t) return '';
+  const [, hh, mm, ss, zone] = t;
+  // 60 seconds is allowed: a real leap second, which providers do emit.
+  if (Number(hh) > 23 || Number(mm) > 59 || Number(ss ?? 0) > 60) return '';
+
+  if (zone && zone !== 'Z') {
+    const off = /^[+-](\d{2}):?(\d{2})$/.exec(zone);
+    if (!off) return '';
+    // An offset beyond ±23:59 is not a real zone; +24:00 and +03:60 used to
+    // pass because only the local clock was range-checked.
+    if (Number(off[1]) > 23 || Number(off[2]) > 59) return '';
+  }
+  return raw;
 }
 
 /**

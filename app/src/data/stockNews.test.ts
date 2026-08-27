@@ -53,8 +53,17 @@ describe('mapNewsArticle', () => {
     for (const bad of ['2026-08-26T99:00:00Z', '2026-08-26T12:99:00Z', '2026-08-26junk', '2026-08-26T12:00:00Z tail']) {
       expect(mapNewsArticle({ ...ARTICLE, publishedAt: bad })?.publishedAt, bad).toBe('');
     }
+    // Timezone offsets are range-checked too: only the local clock fields
+    // were validated before, so these passed.
+    for (const bad of ['2026-08-26T13:04+24:00', '2026-08-26T13:04+03:60', '2026-08-26T13:04+9999', '2026-08-26T13:04+03']) {
+      expect(mapNewsArticle({ ...ARTICLE, publishedAt: bad })?.publishedAt, bad).toBe('');
+    }
     // Real provider formats survive.
-    for (const good of ['2026-08-26T13:04:00Z', '2026-08-26T13:04:00+03:00', '2026-08-26 13:04', '2026-08-26T13:04:00.512Z']) {
+    for (const good of [
+      '2026-08-26T13:04:00Z', '2026-08-26T13:04:00+03:00', '2026-08-26 13:04',
+      '2026-08-26T13:04:00.512Z', '2026-08-26T13:04:00-05:00', '2026-08-26T13:04:00+0330',
+      '2026-08-26T23:59:60Z', '2026-08-26',
+    ]) {
       expect(mapNewsArticle({ ...ARTICLE, publishedAt: good })?.publishedAt, good).toBe(good);
     }
     // A real timestamp survives untouched.

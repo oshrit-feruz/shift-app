@@ -138,6 +138,16 @@ export function EarningsHistory({ ticker }: { ticker: string }) {
   );
 }
 
+/** Beat / miss / in line — zero is none of the first two. */
+export function surpriseLabel(
+  pctValue: number,
+  t: (k: 'stock.beat' | 'stock.miss' | 'stock.inline') => string,
+): string {
+  if (pctValue > 0) return t('stock.beat');
+  if (pctValue < 0) return t('stock.miss');
+  return t('stock.inline');
+}
+
 function QuarterRow({
   row,
   language,
@@ -145,7 +155,7 @@ function QuarterRow({
 }: {
   row: EarningsRow;
   language: 'en' | 'he';
-  t: (k: 'stock.upcoming' | 'stock.epsEst' | 'stock.beat' | 'stock.miss') => string;
+  t: (k: 'stock.upcoming' | 'stock.epsEst' | 'stock.beat' | 'stock.miss' | 'stock.inline') => string;
 }) {
   // No `actual` means the quarter is scheduled, not that data is missing.
   const reported = row.actual !== null;
@@ -160,9 +170,16 @@ function QuarterRow({
           </Tag>
         )}
         <span style={{ flex: 1 }} />
+        {/* Exactly meeting the estimate is its own outcome. `>= 0` called it a
+            beat, so a company that landed precisely on consensus read as
+            "0.0% מעל הצפי" — a claim about the result that is simply not
+            true. Zero gets its own label and the neutral colour. */}
         {reported && row.surprisePct !== null && (
-          <Num size={12.5} style={{ color: signalColor(row.surprisePct) }}>
-            {`${pct(row.surprisePct, 1)} ${row.surprisePct >= 0 ? t('stock.beat') : t('stock.miss')}`}
+          <Num
+            size={12.5}
+            style={{ color: row.surprisePct === 0 ? undefined : signalColor(row.surprisePct) }}
+          >
+            {`${pct(row.surprisePct, 1)} ${surpriseLabel(row.surprisePct, t)}`}
           </Num>
         )}
       </div>
