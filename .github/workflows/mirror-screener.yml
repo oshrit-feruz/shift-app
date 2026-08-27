@@ -108,7 +108,15 @@ jobs:
             exit 1
           fi
 
-          AGE_DAYS=$(( ( $(date -u +%s) - SNAP_TS ) / 86400 ))
+          # Both sides must be UTC *calendar* midnights, not the current
+          # instant. Measuring from "now" makes the division inexact and bash
+          # truncates toward zero, so a snapshot two UTC days ahead computes as
+          # -1 here while recoveryDetector.ts (which compares calendar dates)
+          # computes -2 — the workflow would publish exactly the payload the
+          # app then refuses. Anchoring to midnight keeps the difference an
+          # exact multiple of 86400 and the two definitions identical.
+          TODAY_TS="$(date -u -d "$(date -u +%Y-%m-%d)" +%s)"
+          AGE_DAYS=$(( ( TODAY_TS - SNAP_TS ) / 86400 ))
           if [ "$AGE_DAYS" -gt "$MAX_SNAPSHOT_AGE_DAYS" ]; then
             echo "::error::Snapshot is $AGE_DAYS days old (computed_on=$COMPUTED_ON) — refusing to publish"
             exit 1
