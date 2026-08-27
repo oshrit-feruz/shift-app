@@ -162,6 +162,27 @@ export function SkeletonText({
 }
 
 /**
+ * Stands in for AreaChart. A flat grey block here reads as a much bigger
+ * change than the rest of a skeleton card: AreaChart fills its area with a
+ * top-to-bottom accent gradient (see AreaChart.tsx), so on load a large grey
+ * rectangle becomes a glowing purple one — the single biggest jump in an
+ * otherwise gray-to-real swap, on the card that is usually the first thing a
+ * reader sees. Tinting the placeholder with the same accent, at low opacity,
+ * pre-empts that glow instead of hiding it behind flat grey. The shimmer
+ * still plays (background-image, untouched here); only background-color
+ * changes.
+ */
+export function SkeletonChart({ height, style }: { height: number; style?: CSSProperties }) {
+  return (
+    <Skeleton
+      height={height}
+      radius="var(--radius-md)"
+      style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 18%, transparent)', ...style }}
+    />
+  );
+}
+
+/**
  * A whole-card placeholder that IS a Card, so it carries the same glass
  * surface — background, blur, radius, shadow — as the content replacing it.
  *

@@ -8,7 +8,7 @@ import { MetricStrip } from '../components/MetricStrip';
 import { ListRow, RowValues } from '../components/ListRow';
 import { TickerTile } from '../components/TickerTile';
 import { DataState } from '../components/DataState';
-import { Skeleton, SkeletonLine, SkeletonList, SkeletonText } from '../components/Skeleton';
+import { Skeleton, SkeletonChart, SkeletonLine, SkeletonList, SkeletonText } from '../components/Skeleton';
 import { ProgressTrack } from '../components/Progress';
 import { useAppState, useDispatch, setupProgress } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
@@ -44,7 +44,7 @@ export function HomeScreen(_: ScreenProps) {
               <SkeletonLine width={172} fontSize={15} bar={13} />
               {/* 83, not the chart's 76: the AreaChart's inline SVG adds a
                   descender line box to its wrapper. Measured, not assumed. */}
-              <Skeleton height={83} radius="var(--radius-md)" style={{ marginTop: 10 }} />
+              <SkeletonChart height={83} style={{ marginTop: 10 }} />
               <div style={{ marginTop: 10 }}>
                 <SkeletonText lines={2} fontSize={14} />
               </div>
