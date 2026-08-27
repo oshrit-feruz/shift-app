@@ -59,6 +59,17 @@ export function ListRow({
     padding,
     borderTop: divider ? '1px solid var(--color-divider)' : undefined,
   } as const;
+  // A skeleton row and the real row that replaces it are different elements
+  // (different content, sometimes a different tag), so React unmounts one and
+  // mounts the other rather than patching in place — the swap is a hard cut
+  // with no transition to hook into. Fading every row in on mount (opacity
+  // only — the class list rows already use at screen level) turns that cut
+  // into a settle: skeleton rows fade in while loading, real rows fade in
+  // over the same rows once data lands, instead of the flash of gray bars
+  // becoming ticker data. A row that survives a re-render (price ticking,
+  // same key, same element) keeps its DOM node, so the animation doesn't
+  // replay — this only fires on the swap.
+  const anim = 'anim-fade-up';
   if (onClick) {
     // `borderTop` is pulled out of the spread on purpose. A re-assignment
     // cannot reorder a key that the spread already introduced, so writing
@@ -69,6 +80,7 @@ export function ListRow({
     return (
       <button
         type="button"
+        className={anim}
         onClick={onClick}
         style={{
           ...base,
@@ -85,7 +97,11 @@ export function ListRow({
       </button>
     );
   }
-  return <div style={style}>{inner}</div>;
+  return (
+    <div className={anim} style={style}>
+      {inner}
+    </div>
+  );
 }
 
 /** Right-side value pair (main value over signed sub-value) for ListRow. */
