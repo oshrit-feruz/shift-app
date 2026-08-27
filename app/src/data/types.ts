@@ -60,10 +60,17 @@ export interface Fundamentals {
   periodEnd: string | null;
   /** Year-over-year change in revenue, in percent (signed). */
   yoyPct: number | null;
-  /** Date the source filing was filed with the SEC, raw YYYY-MM-DD. */
-  filed: string | null;
+  /**
+   * Date the source filing was filed with the SEC, raw YYYY-MM-DD, and the
+   * form it came from. Non-null on purpose: a revenue figure with no filing
+   * behind it is not a "filed result" and must not be presented as one, so
+   * the parser rejects such a payload outright (→ unavailable) rather than
+   * letting a number reach the screen with its provenance shrugged off as
+   * "—". This is the type-level enforcement of the rule above.
+   */
+  filed: string;
   /** SEC form type the figure came from, e.g. '10-K'. */
-  form: string | null;
+  form: string;
   /** Provenance string from the engine, e.g. 'SEC EDGAR companyfacts'. */
   source: string | null;
 }

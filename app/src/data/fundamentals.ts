@@ -60,10 +60,13 @@ function obj(v: unknown): Record<string, unknown> | null {
 /**
  * Map the engine's 'ok' body onto Fundamentals.
  *
- * Returns null when the body carries no revenue figure at all: an 'ok' with
- * nothing to show is not something this screen can render honestly, and it
- * is better surfaced as unavailable than as a card of dashes pretending to
- * be a report.
+ * Returns null when the body carries no revenue figure — an 'ok' with
+ * nothing to show is not something this screen can render honestly — and
+ * equally when the filing provenance (filed date or form) is missing: the
+ * engine documents this figure as display-only and NOT point-in-time, so a
+ * number that cannot say which filing it came from is not a "filed result"
+ * and must not be presented as one. Both cases surface as unavailable
+ * rather than as a card of dashes pretending to be a report.
  */
 export function mapFundamentals(body: unknown): Fundamentals | null {
   const root = obj(body);
@@ -76,15 +79,17 @@ export function mapFundamentals(body: unknown): Fundamentals | null {
   const filing = obj(root.filing);
 
   const value = revenue ? num(revenue.value) : null;
-  if (value === null) return null;
+  const filed = filing ? str(filing.filed) : null;
+  const form = filing ? str(filing.form) : null;
+  if (value === null || filed === null || form === null) return null;
 
   return {
     ticker: ticker.toUpperCase(),
     revenue: value,
     periodEnd: revenue ? str(revenue.period_end) : null,
     yoyPct: revenue ? num(revenue.yoy_pct) : null,
-    filed: filing ? str(filing.filed) : null,
-    form: filing ? str(filing.form) : null,
+    filed,
+    form,
     source: str(root.source),
   };
 }

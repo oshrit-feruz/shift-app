@@ -37,6 +37,29 @@ function str(v: unknown): string | null {
 }
 
 /**
+ * A provider timestamp is kept only when its date prefix is a real calendar
+ * date. The card renders this value as publication metadata, and the
+ * formatter deliberately passes anything it cannot parse through unchanged
+ * (so an impossible date is never rolled forward into a plausible one) —
+ * which means an unvalidated garbage string here would land on screen
+ * verbatim, dressed up as a date. A dropped timestamp renders as no date at
+ * all, which is honest; garbage presented as metadata is not. The same
+ * round-trip guard as snapshotAgeDays: Date.UTC silently normalises
+ * impossible dates, so shape alone is not enough.
+ */
+function validTimestamp(raw: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
+  if (!m) return '';
+  const [, y, mo, d] = m;
+  const back = new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d)));
+  return back.getUTCFullYear() === Number(y) &&
+    back.getUTCMonth() === Number(mo) - 1 &&
+    back.getUTCDate() === Number(d)
+    ? raw
+    : '';
+}
+
+/**
  * Map one raw article. Returns null for a row missing anything the card
  * needs to be useful and honest — a headline with no link is not something
  * this UI can offer, since "read the full article" is the only place the
@@ -54,7 +77,7 @@ export function mapNewsArticle(raw: unknown): StockNewsArticle | null {
     headline,
     url,
     source: str(row.source) ?? '',
-    publishedAt: str(row.publishedAt) ?? '',
+    publishedAt: validTimestamp(str(row.publishedAt) ?? ''),
     summary: str(row.summary) ?? '',
   };
 }

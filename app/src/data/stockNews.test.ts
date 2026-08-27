@@ -30,6 +30,19 @@ describe('mapNewsArticle', () => {
     expect(m).toEqual({ headline: 'H', url: 'https://e.com/x', source: '', publishedAt: '', summary: '' });
   });
 
+  it('drops a malformed publishedAt rather than passing it through as metadata', () => {
+    // The card renders publishedAt as a date, and the date formatter passes
+    // anything unparseable through unchanged — so garbage kept here would
+    // reach the screen verbatim. No date is honest; fake metadata is not.
+    for (const bad of ['garbage', 'not-a-date-at-all', '2026-13-45T09:00:00Z', '2026-02-31T00:00:00Z', '26/08/2026']) {
+      expect(mapNewsArticle({ ...ARTICLE, publishedAt: bad })?.publishedAt, bad).toBe('');
+    }
+    // A real timestamp survives untouched.
+    expect(mapNewsArticle(ARTICLE)?.publishedAt).toBe('2026-08-26T13:04:00Z');
+    // A bare date with no time part is also fine — providers vary.
+    expect(mapNewsArticle({ ...ARTICLE, publishedAt: '2026-08-26' })?.publishedAt).toBe('2026-08-26');
+  });
+
   it('rejects non-objects', () => {
     expect(mapNewsArticle(null)).toBeNull();
     expect(mapNewsArticle([ARTICLE])).toBeNull();

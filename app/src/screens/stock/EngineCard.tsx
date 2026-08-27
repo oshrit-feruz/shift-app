@@ -1,5 +1,6 @@
 import { Card, CardTitle } from '../../components/Card';
 import { DataState, EmptyState } from '../../components/DataState';
+import { DetailRow } from '../../components/DetailRow';
 import { SkeletonCard } from '../../components/Skeleton';
 import { Num } from '../../components/Num';
 import { Tag } from '../../components/Tag';
@@ -7,6 +8,16 @@ import { useT } from '../../i18n/useT';
 import { useLoadable } from '../../data/useLoadable';
 import { fetchRankingRow } from '../../data/recoveryDetector';
 import { money, pct } from '../../lib/format';
+import type { TagVariant } from '../../components/Tag';
+
+/** The engine's verdict as a tag tone. A lookup rather than chained
+ *  ternaries so an added verdict is one line here and cannot silently fall
+ *  through to the wrong colour. */
+const SIGNAL_TONE: Record<'BUY' | 'WATCH' | 'SKIP', TagVariant> = {
+  BUY: 'up',
+  WATCH: 'neutral',
+  SKIP: 'down',
+};
 
 /**
  * The engine's own view of this ticker, read from the daily mirrored ranking
@@ -38,9 +49,7 @@ export function EngineCard({ ticker }: { ticker: string }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <CardTitle>{t('stock.engineTitle')}</CardTitle>
             {r?.signal && (
-              <Tag variant={r.signal === 'BUY' ? 'up' : r.signal === 'SKIP' ? 'down' : 'neutral'}>
-                {r.signal}
-              </Tag>
+              <Tag variant={SIGNAL_TONE[r.signal]}>{r.signal}</Tag>
             )}
           </div>
 
@@ -55,20 +64,7 @@ export function EngineCard({ ticker }: { ticker: string }) {
                   [t('stock.score'), r.compositeScore === null ? '—' : r.compositeScore.toFixed(3)],
                 ] as const
               ).map(([k, v]) => (
-                <div
-                  key={k}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    gap: 10,
-                    fontSize: 12.5,
-                    padding: '5px 0',
-                    borderTop: '1px solid var(--color-divider)',
-                  }}
-                >
-                  <span className="text-muted">{k}</span>
-                  <Num>{v}</Num>
-                </div>
+                <DetailRow key={k} label={k} value={<Num>{v}</Num>} />
               ))}
             </div>
           )}

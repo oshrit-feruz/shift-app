@@ -1,5 +1,6 @@
 import { Card, CardTitle } from '../../components/Card';
 import { DataState } from '../../components/DataState';
+import { DetailRow } from '../../components/DetailRow';
 import { SkeletonCard } from '../../components/Skeleton';
 import { Num } from '../../components/Num';
 import { useT } from '../../i18n/useT';
@@ -59,34 +60,27 @@ export function ReportsTab({ ticker }: { ticker: string }) {
                 [t('stock.filedOn'), isoDate(d.filed, language), d.form],
               ] as const
             ).map(([k, date, form]) => (
-              <div
+              <DetailRow
                 key={k}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  gap: 10,
-                  fontSize: 12.5,
-                  padding: '5px 0',
-                  borderTop: '1px solid var(--color-divider)',
-                }}
-              >
-                <span className="text-muted">{k}</span>
-                {/* The date is NOT wrapped in <Num>: a localized Hebrew date
-                    ("25 בפבר׳ 2026") is Hebrew text, and forcing LTR
-                    isolation on it reverses the word order on screen. Only
-                    the Latin form code needs isolating, and it needs its own
-                    — sharing one wrapper with the date made the two collide
-                    and render as "K-בפבר׳ 2026 · 10 25". */}
-                <span style={{ display: 'flex', gap: 5, alignItems: 'baseline' }}>
-                  <span>{date}</span>
-                  {form && (
-                    <>
-                      <span className="text-muted">·</span>
-                      <Num>{form}</Num>
-                    </>
-                  )}
-                </span>
-              </div>
+                label={k}
+                /* The date is NOT wrapped in <Num>: a localized Hebrew date
+                   ("25 בפבר׳ 2026") is Hebrew text, and forcing LTR isolation
+                   on it reverses the word order on screen. Only the Latin form
+                   code needs isolating, and it needs its own — sharing one
+                   wrapper with the date made the two collide and render as
+                   "K-בפבר׳ 2026 · 10 25". */
+                value={
+                  <>
+                    <span>{date}</span>
+                    {form && (
+                      <>
+                        <span className="text-muted">·</span>
+                        <Num>{form}</Num>
+                      </>
+                    )}
+                  </>
+                }
+              />
             ))}
           </div>
 

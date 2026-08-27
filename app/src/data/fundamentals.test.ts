@@ -54,11 +54,16 @@ describe('mapFundamentals', () => {
     expect(mapFundamentals({ ...LIVE_OK, revenue: { value: null } })).toBeNull();
   });
 
-  it('keeps a missing filing as null rather than guessing', () => {
-    const m = mapFundamentals({ ...LIVE_OK, filing: null });
-    expect(m?.revenue).toBe(215938000000);
-    expect(m?.filed).toBeNull();
-    expect(m?.form).toBeNull();
+  it('rejects a payload whose filing provenance is missing', () => {
+    // A revenue figure that cannot say which filing it came from is not a
+    // "filed result" — the engine documents the number as display-only and
+    // not point-in-time, so its provenance is the honest part. Better an
+    // unavailable card than a big number with "הוגש —" under it.
+    expect(mapFundamentals({ ...LIVE_OK, filing: null })).toBeNull();
+    expect(mapFundamentals({ ...LIVE_OK, filing: {} })).toBeNull();
+    expect(mapFundamentals({ ...LIVE_OK, filing: { filed: '2026-02-25' } })).toBeNull();
+    expect(mapFundamentals({ ...LIVE_OK, filing: { form: '10-K' } })).toBeNull();
+    expect(mapFundamentals({ ...LIVE_OK, filing: { filed: '', form: '10-K' } })).toBeNull();
   });
 
   it('rejects a row with no ticker, and non-objects', () => {
