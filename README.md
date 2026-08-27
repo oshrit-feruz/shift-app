@@ -134,7 +134,25 @@ and the external `url` — never a full article body.
 Same honesty contract as the satellite feed: any upstream failure (network,
 timeout, non-2xx, unparseable or unexpected-shape body) returns a `4xx`/`5xx`
 with an `{ error, message }` body for the frontend to render as
-"unavailable" — never stale-cached or invented headlines. A ticker with fewer
+"unavailable" — never stale-cached or invented headlines.
+
+**Quota defence, in two layers.** A successful response carries
+`Cache-Control: public, max-age=0, s-maxage=60`, so Vercel's edge serves
+repeat requests for the same ticker without spending an EODHD call — at worst
+one upstream call per ticker per minute however many people are reading.
+**Failures set no cache header at all**, which is what makes them uncacheable
+on Vercel: a transient EODHD hiccup must never be frozen and served to
+everyone for the full TTL. There is deliberately no `stale-while-revalidate`,
+for the same reason. Second, an invalid or missing ticker is rejected
+*before* any upstream call, so a bad request costs nothing — asserted in the
+tests by the absence of the call, not just the status code, since the status
+alone would keep passing if the guard drifted below the fetch.
+
+Not yet covered: **per-client rate limiting**. The cache is shared, so it
+blunts repeat load on one ticker but not a single client walking a thousand
+different ones. That needs a durable counter (Vercel KV or Upstash Redis) and
+is flagged in `app/api/news.ts` as a follow-up for when the app goes
+genuinely public. A ticker with fewer
 than 10 (or even zero) recent real articles returns that shorter real list
 as-is rather than padding it out.
 

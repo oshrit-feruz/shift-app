@@ -169,6 +169,60 @@ describe('handler', () => {
     expect(errRes._headers['Cache-Control']).toBeUndefined();
   });
 
+  // Vercel's CDN caches a function response only when it carries an explicit
+  // Cache-Control, so "no header" IS the no-cache mechanism. Asserting it on
+  // every failure shape keeps a transient upstream hiccup from being frozen
+  // and served to everyone for the TTL — the whole reason the cache is
+  // success-only. Each failure mode is listed because they return from
+  // different branches, and a later refactor could easily add a header to one.
+  it.each([
+    ['upstream 5xx', () => vi.fn().mockResolvedValue(new Response('nope', { status: 503 }))],
+    ['upstream 429', () => vi.fn().mockResolvedValue(new Response('slow down', { status: 429 }))],
+    ['network failure', () => vi.fn().mockRejectedValue(new Error('boom'))],
+    ['unparseable JSON', () => vi.fn().mockResolvedValue(new Response('not json', { status: 200 }))],
+    ['non-array body', () => vi.fn().mockResolvedValue(new Response('{"a":1}', { status: 200 }))],
+  ])('never caches a failure: %s', async (_label, makeFetch) => {
+    globalThis.fetch = makeFetch() as typeof fetch;
+    const res = makeRes();
+    await handler({ method: 'GET', query: { ticker: 'NVDA' } }, res);
+    expect(res._status).toBeGreaterThanOrEqual(500);
+    expect(res._headers['Cache-Control']).toBeUndefined();
+  });
+
+  // The guard must run BEFORE the upstream call, not after: a rejected
+  // request that still spends an EODHD call defeats the point of rejecting
+  // it. The existing tests above assert the status code, which would keep
+  // passing if the guard were moved below the fetch — so assert the absence
+  // of the call itself, which is the property that actually protects quota.
+  it.each([
+    ['missing ticker', {}, 400],
+    ['whitespace-only ticker', { ticker: '   ' }, 400],
+    ['ticker with a space', { ticker: 'NV DA' }, 400],
+    ['query-injection attempt', { ticker: 'NVDA&api_token=leak' }, 400],
+    ['path-traversal attempt', { ticker: '../../etc/passwd' }, 400],
+    ['absurdly long ticker', { ticker: 'A'.repeat(500) }, 400],
+  ])('rejects %s without spending an upstream call', async (_label, query, status) => {
+    process.env.EODHD_API_KEY = 'test-key'; // a valid key, so only the guard can stop it
+    const fetchSpy = vi.fn();
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+    const res = makeRes();
+    await handler({ method: 'GET', query }, res);
+    expect(res._status).toBe(status);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(res._headers['Cache-Control']).toBeUndefined();
+  });
+
+  it('rejects a non-GET request without spending an upstream call', async () => {
+    process.env.EODHD_API_KEY = 'test-key';
+    const fetchSpy = vi.fn();
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+    const res = makeRes();
+    await handler({ method: 'POST', query: { ticker: 'NVDA' } }, res);
+    expect(res._status).toBe(405);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(res._headers['Cache-Control']).toBeUndefined();
+  });
+
   it('times out and reports bad_response if the body stalls past the budget', async () => {
     const shortHandler = createHandler(20);
     globalThis.fetch = vi.fn().mockImplementation(async (_url: URL, init?: { signal?: AbortSignal }) => {

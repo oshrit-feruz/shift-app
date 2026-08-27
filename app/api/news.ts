@@ -115,11 +115,37 @@ export function createHandler(timeoutMs: number) {
 
     // A short edge cache on a successful response only — never on an error
     // path above, which must keep reaching this function so a real recovery
-    // shows up quickly. This absorbs repeat requests for the same ticker
-    // (e.g. a user re-opening the same stock page) without spending more of
-    // EODHD's daily quota than the real traffic needs; it is not a substitute
-    // for per-client abuse throttling, which would need a durable store this
-    // app doesn't have yet.
+    // shows up quickly. Freezing a transient EODHD hiccup and serving it to
+    // everyone for the full TTL is the silent-degradation pattern this app
+    // exists to avoid: an outage must look like an outage for as long as it
+    // lasts, and end the moment it does.
+    //
+    // Vercel's CDN caches a function response only when it carries an
+    // explicit Cache-Control, so the error paths above — which set no such
+    // header — are uncacheable by omission rather than by convention. The
+    // tests assert that directly, because it is the sort of property a later
+    // refactor could quietly break.
+    //
+    // 60s is the quota-vs-freshness trade: at worst one upstream call per
+    // ticker per minute regardless of how many people are reading, so a hot
+    // ticker costs ~1,440 calls/day instead of one per page view. Headlines
+    // are not real-time, so a longer TTL would cut that proportionally
+    // (300s -> ~288/day) if the quota ever gets tight — the number is here,
+    // deliberately, rather than buried in a config.
+    //
+    // Note the cache key is the full request URL, so ?ticker=nvda and
+    // ?ticker=NVDA are separate entries costing separate upstream calls even
+    // though this handler normalises the two to the same query. Harmless
+    // while the app is the only caller (it sends uppercase), worth knowing
+    // before anyone points other clients at this.
+    //
+    // FOLLOW-UP (needs external infrastructure, deliberately out of scope):
+    // this is a shared cache, not a per-client limit — it blunts repeat load
+    // on the same ticker but does nothing about one client walking a
+    // thousand different tickers. Real per-user rate limiting needs a
+    // durable counter (Vercel KV or Upstash Redis) keyed by client IP or
+    // session. Worth adding before the app is genuinely public; the cache
+    // below handles the common case until then.
     //
     // No stale-while-revalidate: that directive lets a shared cache serve an
     // already-expired response for up to its own window while fetching a
