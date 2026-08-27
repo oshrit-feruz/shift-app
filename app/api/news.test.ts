@@ -156,6 +156,18 @@ describe('handler', () => {
     expect(res._body).toEqual({ ticker: 'NVDA', articles: [] });
   });
 
+  it('sets a short edge cache on a successful response, and none on a failure', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response('[]', { status: 200 }));
+    const okRes = makeRes();
+    await handler({ method: 'GET', query: { ticker: 'NVDA' } }, okRes);
+    expect(okRes._headers['Cache-Control']).toBe('public, max-age=0, s-maxage=60, stale-while-revalidate=30');
+
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response('rate limited', { status: 429 }));
+    const errRes = makeRes();
+    await handler({ method: 'GET', query: { ticker: 'NVDA' } }, errRes);
+    expect(errRes._headers['Cache-Control']).toBeUndefined();
+  });
+
   it('times out and reports bad_response if the body stalls past the budget', async () => {
     const shortHandler = createHandler(20);
     globalThis.fetch = vi.fn().mockImplementation(async (_url: URL, init?: { signal?: AbortSignal }) => {

@@ -113,6 +113,14 @@ export function createHandler(timeoutMs: number) {
       .filter((a): a is NewsArticle => a !== null)
       .slice(0, MAX_ARTICLES);
 
+    // A short edge cache on a successful response only — never on an error
+    // path above, which must keep reaching this function so a real recovery
+    // shows up quickly. This absorbs repeat requests for the same ticker
+    // (e.g. a user re-opening the same stock page) without spending more of
+    // EODHD's daily quota than the real traffic needs; it is not a substitute
+    // for per-client abuse throttling, which would need a durable store this
+    // app doesn't have yet.
+    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=30');
     return res.status(200).json({ ticker: ticker.toUpperCase(), articles });
   };
 }
