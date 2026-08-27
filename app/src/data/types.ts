@@ -36,6 +36,54 @@ export interface SatelliteSignal {
   signal: 'BUY' | 'WATCH' | 'SKIP' | null;
 }
 
+/**
+ * Fundamental highlights for one ticker, straight from SEC EDGAR via the
+ * engine's /api/stock/{ticker}/fundamentals route.
+ *
+ * The engine's contract is an honest-status one: 'ok' carries real filed
+ * figures with the filing that reported them, and anything missing or
+ * unparsable comes back 'unavailable' with a reason — never an estimated or
+ * fabricated number. That maps onto this app's Loadable directly, so the
+ * screen branches on the engine's own status rather than second-guessing it.
+ *
+ * `filed` and `form` are not decoration: the engine documents this figure as
+ * display-only and explicitly NOT point-in-time (it is the newest filing on
+ * record, with no reporting lag applied). Showing which filing a number came
+ * from is what keeps that honest, so the UI must never render `revenue`
+ * without it.
+ */
+export interface Fundamentals {
+  ticker: string;
+  /** Most recent annual revenue on file, in whole currency units. */
+  revenue: number | null;
+  /** Period end the revenue figure covers, as the engine's raw YYYY-MM-DD. */
+  periodEnd: string | null;
+  /** Year-over-year change in revenue, in percent (signed). */
+  yoyPct: number | null;
+  /** Date the source filing was filed with the SEC, raw YYYY-MM-DD. */
+  filed: string | null;
+  /** SEC form type the figure came from, e.g. '10-K'. */
+  form: string | null;
+  /** Provenance string from the engine, e.g. 'SEC EDGAR companyfacts'. */
+  source: string | null;
+}
+
+/**
+ * One real headline from the /api/news Vercel function.
+ *
+ * `summary` is a 1-2 sentence excerpt, never the full article body — the
+ * function enforces that server-side for copyright reasons, and the UI must
+ * not try to render more than this carries. `url` is the external article.
+ */
+export interface StockNewsArticle {
+  headline: string;
+  source: string;
+  /** Raw ISO timestamp from the provider. */
+  publishedAt: string;
+  summary: string;
+  url: string;
+}
+
 export interface Holding {
   ticker: string;
   shares: number;

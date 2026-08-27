@@ -1,0 +1,120 @@
+import { describe, it, expect } from 'vitest';
+import { fetchStockNews, mapNewsArticle, STOCK_NEWS_URL } from './stockNews';
+
+const ARTICLE = {
+  headline: 'Nvidia beats on datacenter revenue',
+  source: 'Reuters',
+  publishedAt: '2026-08-26T13:04:00Z',
+  summary: 'Revenue rose sharply. Guidance came in ahead of consensus.',
+  url: 'https://example.com/a',
+};
+
+const res = (body: unknown, status = 200): Response =>
+  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+
+describe('mapNewsArticle', () => {
+  it('maps a full article', () => {
+    expect(mapNewsArticle(ARTICLE)).toEqual(ARTICLE);
+  });
+
+  it('drops a row with no headline or no url', () => {
+    // Without a link there is nowhere to send someone for the full text, and
+    // the full text is the one thing this UI is never allowed to hold.
+    expect(mapNewsArticle({ ...ARTICLE, headline: '' })).toBeNull();
+    expect(mapNewsArticle({ ...ARTICLE, url: '' })).toBeNull();
+    expect(mapNewsArticle({ ...ARTICLE, url: undefined })).toBeNull();
+  });
+
+  it('keeps a missing source, date or summary as empty rather than inventing one', () => {
+    const m = mapNewsArticle({ headline: 'H', url: 'https://e.com/x' });
+    expect(m).toEqual({ headline: 'H', url: 'https://e.com/x', source: '', publishedAt: '', summary: '' });
+  });
+
+  it('rejects non-objects', () => {
+    expect(mapNewsArticle(null)).toBeNull();
+    expect(mapNewsArticle([ARTICLE])).toBeNull();
+    expect(mapNewsArticle('x')).toBeNull();
+  });
+
+  it('models no article body at all, so a full text cannot be rendered', () => {
+    const m = mapNewsArticle({ ...ARTICLE, body: 'FULL ARTICLE TEXT', content: 'ALSO FULL' });
+    expect(JSON.stringify(m)).not.toContain('FULL ARTICLE TEXT');
+    expect(JSON.stringify(m)).not.toContain('ALSO FULL');
+  });
+});
+
+describe('fetchStockNews', () => {
+  it('returns the real list on success', async () => {
+    const r = await fetchStockNews('NVDA', async () => res({ ticker: 'NVDA', articles: [ARTICLE] }));
+    expect(r.status).toBe('ok');
+    expect(r.status === 'ok' && r.data).toHaveLength(1);
+  });
+
+  it('treats an empty list as a legitimate ok, NOT an error', async () => {
+    // A quiet week for a stock is a real answer. Calling it a failure would
+    // train people to distrust a working screen.
+    const r = await fetchStockNews('NVDA', async () => res({ ticker: 'NVDA', articles: [] }));
+    expect(r.status).toBe('ok');
+    expect(r.status === 'ok' && r.data).toEqual([]);
+  });
+
+  it('is unavailable — never an empty list — when the function errors', async () => {
+    // The inverse of the case above, and the one that matters: an outage
+    // must not read as "no news for this stock".
+    for (const status of [400, 429, 500, 502]) {
+      const r = await fetchStockNews('NVDA', async () =>
+        res({ error: 'upstream_unavailable', message: 'nope' }, status),
+      );
+      expect(r.status, `HTTP ${status}`).toBe('unavailable');
+    }
+  });
+
+  it('is unavailable when the body is a shape we do not recognise', async () => {
+    for (const body of [{}, { articles: null }, { articles: 'none' }, [ARTICLE], null, 42]) {
+      const r = await fetchStockNews('NVDA', async () => res(body));
+      expect(r.status, JSON.stringify(body)).toBe('unavailable');
+    }
+  });
+
+  it('is unavailable on a network failure and on unparseable JSON', async () => {
+    const boom = await fetchStockNews('NVDA', async () => {
+      throw new Error('offline');
+    });
+    expect(boom.status).toBe('unavailable');
+
+    const garbage = await fetchStockNews('NVDA', async () => new Response('<html>', { status: 200 }));
+    expect(garbage.status).toBe('unavailable');
+  });
+
+  it('drops unusable rows but keeps the good ones', async () => {
+    const r = await fetchStockNews('NVDA', async () =>
+      res({ articles: [ARTICLE, { headline: 'no link' }, null, { ...ARTICLE, url: 'https://e.com/b' }] }),
+    );
+    expect(r.status).toBe('ok');
+    expect(r.status === 'ok' && r.data.map((a) => a.url)).toEqual([
+      'https://example.com/a',
+      'https://e.com/b',
+    ]);
+  });
+
+  it('calls the same-origin function with an encoded, uppercased ticker', async () => {
+    let seen = '';
+    await fetchStockNews('brk.b', async (url) => {
+      seen = String(url);
+      return res({ articles: [] });
+    });
+    expect(seen).toBe(`${STOCK_NEWS_URL}?ticker=BRK.B`);
+    // Must never reach the provider — the API key lives server-side only.
+    expect(seen).not.toContain('eodhd');
+  });
+
+  it('rejects an empty ticker without calling the network', async () => {
+    let called = 0;
+    const r = await fetchStockNews('  ', async () => {
+      called += 1;
+      return res({ articles: [] });
+    });
+    expect(r.status).toBe('unavailable');
+    expect(called).toBe(0);
+  });
+});

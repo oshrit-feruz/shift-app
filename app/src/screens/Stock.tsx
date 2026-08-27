@@ -6,6 +6,7 @@ import { Num } from '../components/Num';
 import { AreaChart } from '../components/AreaChart';
 import { CandleChart } from '../components/CandleChart';
 import { Chip } from '../components/Chip';
+import { SegmentedControl } from '../components/SegmentedControl';
 import { DataState } from '../components/DataState';
 import { Skeleton, SkeletonCard, SkeletonList } from '../components/Skeleton';
 import { ListRow, RowValues } from '../components/ListRow';
@@ -16,9 +17,14 @@ import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
 import { fetchYourPositions } from '../lib/holdings';
 import { money, pct, signalColor } from '../lib/format';
+import { ReportsTab } from './stock/ReportsTab';
+import { NewsTab } from './stock/NewsTab';
+import { EngineCard } from './stock/EngineCard';
 import type { ScreenProps } from '../App';
 
 const TIMEFRAMES = ['1D', '1W', '1M', '3M', '1Y'];
+
+type StockTab = 'overview' | 'reports' | 'news';
 
 /**
  * A single ticker's page: price and after-hours header, watchlist/alert
@@ -40,6 +46,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
   const { mode } = useTheme();
   const t = useT();
   const beg = mode === 'beginner';
+  const [tab, setTab] = useState<StockTab>('overview');
   const [tf, setTf] = useState('3M');
   const [ind, setInd] = useState({ ma: true, rsi: true, macd: false });
   const sym = useLoadable(() => demoService.symbol(s.ticker), [s.ticker]);
@@ -109,6 +116,22 @@ export function StockScreen({ openAlert }: ScreenProps) {
             </Button>
           </div>
 
+          {/* Sub-tabs. Overview keeps the price-action reading flow; Reports
+              and News each own a live data source and load only when opened,
+              so a stock page costs one Render call at most and only when
+              someone actually asks for filings. */}
+          <SegmentedControl<StockTab>
+            options={[
+              { value: 'overview', label: t('stock.tabOverview') },
+              { value: 'reports', label: t('stock.tabReports') },
+              { value: 'news', label: t('stock.tabNews') },
+            ]}
+            value={tab}
+            onChange={setTab}
+          />
+
+          {tab === 'overview' && (
+            <>
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
             {TIMEFRAMES.map((f) => (
               <Chip key={f} active={tf === f} onClick={() => setTf(f)}>
@@ -235,25 +258,6 @@ export function StockScreen({ openAlert }: ScreenProps) {
           </Card>
 
           <Card padding={12} gap={8}>
-            <CardTitle>{beg ? t('stock.newsBeg') : t('stock.newsAdv')}</CardTitle>
-            {(beg ? BEG_NEWS : ADV_NEWS).map((a, i) => (
-              <div key={i} style={{ paddingTop: 8, borderTop: '1px solid var(--color-divider)' }}>
-                <div style={{ display: 'flex', gap: 7, alignItems: 'baseline' }}>
-                  <span className="text-muted" style={{ fontSize: 12.5 }}>
-                    {a.meta}
-                  </span>
-                </div>
-                <div style={{ fontSize: 13.5, fontFamily: 'var(--font-heading)', marginTop: 4, lineHeight: 1.35, whiteSpace: 'normal' }}>
-                  {a.head}
-                </div>
-                {a.sum && (
-                  <p style={{ fontSize: 13, margin: '3px 0 0', opacity: 0.76 }}>{a.sum}</p>
-                )}
-              </div>
-            ))}
-          </Card>
-
-          <Card padding={12} gap={8}>
             <CardTitle>{t('stock.nextEarn')}</CardTitle>
             <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
               <div
@@ -280,6 +284,17 @@ export function StockScreen({ openAlert }: ScreenProps) {
               </p>
             </div>
           </Card>
+
+          {/* The engine's own view, from the mirrored daily ranking. Kept as
+              its own card rather than folded into the header because most
+              tickers are not in a 100-name ranking, and "not covered" is a
+              real answer that needs room to say so. */}
+          <EngineCard ticker={s.ticker} />
+            </>
+          )}
+
+          {tab === 'reports' && <ReportsTab ticker={s.ticker} />}
+          {tab === 'news' && <NewsTab ticker={s.ticker} />}
         </div>
       )}
     </DataState>
@@ -308,19 +323,4 @@ const ADV_STATS = (price: number, mc: string, vol: string, pe: number, rsi: numb
   ['Div yield', '0.02%'],
   ['Short float', '1.1%'],
   ['RSI(14)', String(rsi)],
-];
-
-const BEG_NEWS = [
-  { meta: 'Reuters · 2h', head: 'Nvidia guides data-centre revenue above expectations', sum: 'The company told investors it expects to sell more AI chips next quarter than analysts had penciled in.' },
-  { meta: 'Bloomberg · 6h', head: 'New Blackwell variant enters volume production', sum: 'A cheaper version of its flagship chip starts shipping, aimed at customers priced out of the top model.' },
-  { meta: "Barron's · 1d", head: 'Two more banks lift price targets above $210', sum: 'Analysts set a target for where they think a share should trade. It is an opinion, not a promise.' },
-];
-
-const ADV_NEWS = [
-  { meta: '16:04 · Reuters', head: 'Nvidia guides data-centre revenue above consensus', sum: null },
-  { meta: '15:41 · Bloomberg', head: 'Blackwell Ultra enters volume production at TSMC', sum: null },
-  { meta: '14:58 · SEC 8-K', head: 'Item 5.02 — appointment of principal accounting officer', sum: null },
-  { meta: "13:22 · Barron's", head: 'Morgan Stanley raises PT to $215 from $195', sum: null },
-  { meta: '11:07 · WSJ', head: 'Hyperscaler capex plans point to sustained AI demand', sum: null },
-  { meta: '09:31 · Benzinga', head: 'Unusual options activity in weekly $190 calls', sum: null },
 ];

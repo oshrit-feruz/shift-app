@@ -156,6 +156,62 @@ genuinely public. A ticker with fewer
 than 10 (or even zero) recent real articles returns that shorter real list
 as-is rather than padding it out.
 
+**A third live surface:** the stock detail screen's Reports tab.
+`app/src/data/fundamentals.ts` calls the engine's
+`/api/stock/{ticker}/fundamentals`, which returns filed figures straight from
+SEC EDGAR. This one **is not mirrored** — it is per-ticker and on-demand, so
+it cannot be pre-fetched the way a single daily ranking can, and it still
+pays Render's cold start of up to ~60s on the first request after an idle
+period. Its timeout is set accordingly and the tab shows a skeleton that
+survives the wait.
+
+The engine answers **HTTP 200 for everything**, including a ticker it has no
+data for, so the `status` field in the body is the only signal and the data
+layer branches purely on it. Anything that is not literally `'ok'` — an
+unrecognised status included — is unavailable; a body we do not understand is
+never optimistically read as good data. ETFs and non-US listings legitimately
+have no EDGAR filings, so "no filed figures" is a normal answer there rather
+than a malfunction, and it reads differently from "could not reach the
+service" so a cold start is not mistaken for a missing company.
+
+Filing date and form render alongside the revenue figure, never optionally:
+the engine documents this number as display-only and explicitly **not**
+point-in-time (newest filing on record, no reporting lag), so showing which
+filing it came from is what keeps it honest.
+
+## Stock detail screen
+
+`app/src/screens/Stock.tsx` carries three sub-tabs (`screens/stock/`), each
+owning its own data source and loading only when opened — so a stock page
+costs at most one Render call, and only when someone actually asks for
+filings:
+
+| Tab | Source | Notes |
+| --- | --- | --- |
+| סקירה / Overview | demo adapter + real holdings + the mirrored ranking | chart, your position, key stats, analyst ratings, and the engine's own view |
+| דוחות / Reports | `/api/stock/{ticker}/fundamentals` (live, un-mirrored) | branches purely on the engine's `status` |
+| חדשות / News | `/api/news` (this repo's Vercel function) | excerpts only, never a full article body |
+
+The engine's view of a ticker is a **card, not a header field**, because most
+symbols are not in a 100-name ranking: `fetchRankingRow` resolves `ok(null)`
+for a healthy snapshot that simply does not cover this stock, which renders
+as "not covered today" with no retry — deliberately not `unavailable`, since
+nothing failed and there is nothing to retry. Day-change percent is **not**
+in the ranking payload, so it is not shown there rather than being borrowed
+from demo data.
+
+Both mirror readers share one `readMirror` helper so transport, freshness and
+honesty handling cannot drift between them — one serving a snapshot the other
+rejects is exactly the class of bug the mirror's verification exists to
+prevent.
+
+**RTL note:** localized Hebrew dates are *not* wrapped in `<Num>`. `<Num>`
+forces LTR isolation, which is right for numerals and wrong for Hebrew text —
+it reverses the word order on screen. Provider-supplied headlines and
+summaries carry `dir="auto"` so an English article reads as English inside
+the Hebrew page instead of having its punctuation thrown to the wrong side.
+Both were caught by looking at the rendered screen, not by a passing test.
+
 **Required environment variable:** `EODHD_API_KEY` — the account's EODHD API
 key, added in the Vercel dashboard under **Project → Settings → Environment
 Variables**, scoped to Production, Preview, and Development so PR previews

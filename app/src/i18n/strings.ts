@@ -328,6 +328,36 @@ export const STRINGS = {
   'stock.rateS': p('Sell 3', 'מכירה 3'),
   'stock.newsBeg': p('Why people are talking about it', 'למה מדברים עליה'),
   'stock.newsAdv': p('News feed', 'פיד חדשות'),
+  // Stock detail sub-tabs and the two live-data tabs behind them.
+  'stock.tabOverview': p('Overview', 'סקירה'),
+  'stock.tabReports': p('Reports', 'דוחות'),
+  'stock.tabNews': p('News', 'חדשות'),
+  'stock.reportsTitle': p('Latest filed results', 'תוצאות מהדוח האחרון'),
+  'stock.revenue': p('Annual revenue', 'הכנסות שנתיות'),
+  'stock.yoy': p('vs. previous year', 'לעומת השנה הקודמת'),
+  'stock.periodEnd': p('Period ending', 'תקופה שהסתיימה'),
+  'stock.filedOn': p('Filed', 'הוגש'),
+  'stock.reportsNote': p(
+    'Figures as filed with the SEC. Shown for reference — this is the newest filing on record, not a point-in-time view.',
+    'נתונים כפי שהוגשו ל-SEC. מוצגים לעיון — זהו הדוח העדכני ביותר הרשום, ולא תמונת מצב לתאריך מסוים.',
+  ),
+  'stock.newsEmpty': p(
+    'No recent articles for this stock.',
+    'אין כתבות אחרונות על מניה זו.',
+  ),
+  'stock.newsRead': p('Read the full article', 'לכתבה המלאה'),
+  'stock.newsExcerptNote': p(
+    'Excerpts only — the full article opens at its source.',
+    'תקצירים בלבד — הכתבה המלאה נפתחת באתר המקור.',
+  ),
+  'stock.engineTitle': p('Recovery Detector view', 'מבט Recovery Detector'),
+  'stock.drawdown': p('Below 52-week high', 'מתחת לשיא 52 שבועות'),
+  'stock.high52w': p('52-week high', 'שיא 52 שבועות'),
+  'stock.score': p('Composite score', 'ציון משוקלל'),
+  'stock.notRanked': p(
+    'This stock is not in the current Recovery Detector ranking, so there are no engine figures for it today.',
+    'מניה זו אינה מופיעה בדירוג הנוכחי של Recovery Detector, ולכן אין עבורה נתוני מנוע היום.',
+  ),
   'stock.nextEarn': p('Next earnings', 'הדוח הבא'),
   'stock.nov': p('Nov', 'נוב׳'),
   'stock.chartHelp': p(
