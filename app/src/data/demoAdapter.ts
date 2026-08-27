@@ -85,55 +85,13 @@ const HOLDING_SHAPE: Array<[string, number, number]> = [
 ];
 
 const NEWS: NewsItem[] = [
-  {
-    time: '09:42', source: 'Reuters', ticker: 'NVDA',
-    headline: 'NVIDIA lifts data-centre outlook as Blackwell shipments accelerate',
-    tag: 'Guidance', changePct: 2.31,
-    summary: 'Management said supply, not demand, is the constraint into next quarter.',
-    body: 'NVIDIA told investors that data-centre revenue is on track to beat prior guidance, as production of its Blackwell chips ramps faster than expected. Executives said the company remains supply-constrained rather than demand-constrained heading into next quarter, with order backlogs stretching into next year across cloud and enterprise customers.\n\nThe company said yield rates on the newest Blackwell packaging step have improved meaningfully over the last two months, easing one of the bottlenecks that slowed shipments earlier in the year. Cloud providers building out next-generation AI capacity were named as the primary source of incremental demand, with several large multi-quarter commitments already booked.\n\nManagement declined to give a specific unit number for the coming quarter but said capacity additions at partner foundries should let the company narrow the gap between orders and shipments over the next two quarters.',
-  },
-  {
-    time: '09:31', source: 'Bloomberg', ticker: 'AMD',
-    headline: 'AMD lands MI400 design win with a top-three cloud provider',
-    tag: 'Product', changePct: 4.86,
-    summary: 'The order is multi-year and starts shipping in the first half of next year.',
-    body: 'AMD has secured a multi-year agreement to supply its upcoming MI400 accelerator to one of the three largest cloud providers, according to people familiar with the deal. Shipments are expected to begin in the first half of next year, once the chip clears final qualification testing.\n\nThe win is significant because it marks AMD\'s first large committed order for the MI400 generation ahead of its formal launch, suggesting the cloud provider is looking to diversify its AI-accelerator supply chain rather than rely on a single vendor. Financial terms of the agreement were not disclosed.\n\nAnalysts said the deal, if it scales as described, would meaningfully narrow the revenue gap between AMD\'s data-centre GPU business and the market leader over the next two years, though execution and yield on the new chip remain the key risks.',
-  },
-  {
-    time: '09:18', source: 'WSJ', ticker: 'MSFT',
-    headline: 'Microsoft trims Azure capacity plans for the next two quarters',
-    tag: 'Capex', changePct: -0.67,
-    summary: 'Spending moves out, not away — the buildout is being paced rather than cut.',
-    body: 'Microsoft has told some data-centre construction partners that it is pushing back a portion of planned Azure capacity additions over the next two quarters, according to people briefed on the matter. The company characterized the move as a pacing adjustment tied to power and equipment delivery timelines, not a reduction in its overall buildout.\n\nProjects already under construction are continuing on schedule; the affected sites are newer ones that had not yet broken ground. Microsoft said long-term capital spending plans for AI infrastructure are unchanged, and that it continues to sign new leases for data-centre capacity in several regions.\n\nThe report comes as investors watch capex guidance closely across the large cloud providers for signs of either overbuilding or a slowdown in AI-driven demand.',
-  },
-  {
-    time: '08:55', source: 'FT', ticker: 'TSLA',
-    headline: 'Tesla delivery estimates cut across three brokerages',
-    tag: 'Analyst', changePct: -3.18,
-    summary: 'Europe volumes are the common thread in all three notes.',
-    body: 'Three brokerages lowered their quarterly delivery estimates for Tesla on Thursday, each citing softer registration data out of Europe over the past two months. All three notes pointed to increased competition from domestic and Chinese electric-vehicle makers in the region as the main driver of the shortfall, rather than any single Tesla-specific issue.\n\nOne of the notes also flagged a slower-than-expected refresh cycle for the Model Y in some European markets as a contributing factor. North American and Chinese delivery trends were left largely unchanged in the same reports.\n\nTesla has not commented on the revised estimates. The company\'s own delivery figures for the quarter are due in the coming weeks.',
-  },
-  {
-    time: '08:40', source: 'CNBC', ticker: 'LLY',
-    headline: 'Lilly weight-loss pill filing accepted for priority review',
-    tag: 'Regulatory', changePct: 1.42,
-    summary: 'A decision is expected inside six months.',
-    body: 'Eli Lilly said regulators have accepted its application for an oral weight-loss drug and granted it priority review, putting a decision inside a roughly six-month window instead of the standard longer timeline. The pill is seen as a potential complement to the company\'s existing injectable treatments, offering an option for patients who prefer not to use injections.\n\nLilly said the priority designation was based on clinical trial data showing weight-loss results comparable to its injectable products, along with a manageable side-effect profile. If approved, the company has said it plans a broad manufacturing scale-up given the scale of demand seen for its existing weight-loss treatments.\n\nAnalysts noted that an oral option, if approved, could meaningfully expand the addressable market by removing a barrier for patients hesitant about injections.',
-  },
-  {
-    time: '08:12', source: 'Reuters', ticker: 'JPM',
-    headline: 'JPMorgan flags softer loan demand but holds its outlook',
-    tag: 'Guidance', changePct: 0.88,
-    summary: 'Net interest income guidance was unchanged for the full year.',
-    body: 'JPMorgan executives said commercial loan demand has softened slightly over the past quarter as businesses stay cautious on new borrowing, but the bank left its full-year net interest income guidance unchanged. Executives attributed the softer demand to businesses waiting for more clarity on interest rates rather than a broader pullback in economic activity.\n\nConsumer spending trends were described as resilient, with credit card balances and delinquency rates both tracking in line with the bank\'s prior expectations. Deposit trends were also described as stable.\n\nThe bank reiterated that it does not expect a meaningful change to its lending outlook unless broader economic conditions shift materially over the coming quarters.',
-  },
-  {
-    time: '07:30', source: 'Reuters', ticker: 'AAPL',
-    headline: 'Apple supplier orders point to a flat iPhone 17 build',
-    tag: 'Supply chain', changePct: 0.42,
-    summary: 'Two suppliers reported bookings in line with last cycle.',
-    body: 'Two component suppliers in Apple\'s manufacturing chain reported order volumes for the current iPhone build that are roughly in line with the prior generation at the same point in the cycle, according to filings and comments made this week. That suggests Apple is planning for a build volume similar to last year\'s rather than a meaningful increase or decrease.\n\nThe suppliers, which produce display and camera-module components, did not comment directly on Apple\'s plans, but the order patterns are consistent with prior cycles where flat bookings preceded flat year-over-year unit shipments.\n\nApple does not comment on unreleased-product supply chain reports. Investors typically watch supplier order data as an early signal ahead of the company\'s official guidance.',
-  },
+  { time: '09:42', source: 'Reuters', ticker: 'NVDA', headline: 'NVIDIA lifts data-centre outlook as Blackwell shipments accelerate', tag: 'Guidance', changePct: 2.31, summary: 'Management said supply, not demand, is the constraint into next quarter.' },
+  { time: '09:31', source: 'Bloomberg', ticker: 'AMD', headline: 'AMD lands MI400 design win with a top-three cloud provider', tag: 'Product', changePct: 4.86, summary: 'The order is multi-year and starts shipping in the first half of next year.' },
+  { time: '09:18', source: 'WSJ', ticker: 'MSFT', headline: 'Microsoft trims Azure capacity plans for the next two quarters', tag: 'Capex', changePct: -0.67, summary: 'Spending moves out, not away — the buildout is being paced rather than cut.' },
+  { time: '08:55', source: 'FT', ticker: 'TSLA', headline: 'Tesla delivery estimates cut across three brokerages', tag: 'Analyst', changePct: -3.18, summary: 'Europe volumes are the common thread in all three notes.' },
+  { time: '08:40', source: 'CNBC', ticker: 'LLY', headline: 'Lilly weight-loss pill filing accepted for priority review', tag: 'Regulatory', changePct: 1.42, summary: 'A decision is expected inside six months.' },
+  { time: '08:12', source: 'Reuters', ticker: 'JPM', headline: 'JPMorgan flags softer loan demand but holds its outlook', tag: 'Guidance', changePct: 0.88, summary: 'Net interest income guidance was unchanged for the full year.' },
+  { time: '07:30', source: 'Reuters', ticker: 'AAPL', headline: 'Apple supplier orders point to a flat iPhone 17 build', tag: 'Supply chain', changePct: 0.42, summary: 'Two suppliers reported bookings in line with last cycle.' },
 ];
 
 const EARNINGS: EarningsEvent[] = [

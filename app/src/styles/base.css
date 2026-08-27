@@ -188,13 +188,7 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
   border-radius: var(--radius-sm);
   background: var(--sunk);
   color: var(--color-text);
-  /* 16px, not 15: iOS Safari zooms the whole page in on focus for any text
-   * input under 16px, since it assumes the text would otherwise be too small
-   * to read once the keyboard opens. That zoom is the "screen gets bigger"
-   * behaviour on focus — the fix is the font size, not fighting the zoom
-   * itself (disabling it via viewport user-scalable=no would also disable
-   * pinch-zoom for everyone, which is an accessibility regression). */
-  font: 400 16px var(--font-body);
+  font: 400 15px var(--font-body);
   width: 100%;
 }
 [data-theme="light"] .input { background: var(--color-surface); color: #FFFFFF; }

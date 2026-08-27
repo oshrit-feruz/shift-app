@@ -19,8 +19,7 @@ import { useLoadable } from '../data/useLoadable';
 import { money, pct, signalColor } from '../lib/format';
 import { TxSheet } from '../sheets/TxSheet';
 import { NewPortfolioSheet } from '../sheets/NewPortfolioSheet';
-import type { PortfolioSummary } from '../data/types';
-import { mergeManualTransactions } from '../lib/holdings';
+import type { Holding, PortfolioSummary } from '../data/types';
 import type { ScreenProps } from '../App';
 
 export function PortfolioScreen(_: ScreenProps) {
@@ -275,6 +274,31 @@ function Holdings({ pfId }: { pfId: string }) {
   const holdings = useLoadable(() => demoService.holdings(pfId), [pfId]);
   const transactions = s.manualTransactions[pfId] ?? [];
 
+  const withManualTransactions = (rows: Holding[]) => {
+    const merged = new Map(rows.map((row) => [row.ticker, { ...row }]));
+    for (const tx of transactions) {
+      if (tx.side === 'div') continue;
+      const current = merged.get(tx.ticker) ?? {
+        ticker: tx.ticker,
+        shares: 0,
+        avgCost: 0,
+        value: 0,
+        plPct: 0,
+      };
+      if (tx.side === 'buy') {
+        const shares = current.shares + tx.shares;
+        current.avgCost = shares > 0 ? (current.avgCost * current.shares + tx.price * tx.shares) / shares : 0;
+        current.shares = shares;
+        current.value += tx.price * tx.shares;
+      } else {
+        current.shares = Math.max(0, current.shares - tx.shares);
+        current.value = Math.max(0, current.value - tx.price * tx.shares);
+      }
+      merged.set(tx.ticker, current);
+    }
+    return [...merged.values()].filter((row) => row.shares > 0);
+  };
+
   return (
     <DataState
       state={holdings.state}
@@ -282,7 +306,7 @@ function Holdings({ pfId }: { pfId: string }) {
       skeleton={<SkeletonList count={4} leading={false} minHeight={46} />}
     >
       {(rows) => {
-        const mergedRows = mergeManualTransactions(rows, transactions);
+        const mergedRows = withManualTransactions(rows);
         return mergedRows.length === 0 ? (
           <EmptyState>—</EmptyState>
         ) : (

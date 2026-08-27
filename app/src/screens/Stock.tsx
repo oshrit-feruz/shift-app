@@ -7,14 +7,12 @@ import { AreaChart } from '../components/AreaChart';
 import { CandleChart } from '../components/CandleChart';
 import { Chip } from '../components/Chip';
 import { DataState } from '../components/DataState';
-import { Skeleton, SkeletonCard, SkeletonList } from '../components/Skeleton';
-import { ListRow, RowValues } from '../components/ListRow';
+import { Skeleton, SkeletonCard } from '../components/Skeleton';
 import { useAppState, useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
-import { fetchYourPositions } from '../lib/holdings';
 import { money, pct, signalColor } from '../lib/format';
 import type { ScreenProps } from '../App';
 
@@ -30,10 +28,6 @@ export function StockScreen({ openAlert }: ScreenProps) {
   const [ind, setInd] = useState({ ma: true, rsi: true, macd: false });
   const sym = useLoadable(() => demoService.symbol(s.ticker), [s.ticker]);
   const inWl = s.watchlist.includes(s.ticker);
-  const positions = useLoadable(() => fetchYourPositions(s.ticker, s.manualTransactions), [
-    s.ticker,
-    s.manualTransactions,
-  ]);
 
   const closes = demoService.series(`${s.ticker}-candles`, 46, 0.5, 3.4).slice(4);
   const begSeries = demoService.series(`${s.ticker}-line`, 64, 0.55, 2.6);
@@ -69,36 +63,6 @@ export function StockScreen({ openAlert }: ScreenProps) {
               {t('stock.afterHrs')} <Num>{money(x.price * 1.004)}</Num>
             </div>
           </div>
-
-          <DataState
-            state={positions.state}
-            onRetry={positions.retry}
-            skeleton={<SkeletonList count={1} leading={false} minHeight={46} />}
-          >
-            {(rows) =>
-              rows.length === 0 ? null : (
-                <Card padding="12px 13px 4px" gap={7}>
-                  <CardTitle>{t('stock.yourHoldings')}</CardTitle>
-                  {rows.map(({ portfolio, holding }) => (
-                    <ListRow
-                      key={portfolio.id}
-                      title={portfolio.kind === 'manual' ? portfolio.name : `${portfolio.broker}`}
-                      subtitle={<Num>{`${holding.shares} sh · avg ${money(holding.avgCost)}`}</Num>}
-                      right={
-                        <RowValues
-                          main={money(holding.value, 0)}
-                          sub={pct(holding.plPct)}
-                          subColor={signalColor(holding.plPct)}
-                        />
-                      }
-                      minHeight={46}
-                      onClick={() => dispatch({ type: 'go', screen: 'pf' })}
-                    />
-                  ))}
-                </Card>
-              )
-            }
-          </DataState>
 
           <div style={{ display: 'flex', gap: 7 }}>
             <Button
@@ -188,30 +152,29 @@ export function StockScreen({ openAlert }: ScreenProps) {
             )}
           </Card>
 
-          {/* Shown in both modes: the ratings bar and counts are already
-              plain-language, so there was no beginner-specific reason to
-              hide analyst sentiment from that mode. */}
-          <Card padding={12} gap={7}>
-            <CardTitle>{t('stock.analyst')}</CardTitle>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-              <span style={{ fontSize: 18, fontFamily: 'var(--font-heading)' }}>{t('stock.consensus')}</span>
-              <span className="text-muted" style={{ fontSize: 12.5 }}>
-                {t('stock.analystMeta')}
-              </span>
-            </div>
-            <div style={{ display: 'flex', height: 6, borderRadius: 4, overflow: 'hidden', gap: 1 }}>
-              <div style={{ flex: 31, background: 'var(--up)' }} />
-              <div style={{ flex: 11, background: 'var(--acc-mid)' }} />
-              <div style={{ flex: 8, background: 'var(--muted-2)' }} />
-              <div style={{ flex: 3, background: 'var(--down)' }} />
-            </div>
-            <div className="text-muted" style={{ display: 'flex', gap: 9, fontSize: 12.5 }}>
-              <span>{t('stock.rateSb')}</span>
-              <span>{t('stock.rateB')}</span>
-              <span>{t('stock.rateH')}</span>
-              <span>{t('stock.rateS')}</span>
-            </div>
-          </Card>
+          {!beg && (
+            <Card padding={12} gap={7}>
+              <CardTitle>{t('stock.analyst')}</CardTitle>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                <span style={{ fontSize: 18, fontFamily: 'var(--font-heading)' }}>{t('stock.consensus')}</span>
+                <span className="text-muted" style={{ fontSize: 12.5 }}>
+                  {t('stock.analystMeta')}
+                </span>
+              </div>
+              <div style={{ display: 'flex', height: 6, borderRadius: 4, overflow: 'hidden', gap: 1 }}>
+                <div style={{ flex: 31, background: 'var(--up)' }} />
+                <div style={{ flex: 11, background: 'var(--acc-mid)' }} />
+                <div style={{ flex: 8, background: 'var(--muted-2)' }} />
+                <div style={{ flex: 3, background: 'var(--down)' }} />
+              </div>
+              <div className="text-muted" style={{ display: 'flex', gap: 9, fontSize: 12.5 }}>
+                <span>{t('stock.rateSb')}</span>
+                <span>{t('stock.rateB')}</span>
+                <span>{t('stock.rateH')}</span>
+                <span>{t('stock.rateS')}</span>
+              </div>
+            </Card>
+          )}
 
           <Card padding={12} gap={8}>
             <CardTitle>{beg ? t('stock.newsBeg') : t('stock.newsAdv')}</CardTitle>

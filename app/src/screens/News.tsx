@@ -13,8 +13,6 @@ import { useT } from '../i18n/useT';
 import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
 import { pct, signalColor } from '../lib/format';
-import { ArticleSheet } from '../sheets/ArticleSheet';
-import type { NewsItem } from '../data/types';
 import type { StringKey } from '../i18n/strings';
 import type { ScreenProps } from '../App';
 
@@ -36,7 +34,6 @@ export function NewsScreen({ openAlert }: ScreenProps) {
   const [tab, setTab] = useState('All');
   const [calFilter, setCalFilter] = useState<'all' | 'watchlist' | 'highMove'>('all');
   const [calDay, setCalDay] = useState<string | null>(null);
-  const [article, setArticle] = useState<NewsItem | null>(null);
   const news = useLoadable(() => demoService.news(), []);
   const earnings = useLoadable(() => demoService.earnings(), []);
 
@@ -354,7 +351,7 @@ export function NewsScreen({ openAlert }: ScreenProps) {
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                   {feed.map((a, i) => (
-                    <Card key={i} padding={14} gap={5} onClick={() => setArticle(a)}>
+                    <Card key={i} padding={14} gap={5} onClick={() => dispatch({ type: 'openStock', ticker: a.ticker })}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                         <Tag variant="accent" fontSize={12}>
                           {a.ticker}
@@ -381,7 +378,7 @@ export function NewsScreen({ openAlert }: ScreenProps) {
                   <button
                     key={i}
                     type="button"
-                    onClick={() => setArticle(a)}
+                    onClick={() => dispatch({ type: 'openStock', ticker: a.ticker })}
                     style={{
                       display: 'flex',
                       alignItems: 'flex-start',
@@ -421,7 +418,6 @@ export function NewsScreen({ openAlert }: ScreenProps) {
           }}
         </DataState>
       )}
-      <ArticleSheet item={article} onClose={() => setArticle(null)} />
     </div>
   );
 }

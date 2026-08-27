@@ -37,9 +37,7 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder={t('search.placeholder')}
-            // 16px, not smaller: this field autoFocuses on open, and any
-            // input under 16px makes iOS Safari zoom the page in on focus.
-            style={{ paddingInlineStart: 32, height: 38, minHeight: 38, fontSize: 16 }}
+            style={{ paddingInlineStart: 32, height: 38, minHeight: 38, fontSize: 14 }}
           />
         </label>
         <Button
