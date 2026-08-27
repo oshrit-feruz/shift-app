@@ -1,7 +1,32 @@
 import { demoService } from '../data/demoAdapter';
 import { ok, unavailable, type Loadable } from '../data/types';
 import type { Holding, PortfolioSummary } from '../data/types';
-import type { ManualTransaction } from '../state/appState';
+import type { ManualPortfolio, ManualTransaction } from '../state/appState';
+
+/**
+ * The user's own manual portfolios as PortfolioSummary rows, so they can sit
+ * in the same list as the service-reported ones. Shared by the Portfolio tab
+ * and the Stock page's holdings card — if these two built the summary
+ * differently, the same portfolio would be named or totalled differently
+ * depending on which screen you were looking at.
+ *
+ * dayPct/allTimePct are 0 because a manual portfolio has no priced history to
+ * derive them from; that is a real "no data", not a computed zero.
+ */
+export function manualPortfolioSummaries(manualPortfolios: ManualPortfolio[]): PortfolioSummary[] {
+  return manualPortfolios.map((x) => ({
+    id: x.id,
+    kind: 'manual',
+    name: x.name,
+    broker: null,
+    logo: null,
+    acct: 'manual entry',
+    syncedAgo: null,
+    total: x.startingCash,
+    dayPct: 0,
+    allTimePct: 0,
+  }));
+}
 
 /**
  * Applies a portfolio's manual buy/sell log on top of its service-reported
@@ -53,6 +78,13 @@ export interface TickerPosition {
  * listing it alongside its own constituents would double-count by
  * definition regardless of what the demo numbers happen to show.
  *
+ * The user's own manual portfolios are included alongside the service-reported
+ * ones. They have no service holdings — demoService.holdings() returns an
+ * empty list for an id it doesn't know — so their positions come entirely from
+ * the manual transaction log, exactly as the Portfolio tab builds them. Leaving
+ * them out would mean a ticker you logged yourself showed up on the Portfolio
+ * tab but not on its own stock page.
+ *
  * If any portfolio's holdings call fails, the whole result is 'unavailable'
  * rather than silently treating that portfolio as empty — under the global
  * demo failure flag every call fails together, and reporting "no position"
@@ -61,11 +93,15 @@ export interface TickerPosition {
 export async function fetchYourPositions(
   ticker: string,
   manualTransactions: Record<string, ManualTransaction[]>,
+  manualPortfolios: ManualPortfolio[] = [],
 ): Promise<Loadable<TickerPosition[]>> {
   const pfs = await demoService.portfolios();
   if (pfs.status !== 'ok') return pfs;
 
-  const eligible = pfs.data.filter((pf) => pf.kind !== 'aggregate');
+  const eligible = [
+    ...pfs.data.filter((pf) => pf.kind !== 'aggregate'),
+    ...manualPortfolioSummaries(manualPortfolios),
+  ];
   const settled = await Promise.all(eligible.map((pf) => demoService.holdings(pf.id)));
   if (settled.some((r) => r.status !== 'ok')) return unavailable();
 

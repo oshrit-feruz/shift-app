@@ -19,8 +19,7 @@ import { useLoadable } from '../data/useLoadable';
 import { money, pct, signalColor } from '../lib/format';
 import { TxSheet } from '../sheets/TxSheet';
 import { NewPortfolioSheet } from '../sheets/NewPortfolioSheet';
-import type { PortfolioSummary } from '../data/types';
-import { mergeManualTransactions } from '../lib/holdings';
+import { manualPortfolioSummaries, mergeManualTransactions } from '../lib/holdings';
 import type { ScreenProps } from '../App';
 
 export function PortfolioScreen(_: ScreenProps) {
@@ -59,19 +58,7 @@ export function PortfolioScreen(_: ScreenProps) {
         }
       >
         {(pfs) => {
-          const manualPortfolios: PortfolioSummary[] = s.manualPortfolios.map((x) => ({
-            id: x.id,
-            kind: 'manual',
-            name: x.name,
-            broker: null,
-            logo: null,
-            acct: 'manual entry',
-            syncedAgo: null,
-            total: x.startingCash,
-            dayPct: 0,
-            allTimePct: 0,
-          }));
-          const list = [...pfs, ...manualPortfolios];
+          const list = [...pfs, ...manualPortfolioSummaries(s.manualPortfolios)];
           const pf = list[Math.min(s.pfIndex, list.length - 1)];
           const isAgg = pf.kind === 'aggregate';
           const isManual = pf.kind === 'manual';

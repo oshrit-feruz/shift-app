@@ -30,10 +30,10 @@ export function StockScreen({ openAlert }: ScreenProps) {
   const [ind, setInd] = useState({ ma: true, rsi: true, macd: false });
   const sym = useLoadable(() => demoService.symbol(s.ticker), [s.ticker]);
   const inWl = s.watchlist.includes(s.ticker);
-  const positions = useLoadable(() => fetchYourPositions(s.ticker, s.manualTransactions), [
-    s.ticker,
-    s.manualTransactions,
-  ]);
+  const positions = useLoadable(
+    () => fetchYourPositions(s.ticker, s.manualTransactions, s.manualPortfolios),
+    [s.ticker, s.manualTransactions, s.manualPortfolios],
+  );
 
   const closes = demoService.series(`${s.ticker}-candles`, 46, 0.5, 3.4).slice(4);
   const begSeries = demoService.series(`${s.ticker}-line`, 64, 0.55, 2.6);

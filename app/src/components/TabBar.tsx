@@ -43,6 +43,14 @@ export function TabBar({ current, onGo }: { current: Screen; onGo: (s: Screen) =
     const measure = () => {
       const bar = barRef.current;
       const idx = TABS.findIndex((x) => x.screen === current);
+      // Plenty of screens are reachable without being one of the five tabs
+      // (settings, connections, a stock page...). None of them should light a
+      // tab up, so drop the indicator instead of leaving it parked on whichever
+      // tab happened to be active last.
+      if (idx === -1) {
+        setIndicator(null);
+        return;
+      }
       const el = itemRefs.current[idx];
       if (!bar || !el) return;
       const barRect = bar.getBoundingClientRect();
@@ -55,11 +63,27 @@ export function TabBar({ current, onGo }: { current: Screen; onGo: (s: Screen) =
       });
     };
     measure();
+    // Switching language relabels the tabs *and* flips the writing direction,
+    // which reverses the physical order of the row — so the active tab can end
+    // up at the opposite edge of the bar. ThemeProvider writes the new `dir`
+    // onto the root element from a passive effect, and a parent's passive
+    // effect runs after this child's layout effect, so the synchronous pass
+    // above still sees the old direction. Watching the attribute is what makes
+    // the correction deterministic: the callback runs once the flip has
+    // actually landed in the DOM, whereas a rAF can fire before it and
+    // re-measure the stale layout.
+    const dirWatch = new MutationObserver(measure);
+    dirWatch.observe(document.documentElement, { attributes: true, attributeFilter: ['dir'] });
     // Labels can reflow on rotation or a text-size change; re-measure rather
     // than trusting a value computed for a different layout.
     window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  }, [current]);
+    return () => {
+      dirWatch.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+    // `translate` is a new reference whenever the language changes, which is
+    // what re-runs this effect for the relabelled bar.
+  }, [current, translate]);
 
   return (
     <div
