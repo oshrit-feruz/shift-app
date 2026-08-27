@@ -75,6 +75,8 @@ export interface NewsItem {
   tag: string;
   changePct: number;
   summary: string;
+  /** The full story behind the headline, shown when a card is opened. */
+  body: string;
 }
 
 export interface EarningsEvent {

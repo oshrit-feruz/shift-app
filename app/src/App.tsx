@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppHeader } from './components/AppHeader';
 import { TabBar } from './components/TabBar';
 import { BackgroundShapes } from './components/BackgroundShapes';
@@ -78,6 +78,17 @@ export function App() {
   const unread = s.notificationsRead ? 0 : 2;
   const ScreenView = SCREENS[s.screen];
 
+  // There is one shared scroll container across every screen (no per-route
+  // remount), so without this a screen opens wherever the previous one left
+  // scrollTop — e.g. arriving at a fresh stock page already scrolled halfway
+  // down because that is where Home happened to be.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    scrollRef.current?.scrollTo(0, 0);
+    // Keyed on the ticker too: openStock can navigate stock -> stock (the
+    // screen name never changes), and that still needs to land at the top.
+  }, [s.screen, s.ticker]);
+
   return (
     <div
       style={{
@@ -113,6 +124,7 @@ export function App() {
           onNotifications={() => setNotifOpen(true)}
         />
         <div
+          ref={scrollRef}
           className="scroll-y"
           style={{
             flex: 1,
