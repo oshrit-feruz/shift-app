@@ -46,8 +46,11 @@ export function MarketFeed() {
 export function WatchlistFeed({ tickers }: { tickers: string[] }) {
   const t = useT();
   // Sorted + joined so the effect re-runs when the set changes, not on every
-  // render that happens to rebuild the array.
-  const key = [...tickers].sort().join(',');
+  // render that happens to rebuild the array. The comparator is explicit:
+  // bare .sort() coerces to string and compares UTF-16 code units, which is
+  // unreliable in general — and here the key's stability is the whole point,
+  // so leaving the ordering to a default is exactly the wrong trade.
+  const key = [...tickers].sort((a, b) => a.localeCompare(b)).join(',');
   const news = useLoadable<StockNewsArticle[]>(
     () => fetchWatchlistNews(tickers),
     [key],

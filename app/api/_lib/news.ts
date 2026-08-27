@@ -85,25 +85,33 @@ export function summarize(content: string | null): string {
 
   let text = '';
   let pendingSpace = false;
-  for (let i = 0; i < src.length; i += 1) {
+  // A while loop rather than a for: skipping a whole tag advances the cursor
+  // by more than one, and reassigning a for-loop's counter inside its body is
+  // the kind of control flow that reads as a mistake even when it is not.
+  let i = 0;
+  while (i < src.length) {
     const ch = src[i];
     // Strip markup — but only where "<" actually begins a tag. A bare "<" is
     // ordinary text in financial copy ("guidance is < 5%"), and treating it
     // as markup silently swallows the rest of the sentence.
     if (ch === '<' && looksLikeTag(src, i)) {
-      i = src.indexOf('>', i + 1);
+      // Past the closing bracket in one step. looksLikeTag guarantees one
+      // exists, so indexOf cannot return -1 here.
+      i = src.indexOf('>', i + 1) + 1;
       continue;
     }
     // Collapse any run of whitespace to a single space, emitted lazily so a
     // trailing run never reaches the output.
     if (isSpace(ch)) {
       pendingSpace = text !== '';
+      i += 1;
       continue;
     }
     // Drop the space before punctuation rather than emitting it.
     if (pendingSpace && !isTightPunctuation(ch)) text += ' ';
     pendingSpace = false;
     text += ch;
+    i += 1;
   }
   if (!text) return '';
 
