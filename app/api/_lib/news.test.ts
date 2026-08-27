@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { summarize, deriveSource, mapArticle, resolveSymbol, isValidTicker } from './news';
+import { summarize, deriveSource, mapArticle, resolveSymbol, isValidTicker } from './news.js';
 
 describe('summarize', () => {
   it('returns empty string for empty or missing content', () => {

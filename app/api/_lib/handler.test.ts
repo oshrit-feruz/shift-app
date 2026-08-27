@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import handler, { createHandler } from './news';
+import handler, { createHandler } from '../news.js';
 
 interface FakeResponse {
   _status: number | undefined;

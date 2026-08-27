@@ -1,4 +1,4 @@
-import { isValidTicker, mapArticle, resolveSymbol, type NewsArticle } from './_lib/news';
+import { isValidTicker, mapArticle, resolveSymbol, type NewsArticle } from './_lib/news.js';
 
 /**
  * Minimal shape of what Vercel's Node.js runtime actually hands a function —
