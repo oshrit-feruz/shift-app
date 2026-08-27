@@ -21,9 +21,14 @@ import type { ScreenProps } from '../App';
 const TIMEFRAMES = ['1D', '1W', '1M', '3M', '1Y'];
 
 /**
- * A single ticker's page: price and after-hours header, the user's own
- * position in it across portfolios, chart with timeframe and indicator
- * toggles, key statistics, analyst ratings and related news.
+ * A single ticker's page: price and after-hours header, watchlist/alert
+ * actions, chart with timeframe and indicator toggles, the user's own
+ * position in it across portfolios, key statistics, analyst ratings and
+ * related news.
+ *
+ * The holdings card sits right under the chart — reading price action then
+ * checking your own position against it is the natural next step, ahead of
+ * the more reference-like stats below.
  *
  * Beginner mode hides the indicator controls and swaps the denser tables for
  * plain-language cards; it no longer hides analyst ratings, which read the
@@ -78,43 +83,6 @@ export function StockScreen({ openAlert }: ScreenProps) {
               {t('stock.afterHrs')} <Num>{money(x.price * 1.004)}</Num>
             </div>
           </div>
-
-          <DataState
-            state={positions.state}
-            onRetry={positions.retry}
-            skeleton={<SkeletonList count={1} leading={false} minHeight={46} />}
-          >
-            {(rows) =>
-              rows.length === 0 ? null : (
-                <Card padding="12px 13px 4px" gap={7}>
-                  <CardTitle>{t('stock.yourHoldings')}</CardTitle>
-                  {rows.map(({ portfolio, holding, index }) => (
-                    <ListRow
-                      key={portfolio.id}
-                      title={portfolio.kind === 'manual' ? portfolio.name : `${portfolio.broker}`}
-                      subtitle={<Num>{`${holding.shares} sh · avg ${money(holding.avgCost)}`}</Num>}
-                      right={
-                        <RowValues
-                          main={money(holding.value, 0)}
-                          sub={pct(holding.plPct)}
-                          subColor={signalColor(holding.plPct)}
-                        />
-                      }
-                      minHeight={46}
-                      // Select this row's account first: the Portfolio tab
-                      // renders whichever portfolio pfIndex points at, so
-                      // navigating without setting it opens whichever account
-                      // was last looked at rather than the one just tapped.
-                      onClick={() => {
-                        dispatch({ type: 'pfIndex', index });
-                        dispatch({ type: 'go', screen: 'pf' });
-                      }}
-                    />
-                  ))}
-                </Card>
-              )
-            }
-          </DataState>
 
           <div style={{ display: 'flex', gap: 7 }}>
             <Button
@@ -177,6 +145,43 @@ export function StockScreen({ openAlert }: ScreenProps) {
               <CandleChart closes={closes} showMA={ind.ma} showRSI={ind.rsi} showMACD={ind.macd} rsiNow={x.rsi} />
             </Card>
           )}
+
+          <DataState
+            state={positions.state}
+            onRetry={positions.retry}
+            skeleton={<SkeletonList count={1} leading={false} minHeight={46} />}
+          >
+            {(rows) =>
+              rows.length === 0 ? null : (
+                <Card padding="12px 13px 4px" gap={7}>
+                  <CardTitle>{t('stock.yourHoldings')}</CardTitle>
+                  {rows.map(({ portfolio, holding, index }) => (
+                    <ListRow
+                      key={portfolio.id}
+                      title={portfolio.kind === 'manual' ? portfolio.name : `${portfolio.broker}`}
+                      subtitle={<Num>{`${holding.shares} sh · avg ${money(holding.avgCost)}`}</Num>}
+                      right={
+                        <RowValues
+                          main={money(holding.value, 0)}
+                          sub={pct(holding.plPct)}
+                          subColor={signalColor(holding.plPct)}
+                        />
+                      }
+                      minHeight={46}
+                      // Select this row's account first: the Portfolio tab
+                      // renders whichever portfolio pfIndex points at, so
+                      // navigating without setting it opens whichever account
+                      // was last looked at rather than the one just tapped.
+                      onClick={() => {
+                        dispatch({ type: 'pfIndex', index });
+                        dispatch({ type: 'go', screen: 'pf' });
+                      }}
+                    />
+                  ))}
+                </Card>
+              )
+            }
+          </DataState>
 
           <Card padding={12} gap={7}>
             <CardTitle>{beg ? t('stock.basics') : t('stock.keyStats')}</CardTitle>
