@@ -76,11 +76,25 @@ jobs:
             exit 1
           fi
 
-          # Every row the app renders needs a ticker; a ranking of blank rows
-          # is malformed even though the array is non-empty.
-          jq -e '.full_ranking | map(select(.ticker != null and .ticker != "")) | length > 0' \
+          # EVERY row must carry a usable identity, not merely one of them.
+          # Be strict in what we publish, lenient in what we read: the parser
+          # deliberately drops an unidentifiable row rather than rendering it
+          # (mapSignal returns null), so a partly-broken payload would render
+          # fine — but it would also mean the engine emitted something wrong,
+          # and publishing it under a step named "verify" is the sort of
+          # quiet half-success this whole job exists to refuse. Failing here
+          # is loud and costs nothing: the previous good file stays in place,
+          # and the app's MAX_SNAPSHOT_AGE_DAYS window covers the gap while
+          # someone looks at the engine.
+          #
+          # `ticker // symbol` because the parser accepts either, and trailing
+          # whitespace is trimmed there too — this gate must match mapSignal
+          # exactly, or it goes back to disagreeing with the reader.
+          jq -e 'all(.full_ranking[];
+                     (if type == "object" then ((.ticker // .symbol) // "") else "" end)
+                     | type == "string" and (gsub("^\\s+|\\s+$"; "") | length) > 0)' \
             /tmp/screener.fetched.json > /dev/null \
-            || { echo "::error::No full_ranking entry has a usable ticker"; exit 1; }
+            || { echo "::error::A full_ranking entry has no usable ticker — refusing to publish"; exit 1; }
 
           # The app refuses a snapshot with no date, an impossible date, or one
           # older than MAX_SNAPSHOT_AGE_DAYS. Publishing such a payload would
