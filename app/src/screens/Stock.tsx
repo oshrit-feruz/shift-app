@@ -88,7 +88,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
               rows.length === 0 ? null : (
                 <Card padding="12px 13px 4px" gap={7}>
                   <CardTitle>{t('stock.yourHoldings')}</CardTitle>
-                  {rows.map(({ portfolio, holding }) => (
+                  {rows.map(({ portfolio, holding, index }) => (
                     <ListRow
                       key={portfolio.id}
                       title={portfolio.kind === 'manual' ? portfolio.name : `${portfolio.broker}`}
@@ -101,7 +101,14 @@ export function StockScreen({ openAlert }: ScreenProps) {
                         />
                       }
                       minHeight={46}
-                      onClick={() => dispatch({ type: 'go', screen: 'pf' })}
+                      // Select this row's account first: the Portfolio tab
+                      // renders whichever portfolio pfIndex points at, so
+                      // navigating without setting it opens whichever account
+                      // was last looked at rather than the one just tapped.
+                      onClick={() => {
+                        dispatch({ type: 'pfIndex', index });
+                        dispatch({ type: 'go', screen: 'pf' });
+                      }}
                     />
                   ))}
                 </Card>

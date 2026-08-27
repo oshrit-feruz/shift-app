@@ -19,7 +19,7 @@ import { useLoadable } from '../data/useLoadable';
 import { money, pct, signalColor } from '../lib/format';
 import { TxSheet } from '../sheets/TxSheet';
 import { NewPortfolioSheet } from '../sheets/NewPortfolioSheet';
-import { manualPortfolioSummaries, mergeManualTransactions } from '../lib/holdings';
+import { mergeManualTransactions, portfolioList } from '../lib/holdings';
 import type { ScreenProps } from '../App';
 
 /**
@@ -66,7 +66,7 @@ export function PortfolioScreen(_: ScreenProps) {
         }
       >
         {(pfs) => {
-          const list = [...pfs, ...manualPortfolioSummaries(s.manualPortfolios)];
+          const list = portfolioList(pfs, s.manualPortfolios);
           const pf = list[Math.min(s.pfIndex, list.length - 1)];
           const isAgg = pf.kind === 'aggregate';
           const isManual = pf.kind === 'manual';

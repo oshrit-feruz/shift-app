@@ -62,9 +62,32 @@ export function mergeManualTransactions(rows: Holding[], transactions: ManualTra
   return [...merged.values()].filter((row) => row.shares > 0);
 }
 
+/**
+ * Every portfolio in the order the Portfolio tab shows them: the
+ * service-reported ones (aggregate first) followed by the user's own manual
+ * ones.
+ *
+ * Both the Portfolio tab and the Stock page's holdings card build their list
+ * through here, because the tab selects a portfolio by *index* into this list —
+ * so if the two screens ordered it differently, tapping a holding on the stock
+ * page would open a different account than the one tapped.
+ */
+export function portfolioList(
+  servicePortfolios: PortfolioSummary[],
+  manualPortfolios: ManualPortfolio[],
+): PortfolioSummary[] {
+  return [...servicePortfolios, ...manualPortfolioSummaries(manualPortfolios)];
+}
+
 export interface TickerPosition {
   portfolio: PortfolioSummary;
   holding: Holding;
+  /**
+   * Index of this portfolio in portfolioList(), which is what the Portfolio
+   * tab's `pfIndex` selects on — carried here so tapping a holding row can open
+   * that specific account rather than whichever one happened to be selected.
+   */
+  index: number;
 }
 
 /**
@@ -98,10 +121,10 @@ export async function fetchYourPositions(
   const pfs = await demoService.portfolios();
   if (pfs.status !== 'ok') return pfs;
 
-  const eligible = [
-    ...pfs.data.filter((pf) => pf.kind !== 'aggregate'),
-    ...manualPortfolioSummaries(manualPortfolios),
-  ];
+  // Built from the same list the Portfolio tab renders, so the index recorded
+  // below addresses the same row the tab would select.
+  const all = portfolioList(pfs.data, manualPortfolios);
+  const eligible = all.filter((pf) => pf.kind !== 'aggregate');
   const settled = await Promise.all(eligible.map((pf) => demoService.holdings(pf.id)));
   if (settled.some((r) => r.status !== 'ok')) return unavailable();
 
@@ -110,7 +133,9 @@ export async function fetchYourPositions(
     const rows = (settled[i] as { status: 'ok'; data: Holding[] }).data;
     const merged = mergeManualTransactions(rows, manualTransactions[pf.id] ?? []);
     const match = merged.find((row) => row.ticker === ticker);
-    if (match) results.push({ portfolio: pf, holding: match });
+    if (match) {
+      results.push({ portfolio: pf, holding: match, index: all.findIndex((x) => x.id === pf.id) });
+    }
   });
   return ok(results);
 }
