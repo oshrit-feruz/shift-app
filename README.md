@@ -67,33 +67,58 @@ npm run build      # tsc --noEmit + vite build (app + design-system page)
 the `DataService` interface (`service.ts`) carrying the prototype's numbers. A
 real backend drops in by implementing that interface; no UI changes needed.
 
-**One surface is live:** Satellite positions. `satellitePositions()` delegates
-to `app/src/data/recoveryDetector.ts`, which calls the Recovery Detector engine
-at `https://stock-screener-7lvr.onrender.com/api/beta/dashboard` and reads its
-`open_positions` field. Field names are mapped defensively (`ticker|symbol`,
-`entry_price|entry`, `current_price|price|last`; numeric strings tolerated).
+**One surface carries real engine data:** the Satellite card.
+`satelliteSignals()` delegates to `app/src/data/recoveryDetector.ts`, which
+reads the Recovery Detector screener's BUY signals. Field names are mapped
+defensively (`ticker|symbol`, `price|current_price|last`, `drawdown_pct|
+drawdown`; numeric strings tolerated).
+
+It reads a **daily mirror, not a live call.** The engine runs on Render's free
+tier, which sleeps after ~15 minutes idle and takes 30-60s to wake, while the
+screener only recomputes once a day (its response says so in `computed_on`) —
+so paying that cold start on every visit bought nothing but latency.
+`.github/workflows/mirror-screener.yml` fetches the day's result at 12:15 UTC
+(the engine's own job runs at 11:30) and commits it to
+`app/public/data/screener.json`; the app reads that static file from Vercel's
+edge and never touches Render. Anything that genuinely must be fresh (news,
+live prices) goes through a Vercel function instead.
+
+That workflow **verifies before it publishes**, the discipline the engine repo
+documents in its own ARCHITECTURE.md: it asserts the payload is an object with
+a non-empty `full_ranking` whose rows carry tickers, and fails loudly if not.
+Verification runs *before* anything is written, so a bad fetch can never
+overwrite the last good file. It stages with `git add` and then diffs
+`--cached` — plain `git diff` reports no change for an untracked file, so a
+brand-new mirror would silently never be committed.
 
 That path has **no demo fallback, by design**:
 
-| Engine response | App shows |
+| Mirror content | App shows |
 | --- | --- |
-| positions present | the real rows; a missing price renders `—`, and its % change is suppressed rather than guessed |
-| `open_positions: []` | the honest empty state, "אין פוזיציות פתוחות כרגע" — zero positions is a valid answer, not an error |
-| network / CORS / timeout / non-2xx / unparseable / unrecognised shape | the honest "unavailable" state with a retry |
+| BUY signals present, snapshot fresh | the real rows; a missing number renders `—` rather than being guessed |
+| no BUY signals, snapshot fresh | the honest empty state — zero candidates is a valid answer on a quiet day, not an error |
+| snapshot older than 4 days, or file missing | "unavailable" **with the specific reason**, never the stale rows |
+| unparseable / unrecognised shape | the honest "unavailable" state with a retry |
 
 The Settings → Data & display "no satellite positions" demo switch was removed
 when this went live: its empty state is now whatever the engine actually
 reports, and the remaining "data unavailable" switch deliberately does not
 apply to this call.
 
-Two operational notes for whoever deploys this:
-- **CORS is unverified.** The browser calls the engine directly from a
-  different origin. If the endpoint does not send `Access-Control-Allow-Origin`
-  for the app's origin, the fetch fails and the card correctly shows
-  "unavailable" — the fix would be a small same-origin proxy, not a client
-  change.
-- The engine is on Render's free tier, which cold-starts; the client allows
-  15s (`TIMEOUT_MS`) before giving up and showing "unavailable".
+Operational notes for whoever deploys this:
+- **CORS is no longer in the path** for the screener: the mirror is served
+  from the app's own origin, so there is no cross-origin fetch to fail.
+- **A stale mirror is reported, never served quietly.** If the snapshot is
+  older than `MAX_SNAPSHOT_AGE_DAYS` (4 — enough for a long weekend), or the
+  file is missing entirely, the card shows the honest unavailable state with a
+  specific reason ("נתוני השוק בני 9 ימים, ולכן אינם עדכניים") rather than
+  presenting week-old signals as today's. A broken mirror must look broken,
+  not like a quiet market.
+- **Per-ticker endpoints still hit Render directly** and cannot be mirrored the
+  way one daily ranking can — `/api/stock/{ticker}/fundamentals` is on-demand
+  per ticker. Those calls still pay a cold start of up to ~60s on the first
+  request after an idle period, so anything built against
+  `RECOVERY_DETECTOR_ORIGIN` needs a loading state that survives that wait.
 
 **A second live surface:** stock news. `app/api/news.ts` is a Vercel
 serverless function that proxies EODHD's News API — a server-side proxy,

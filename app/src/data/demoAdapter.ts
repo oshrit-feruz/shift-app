@@ -181,11 +181,13 @@ export const demoService: DataService & { isDemo: true } = {
   },
 
   /**
-   * LIVE — the one method on this adapter that is not demo data.
-   * No demo latency, no DEMO_FLAGS: it hits the real Recovery Detector API and
-   * returns exactly what that call yields (ok(signals) | ok([]) for a real
-   * empty result | unavailable on any failure). There is deliberately no demo
-   * fallback path here.
+   * REAL ENGINE DATA — the one method on this adapter that is not demo data.
+   * No demo latency, no DEMO_FLAGS: it reads the daily mirror of the Recovery
+   * Detector screener (a static file published by
+   * .github/workflows/mirror-screener.yml, not a live call to Render) and
+   * returns exactly what that read yields — ok(signals) | ok([]) for a real
+   * empty result | unavailable on any failure, including a snapshot too old to
+   * trust. There is deliberately no demo fallback path here.
    */
   async satelliteSignals() {
     return fetchSatelliteSignals();

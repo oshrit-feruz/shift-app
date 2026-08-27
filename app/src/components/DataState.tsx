@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Loadable } from '../data/types';
 import { useT } from '../i18n/useT';
+import { useTheme } from '../theme/ThemeProvider';
 import { Button } from './Button';
 
 /**
@@ -26,6 +27,7 @@ export function DataState<T>({
   children: (data: T) => ReactNode;
 }) {
   const t = useT();
+  const { language } = useTheme();
   if (state.status === 'loading') {
     if (skeleton) {
       // No wrapper element: a wrapper would collapse the skeleton into a
@@ -56,7 +58,11 @@ export function DataState<T>({
       <div style={{ textAlign: 'center', padding: '14px 0', display: 'flex', flexDirection: 'column', gap: 6 }}>
         <span style={{ fontSize: 14 }}>{t('data.unavailable')}</span>
         <span className="text-muted" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
-          {t('data.unavailableHelp')}
+          {/* A specific reason from the data layer beats the generic copy:
+              "the snapshot is 9 days old" tells the user something true and
+              actionable, where "try again later" would imply a transient
+              glitch that retrying could fix. */}
+          {state.reason ? state.reason[language] : t('data.unavailableHelp')}
         </span>
         {onRetry && (
           <Button variant="ghost" onClick={onRetry} alignSelf="center" fontSize={13}>
