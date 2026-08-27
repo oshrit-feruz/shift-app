@@ -231,6 +231,20 @@ describe('snapshotAgeDays — UTC-stable age of the mirrored snapshot', () => {
     expect(snapshotAgeDays('2026-08-27', at('2026-08-27T02:00:00Z'))).toBe(0);
   });
 
+  it('rejects impossible calendar dates instead of letting them roll forward', () => {
+    // Date.UTC(2026, 7, 99) lands in November and Date.UTC(2026, 12, 45) lands
+    // in 2027 — both yield a NEGATIVE age, which would sail past the
+    // "older than MAX" gate and read as fresh. These must be null.
+    for (const bad of ['2026-02-30', '2026-02-31', '2026-08-99', '2026-13-45', '2026-00-10', '2026-08-00']) {
+      expect(snapshotAgeDays(bad, at('2026-08-01T00:00:00Z'))).toBeNull();
+    }
+  });
+
+  it('still accepts real leap-day dates', () => {
+    expect(snapshotAgeDays('2028-02-29', at('2028-03-01T00:00:00Z'))).toBe(1);
+    expect(snapshotAgeDays('2026-02-29', at('2026-03-01T00:00:00Z'))).toBeNull();
+  });
+
   it('returns null for a missing or unparseable date rather than guessing', () => {
     expect(snapshotAgeDays(undefined)).toBeNull();
     expect(snapshotAgeDays(null)).toBeNull();
@@ -295,6 +309,36 @@ describe('fetchSatelliteSignals — reads the mirror, refuses stale data', () =>
     const r = await fetchSatelliteSignals(async () => res(null, false, 404), NOW);
     expect(r.status).toBe('unavailable');
     expect(r.status === 'unavailable' && r.reason?.en).toContain('not been published');
+  });
+
+  it('refuses a snapshot dated in the future rather than reading it as fresh', async () => {
+    const r = await fetchSatelliteSignals(
+      async () => res({ computed_on: '2027-01-01', buy_signals: [{ ticker: 'ORCL', signal: 'BUY' }] }),
+      NOW,
+    );
+    expect(r.status).toBe('unavailable');
+    expect(r.status === 'unavailable' && r.reason?.en).toContain('future');
+    expect(JSON.stringify(r)).not.toContain('ORCL');
+  });
+
+  it('tolerates one day of clock skew, so a fresh snapshot is not rejected', async () => {
+    // A viewer whose device clock is a day behind UTC sees today's snapshot as
+    // tomorrow's. That is skew, not a bad date, and must still render.
+    const r = await fetchSatelliteSignals(
+      async () => res({ computed_on: '2026-08-28', buy_signals: [] }),
+      NOW,
+    );
+    expect(r).toEqual({ status: 'ok', data: [] });
+  });
+
+  it('refuses an impossible date rather than accepting its rolled-forward age', async () => {
+    const r = await fetchSatelliteSignals(
+      async () => res({ computed_on: '2026-08-99', buy_signals: [{ ticker: 'ORCL', signal: 'BUY' }] }),
+      NOW,
+    );
+    expect(r.status).toBe('unavailable');
+    expect(r.status === 'unavailable' && r.reason?.en).toContain('missing its date');
+    expect(JSON.stringify(r)).not.toContain('ORCL');
   });
 
   it('reports a malformed snapshot as malformed, not as stale', async () => {

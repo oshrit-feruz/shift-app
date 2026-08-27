@@ -27,6 +27,10 @@ concurrency:
 env:
   SCREENER_URL: https://stock-screener-7lvr.onrender.com/api/screener
   TARGET: app/public/data/screener.json
+  # Must match MAX_SNAPSHOT_AGE_DAYS in app/src/data/recoveryDetector.ts. If
+  # they drift apart this job can publish a snapshot the app refuses to read,
+  # which is the one outcome the verification here exists to avoid.
+  MAX_SNAPSHOT_AGE_DAYS: 4
 
 jobs:
   mirror:
@@ -78,8 +82,43 @@ jobs:
             /tmp/screener.fetched.json > /dev/null \
             || { echo "::error::No full_ranking entry has a usable ticker"; exit 1; }
 
-          COMPUTED_ON="$(jq -r '.computed_on // "unknown"' /tmp/screener.fetched.json)"
-          echo "Verified: $COUNT ranking entries, computed_on=$COMPUTED_ON"
+          # The app refuses a snapshot with no date, an impossible date, or one
+          # older than MAX_SNAPSHOT_AGE_DAYS. Publishing such a payload would
+          # replace a good file with one the app then rejects — the Satellite
+          # card would go unavailable for the day, which is precisely what this
+          # step exists to prevent. So apply the same rules here.
+          COMPUTED_ON="$(jq -r '(.computed_on // .as_of) // ""' /tmp/screener.fetched.json)"
+
+          # `case` matches the WHOLE value, so a crafted multi-line string
+          # cannot pass by having one valid-looking line — which also stops it
+          # injecting extra variables when appended to $GITHUB_ENV below.
+          case "$COMPUTED_ON" in
+            [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;;
+            *)
+              echo "::error::Snapshot date is missing or malformed — refusing to publish"
+              exit 1
+              ;;
+          esac
+
+          # Shape alone is not enough: 2026-02-31 has the right shape and is not
+          # a real day. GNU date rejects it, where a naive parse would roll it
+          # forward into March and read as plausible.
+          if ! SNAP_TS="$(date -u -d "$COMPUTED_ON" +%s 2>/dev/null)"; then
+            echo "::error::Snapshot date $COMPUTED_ON is not a real calendar date — refusing to publish"
+            exit 1
+          fi
+
+          AGE_DAYS=$(( ( $(date -u +%s) - SNAP_TS ) / 86400 ))
+          if [ "$AGE_DAYS" -gt "$MAX_SNAPSHOT_AGE_DAYS" ]; then
+            echo "::error::Snapshot is $AGE_DAYS days old (computed_on=$COMPUTED_ON) — refusing to publish"
+            exit 1
+          fi
+          if [ "$AGE_DAYS" -lt -1 ]; then
+            echo "::error::Snapshot is dated in the future (computed_on=$COMPUTED_ON) — refusing to publish"
+            exit 1
+          fi
+
+          echo "Verified: $COUNT ranking entries, computed_on=$COMPUTED_ON, age=${AGE_DAYS}d"
           echo "COUNT=$COUNT" >> "$GITHUB_ENV"
           echo "COMPUTED_ON=$COMPUTED_ON" >> "$GITHUB_ENV"
 

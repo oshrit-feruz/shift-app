@@ -188,11 +188,39 @@ export function snapshotAgeDays(computedOn: unknown, now: Date = new Date()): nu
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(computedOn.trim());
   if (!match) return null;
   const [, y, m, d] = match;
-  const stamped = Date.UTC(Number(y), Number(m) - 1, Number(d));
+  const year = Number(y);
+  const month = Number(m);
+  const day = Number(d);
+  const stamped = Date.UTC(year, month - 1, day);
   if (!Number.isFinite(stamped)) return null;
+
+  // Date.UTC silently rolls impossible dates forward — Date.UTC(2026, 7, 99)
+  // lands in November, and "2026-13-45" lands in 2027. Left unchecked that is
+  // not merely sloppy: a rolled-forward date produces a *negative* age, which
+  // sails past the "older than MAX" gate and lets a garbage snapshot read as
+  // fresh. Round-tripping the parsed fields is what makes the age check
+  // trustworthy rather than bypassable.
+  const back = new Date(stamped);
+  if (
+    back.getUTCFullYear() !== year ||
+    back.getUTCMonth() !== month - 1 ||
+    back.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
   const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
   return Math.round((today - stamped) / 86_400_000);
 }
+
+/**
+ * A snapshot may read at most this far into the future before we stop trusting
+ * it. One day of slack absorbs a viewer whose device clock is a little behind
+ * UTC; anything beyond that is a real date problem, not skew, and a
+ * future-dated snapshot must not be allowed to pass the freshness gate simply
+ * because its age is negative.
+ */
+const MAX_FUTURE_SKEW_DAYS = 1;
 
 /**
  * Read the day's BUY candidates from the mirrored snapshot. Never throws.
@@ -243,6 +271,12 @@ export async function fetchSatelliteSignals(
       return unavailable({
         en: `Market data is ${age} days old, so it is no longer current.`,
         he: `נתוני השוק בני ${age} ימים, ולכן אינם עדכניים.`,
+      });
+    }
+    if (age < -MAX_FUTURE_SKEW_DAYS) {
+      return unavailable({
+        en: 'Market data is dated in the future, so it cannot be trusted.',
+        he: 'נתוני השוק מתוארכים לעתיד, ולכן אי אפשר להסתמך עליהם.',
       });
     }
 

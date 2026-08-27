@@ -55,11 +55,14 @@ npm run build      # tsc --noEmit + vite build (app + design-system page)
   mark-as-read affordance, never a confirm/execute button.
 - **Data honesty** (`app/src/data/`): every data-service method returns
   `loading | unavailable | ok`, and screens render all three honestly — an API
-  failure shows an explicit "unavailable" state, never a fabricated number; no
-  open Satellite positions renders as genuinely empty
-  ("אין פוזיציות פתוחות כרגע"). Settings → Data & display has demo switches for
-  both states. Pension / hishtalmut / bank show totals by provider only, in a
-  separate read-only section, never merged into the managed portfolio number.
+  failure shows an explicit "unavailable" state, never a fabricated number, and
+  a day with no Satellite candidates renders as genuinely empty rather than as
+  an error. Settings → Data & display carries a single "data unavailable" demo
+  switch (`DEMO_FLAGS.unavailable`), which deliberately does **not** apply to
+  the Satellite card — that card's empty and unavailable states come from the
+  real mirrored data, so there is nothing left to simulate. Pension /
+  hishtalmut / bank show totals by provider only, in a separate read-only
+  section, never merged into the managed portfolio number.
 
 ## Data
 
