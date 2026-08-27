@@ -139,9 +139,24 @@ export interface LongTermAccount {
  */
 export type Loadable<T> =
   | { status: 'loading' }
-  | { status: 'unavailable' }
+  /**
+   * `reason` is an optional, already-human-readable explanation of *why* this
+   * is unavailable — e.g. "the snapshot is 9 days old". It is shown to the
+   * user in place of the generic help text, so it must never carry a raw
+   * error string or anything a caller would have to interpret. Omit it and
+   * the generic copy is used, which is right for the common case where the
+   * only honest thing to say is "we could not load this".
+   *
+   * Bilingual for the same reason PortfolioSummary.syncedAgo is: this text
+   * reaches a Hebrew-first UI, and the data layer has no access to the
+   * i18n hooks, so it carries both languages and the component picks one.
+   */
+  | { status: 'unavailable'; reason?: { en: string; he: string } }
   | { status: 'ok'; data: T };
 
 export const loading = <T,>(): Loadable<T> => ({ status: 'loading' });
-export const unavailable = <T,>(): Loadable<T> => ({ status: 'unavailable' });
+export const unavailable = <T,>(reason?: { en: string; he: string }): Loadable<T> => ({
+  status: 'unavailable',
+  reason,
+});
 export const ok = <T,>(data: T): Loadable<T> => ({ status: 'ok', data });

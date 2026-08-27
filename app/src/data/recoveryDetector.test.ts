@@ -1,8 +1,12 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
+  MAX_SNAPSHOT_AGE_DAYS,
+  SCREENER_MIRROR_URL,
   extractBuySignals,
   fetchSatelliteSignals,
   mapSignal,
+  snapshotAgeDays,
   toNumber,
 } from './recoveryDetector';
 
@@ -143,17 +147,27 @@ describe('extractBuySignals', () => {
 const res = (body: unknown, ok = true, status = 200): Response =>
   ({ ok, status, json: async () => body }) as Response;
 
+/**
+ * A fixed clock and a snapshot date one day before it. Real screener
+ * responses always carry `computed_on`, so fixtures here do too — a fixture
+ * without it would be testing a payload the engine never actually sends.
+ */
+const NOW = new Date('2026-08-27T09:00:00Z');
+const FRESH = '2026-08-26';
+
 describe('fetchSatelliteSignals — honest states, no demo fallback', () => {
   it('ok with candidates when the engine picks some', async () => {
-    const r = await fetchSatelliteSignals(async () =>
-      res({ buy_signals: [{ ticker: 'ORCL', price: 144.76, signal: 'BUY' }] }),
+    const r = await fetchSatelliteSignals(
+      async () =>
+        res({ computed_on: FRESH, buy_signals: [{ ticker: 'ORCL', price: 144.76, signal: 'BUY' }] }),
+      NOW,
     );
     expect(r.status).toBe('ok');
     expect(r.status === 'ok' && r.data.map((s) => s.ticker)).toEqual(['ORCL']);
   });
 
   it('ok with an EMPTY list on a quiet day (a real answer, not an error)', async () => {
-    const r = await fetchSatelliteSignals(async () => res({ buy_signals: [] }));
+    const r = await fetchSatelliteSignals(async () => res({ computed_on: FRESH, buy_signals: [] }), NOW);
     expect(r).toEqual({ status: 'ok', data: [] });
   });
 
@@ -195,5 +209,175 @@ describe('fetchSatelliteSignals — honest states, no demo fallback', () => {
       const serialised = JSON.stringify(r);
       for (const t of demoTickers) expect(serialised).not.toContain(t);
     }
+  });
+});
+
+describe('snapshotAgeDays — UTC-stable age of the mirrored snapshot', () => {
+  const at = (iso: string) => new Date(iso);
+
+  it('is 0 on the day the snapshot was computed', () => {
+    expect(snapshotAgeDays('2026-08-27', at('2026-08-27T00:00:00Z'))).toBe(0);
+    expect(snapshotAgeDays('2026-08-27', at('2026-08-27T23:59:59Z'))).toBe(0);
+  });
+
+  it('counts whole days elapsed', () => {
+    expect(snapshotAgeDays('2026-08-26', at('2026-08-27T09:00:00Z'))).toBe(1);
+    expect(snapshotAgeDays('2026-08-20', at('2026-08-27T09:00:00Z'))).toBe(7);
+  });
+
+  it('does not drift a day for viewers west of UTC', () => {
+    // 2026-08-27T02:00Z is still 2026-08-26 in New York. Parsing the bare
+    // date locally would make a same-day snapshot look a day old there.
+    expect(snapshotAgeDays('2026-08-27', at('2026-08-27T02:00:00Z'))).toBe(0);
+  });
+
+  it('rejects impossible calendar dates instead of letting them roll forward', () => {
+    // Date.UTC(2026, 7, 99) lands in November and Date.UTC(2026, 12, 45) lands
+    // in 2027 — both yield a NEGATIVE age, which would sail past the
+    // "older than MAX" gate and read as fresh. These must be null.
+    for (const bad of ['2026-02-30', '2026-02-31', '2026-08-99', '2026-13-45', '2026-00-10', '2026-08-00']) {
+      expect(snapshotAgeDays(bad, at('2026-08-01T00:00:00Z'))).toBeNull();
+    }
+  });
+
+  it('still accepts real leap-day dates', () => {
+    expect(snapshotAgeDays('2028-02-29', at('2028-03-01T00:00:00Z'))).toBe(1);
+    expect(snapshotAgeDays('2026-02-29', at('2026-03-01T00:00:00Z'))).toBeNull();
+  });
+
+  it('returns null for a missing or unparseable date rather than guessing', () => {
+    expect(snapshotAgeDays(undefined)).toBeNull();
+    expect(snapshotAgeDays(null)).toBeNull();
+    expect(snapshotAgeDays('')).toBeNull();
+    expect(snapshotAgeDays('yesterday')).toBeNull();
+    expect(snapshotAgeDays('26/08/2026')).toBeNull();
+    expect(snapshotAgeDays(20260826)).toBeNull();
+  });
+});
+
+describe('fetchSatelliteSignals — reads the mirror, refuses stale data', () => {
+  it('reads the local mirror, not the Render origin', async () => {
+    let requested = '';
+    await fetchSatelliteSignals(async (url) => {
+      requested = String(url);
+      return res({ computed_on: FRESH, buy_signals: [] });
+    }, NOW);
+    expect(requested).toBe(SCREENER_MIRROR_URL);
+    expect(requested).not.toContain('onrender.com');
+  });
+
+  it('serves a snapshot at exactly the age limit', async () => {
+    const edge = '2026-08-23'; // 4 days before NOW
+    const r = await fetchSatelliteSignals(
+      async () => res({ computed_on: edge, buy_signals: [{ ticker: 'ORCL', signal: 'BUY' }] }),
+      NOW,
+    );
+    expect(snapshotAgeDays(edge, NOW)).toBe(MAX_SNAPSHOT_AGE_DAYS);
+    expect(r.status).toBe('ok');
+  });
+
+  it('refuses a snapshot one day past the limit, and says how old it is', async () => {
+    const r = await fetchSatelliteSignals(
+      async () => res({ computed_on: '2026-08-22', buy_signals: [{ ticker: 'ORCL', signal: 'BUY' }] }),
+      NOW,
+    );
+    expect(r.status).toBe('unavailable');
+    expect(r.status === 'unavailable' && r.reason?.en).toContain('5 days old');
+    expect(r.status === 'unavailable' && r.reason?.he).toContain('5 ימים');
+  });
+
+  it('does not leak stale signals through the unavailable result', async () => {
+    const r = await fetchSatelliteSignals(
+      async () => res({ computed_on: '2026-01-01', buy_signals: [{ ticker: 'ORCL', signal: 'BUY' }] }),
+      NOW,
+    );
+    expect(JSON.stringify(r)).not.toContain('ORCL');
+  });
+
+  it('falls back to as_of when computed_on is absent', async () => {
+    const r = await fetchSatelliteSignals(async () => res({ as_of: FRESH, buy_signals: [] }), NOW);
+    expect(r).toEqual({ status: 'ok', data: [] });
+  });
+
+  it('refuses a well-formed snapshot carrying no date at all', async () => {
+    const r = await fetchSatelliteSignals(async () => res({ buy_signals: [] }), NOW);
+    expect(r.status).toBe('unavailable');
+    expect(r.status === 'unavailable' && r.reason?.en).toContain('missing its date');
+  });
+
+  it('reports a never-published mirror distinctly from a transient failure', async () => {
+    const r = await fetchSatelliteSignals(async () => res(null, false, 404), NOW);
+    expect(r.status).toBe('unavailable');
+    expect(r.status === 'unavailable' && r.reason?.en).toContain('not been published');
+  });
+
+  it('refuses a snapshot dated in the future rather than reading it as fresh', async () => {
+    const r = await fetchSatelliteSignals(
+      async () => res({ computed_on: '2027-01-01', buy_signals: [{ ticker: 'ORCL', signal: 'BUY' }] }),
+      NOW,
+    );
+    expect(r.status).toBe('unavailable');
+    expect(r.status === 'unavailable' && r.reason?.en).toContain('future');
+    expect(JSON.stringify(r)).not.toContain('ORCL');
+  });
+
+  it('tolerates one day of clock skew, so a fresh snapshot is not rejected', async () => {
+    // A viewer whose device clock is a day behind UTC sees today's snapshot as
+    // tomorrow's. That is skew, not a bad date, and must still render.
+    const r = await fetchSatelliteSignals(
+      async () => res({ computed_on: '2026-08-28', buy_signals: [] }),
+      NOW,
+    );
+    expect(r).toEqual({ status: 'ok', data: [] });
+  });
+
+  it('refuses an impossible date rather than accepting its rolled-forward age', async () => {
+    const r = await fetchSatelliteSignals(
+      async () => res({ computed_on: '2026-08-99', buy_signals: [{ ticker: 'ORCL', signal: 'BUY' }] }),
+      NOW,
+    );
+    expect(r.status).toBe('unavailable');
+    expect(r.status === 'unavailable' && r.reason?.en).toContain('missing its date');
+    expect(JSON.stringify(r)).not.toContain('ORCL');
+  });
+
+  it('reports a malformed snapshot as malformed, not as stale', async () => {
+    // Unrecognised shape AND ancient: the shape check must win, so the
+    // message does not send someone chasing a stale-mirror problem.
+    const r = await fetchSatelliteSignals(async () => res({ computed_on: '2020-01-01', nope: true }), NOW);
+    expect(r.status).toBe('unavailable');
+    expect(r.status === 'unavailable' && r.reason).toBeUndefined();
+  });
+});
+
+describe('the committed mirror artifact is consumable by the real parser', () => {
+  // Guards the seam between the workflow that publishes the file and the code
+  // that reads it: unit tests above use hand-written fixtures, so nothing else
+  // would catch the published payload drifting from what the parser expects.
+  const snapshot = JSON.parse(
+    readFileSync(new URL('../../public/data/screener.json', import.meta.url), 'utf8'),
+  ) as Record<string, unknown>;
+
+  it('has the shape the publish workflow verifies before committing', () => {
+    expect(Array.isArray(snapshot.full_ranking)).toBe(true);
+    expect((snapshot.full_ranking as unknown[]).length).toBeGreaterThan(0);
+  });
+
+  it('carries a parseable date, so it can never read as "missing its date"', () => {
+    expect(snapshotAgeDays(snapshot.computed_on ?? snapshot.as_of, new Date())).not.toBeNull();
+  });
+
+  it('yields real signals through extractBuySignals — not null, not empty rows', () => {
+    const signals = extractBuySignals(snapshot);
+    expect(signals).not.toBeNull();
+    for (const s of signals!) {
+      expect(s.ticker).toMatch(/^[A-Z.-]+$/);
+      expect(s.signal).toBe('BUY');
+    }
+  });
+
+  it('every ranking row maps to a usable ticker', () => {
+    const mapped = (snapshot.full_ranking as unknown[]).map(mapSignal);
+    expect(mapped.filter((s) => s === null)).toHaveLength(0);
   });
 });

@@ -1,0 +1,194 @@
+name: Mirror screener data
+
+# The Recovery Detector engine runs on Render's free tier, which sleeps after
+# ~15 minutes idle and takes 30-60s to wake. The screener recomputes once a
+# day, so there is no reason for the app to pay that cold start on every
+# visit: this job fetches the day's result and commits it into the repo, and
+# the app reads the static file from Vercel's edge instead.
+#
+# The engine's own daily job runs at 11:30 UTC; this runs at 12:15 UTC to
+# leave it room to finish.
+
+on:
+  schedule:
+    - cron: '15 12 * * *'
+  # Manual runs for backfilling after an outage, or to test a change to this
+  # workflow without waiting a day.
+  workflow_dispatch:
+
+# Least privilege: the only write this job needs is its own commit.
+permissions:
+  contents: write
+
+concurrency:
+  group: mirror-screener
+  cancel-in-progress: false
+
+env:
+  SCREENER_URL: https://stock-screener-7lvr.onrender.com/api/screener
+  TARGET: app/public/data/screener.json
+  # Must match MAX_SNAPSHOT_AGE_DAYS in app/src/data/recoveryDetector.ts. If
+  # they drift apart this job can publish a snapshot the app refuses to read,
+  # which is the one outcome the verification here exists to avoid.
+  MAX_SNAPSHOT_AGE_DAYS: 4
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch screener response
+        run: |
+          set -euo pipefail
+          # --fail turns a non-2xx into a non-zero exit instead of happily
+          # writing an error page into the payload. The retry flags cover
+          # Render's cold start: the instance is very likely asleep at this
+          # hour, and the first request can take the better part of a minute.
+          curl --fail --silent --show-error \
+               --retry 5 --retry-delay 15 --retry-all-errors \
+               --max-time 120 \
+               -H 'Accept: application/json' \
+               -o /tmp/screener.fetched.json \
+               "$SCREENER_URL"
+
+      - name: Verify the payload before publishing it
+        run: |
+          set -euo pipefail
+          # The engine repo learned this the hard way (see its ARCHITECTURE.md):
+          # a job that only checks "did the command exit 0" will cheerfully
+          # publish an empty or malformed file and report success. So assert
+          # positively on the content, and fail loudly if it is not what we
+          # expect — leaving the previous good file untouched, because nothing
+          # has been copied over it yet at this point.
+          test -s /tmp/screener.fetched.json \
+            || { echo "::error::Fetched file is empty"; exit 1; }
+
+          jq -e 'type == "object"' /tmp/screener.fetched.json > /dev/null \
+            || { echo "::error::Payload is not a JSON object"; exit 1; }
+
+          jq -e '.full_ranking | type == "array"' /tmp/screener.fetched.json > /dev/null \
+            || { echo "::error::full_ranking is missing or not an array"; exit 1; }
+
+          COUNT="$(jq '.full_ranking | length' /tmp/screener.fetched.json)"
+          if [ "$COUNT" -lt 1 ]; then
+            echo "::error::full_ranking is empty ($COUNT entries) — refusing to publish"
+            exit 1
+          fi
+
+          # EVERY row must carry a usable identity, not merely one of them.
+          # Be strict in what we publish, lenient in what we read: the parser
+          # deliberately drops an unidentifiable row rather than rendering it
+          # (mapSignal returns null), so a partly-broken payload would render
+          # fine — but it would also mean the engine emitted something wrong,
+          # and publishing it under a step named "verify" is the sort of
+          # quiet half-success this whole job exists to refuse. Failing here
+          # is loud and costs nothing: the previous good file stays in place,
+          # and the app's MAX_SNAPSHOT_AGE_DAYS window covers the gap while
+          # someone looks at the engine.
+          #
+          # `ticker // symbol` because the parser accepts either, and trailing
+          # whitespace is trimmed there too — this gate must match mapSignal
+          # exactly, or it goes back to disagreeing with the reader.
+          jq -e 'all(.full_ranking[];
+                     (if type == "object" then ((.ticker // .symbol) // "") else "" end)
+                     | type == "string" and (gsub("^\\s+|\\s+$"; "") | length) > 0)' \
+            /tmp/screener.fetched.json > /dev/null \
+            || { echo "::error::A full_ranking entry has no usable ticker — refusing to publish"; exit 1; }
+
+          # The app refuses a snapshot with no date, an impossible date, or one
+          # older than MAX_SNAPSHOT_AGE_DAYS. Publishing such a payload would
+          # replace a good file with one the app then rejects — the Satellite
+          # card would go unavailable for the day, which is precisely what this
+          # step exists to prevent. So apply the same rules here.
+          COMPUTED_ON="$(jq -r '(.computed_on // .as_of) // ""' /tmp/screener.fetched.json)"
+
+          # `case` matches the WHOLE value, so a crafted multi-line string
+          # cannot pass by having one valid-looking line — which also stops it
+          # injecting extra variables when appended to $GITHUB_ENV below.
+          case "$COMPUTED_ON" in
+            [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;;
+            *)
+              echo "::error::Snapshot date is missing or malformed — refusing to publish"
+              exit 1
+              ;;
+          esac
+
+          # Shape alone is not enough: 2026-02-31 has the right shape and is not
+          # a real day. GNU date rejects it, where a naive parse would roll it
+          # forward into March and read as plausible.
+          if ! SNAP_TS="$(date -u -d "$COMPUTED_ON" +%s 2>/dev/null)"; then
+            echo "::error::Snapshot date $COMPUTED_ON is not a real calendar date — refusing to publish"
+            exit 1
+          fi
+
+          # Both sides must be UTC *calendar* midnights, not the current
+          # instant. Measuring from "now" makes the division inexact and bash
+          # truncates toward zero, so a snapshot two UTC days ahead computes as
+          # -1 here while recoveryDetector.ts (which compares calendar dates)
+          # computes -2 — the workflow would publish exactly the payload the
+          # app then refuses. Anchoring to midnight keeps the difference an
+          # exact multiple of 86400 and the two definitions identical.
+          TODAY_TS="$(date -u -d "$(date -u +%Y-%m-%d)" +%s)"
+          AGE_DAYS=$(( ( TODAY_TS - SNAP_TS ) / 86400 ))
+          if [ "$AGE_DAYS" -gt "$MAX_SNAPSHOT_AGE_DAYS" ]; then
+            echo "::error::Snapshot is $AGE_DAYS days old (computed_on=$COMPUTED_ON) — refusing to publish"
+            exit 1
+          fi
+          if [ "$AGE_DAYS" -lt -1 ]; then
+            echo "::error::Snapshot is dated in the future (computed_on=$COMPUTED_ON) — refusing to publish"
+            exit 1
+          fi
+
+          echo "Verified: $COUNT ranking entries, computed_on=$COMPUTED_ON, age=${AGE_DAYS}d"
+          echo "COUNT=$COUNT" >> "$GITHUB_ENV"
+          echo "COMPUTED_ON=$COMPUTED_ON" >> "$GITHUB_ENV"
+
+      - name: Write the verified payload into the repo
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$TARGET")"
+          # Normalise formatting (stable key order, fixed indent) so the daily
+          # diff shows real data changes rather than incidental key reordering.
+          jq -S --indent 2 '.' /tmp/screener.fetched.json > "$TARGET"
+
+      - name: Commit if the data changed
+        run: |
+          set -euo pipefail
+          git config user.name  'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+
+          # `git add` first, then diff the INDEX (--cached). Plain `git diff`
+          # compares the working tree to the index and reports nothing for an
+          # untracked file, so a brand-new mirror file would look like "no
+          # change" and never get committed.
+          git add "$TARGET"
+
+          if git diff --cached --quiet -- "$TARGET"; then
+            echo "No change in screener data (computed_on=$COMPUTED_ON) — nothing to commit."
+            exit 0
+          fi
+
+          git commit -m "Mirror screener data (computed_on=$COMPUTED_ON, $COUNT entries)"
+
+          # Minutes can pass between checkout and here — the fetch step alone
+          # allows 120s plus retries, because the engine is usually asleep at
+          # this hour. If someone pushed to the branch in that window this push
+          # is rejected as non-fast-forward, and the day's mirror would simply
+          # be dropped until tomorrow. Rebase onto whatever landed and retry
+          # once; this commit only touches the mirror file, so it replays
+          # cleanly unless something else edited that same file, and a genuine
+          # conflict still fails the job loudly rather than resolving itself.
+          if ! git push; then
+            echo "Push rejected — branch moved. Rebasing onto it and retrying once."
+            git pull --rebase --autostash
+            git push
+          fi
+
+      - name: Confirm what is now published
+        run: |
+          set -euo pipefail
+          # Read back what actually landed on disk, rather than trusting that
+          # the steps above did what they were meant to.
+          test -s "$TARGET" || { echo "::error::$TARGET is missing or empty after publish"; exit 1; }
+          echo "Published $(jq '.full_ranking | length' "$TARGET") entries, computed_on=$(jq -r '.computed_on' "$TARGET")"
