@@ -148,7 +148,20 @@ jobs:
           fi
 
           git commit -m "Mirror screener data (computed_on=$COMPUTED_ON, $COUNT entries)"
-          git push
+
+          # Minutes can pass between checkout and here — the fetch step alone
+          # allows 120s plus retries, because the engine is usually asleep at
+          # this hour. If someone pushed to the branch in that window this push
+          # is rejected as non-fast-forward, and the day's mirror would simply
+          # be dropped until tomorrow. Rebase onto whatever landed and retry
+          # once; this commit only touches the mirror file, so it replays
+          # cleanly unless something else edited that same file, and a genuine
+          # conflict still fails the job loudly rather than resolving itself.
+          if ! git push; then
+            echo "Push rejected — branch moved. Rebasing onto it and retrying once."
+            git pull --rebase --autostash
+            git push
+          fi
 
       - name: Confirm what is now published
         run: |
