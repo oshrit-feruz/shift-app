@@ -317,8 +317,9 @@ export function DesignSystemPage() {
               they never trade.
             </Rule>
             <Rule title="One material, three depths">
-              Glass is declared once in tokens.css and worn via .card, .glass-bar and .glass-sheet. No screen writes its
-              own backdrop-filter, which is what lets one media query take the transparency back out.
+              The tint and specular values live once in tokens.css; base.css turns them into .card, .glass-bar and
+              .glass-sheet. No screen writes its own backdrop-filter, which is what lets one place in base.css take the
+              transparency back out everywhere at once.
             </Rule>
             <Rule title="Honest data">
               Loading, empty and unavailable states are real states. A missing number renders as missing — never as a
