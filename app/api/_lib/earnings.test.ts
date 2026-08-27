@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mapEarning, parseIsoDate, toNumber, validateRange, MAX_RANGE_DAYS } from './earnings.js';
 import { createHandler } from '../earnings.js';
+import { itMeetsTheFailureContract, makeRes } from './failureContract.js';
 
 /** Shaped like EODHD's calendar rows. */
 const ROW = {
@@ -108,18 +109,6 @@ describe('validateRange', () => {
   });
 });
 
-function makeRes() {
-  const r: {
-    _status: number; _body: unknown; _headers: Record<string, string>;
-    status(c: number): typeof r; json(b: unknown): void; setHeader(k: string, v: string): void;
-  } = {
-    _status: 0, _body: null, _headers: {},
-    status(c) { r._status = c; return r; },
-    json(b) { r._body = b; },
-    setHeader(k, v) { r._headers[k] = v; },
-  };
-  return r;
-}
 const handler = createHandler(5000);
 const GOOD = { from: '2026-08-24', to: '2026-08-30' };
 
@@ -155,35 +144,11 @@ describe('earnings handler', () => {
     expect((res._body as { earnings: unknown[] }).earnings).toEqual([]);
   });
 
-  // The calendar sits in specific EODHD plans, so a key without it is
-  // refused indefinitely rather than transiently. Saying only "the provider
-  // returned an error" had someone retrying a subscription problem.
-  it.each([
-    [401, 'upstream_unauthorized'],
-    [403, 'upstream_forbidden'],
-    [429, 'upstream_rate_limited'],
-    [500, 'upstream_error'],
-  ])('reports upstream %i as %s, uncached', async (status, error) => {
-    globalThis.fetch = vi.fn().mockResolvedValue(new Response('nope', { status })) as unknown as typeof fetch;
-    const res = makeRes();
-    await handler({ method: 'GET', query: GOOD }, res);
-    expect(res._status).toBe(502);
-    expect(res._body).toMatchObject({ error, upstreamStatus: status });
-    expect(res._headers['Cache-Control']).toBeUndefined();
-  });
-
-  it('reports a provider that never answered as a timeout, with the budget', async () => {
-    const shortHandler = createHandler(20);
-    globalThis.fetch = vi.fn().mockImplementation(
-      (_url: URL, init?: { signal?: AbortSignal }) =>
-        new Promise((_resolve, reject) => {
-          init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
-        }),
-    ) as unknown as typeof fetch;
-    const res = makeRes();
-    await shortHandler({ method: 'GET', query: GOOD }, res);
-    expect(res._body).toMatchObject({ error: 'upstream_timeout', timeoutMs: 20 });
-  });
+  // The same failure contract as /api/news: the calendar sits in specific
+  // EODHD plans, so a key without it is refused indefinitely rather than
+  // transiently, and saying only "the provider returned an error" had
+  // someone retrying a subscription problem.
+  itMeetsTheFailureContract(handler, createHandler, GOOD);
 
   it('scopes to one ticker when asked, and to the whole market when not', async () => {
     let seen = '';

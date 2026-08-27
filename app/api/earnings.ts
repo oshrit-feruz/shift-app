@@ -1,17 +1,7 @@
 import { isValidTicker, resolveSymbol } from './_lib/news.js';
 import { mapEarning, parseIsoDate, validateRange, type EarningsRow } from './_lib/earnings.js';
-import { classifyFetchError, classifyUpstreamStatus, failureBody, isAbortError } from './_lib/upstream.js';
-
-/** See api/news.ts — the same minimal shape of what Vercel's Node runtime hands a function. */
-interface ApiRequest {
-  method?: string;
-  query: Partial<Record<string, string | string[]>>;
-}
-interface ApiResponse {
-  status(code: number): ApiResponse;
-  json(body: unknown): void;
-  setHeader(name: string, value: string): void;
-}
+import { failureBody, fetchUpstreamJson } from './_lib/upstream.js';
+import { type ApiRequest, type ApiResponse } from './_lib/http.js';
 
 const EODHD_CALENDAR_URL = 'https://eodhd.com/api/calendar/earnings';
 /**
@@ -131,43 +121,9 @@ export function createHandler(timeoutMs: number) {
     upstreamUrl.searchParams.set('to', to as string);
     if (ticker !== null) upstreamUrl.searchParams.set('symbols', resolveSymbol(ticker.toUpperCase()));
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    // Timeout spans body parsing too — fetch() resolves on headers while the
-    // body may still be streaming (see api/news.ts).
-    let body: unknown = null;
-    try {
-      const upstreamRes = await fetch(upstreamUrl, { signal: controller.signal });
-      if (!upstreamRes.ok) {
-        // 403 here is the one worth naming: EODHD's calendar sits in specific
-        // plans, and a key without it is refused indefinitely rather than
-        // transiently. Reporting that as a generic error would have someone
-        // retrying an outage that is really a subscription.
-        console.error(`/api/earnings: upstream returned ${upstreamRes.status}`);
-        const failure = classifyUpstreamStatus(upstreamRes.status, 'earnings');
-        return res.status(failure.status).json(failureBody(failure));
-      }
-      try {
-        body = await upstreamRes.json();
-      } catch (err) {
-        // An abort mid-body-read is a timeout, not a malformed body.
-        if (isAbortError(err)) {
-          console.error('/api/earnings: upstream body read timed out:', err);
-          const failure = classifyFetchError(err, timeoutMs, 'earnings');
-          return res.status(failure.status).json(failureBody(failure));
-        }
-        console.error('/api/earnings: upstream response was not valid JSON:', err);
-        return res
-          .status(502)
-          .json({ error: 'bad_response', message: 'The earnings provider returned an unreadable response.' });
-      }
-    } catch (err) {
-      console.error('/api/earnings: upstream fetch failed:', err);
-      const failure = classifyFetchError(err, timeoutMs, 'earnings');
-      return res.status(failure.status).json(failureBody(failure));
-    } finally {
-      clearTimeout(timeout);
-    }
+    const result = await fetchUpstreamJson(upstreamUrl, timeoutMs, 'earnings', '/api/earnings');
+    if (!result.ok) return res.status(result.failure.status).json(failureBody(result.failure));
+    const body = result.body;
 
     const rows = extractRows(body);
     if (rows === null) {

@@ -1,22 +1,6 @@
 import { isValidTicker, mapArticle, resolveSymbol, type NewsArticle } from './_lib/news.js';
-import { classifyFetchError, classifyUpstreamStatus, failureBody, isAbortError } from './_lib/upstream.js';
-
-/**
- * Minimal shape of what Vercel's Node.js runtime actually hands a function —
- * the parsed query object on the request and status/json/setHeader helpers
- * on the response. Declared locally instead of depending on @vercel/node
- * purely for these two names; the runtime augments a plain Node req/res with
- * exactly this API whether or not the package is installed.
- */
-interface ApiRequest {
-  method?: string;
-  query: Partial<Record<string, string | string[]>>;
-}
-interface ApiResponse {
-  status(code: number): ApiResponse;
-  json(body: unknown): void;
-  setHeader(name: string, value: string): void;
-}
+import { failureBody, fetchUpstreamJson } from './_lib/upstream.js';
+import { type ApiRequest, type ApiResponse } from './_lib/http.js';
 
 const EODHD_NEWS_URL = 'https://eodhd.com/api/news';
 const MAX_ARTICLES = 10;
@@ -101,47 +85,9 @@ export function createHandler(timeoutMs: number) {
     upstreamUrl.searchParams.set('fmt', 'json');
     upstreamUrl.searchParams.set('limit', String(wanted));
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    // The timeout must stay active through body parsing, not just until
-    // fetch() resolves: fetch() can resolve as soon as headers arrive, while
-    // the body is still streaming in. Clearing the timer any earlier would
-    // let a stalled body hang well past timeoutMs — so upstreamRes.json() is
-    // inside the same try, and the timer is only cleared in the outer finally.
-    let body: unknown = null;
-    try {
-      const upstreamRes = await fetch(upstreamUrl, { signal: controller.signal });
-      if (!upstreamRes.ok) {
-        // Say WHICH failure: a plan that does not cover this endpoint (403)
-        // is a subscription problem, not the transient outage a bare
-        // upstream_error implies, and the two need different actions.
-        console.error(`/api/news: upstream returned ${upstreamRes.status}`);
-        const failure = classifyUpstreamStatus(upstreamRes.status, 'news');
-        return res.status(failure.status).json(failureBody(failure));
-      }
-      try {
-        body = await upstreamRes.json();
-      } catch (err) {
-        // An abort firing mid-body-read is a timeout, not a malformed body:
-        // the response may have been perfectly valid and simply too slow, so
-        // it is reported as the timeout it is.
-        if (isAbortError(err)) {
-          console.error('/api/news: upstream body read timed out:', err);
-          const failure = classifyFetchError(err, timeoutMs, 'news');
-          return res.status(failure.status).json(failureBody(failure));
-        }
-        console.error('/api/news: upstream response was not valid JSON:', err);
-        return res
-          .status(502)
-          .json({ error: 'bad_response', message: 'The news provider returned an unreadable response.' });
-      }
-    } catch (err) {
-      console.error('/api/news: upstream fetch failed:', err);
-      const failure = classifyFetchError(err, timeoutMs, 'news');
-      return res.status(failure.status).json(failureBody(failure));
-    } finally {
-      clearTimeout(timeout);
-    }
+    const result = await fetchUpstreamJson(upstreamUrl, timeoutMs, 'news', '/api/news');
+    if (!result.ok) return res.status(result.failure.status).json(failureBody(result.failure));
+    const body = result.body;
 
     if (!Array.isArray(body)) {
       console.error('/api/news: upstream response was not an array');

@@ -107,3 +107,63 @@ export function failureBody(f: UpstreamFailure): Record<string, unknown> {
   if (f.timeoutMs !== undefined) body.timeoutMs = f.timeoutMs;
   return body;
 }
+
+/** Either the parsed upstream body, or the failure to report instead. */
+export type UpstreamResult = { ok: true; body: unknown } | { ok: false; failure: UpstreamFailure };
+
+/**
+ * One GET to a provider, under a timeout, with every failure classified.
+ *
+ * Both routes had this same block — the same abort wiring, the same four
+ * failure branches, differing only in the words "news" and "earnings". Two
+ * copies of failure handling is two places for them to drift apart, and the
+ * handling is the part that must not.
+ *
+ * The timeout deliberately stays armed through body parsing: fetch()
+ * resolves as soon as headers arrive while the body may still be streaming,
+ * so clearing the timer any earlier would let a stalled body hang well past
+ * the budget. Hence the json() call inside the same try, and clearTimeout
+ * only in the finally.
+ */
+export async function fetchUpstreamJson(
+  url: URL,
+  timeoutMs: number,
+  provider: string,
+  route: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<UpstreamResult> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetchImpl(url, { signal: controller.signal });
+    if (!res.ok) {
+      console.error(`${route}: upstream returned ${res.status}`);
+      return { ok: false, failure: classifyUpstreamStatus(res.status, provider) };
+    }
+    try {
+      return { ok: true, body: await res.json() };
+    } catch (err) {
+      // An abort firing mid-body-read is a timeout, not a malformed body:
+      // the response may have been perfectly valid and simply too slow, so
+      // calling it unreadable would be a guess about what we never saw.
+      if (isAbortError(err)) {
+        console.error(`${route}: upstream body read timed out:`, err);
+        return { ok: false, failure: classifyFetchError(err, timeoutMs, provider) };
+      }
+      console.error(`${route}: upstream response was not valid JSON:`, err);
+      return {
+        ok: false,
+        failure: {
+          status: 502,
+          error: 'bad_response',
+          message: `The ${provider} provider returned an unreadable response.`,
+        },
+      };
+    }
+  } catch (err) {
+    console.error(`${route}: upstream fetch failed:`, err);
+    return { ok: false, failure: classifyFetchError(err, timeoutMs, provider) };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
