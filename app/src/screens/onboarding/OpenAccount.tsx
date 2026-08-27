@@ -246,7 +246,7 @@ export function OpenAccountScreen(_: ScreenProps) {
       <div style={{ display: 'flex', gap: 8 }}>
         {step > 0 && (
           <Button variant="secondary" minHeight={48} fontSize={14} onClick={() => setStep(step - 1)}>
-            {t('tour.back')}
+            {t('nav.back')}
           </Button>
         )}
         <Button

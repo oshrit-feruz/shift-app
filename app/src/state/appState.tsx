@@ -18,7 +18,6 @@ export type Screen =
   | 'advDash'
   | 'advConnect'
   | 'advBuy'
-  | 'tour'
   | 'learn'
   | 'steps'
   | 'open';

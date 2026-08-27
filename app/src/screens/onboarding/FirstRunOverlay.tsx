@@ -10,9 +10,8 @@ import { useT } from '../../i18n/useT';
  * nothing saved depends on either, and each step is skippable. On a genuinely
  * fresh session (no `firstRunSeen` flag) this always fires before the app is
  * usable; finishing (or skipping the density step) always routes into the
- * App Tour, since that — not the "first steps" checklist — is the intended
- * first thing a brand-new user sees. The App Tour and "first steps" remain
- * independently reachable later from Settings either way.
+ * first-steps checklist — the app's one onboarding flow now that the App
+ * Tour has been folded into it (see onboarding/Steps.tsx).
  *
  * Language and density both read/write the SAME `useTheme()` state that
  * Settings' own toggles use (see screens/Settings.tsx) — there is only ever
@@ -27,7 +26,7 @@ export function FirstRunOverlay() {
 
   const finish = () => {
     dispatch({ type: 'firstRunSeen' });
-    dispatch({ type: 'go', screen: 'tour' });
+    dispatch({ type: 'go', screen: 'steps' });
   };
   const pickDensity = (m: 'beginner' | 'advanced') => {
     setMode(m);

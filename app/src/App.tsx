@@ -21,7 +21,6 @@ import { AdvisoryDisclosure } from './screens/advisory/Disclosure';
 import { AdvisoryRecommendation } from './screens/advisory/Recommendation';
 import { AdvisoryConnect } from './screens/advisory/Connect';
 import { AdvisoryFirstPurchase } from './screens/advisory/FirstPurchase';
-import { TourScreen } from './screens/onboarding/Tour';
 import { LearnScreen } from './screens/onboarding/Learn';
 import { StepsScreen } from './screens/onboarding/Steps';
 import { OpenAccountScreen } from './screens/onboarding/OpenAccount';
@@ -50,7 +49,6 @@ const SCREENS: Record<Screen, (p: ScreenProps) => JSX.Element> = {
   advDash: AdvisoryRecommendation,
   advConnect: AdvisoryConnect,
   advBuy: AdvisoryFirstPurchase,
-  tour: TourScreen,
   learn: LearnScreen,
   steps: StepsScreen,
   open: OpenAccountScreen,

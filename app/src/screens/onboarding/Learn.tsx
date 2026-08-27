@@ -99,7 +99,7 @@ export function LearnScreen(_: ScreenProps) {
       <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
         {idx > 0 && (
           <Button variant="secondary" minHeight={44} onClick={() => setIdx(idx - 1)}>
-            {t('tour.back')}
+            {t('nav.back')}
           </Button>
         )}
         <Button

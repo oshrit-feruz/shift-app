@@ -1,4 +1,4 @@
-import { Card } from '../../components/Card';
+import { Card, CardTitle } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { useAppState, useDispatch, type Screen } from '../../state/appState';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -23,6 +23,27 @@ const STEPS: Step[] = [
   { key: 'paper', target: 'pf', title: { en: 'Practise with no money', he: 'להתאמן בלי כסף' }, how: { en: 'The Sandbox portfolio records the trades you would have made. Give it a few weeks and see how it did before anything is real.', he: 'תיק ה-Sandbox רושם את העסקאות שהיית עושה. תני לזה כמה שבועות ותראי מה יצא, לפני שמשהו אמיתי.' }, cta: { en: 'Open Sandbox', he: 'לפתוח את Sandbox' } },
   { key: 'open', target: 'open', title: { en: 'Open a real account when you are ready', he: 'לפתוח חשבון אמיתי כשמרגיש נכון' }, how: { en: 'Choose a broker inside Shift and it hands you straight to them — the account is opened on their site, then linked back here read-only.', he: 'בוחרים ברוקר בתוך Shift והוא מפנה אותך ישירות אליו — החשבון נפתח אצל הברוקר, ואז מתחבר לכאן לקריאה בלבד.' }, cta: { en: 'Choose a broker', he: 'לבחירת ברוקר' } },
   { key: 'broker', target: 'connections', title: { en: 'Then link it here, read-only', he: 'ואז לחבר אותו כאן, לקריאה בלבד' }, how: { en: 'Linking imports what you already hold so everything sits in one picture. SHIFT can see positions and nothing else — it can never place an order.', he: 'החיבור מייבא את מה שאת כבר מחזיקה כדי שהכול יהיה בתמונה אחת. SHIFT רואה פוזיציות ולא יותר — הוא לא יכול לבצע פקודות.' }, cta: { en: 'See broker connections', he: 'לראות חיבורי ברוקר' } },
+];
+
+/**
+ * What used to be the standalone App Tour, folded in here verbatim: pure
+ * UI-chrome orientation that is true everywhere in the app, not a task to
+ * complete — which is why it renders as a plain info card rather than a
+ * checklist item with its own done/undone state.
+ */
+const HOW_IT_WORKS: Array<{ en: string; he: string }> = [
+  {
+    en: 'Five tabs at the bottom — home, watchlist, movers, portfolio and More. Every screen starts from one of these five.',
+    he: 'חמישה טאבים למטה — בית, ווטצ׳ליסט, מובילים, תיק ו״עוד״. כל מסך באפליקציה מתחיל מאחד מחמשת אלה.',
+  },
+  {
+    en: 'The magnifier in the header finds any company by name or ticker, from any screen.',
+    he: 'הזכוכית המגדלת בכותרת מוצאת כל חברה לפי שם או סימבול, מכל מסך.',
+  },
+  {
+    en: 'Everything is tappable: rows open the company behind them, cards expand, and the back arrow always returns you one step.',
+    he: 'הכול לחיץ: שורות פותחות את החברה שמאחוריהן, כרטיסים נפתחים, וחץ החזרה תמיד מחזיר צעד אחד.',
+  },
 ];
 
 /** "Your first steps" checklist — the onboarding spine. Every step skippable;
@@ -54,6 +75,20 @@ export function StepsScreen(_: ScreenProps) {
       <div className="text-muted" style={{ fontSize: 13 }}>
         {t('steps.progress', { done: doneN, total: STEPS.length })}
       </div>
+
+      <Card padding={13} gap={7}>
+        <CardTitle size={14}>{t('steps.howItWorks')}</CardTitle>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {HOW_IT_WORKS.map((x, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, fontSize: 12.5, lineHeight: 1.45 }}>
+              <span style={{ color: 'var(--color-accent-200)', flex: 'none' }}>·</span>
+              <span className="text-muted" style={{ flex: 1 }}>
+                {x[language]}
+              </span>
+            </div>
+          ))}
+        </div>
+      </Card>
 
       {cur ? (
         <Card padding={18} gap={0} highlight>

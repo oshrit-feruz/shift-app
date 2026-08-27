@@ -14,6 +14,7 @@ export const STRINGS = {
   'nav.news': p('News', 'חדשות'),
   'nav.pf': p('Portfolio', 'תיק'),
   'nav.more': p('More', 'עוד'),
+  'nav.back': p('Back', 'חזרה'),
 
   'title.home': p('Good morning, Noa', 'בוקר טוב, נועה'),
   'kicker.home': p('Overview', 'סקירה'),
@@ -45,8 +46,6 @@ export const STRINGS = {
   'kicker.advConnect': p('Read-only', 'קריאה בלבד'),
   'title.advBuy': p('First purchase', 'הקנייה הראשונה'),
   'kicker.advBuy': p('Simulation', 'סימולציה'),
-  'title.tour': p('App tour', 'סיור באפליקציה'),
-  'kicker.tour': p('How it works', 'איך זה עובד'),
   'title.learn': p('Learning library', 'ספריית הלמידה'),
   'kicker.learn': p('Short cards', 'כרטיסים קצרים'),
   'title.steps': p('Your first steps', 'הצעדים הראשונים'),
@@ -604,11 +603,9 @@ export const STRINGS = {
   'firstRun.skip': p('Skip for now', 'לדלג בינתיים'),
 
   // ── Onboarding: tour / steps / learn / open ───────────────────────────
-  'tour.skip': p('Skip', 'דלגי'),
-  'tour.back': p('Back', 'חזרה'),
-  'tour.next': p('Next', 'הבא'),
-  'tour.done': p('Done — to your first steps', 'סיימתי — לצעדים הראשונים'),
+
   'steps.progress': p('{done} of {total} done', '{done} מתוך {total} הושלמו'),
+  'steps.howItWorks': p('How the app works', 'איך האפליקציה בנויה'),
   'steps.now': p('Do this now', 'הצעד הבא'),
   'steps.markDone': p('Mark as done', 'סמני כבוצע'),
   'steps.allDone': p('Every step done', 'כל הצעדים הושלמו'),

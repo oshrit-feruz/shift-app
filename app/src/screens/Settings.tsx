@@ -189,7 +189,7 @@ export function SettingsScreen(_: ScreenProps) {
           label={t('setup.instRow')}
           onClick={() => dispatch({ type: 'advGoto', screen: 'advConnect', solo: true })}
         />
-        <SettingsLink label={t('setup.tourRow')} onClick={() => dispatch({ type: 'go', screen: 'tour' })} />
+        <SettingsLink label={t('setup.tourRow')} onClick={() => dispatch({ type: 'go', screen: 'steps' })} />
       </Card>
 
       <Button variant="danger" alignSelf="flex-start" fontSize={13}>
