@@ -26,9 +26,10 @@
  * WebSocket auth happens from the client by design — there is no server in
  * this loop to hold the secret instead. This means the key pair is visible
  * to anyone who opens devtools. That is only acceptable because these must
- * be PAPER-TRADING keys: the worst a leaked pair can do is read market data
- * and place fake paper orders on an account with no real money attached.
- * NEVER put a live-trading key pair here. See README.
+ * be PAPER-TRADING keys: a leaked pair grants full access to the paper
+ * account's Trading API (market data, account/position reads, placing
+ * orders), but there is no real money or real order routing behind any of
+ * it. NEVER put a live-trading key pair here. See README.
  */
 
 export type LiveTrade = { ticker: string; price: number; ts: number };
@@ -59,7 +60,14 @@ class AlpacaLiveFeed {
   private ws: WebSocket | null = null;
   private status: ConnectionStatus = 'idle';
   private authed = false;
-  private readonly subscribed = new Set<string>();
+  /**
+   * Ticker -> number of live subscribe() callers still watching it (a
+   * refcount, not membership). Two components can both want NVDA at once —
+   * e.g. AlertSheet's live-price preview and PriceAlertWatcher's saved
+   * alert — and the first to unsubscribe must not rip the ticker out from
+   * under the other.
+   */
+  private readonly subscribed = new Map<string, number>();
   private readonly tradeListeners = new Set<TradeListener>();
   private readonly statusListeners = new Set<StatusListener>();
 
@@ -80,14 +88,20 @@ class AlpacaLiveFeed {
   }
 
   subscribe(ticker: string): void {
-    if (this.subscribed.has(ticker)) return;
-    this.subscribed.add(ticker);
+    const count = this.subscribed.get(ticker) ?? 0;
+    this.subscribed.set(ticker, count + 1);
     this.ensureConnected();
-    this.sendSubscribe([ticker]);
+    if (count === 0) this.sendSubscribe([ticker]);
   }
 
   unsubscribe(ticker: string): void {
-    if (!this.subscribed.delete(ticker)) return;
+    const count = this.subscribed.get(ticker);
+    if (count == null) return;
+    if (count > 1) {
+      this.subscribed.set(ticker, count - 1);
+      return;
+    }
+    this.subscribed.delete(ticker);
     if (this.ws && this.authed) {
       this.ws.send(JSON.stringify({ action: 'unsubscribe', trades: [ticker] }));
     }
@@ -112,6 +126,14 @@ class AlpacaLiveFeed {
 
   private ensureConnected(): void {
     if (this.ws) return;
+    // Guards the delayed-reconnect path too: onclose schedules this call
+    // 3s out, and every subscriber can have unsubscribed by the time it
+    // fires. Without this check that timer would still open a fresh socket
+    // with nothing left to close it.
+    if (this.subscribed.size === 0) {
+      this.setStatus('idle');
+      return;
+    }
 
     const key = import.meta.env.VITE_ALPACA_KEY_ID as string | undefined;
     const secret = import.meta.env.VITE_ALPACA_SECRET_KEY as string | undefined;
@@ -159,7 +181,7 @@ class AlpacaLiveFeed {
       if (msg.T === 'success' && msg.msg === 'authenticated') {
         this.authed = true;
         this.setStatus('open');
-        if (this.subscribed.size > 0) this.sendSubscribe([...this.subscribed]);
+        if (this.subscribed.size > 0) this.sendSubscribe([...this.subscribed.keys()]);
       } else if (msg.T === 'error') {
         console.error('Alpaca stream error:', msg.msg);
         this.setStatus('error');

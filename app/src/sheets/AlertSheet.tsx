@@ -34,7 +34,11 @@ export function AlertSheet({
   const [notifyBy, setNotifyBy] = useState({ push: true, email: false });
   const beg = mode === 'beginner';
 
-  const liveTicker = kind === 'price' && symbol ? [symbol.ticker] : [];
+  // App.tsx mounts AlertSheet once and leaves it mounted while closed (Sheet
+  // just hides its content), so `open` must gate the subscription itself —
+  // otherwise the default kind==='price' plus a symbol keeps the feed
+  // subscribed for a sheet nobody is looking at.
+  const liveTicker = open && kind === 'price' && symbol ? [symbol.ticker] : [];
   const { prices: livePrices, status: liveStatus } = useLiveQuotes(liveTicker);
   const livePrice = symbol ? livePrices[symbol.ticker] : undefined;
 

@@ -191,8 +191,10 @@ Alpaca's WebSocket auth happens from the browser by design, so these ARE
 bundled into the client and are visible to anyone who opens devtools.
 
 > ⚠ **These must be paper-trading keys, never a live-trading key pair.** A
-> leaked pair can only read market data and place fake paper orders on an
-> account with no real money behind it. Get a free pair at
+> leaked pair grants full access to the paper account's Trading API — market
+> data, account/position reads, and placing orders — but on an account with
+> no real money behind it, so the worst case is fake paper trades and
+> visibility into fake paper holdings, not a real loss. Get a free pair at
 > [app.alpaca.markets](https://app.alpaca.markets) → Paper Trading → API
 > Keys. Leaving them unset does not break the app — price-alert crossing
 > detection just stays inactive, and the alert sheet shows an

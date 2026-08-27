@@ -40,4 +40,14 @@ describe('didCross', () => {
     }
     expect(fires).toBe(1);
   });
+
+  it('catches a below -> above -> below sequence even when only processed in order (regression: a coalesced "latest price only" snapshot would collapse this to a single "below" and miss the rise crossing entirely)', () => {
+    let side: 'above' | 'below' | null = null;
+    let riseFires = 0;
+    for (const s of ['below', 'above', 'below'] as const) {
+      if (didCross(side, s, 'rise')) riseFires++;
+      side = s;
+    }
+    expect(riseFires).toBe(1);
+  });
 });
