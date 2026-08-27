@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fetchStockNews, mapNewsArticle, STOCK_NEWS_URL } from './stockNews';
+import { fetchMarketNews, fetchStockNews, mapNewsArticle, STOCK_NEWS_URL } from './stockNews';
 
 const ARTICLE = {
   headline: 'Nvidia beats on datacenter revenue',
@@ -14,7 +14,17 @@ const res = (body: unknown, status = 200): Response =>
 
 describe('mapNewsArticle', () => {
   it('maps a full article', () => {
-    expect(mapNewsArticle(ARTICLE)).toEqual(ARTICLE);
+    expect(mapNewsArticle(ARTICLE)).toEqual({ ...ARTICLE, symbols: [] });
+  });
+
+  it('carries the feed\'s tagged symbols, dropping unusable entries', () => {
+    // Only the general market feed populates these; a per-ticker response
+    // legitimately has none, since the caller already knows the stock.
+    expect(mapNewsArticle({ ...ARTICLE, symbols: ['NVDA', 'AMD'] })?.symbols).toEqual(['NVDA', 'AMD']);
+    expect(mapNewsArticle({ ...ARTICLE, symbols: ['NVDA', '', '  ', null, 7] })?.symbols).toEqual(['NVDA']);
+    for (const v of [undefined, null, 'NVDA', {}]) {
+      expect(mapNewsArticle({ ...ARTICLE, symbols: v })?.symbols, String(v)).toEqual([]);
+    }
   });
 
   it('drops a row with no headline or no url', () => {
@@ -27,7 +37,7 @@ describe('mapNewsArticle', () => {
 
   it('keeps a missing source, date or summary as empty rather than inventing one', () => {
     const m = mapNewsArticle({ headline: 'H', url: 'https://e.com/x' });
-    expect(m).toEqual({ headline: 'H', url: 'https://e.com/x', source: '', publishedAt: '', summary: '' });
+    expect(m).toEqual({ headline: 'H', url: 'https://e.com/x', source: '', publishedAt: '', summary: '', symbols: [] });
   });
 
   it('drops a malformed publishedAt rather than passing it through as metadata', () => {
@@ -119,6 +129,27 @@ describe('fetchStockNews', () => {
     expect(seen).toBe(`${STOCK_NEWS_URL}?ticker=BRK.B`);
     // Must never reach the provider — the API key lives server-side only.
     expect(seen).not.toContain('eodhd');
+  });
+
+  it('reads the general market feed with no ticker param at all', async () => {
+    let seen = '';
+    const r = await fetchMarketNews(async (url) => {
+      seen = String(url);
+      return res({ ticker: null, articles: [{ ...ARTICLE, symbols: ['NVDA'] }] });
+    });
+    // No `ticker=` — that is what makes it the cheaper 5-credit feed call
+    // upstream rather than a 10-credit per-ticker one.
+    expect(seen).toBe(STOCK_NEWS_URL);
+    expect(r.status).toBe('ok');
+    expect(r.status === 'ok' && r.data[0].symbols).toEqual(['NVDA']);
+  });
+
+  it('applies the same honesty contract to the feed as to a ticker', async () => {
+    const err = await fetchMarketNews(async () => res({ error: 'upstream_unavailable' }, 502));
+    expect(err.status).toBe('unavailable');
+    const empty = await fetchMarketNews(async () => res({ ticker: null, articles: [] }));
+    expect(empty.status).toBe('ok');
+    expect(empty.status === 'ok' && empty.data).toEqual([]);
   });
 
   it('rejects an empty ticker without calling the network', async () => {

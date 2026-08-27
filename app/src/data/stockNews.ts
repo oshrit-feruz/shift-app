@@ -79,6 +79,9 @@ export function mapNewsArticle(raw: unknown): StockNewsArticle | null {
     source: str(row.source) ?? '',
     publishedAt: validTimestamp(str(row.publishedAt) ?? ''),
     summary: str(row.summary) ?? '',
+    symbols: Array.isArray(row.symbols)
+      ? row.symbols.filter((x): x is string => typeof x === 'string' && x.trim() !== '')
+      : [],
   };
 }
 
@@ -98,11 +101,34 @@ export async function fetchStockNews(
 ): Promise<Loadable<StockNewsArticle[]>> {
   const clean = ticker.trim().toUpperCase();
   if (!clean) return unavailable(UNAVAILABLE);
+  return readNews(`${STOCK_NEWS_URL}?ticker=${encodeURIComponent(clean)}`, fetchImpl);
+}
+
+/**
+ * The general market feed — no ticker, so the provider returns whatever is
+ * moving across the market rather than one company's coverage.
+ *
+ * Costs half what a per-ticker request does upstream, which is why the
+ * browsable news screen reads this rather than fanning out over a list of
+ * large caps. Articles carry their own tagged `symbols`, so a story still
+ * shows which stock it is about without the app having decided in advance.
+ */
+export async function fetchMarketNews(
+  fetchImpl: typeof fetch = fetch,
+): Promise<Loadable<StockNewsArticle[]>> {
+  return readNews(STOCK_NEWS_URL, fetchImpl);
+}
+
+/** Shared transport and honesty handling for both feeds. Never throws. */
+async function readNews(
+  url: string,
+  fetchImpl: typeof fetch,
+): Promise<Loadable<StockNewsArticle[]>> {
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const res = await fetchImpl(`${STOCK_NEWS_URL}?ticker=${encodeURIComponent(clean)}`, {
+    const res = await fetchImpl(url, {
       signal: controller.signal,
       headers: { Accept: 'application/json' },
     });

@@ -19,6 +19,12 @@ interface ApiResponse {
 
 const EODHD_NEWS_URL = 'https://eodhd.com/api/news';
 const MAX_ARTICLES = 10;
+/**
+ * The general market feed returns more, because it backs a browsable screen
+ * rather than a per-stock sidebar. Still bounded: an unbounded limit would
+ * be a bigger payload for no product reason.
+ */
+const MAX_FEED_ARTICLES = 30;
 const DEFAULT_UPSTREAM_TIMEOUT_MS = 10_000;
 
 /**
@@ -47,12 +53,17 @@ export function createHandler(timeoutMs: number) {
       return res.status(405).json({ error: 'method_not_allowed', message: 'Use GET.' });
     }
 
+    // Two modes, distinguished only by whether a ticker was supplied:
+    //   /api/news             -> the general market feed
+    //   /api/news?ticker=NVDA -> that one stock
+    // An ABSENT ticker is the feed request; a PRESENT but malformed one is
+    // still an error. Those must not be conflated, or a typo'd ticker would
+    // silently serve unrelated market news as though it were that stock's.
     const tickerParam = req.query.ticker;
-    const ticker = (Array.isArray(tickerParam) ? tickerParam[0] : tickerParam)?.trim();
-    if (!ticker) {
-      return res.status(400).json({ error: 'missing_ticker', message: 'Query param "ticker" is required.' });
-    }
-    if (!isValidTicker(ticker)) {
+    const raw = (Array.isArray(tickerParam) ? tickerParam[0] : tickerParam)?.trim();
+    const wantsFeed = raw === undefined || raw === '';
+    const ticker = wantsFeed ? null : raw;
+    if (ticker !== null && !isValidTicker(ticker)) {
       return res.status(400).json({ error: 'invalid_ticker', message: 'Ticker contains unsupported characters.' });
     }
 
@@ -63,11 +74,16 @@ export function createHandler(timeoutMs: number) {
       return res.status(500).json({ error: 'not_configured', message: 'News service is not configured.' });
     }
 
+    // EODHD returns the general feed when `s` is omitted entirely. The
+    // per-ticker call costs 10 API credits against the quota where the feed
+    // costs 5, which is why the browsable screen uses the feed rather than
+    // fanning out over a list of large caps.
+    const wanted = ticker === null ? MAX_FEED_ARTICLES : MAX_ARTICLES;
     const upstreamUrl = new URL(EODHD_NEWS_URL);
-    upstreamUrl.searchParams.set('s', resolveSymbol(ticker.toUpperCase()));
+    if (ticker !== null) upstreamUrl.searchParams.set('s', resolveSymbol(ticker.toUpperCase()));
     upstreamUrl.searchParams.set('api_token', apiKey);
     upstreamUrl.searchParams.set('fmt', 'json');
-    upstreamUrl.searchParams.set('limit', String(MAX_ARTICLES));
+    upstreamUrl.searchParams.set('limit', String(wanted));
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -111,7 +127,7 @@ export function createHandler(timeoutMs: number) {
     const articles: NewsArticle[] = body
       .map(mapArticle)
       .filter((a): a is NewsArticle => a !== null)
-      .slice(0, MAX_ARTICLES);
+      .slice(0, wanted);
 
     // A short edge cache on a successful response only — never on an error
     // path above, which must keep reaching this function so a real recovery
@@ -153,7 +169,10 @@ export function createHandler(timeoutMs: number) {
     // fallback" this endpoint was built to never do. Once s-maxage expires,
     // the next request must get a real answer, not a held-over one.
     res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60');
-    return res.status(200).json({ ticker: ticker.toUpperCase(), articles });
+    // `ticker` is null on the feed response — deliberately present-but-null
+    // rather than omitted, so a client can tell a feed response from a
+    // per-stock one without inferring it from what it happened to request.
+    return res.status(200).json({ ticker: ticker === null ? null : ticker.toUpperCase(), articles });
   };
 }
 

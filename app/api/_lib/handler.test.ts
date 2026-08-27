@@ -51,11 +51,30 @@ describe('handler', () => {
     expect(res._headers.Allow).toBe('GET');
   });
 
-  it('requires a ticker', async () => {
+  // An ABSENT ticker requests the general market feed; a PRESENT but
+  // malformed one is still an error (asserted below). Conflating the two
+  // would let a typo'd ticker silently serve unrelated market news as though
+  // it were that stock's.
+  it.each([
+    ['omitted', {}],
+    ['empty string', { ticker: '' }],
+    ['whitespace only', { ticker: '   ' }],
+  ])('serves the general market feed when the ticker is %s', async (_label, query) => {
+    let seen = '';
+    globalThis.fetch = vi.fn().mockImplementation((url: URL) => {
+      seen = String(url);
+      return Promise.resolve(new Response('[]', { status: 200 }));
+    }) as unknown as typeof fetch;
     const res = makeRes();
-    await handler({ method: 'GET', query: {} }, res);
-    expect(res._status).toBe(400);
-    expect(res._body).toMatchObject({ error: 'missing_ticker' });
+    await handler({ method: 'GET', query }, res);
+    expect(res._status).toBe(200);
+    // `ticker: null` marks this as a feed response, so a client can tell it
+    // from a per-stock one without inferring from its own request.
+    expect(res._body).toMatchObject({ ticker: null });
+    // The feed is EODHD's no-`s` call — 5 credits instead of 10, which is the
+    // whole reason the browsable screen uses it rather than fanning out.
+    expect(seen).not.toContain('s=');
+    expect(seen).toContain('/api/news');
   });
 
   it('rejects an invalid ticker', async () => {
@@ -139,6 +158,9 @@ describe('handler', () => {
           publishedAt: '2026-08-27T09:42:00+00:00',
           summary: 'NVIDIA posted strong results. Analysts raised targets.',
           url: 'https://www.reuters.com/tech/nvidia',
+          // Empty for a per-ticker response: the caller already knows the
+          // stock, so there is nothing for the tags to disambiguate.
+          symbols: [],
         },
       ],
     });
@@ -195,8 +217,6 @@ describe('handler', () => {
   // passing if the guard were moved below the fetch — so assert the absence
   // of the call itself, which is the property that actually protects quota.
   it.each([
-    ['missing ticker', {}, 400],
-    ['whitespace-only ticker', { ticker: '   ' }, 400],
     ['ticker with a space', { ticker: 'NV DA' }, 400],
     ['query-injection attempt', { ticker: 'NVDA&api_token=leak' }, 400],
     ['path-traversal attempt', { ticker: '../../etc/passwd' }, 400],

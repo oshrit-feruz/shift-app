@@ -16,6 +16,7 @@ export interface UpstreamArticle {
   source?: unknown;
   publisher?: unknown;
   provider?: unknown;
+  symbols?: unknown;
 }
 
 export interface NewsArticle {
@@ -24,6 +25,17 @@ export interface NewsArticle {
   publishedAt: string;
   summary: string;
   url: string;
+  /**
+   * Tickers EODHD tagged this article with, bare and uppercased (exchange
+   * suffixes stripped: "AAPL.US" -> "AAPL").
+   *
+   * Only meaningful for the general market feed, where an article is not
+   * scoped to a ticker the caller already knows — the UI shows the first one
+   * as the story's subject. Empty is normal and not an error: plenty of real
+   * market news is about a sector, an index or a rate decision rather than
+   * one company, and inventing a ticker for those would be a fabrication.
+   */
+  symbols: string[];
 }
 
 const SUMMARY_MAX_CHARS = 280;
@@ -107,7 +119,34 @@ export function mapArticle(raw: unknown): NewsArticle | null {
   if (!headline || !url || !isHttpUrl(url)) return null;
   const publishedAt = firstString(a.date, a.published_at, a.pubDate) ?? '';
   const summary = summarize(firstString(a.content));
-  return { headline, source: deriveSource(a, url), publishedAt, summary, url };
+  return {
+    headline,
+    source: deriveSource(a, url),
+    publishedAt,
+    summary,
+    url,
+    symbols: mapSymbols(a.symbols),
+  };
+}
+
+/**
+ * EODHD tags each article with an array like ["AAPL.US", "MSFT.US"]. The app
+ * addresses stocks by bare ticker, so the exchange suffix is stripped here
+ * rather than at three separate call sites. Anything that is not a usable
+ * string is dropped rather than coerced — a malformed entry must not become
+ * a ticker the UI then tries to navigate to.
+ */
+export function mapSymbols(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const v of raw) {
+    if (typeof v !== 'string') continue;
+    const bare = v.trim().split('.')[0].toUpperCase();
+    // Same allow-list as an inbound ticker: whatever ends up here can be
+    // rendered as a chip and used to open a stock page.
+    if (bare && /^[A-Z0-9-]{1,15}$/.test(bare) && !out.includes(bare)) out.push(bare);
+  }
+  return out;
 }
 
 /** EODHD requires an exchange suffix; default to US equities unless the caller already specified one (e.g. "VOD.LSE"). */

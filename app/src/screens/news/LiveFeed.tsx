@@ -1,0 +1,228 @@
+import { Card, CardTitle } from '../../components/Card';
+import { DataState, EmptyState } from '../../components/DataState';
+import { SkeletonCard } from '../../components/Skeleton';
+import { Tag } from '../../components/Tag';
+import { useT } from '../../i18n/useT';
+import { useTheme } from '../../theme/ThemeProvider';
+import { useLoadable } from '../../data/useLoadable';
+import { fetchMarketNews, fetchStockNews } from '../../data/stockNews';
+import { isoDate } from '../../lib/format';
+import { ok, unavailable, type Loadable, type StockNewsArticle } from '../../data/types';
+
+/**
+ * Real headlines for the news screen — the general market feed, or the
+ * stocks the user follows.
+ *
+ * WHY THE FEED IS NOT A FAN-OUT:
+ * EODHD charges 5 API credits for the general feed and 10 per ticker, and its
+ * `s` parameter takes one symbol at a time. So the market tab reads the one
+ * general call, and only the watchlist tab fans out — where the per-stock
+ * scoping is the entire point and the list is short.
+ *
+ * WHY CLICKING OPENS THE SOURCE:
+ * The demo feed this replaced carried a full `body` and opened it in a sheet.
+ * Real articles deliberately carry no body — /api/news returns a 1-2 sentence
+ * excerpt only, for copyright reasons — so there is nothing to open in-app
+ * and the card links out instead. Keeping the sheet would have meant either
+ * an empty sheet or re-introducing the full text this whole path avoids.
+ */
+export function MarketFeed() {
+  const news = useLoadable(() => fetchMarketNews(), []);
+  const t = useT();
+  return (
+    <FeedBody state={news.state} onRetry={news.retry} emptyText={t('news.feedEmpty')} showTicker />
+  );
+}
+
+/**
+ * News for every ticker on the watchlist, merged into one reverse-chronological
+ * feed.
+ *
+ * One request per stock, because upstream has no multi-symbol call. They run
+ * concurrently and the whole set is treated as one Loadable: if every request
+ * fails the feed is unavailable, but a partial failure still shows what did
+ * arrive rather than blanking the screen over one bad ticker.
+ */
+export function WatchlistFeed({ tickers }: { tickers: string[] }) {
+  const t = useT();
+  // Sorted + joined so the effect re-runs when the set changes, not on every
+  // render that happens to rebuild the array.
+  const key = [...tickers].sort().join(',');
+  const news = useLoadable<StockNewsArticle[]>(
+    () => fetchWatchlistNews(tickers),
+    [key],
+  );
+
+  if (tickers.length === 0) {
+    return (
+      <Card padding={12} gap={8}>
+        <EmptyState>{t('news.watchlistNone')}</EmptyState>
+      </Card>
+    );
+  }
+  return (
+    <FeedBody
+      state={news.state}
+      onRetry={news.retry}
+      emptyText={t('news.watchlistEmpty')}
+      showTicker={false}
+    />
+  );
+}
+
+/**
+ * Fan out over the watchlist and merge.
+ *
+ * Unavailable only when EVERY request failed — that is a real outage. If some
+ * succeeded, the ones that did are shown: blanking a whole feed because one
+ * ticker's request failed would hide real news the user could have read, and
+ * an empty-but-successful ticker is a legitimate "no coverage" rather than an
+ * error to propagate.
+ */
+export async function fetchWatchlistNews(
+  tickers: string[],
+  fetchImpl: typeof fetch = fetch,
+): Promise<Loadable<StockNewsArticle[]>> {
+  if (tickers.length === 0) return ok([]);
+  const results = await Promise.all(tickers.map((tk) => fetchStockNews(tk, fetchImpl)));
+  const good = results.filter((r) => r.status === 'ok');
+  if (good.length === 0) {
+    return unavailable({
+      en: 'News is unavailable right now.',
+      he: 'החדשות אינן זמינות כרגע.',
+    });
+  }
+
+  const seen = new Set<string>();
+  const merged: StockNewsArticle[] = [];
+  for (const r of good) {
+    if (r.status !== 'ok') continue;
+    for (const a of r.data) {
+      // The same story often carries several tickers, so it comes back from
+      // more than one request. De-duplicate by URL so it appears once.
+      if (seen.has(a.url)) continue;
+      seen.add(a.url);
+      merged.push(a);
+    }
+  }
+  // Newest first. Articles with no usable date sort last rather than being
+  // dropped — the headline is still real, only its timestamp is missing.
+  merged.sort((a, b) => (b.publishedAt || '').localeCompare(a.publishedAt || ''));
+  return ok(merged);
+}
+
+function FeedBody({
+  state,
+  onRetry,
+  emptyText,
+  showTicker,
+}: {
+  state: Loadable<StockNewsArticle[]>;
+  onRetry: () => void;
+  emptyText: string;
+  showTicker: boolean;
+}) {
+  const t = useT();
+  const { language } = useTheme();
+  return (
+    <DataState
+      state={state}
+      onRetry={onRetry}
+      skeleton={
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+          {Array.from({ length: 6 }, (_, i) => (
+            <SkeletonCard key={i} height={118} padding={14} />
+          ))}
+        </div>
+      }
+    >
+      {(articles) =>
+        articles.length === 0 ? (
+          <Card padding={12} gap={8}>
+            <EmptyState>{emptyText}</EmptyState>
+          </Card>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+            {articles.map((a) => (
+              <ArticleCard
+                key={a.url}
+                article={a}
+                language={language}
+                showTicker={showTicker}
+                openLabel={t('news.openSource')}
+              />
+            ))}
+          </div>
+        )
+      }
+    </DataState>
+  );
+}
+
+function ArticleCard({
+  article,
+  language,
+  showTicker,
+  openLabel,
+}: {
+  article: StockNewsArticle;
+  language: 'en' | 'he';
+  showTicker: boolean;
+  openLabel: string;
+}) {
+  // Only the general feed needs the chip — on the watchlist the user already
+  // knows which stocks these are, and a chip per card would be noise.
+  const ticker = showTicker ? article.symbols[0] : undefined;
+  const date = article.publishedAt ? isoDate(article.publishedAt.slice(0, 10), language) : '';
+
+  return (
+    <Card padding={14} gap={5}>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+        {/* Absent for a story about a sector, an index or a rate decision —
+            most market news is not about one company, and inventing a ticker
+            to fill the slot would be a fabrication. */}
+        {ticker && (
+          <Tag variant="accent" fontSize={12}>
+            {ticker}
+          </Tag>
+        )}
+        <span className="text-muted" style={{ fontSize: 12.5, display: 'flex', gap: 5 }}>
+          {article.source && <bdi>{article.source}</bdi>}
+          {article.source && date && <span>·</span>}
+          {date && <span>{date}</span>}
+        </span>
+      </span>
+      {/* dir="auto" because the provider's feed is English inside a
+          Hebrew-first page — without it the sentence-ending period lands on
+          the wrong side. */}
+      <span
+        dir="auto"
+        style={{
+          display: 'block',
+          fontFamily: 'var(--font-heading)',
+          fontSize: 14.5,
+          lineHeight: 1.3,
+          whiteSpace: 'normal',
+        }}
+      >
+        {article.headline}
+      </span>
+      {article.summary && (
+        <span dir="auto" style={{ display: 'block', fontSize: 13, opacity: 0.78, lineHeight: 1.45 }}>
+          {article.summary}
+        </span>
+      )}
+      <a
+        href={article.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ fontSize: 12.5, color: 'var(--color-accent-200)', textDecoration: 'none' }}
+      >
+        {openLabel} ↗
+      </a>
+    </Card>
+  );
+}
+
+/** Re-exported so the calendar tab can share the card title styling. */
+export { CardTitle };

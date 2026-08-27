@@ -212,6 +212,59 @@ summaries carry `dir="auto"` so an English article reads as English inside
 the Hebrew page instead of having its punctuation thrown to the wrong side.
 Both were caught by looking at the rendered screen, not by a passing test.
 
+### Where each surface's data comes from
+
+| Surface | Source | Cost per refresh |
+| --- | --- | --- |
+| News screen · הכול / שווקים / אנליסטים | `/api/news` with **no** ticker — EODHD's general market feed | 5 credits |
+| News screen · הווטצ׳ליסט שלי | `/api/news?ticker=` once per followed stock | 10 credits × watchlist size |
+| News screen · דוחות כספיים | `/api/earnings?from=&to=` — this calendar week | 1 credit |
+| Stock page · חדשות | `/api/news?ticker=` | 10 credits |
+| Stock page · דוחות (filed revenue) | engine `/api/stock/{ticker}/fundamentals` | — |
+| Stock page · רבעונים שדווחו | `/api/earnings?ticker=&from=&to=` — 12 quarters | 1 credit |
+| Satellite card | the daily mirror in this repo | none |
+
+The general feed is why the browsable news screen is cheap: EODHD's `s`
+parameter takes **one** symbol at a time and a per-ticker call costs double,
+so fanning out over a list of large caps would have cost ~70 credits per
+refresh where the feed costs 5. The watchlist tab is the one place a fan-out
+is justified — the per-stock scoping *is* the feature there, and the list is
+short. Its requests run concurrently and merge into one feed, de-duplicated
+by URL because a single story often carries several tickers.
+
+**Partial failure is not total failure** on the watchlist: if some tickers
+answer and others fail, the ones that answered are shown. Only an
+all-tickers-failed result is `unavailable` — blanking a feed over one bad
+ticker would hide real news the user could have read.
+
+**Clicking a headline opens the source, not a sheet.** The demo feed this
+replaced carried a full article body; real articles deliberately carry only a
+1–2 sentence excerpt, so there is nothing to open in-app and the card links
+out. Keeping the in-app reader would have meant either an empty sheet or
+re-introducing the full text the proxy exists to avoid.
+
+### Earnings calendar (`app/api/earnings.ts`)
+
+Proxies EODHD's calendar so the key stays server-side. One endpoint answers
+two questions — the whole market in a window, or one ticker's history — and
+upstream charges **one credit per request** regardless of how many rows come
+back, which is why a full week of the market costs the same as one stock.
+
+It is also the only way to get a stock's **past** results: the engine's
+fundamentals route takes no period parameter and returns only the newest
+filing. `actual` is null for a quarter that has not been reported yet — shown
+as scheduled rather than hidden, since "when is the next report" is part of
+what the card answers.
+
+The client window is **derived** from the endpoint's own `MAX_RANGE_DAYS`
+rather than hand-written twice (`app/src/data/earnings.ts`): EODHD 500s on
+very wide ranges, the function refuses them with a 400, and a client asking
+for one would get nothing at all. A test asserts the two stay in agreement —
+the same publisher/reader discipline the screener mirror uses.
+
+The calendar week is anchored **Monday–Sunday**, not "the next seven days",
+so the day strip reads as a calendar week instead of sliding forward daily.
+
 **Required environment variable:** `EODHD_API_KEY` — the account's EODHD API
 key, added in the Vercel dashboard under **Project → Settings → Environment
 Variables**, scoped to Production, Preview, and Development so PR previews

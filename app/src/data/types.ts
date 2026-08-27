@@ -89,6 +89,35 @@ export interface StockNewsArticle {
   publishedAt: string;
   summary: string;
   url: string;
+  /**
+   * Tickers the provider tagged the article with. Only populated on the
+   * general market feed, where the story's subject is not already known from
+   * the request. Empty is normal — a rate decision or a sector piece is
+   * about no single company, and inventing a ticker for it would be a
+   * fabrication.
+   */
+  symbols: string[];
+}
+
+/**
+ * One company's scheduled or reported quarter, from the earnings calendar.
+ *
+ * `actual` and `surprisePct` are null for a quarter that has not been
+ * reported yet — the normal state for anything on the upcoming calendar, and
+ * not a defect. `estimate` is null when a company has no published consensus.
+ * All three render as "—" rather than being filled in.
+ */
+export interface EarningsRow {
+  ticker: string;
+  /** Date results were announced, raw YYYY-MM-DD. */
+  reportDate: string;
+  /** Fiscal period the results cover, raw YYYY-MM-DD, or null. */
+  periodEnd: string | null;
+  /** Before market open / after market close, or null when unstated. */
+  timing: 'BMO' | 'AMC' | null;
+  actual: number | null;
+  estimate: number | null;
+  surprisePct: number | null;
 }
 
 export interface Holding {

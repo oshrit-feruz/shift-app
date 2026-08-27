@@ -17,7 +17,7 @@ import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
 import { fetchYourPositions } from '../lib/holdings';
 import { money, pct, signalColor } from '../lib/format';
-import { ReportsTab } from './stock/ReportsTab';
+import { ReportsTab, EarningsHistory } from './stock/ReportsTab';
 import { NewsTab } from './stock/NewsTab';
 import { EngineCard } from './stock/EngineCard';
 import type { ScreenProps } from '../App';
@@ -293,7 +293,12 @@ export function StockScreen({ openAlert }: ScreenProps) {
             </>
           )}
 
-          {tab === 'reports' && <ReportsTab ticker={s.ticker} />}
+          {tab === 'reports' && (
+            <>
+              <ReportsTab ticker={s.ticker} />
+              <EarningsHistory ticker={s.ticker} />
+            </>
+          )}
           {tab === 'news' && <NewsTab ticker={s.ticker} />}
         </div>
       )}

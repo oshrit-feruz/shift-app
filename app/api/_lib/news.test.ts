@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { summarize, deriveSource, mapArticle, resolveSymbol, isValidTicker } from './news.js';
+import { summarize, deriveSource, mapArticle, mapSymbols, resolveSymbol, isValidTicker } from './news.js';
 
 describe('summarize', () => {
   it('returns empty string for empty or missing content', () => {
@@ -56,6 +56,35 @@ describe('mapArticle', () => {
       publishedAt: '2026-08-27T09:42:00+00:00',
       summary: 'NVIDIA posted strong results. Analysts raised targets.',
       url: 'https://www.reuters.com/tech/nvidia',
+      symbols: [],
+    });
+  });
+
+  describe('symbols (general market feed)', () => {
+    it('strips the exchange suffix and uppercases', () => {
+      expect(mapSymbols(['AAPL.US', 'msft.us'])).toEqual(['AAPL', 'MSFT']);
+    });
+
+    it('de-duplicates and drops anything unusable', () => {
+      // A malformed entry must not become a ticker the UI tries to open.
+      expect(mapSymbols(['AAPL.US', 'AAPL.NASDAQ', '', '  ', null, 42, 'A B.US', {}])).toEqual(['AAPL']);
+    });
+
+    it('returns an empty array for a non-array or absent field', () => {
+      // Real market news is often about a sector, an index or a rate
+      // decision rather than one company. Empty is a legitimate answer;
+      // inventing a ticker for those would be a fabrication.
+      for (const v of [undefined, null, 'AAPL.US', {}, 0]) expect(mapSymbols(v)).toEqual([]);
+    });
+
+    it('carries tagged symbols through mapArticle', () => {
+      const a = mapArticle({
+        title: 'Chip stocks rally',
+        link: 'https://example.com/a',
+        date: '2026-08-27',
+        symbols: ['NVDA.US', 'AMD.US'],
+      });
+      expect(a?.symbols).toEqual(['NVDA', 'AMD']);
     });
   });
 
