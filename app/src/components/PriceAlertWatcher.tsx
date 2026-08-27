@@ -43,7 +43,8 @@ export function PriceAlertWatcher() {
   const sidesRef = useRef(new Map<string, Side>());
   const askedPermission = useRef(false);
 
-  const key = [...new Set(tickers)].sort().join(',');
+  // Explicit comparator — see the matching note in useLiveQuotes.ts.
+  const key = [...new Set(tickers)].sort((a, b) => a.localeCompare(b)).join(',');
   useEffect(() => {
     const list = key ? key.split(',') : [];
     list.forEach((ticker) => alpacaLiveFeed.subscribe(ticker));

@@ -13,7 +13,12 @@ export function useLiveQuotes(tickers: string[]) {
   // Stable key so the subscribe effect only re-runs when the actual set of
   // tickers changes, not on every render of a caller that recomputes the
   // array inline.
-  const key = [...new Set(tickers)].sort().join(',');
+  // Explicit comparator, not a bare .sort(): the default sort coerces to
+  // string and orders by UTF-16 code unit, which is only incidentally right
+  // here. Any deterministic total order works — this key exists solely so
+  // the effect below re-runs on a changed ticker *set*, not on a reordered
+  // array — but it should say which order it means.
+  const key = [...new Set(tickers)].sort((a, b) => a.localeCompare(b)).join(',');
 
   useEffect(() => {
     const list = key ? key.split(',') : [];
