@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { AppHeader } from './components/AppHeader';
 import { TabBar } from './components/TabBar';
 import { BackgroundShapes } from './components/BackgroundShapes';
@@ -58,6 +58,15 @@ export interface ScreenProps {
   openAlert: () => void;
 }
 
+/**
+ * The app shell: header, the single shared scroll container every screen
+ * renders into, the floating tab bar, and the sheets that can be opened from
+ * more than one screen (search, notifications, price alert).
+ *
+ * Screens are swapped inside one scroll container rather than remounted per
+ * route, which is why the scroll position has to be reset explicitly on
+ * navigation — see the layout effect below.
+ */
 export function App() {
   const s = useAppState();
   const dispatch = useDispatch();
@@ -77,6 +86,22 @@ export function App() {
 
   const unread = s.notificationsRead ? 0 : 2;
   const ScreenView = SCREENS[s.screen];
+
+  // There is one shared scroll container across every screen (no per-route
+  // remount), so without this a screen opens wherever the previous one left
+  // scrollTop — e.g. arriving at a fresh stock page already scrolled halfway
+  // down because that is where Home happened to be.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // useLayoutEffect, not useEffect: the reset has to land before the browser
+  // paints. With a passive effect React is free to paint the newly mounted
+  // screen first, which shows it for one frame at the *previous* screen's
+  // scrollTop before it snaps to the top — the exact flash this is meant to
+  // remove.
+  useLayoutEffect(() => {
+    scrollRef.current?.scrollTo(0, 0);
+    // Keyed on the ticker too: openStock can navigate stock -> stock (the
+    // screen name never changes), and that still needs to land at the top.
+  }, [s.screen, s.ticker]);
 
   return (
     <div
@@ -113,6 +138,7 @@ export function App() {
           onNotifications={() => setNotifOpen(true)}
         />
         <div
+          ref={scrollRef}
           className="scroll-y"
           style={{
             flex: 1,

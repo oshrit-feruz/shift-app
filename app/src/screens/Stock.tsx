@@ -7,17 +7,33 @@ import { AreaChart } from '../components/AreaChart';
 import { CandleChart } from '../components/CandleChart';
 import { Chip } from '../components/Chip';
 import { DataState } from '../components/DataState';
-import { Skeleton, SkeletonCard } from '../components/Skeleton';
+import { Skeleton, SkeletonCard, SkeletonList } from '../components/Skeleton';
+import { ListRow, RowValues } from '../components/ListRow';
 import { useAppState, useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
+import { fetchYourPositions } from '../lib/holdings';
 import { money, pct, signalColor } from '../lib/format';
 import type { ScreenProps } from '../App';
 
 const TIMEFRAMES = ['1D', '1W', '1M', '3M', '1Y'];
 
+/**
+ * A single ticker's page: price and after-hours header, watchlist/alert
+ * actions, chart with timeframe and indicator toggles, the user's own
+ * position in it across portfolios, key statistics, analyst ratings and
+ * related news.
+ *
+ * The holdings card sits right under the chart — reading price action then
+ * checking your own position against it is the natural next step, ahead of
+ * the more reference-like stats below.
+ *
+ * Beginner mode hides the indicator controls and swaps the denser tables for
+ * plain-language cards; it no longer hides analyst ratings, which read the
+ * same in both modes.
+ */
 export function StockScreen({ openAlert }: ScreenProps) {
   const s = useAppState();
   const dispatch = useDispatch();
@@ -28,6 +44,10 @@ export function StockScreen({ openAlert }: ScreenProps) {
   const [ind, setInd] = useState({ ma: true, rsi: true, macd: false });
   const sym = useLoadable(() => demoService.symbol(s.ticker), [s.ticker]);
   const inWl = s.watchlist.includes(s.ticker);
+  const positions = useLoadable(
+    () => fetchYourPositions(s.ticker, s.manualTransactions, s.manualPortfolios),
+    [s.ticker, s.manualTransactions, s.manualPortfolios],
+  );
 
   const closes = demoService.series(`${s.ticker}-candles`, 46, 0.5, 3.4).slice(4);
   const begSeries = demoService.series(`${s.ticker}-line`, 64, 0.55, 2.6);
@@ -126,6 +146,43 @@ export function StockScreen({ openAlert }: ScreenProps) {
             </Card>
           )}
 
+          <DataState
+            state={positions.state}
+            onRetry={positions.retry}
+            skeleton={<SkeletonList count={1} leading={false} minHeight={46} />}
+          >
+            {(rows) =>
+              rows.length === 0 ? null : (
+                <Card padding="12px 13px 4px" gap={7}>
+                  <CardTitle>{t('stock.yourHoldings')}</CardTitle>
+                  {rows.map(({ portfolio, holding, index }) => (
+                    <ListRow
+                      key={portfolio.id}
+                      title={portfolio.kind === 'manual' ? portfolio.name : `${portfolio.broker}`}
+                      subtitle={<Num>{`${holding.shares} sh · avg ${money(holding.avgCost)}`}</Num>}
+                      right={
+                        <RowValues
+                          main={money(holding.value, 0)}
+                          sub={pct(holding.plPct)}
+                          subColor={signalColor(holding.plPct)}
+                        />
+                      }
+                      minHeight={46}
+                      // Select this row's account first: the Portfolio tab
+                      // renders whichever portfolio pfIndex points at, so
+                      // navigating without setting it opens whichever account
+                      // was last looked at rather than the one just tapped.
+                      onClick={() => {
+                        dispatch({ type: 'pfIndex', index });
+                        dispatch({ type: 'go', screen: 'pf' });
+                      }}
+                    />
+                  ))}
+                </Card>
+              )
+            }
+          </DataState>
+
           <Card padding={12} gap={7}>
             <CardTitle>{beg ? t('stock.basics') : t('stock.keyStats')}</CardTitle>
             {beg ? (
@@ -152,29 +209,30 @@ export function StockScreen({ openAlert }: ScreenProps) {
             )}
           </Card>
 
-          {!beg && (
-            <Card padding={12} gap={7}>
-              <CardTitle>{t('stock.analyst')}</CardTitle>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                <span style={{ fontSize: 18, fontFamily: 'var(--font-heading)' }}>{t('stock.consensus')}</span>
-                <span className="text-muted" style={{ fontSize: 12.5 }}>
-                  {t('stock.analystMeta')}
-                </span>
-              </div>
-              <div style={{ display: 'flex', height: 6, borderRadius: 4, overflow: 'hidden', gap: 1 }}>
-                <div style={{ flex: 31, background: 'var(--up)' }} />
-                <div style={{ flex: 11, background: 'var(--acc-mid)' }} />
-                <div style={{ flex: 8, background: 'var(--muted-2)' }} />
-                <div style={{ flex: 3, background: 'var(--down)' }} />
-              </div>
-              <div className="text-muted" style={{ display: 'flex', gap: 9, fontSize: 12.5 }}>
-                <span>{t('stock.rateSb')}</span>
-                <span>{t('stock.rateB')}</span>
-                <span>{t('stock.rateH')}</span>
-                <span>{t('stock.rateS')}</span>
-              </div>
-            </Card>
-          )}
+          {/* Shown in both modes: the ratings bar and counts are already
+              plain-language, so there was no beginner-specific reason to
+              hide analyst sentiment from that mode. */}
+          <Card padding={12} gap={7}>
+            <CardTitle>{t('stock.analyst')}</CardTitle>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+              <span style={{ fontSize: 18, fontFamily: 'var(--font-heading)' }}>{t('stock.consensus')}</span>
+              <span className="text-muted" style={{ fontSize: 12.5 }}>
+                {t('stock.analystMeta')}
+              </span>
+            </div>
+            <div style={{ display: 'flex', height: 6, borderRadius: 4, overflow: 'hidden', gap: 1 }}>
+              <div style={{ flex: 31, background: 'var(--up)' }} />
+              <div style={{ flex: 11, background: 'var(--acc-mid)' }} />
+              <div style={{ flex: 8, background: 'var(--muted-2)' }} />
+              <div style={{ flex: 3, background: 'var(--down)' }} />
+            </div>
+            <div className="text-muted" style={{ display: 'flex', gap: 9, fontSize: 12.5 }}>
+              <span>{t('stock.rateSb')}</span>
+              <span>{t('stock.rateB')}</span>
+              <span>{t('stock.rateH')}</span>
+              <span>{t('stock.rateS')}</span>
+            </div>
+          </Card>
 
           <Card padding={12} gap={8}>
             <CardTitle>{beg ? t('stock.newsBeg') : t('stock.newsAdv')}</CardTitle>

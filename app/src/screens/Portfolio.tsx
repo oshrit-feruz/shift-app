@@ -19,9 +19,17 @@ import { useLoadable } from '../data/useLoadable';
 import { money, pct, signalColor } from '../lib/format';
 import { TxSheet } from '../sheets/TxSheet';
 import { NewPortfolioSheet } from '../sheets/NewPortfolioSheet';
-import type { Holding, PortfolioSummary } from '../data/types';
+import { mergeManualTransactions, portfolioList } from '../lib/holdings';
 import type { ScreenProps } from '../App';
 
+/**
+ * The portfolio tab: one chip per account, then the selected account's value,
+ * performance, allocation and holdings.
+ *
+ * The list is the service-reported portfolios plus the user's own manual ones,
+ * built through the shared manualPortfolioSummaries() so this screen and the
+ * stock page can never describe the same portfolio differently.
+ */
 export function PortfolioScreen(_: ScreenProps) {
   const s = useAppState();
   const dispatch = useDispatch();
@@ -58,19 +66,7 @@ export function PortfolioScreen(_: ScreenProps) {
         }
       >
         {(pfs) => {
-          const manualPortfolios: PortfolioSummary[] = s.manualPortfolios.map((x) => ({
-            id: x.id,
-            kind: 'manual',
-            name: x.name,
-            broker: null,
-            logo: null,
-            acct: 'manual entry',
-            syncedAgo: null,
-            total: x.startingCash,
-            dayPct: 0,
-            allTimePct: 0,
-          }));
-          const list = [...pfs, ...manualPortfolios];
+          const list = portfolioList(pfs, s.manualPortfolios);
           const pf = list[Math.min(s.pfIndex, list.length - 1)];
           const isAgg = pf.kind === 'aggregate';
           const isManual = pf.kind === 'manual';
@@ -268,36 +264,16 @@ export function PortfolioScreen(_: ScreenProps) {
   );
 }
 
+/**
+ * One portfolio's holdings list — the service-reported rows with that
+ * portfolio's manual buy/sell log applied on top, so a position the user
+ * entered by hand reads the same as a synced one.
+ */
 function Holdings({ pfId }: { pfId: string }) {
   const s = useAppState();
   const dispatch = useDispatch();
   const holdings = useLoadable(() => demoService.holdings(pfId), [pfId]);
   const transactions = s.manualTransactions[pfId] ?? [];
-
-  const withManualTransactions = (rows: Holding[]) => {
-    const merged = new Map(rows.map((row) => [row.ticker, { ...row }]));
-    for (const tx of transactions) {
-      if (tx.side === 'div') continue;
-      const current = merged.get(tx.ticker) ?? {
-        ticker: tx.ticker,
-        shares: 0,
-        avgCost: 0,
-        value: 0,
-        plPct: 0,
-      };
-      if (tx.side === 'buy') {
-        const shares = current.shares + tx.shares;
-        current.avgCost = shares > 0 ? (current.avgCost * current.shares + tx.price * tx.shares) / shares : 0;
-        current.shares = shares;
-        current.value += tx.price * tx.shares;
-      } else {
-        current.shares = Math.max(0, current.shares - tx.shares);
-        current.value = Math.max(0, current.value - tx.price * tx.shares);
-      }
-      merged.set(tx.ticker, current);
-    }
-    return [...merged.values()].filter((row) => row.shares > 0);
-  };
 
   return (
     <DataState
@@ -306,7 +282,7 @@ function Holdings({ pfId }: { pfId: string }) {
       skeleton={<SkeletonList count={4} leading={false} minHeight={46} />}
     >
       {(rows) => {
-        const mergedRows = withManualTransactions(rows);
+        const mergedRows = mergeManualTransactions(rows, transactions);
         return mergedRows.length === 0 ? (
           <EmptyState>—</EmptyState>
         ) : (

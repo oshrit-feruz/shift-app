@@ -12,6 +12,13 @@ import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
 import { money, pct, signalColor } from '../lib/format';
 
+/**
+ * Full-screen ticker search. Opens over the current screen rather than
+ * navigating, so dismissing it returns the user exactly where they were.
+ *
+ * With no query it lists a few recent symbols instead of nothing, so the
+ * overlay is never an empty box on open.
+ */
 export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
   const dispatch = useDispatch();
   const t = useT();
@@ -37,7 +44,9 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder={t('search.placeholder')}
-            style={{ paddingInlineStart: 32, height: 38, minHeight: 38, fontSize: 14 }}
+            // 16px, not smaller: this field autoFocuses on open, and any
+            // input under 16px makes iOS Safari zoom the page in on focus.
+            style={{ paddingInlineStart: 32, height: 38, minHeight: 38, fontSize: 16 }}
           />
         </label>
         <Button
