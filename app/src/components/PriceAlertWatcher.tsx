@@ -54,10 +54,13 @@ export function PriceAlertWatcher() {
 
         if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           const dir = t(alert.condition === 'rise' ? 'alert.rises' : 'alert.falls');
-          new Notification(`${alert.ticker} ${dir} $${alert.value}`, {
+          const notification = new Notification(`${alert.ticker} ${dir} $${alert.value}`, {
             body: t('thresh.disclaimer'),
             tag: alert.id,
           });
+          // Bring the app back into view rather than leaving the fired
+          // notification as a dead end with nothing to click through to.
+          notification.onclick = () => window.focus();
         }
       }
     }
