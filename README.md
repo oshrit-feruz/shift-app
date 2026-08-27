@@ -95,6 +95,34 @@ Two operational notes for whoever deploys this:
 - The engine is on Render's free tier, which cold-starts; the client allows
   15s (`TIMEOUT_MS`) before giving up and showing "unavailable".
 
+**A second live surface:** stock news. `app/api/news.ts` is a Vercel
+serverless function that proxies EODHD's News API — a server-side proxy,
+never called from the browser directly, so the API key never reaches the
+client. Request: `GET /api/news?ticker=NVDA`. Response: up to 10 real
+headlines with `headline`, `source`, `publishedAt`, a 1–2 sentence `summary`
+excerpted from the article body (never the full text, for copyright reasons),
+and the external `url` — never a full article body.
+
+Same honesty contract as the satellite feed: any upstream failure (network,
+timeout, non-2xx, unparseable or unexpected-shape body) returns a `4xx`/`5xx`
+with an `{ error, message }` body for the frontend to render as
+"unavailable" — never stale-cached or invented headlines. A ticker with fewer
+than 10 (or even zero) recent real articles returns that shorter real list
+as-is rather than padding it out.
+
+**Required environment variable:** `EODHD_API_KEY` — the account's EODHD API
+key, added in the Vercel dashboard under **Project → Settings → Environment
+Variables**, scoped to Production, Preview, and Development so PR previews
+and local `vercel dev` also work. It is read only server-side
+(`process.env.EODHD_API_KEY`); it must never be given a `VITE_` prefix, which
+would bundle it into the client build.
+
+Pure request/response mapping lives in `app/api/_lib/news.ts` (unit-tested in
+`news.test.ts`) so it doesn't require mocking global `fetch` or a Vercel
+request/response pair to test. The `api/` directory has its own
+`tsconfig.json` (`npm run typecheck:api`) since it's excluded from the main
+app's `src`-scoped one and isn't bundled into the client build.
+
 ## ⚠ Needs product sign-off before production
 
 - **Core fund names** (VOO / IEFA / LQD / VMFXX / EEM in
