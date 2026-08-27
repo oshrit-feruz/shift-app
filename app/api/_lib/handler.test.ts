@@ -10,6 +10,7 @@ interface FakeResponse {
   setHeader(k: string, v: string): void;
 }
 
+/** A minimal stand-in for Vercel's response object, recording what the handler sends rather than writing an actual HTTP response. */
 function makeRes(): FakeResponse {
   const res: FakeResponse = {
     _status: undefined,
@@ -160,7 +161,7 @@ describe('handler', () => {
     globalThis.fetch = vi.fn().mockResolvedValue(new Response('[]', { status: 200 }));
     const okRes = makeRes();
     await handler({ method: 'GET', query: { ticker: 'NVDA' } }, okRes);
-    expect(okRes._headers['Cache-Control']).toBe('public, max-age=0, s-maxage=60, stale-while-revalidate=30');
+    expect(okRes._headers['Cache-Control']).toBe('public, max-age=0, s-maxage=60');
 
     globalThis.fetch = vi.fn().mockResolvedValue(new Response('rate limited', { status: 429 }));
     const errRes = makeRes();

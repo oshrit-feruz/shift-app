@@ -28,6 +28,7 @@ export interface NewsArticle {
 
 const SUMMARY_MAX_CHARS = 280;
 
+/** First candidate that is a non-empty string, trimmed — EODHD's field names vary by row, so callers pass several in priority order. */
 function firstString(...values: unknown[]): string | null {
   for (const v of values) {
     if (typeof v === 'string' && v.trim() !== '') return v.trim();

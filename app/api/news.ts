@@ -120,7 +120,13 @@ export function createHandler(timeoutMs: number) {
     // EODHD's daily quota than the real traffic needs; it is not a substitute
     // for per-client abuse throttling, which would need a durable store this
     // app doesn't have yet.
-    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=30');
+    //
+    // No stale-while-revalidate: that directive lets a shared cache serve an
+    // already-expired response for up to its own window while fetching a
+    // fresh one in the background — which is exactly the "stale-cached
+    // fallback" this endpoint was built to never do. Once s-maxage expires,
+    // the next request must get a real answer, not a held-over one.
+    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60');
     return res.status(200).json({ ticker: ticker.toUpperCase(), articles });
   };
 }
