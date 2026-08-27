@@ -181,3 +181,27 @@ describe('fetchStockNews', () => {
     expect(called).toBe(0);
   });
 });
+
+describe('failure reasons', () => {
+  // The screen used to say "News is unavailable right now" for a plan the
+  // provider refuses — advice to wait for something that will not change.
+  it('carries the function\'s specific reason through to the screen', async () => {
+    const fetchImpl = (async () =>
+      new Response(JSON.stringify({ error: 'upstream_forbidden', upstreamStatus: 403 }), {
+        status: 502,
+      })) as unknown as typeof fetch;
+    const result = await fetchStockNews('NVDA', fetchImpl);
+    expect(result.status).toBe('unavailable');
+    if (result.status !== 'unavailable') return;
+    expect(result.reason?.he).toContain('מנוי');
+  });
+
+  it('keeps the generic reason when the failure is unrecognised', async () => {
+    const fetchImpl = (async () =>
+      new Response('gateway exploded', { status: 502 })) as unknown as typeof fetch;
+    const result = await fetchMarketNews(fetchImpl);
+    expect(result.status).toBe('unavailable');
+    if (result.status !== 'unavailable') return;
+    expect(result.reason?.he).toContain('אינן זמינות');
+  });
+});

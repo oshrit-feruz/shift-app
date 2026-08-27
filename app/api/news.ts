@@ -1,4 +1,5 @@
 import { isValidTicker, mapArticle, resolveSymbol, type NewsArticle } from './_lib/news.js';
+import { classifyFetchError, classifyUpstreamStatus, failureBody, isAbortError } from './_lib/upstream.js';
 
 /**
  * Minimal shape of what Vercel's Node.js runtime actually hands a function —
@@ -25,7 +26,14 @@ const MAX_ARTICLES = 10;
  * be a bigger payload for no product reason.
  */
 const MAX_FEED_ARTICLES = 30;
-const DEFAULT_UPSTREAM_TIMEOUT_MS = 10_000;
+/**
+ * Upstream budget. EODHD's news route commonly answers in 2-5 seconds and
+ * occasionally worse, so the previous 10s left almost no headroom: a slow
+ * but healthy provider read as unreachable. The function's own platform
+ * limit (vercel.json) is set above this, so OUR timeout fires first and the
+ * caller gets this app's honest JSON rather than the platform's 504 page.
+ */
+const DEFAULT_UPSTREAM_TIMEOUT_MS = 15_000;
 
 /**
  * Builds the handler with an injectable upstream timeout, so a test can
@@ -104,15 +112,24 @@ export function createHandler(timeoutMs: number) {
     try {
       const upstreamRes = await fetch(upstreamUrl, { signal: controller.signal });
       if (!upstreamRes.ok) {
+        // Say WHICH failure: a plan that does not cover this endpoint (403)
+        // is a subscription problem, not the transient outage a bare
+        // upstream_error implies, and the two need different actions.
         console.error(`/api/news: upstream returned ${upstreamRes.status}`);
-        return res.status(502).json({ error: 'upstream_error', message: 'The news provider returned an error.' });
+        const failure = classifyUpstreamStatus(upstreamRes.status, 'news');
+        return res.status(failure.status).json(failureBody(failure));
       }
       try {
         body = await upstreamRes.json();
       } catch (err) {
-        // Covers both malformed JSON and an abort firing mid-body-read — either
-        // way the upstream response couldn't be read, which is what this
-        // status is for.
+        // An abort firing mid-body-read is a timeout, not a malformed body:
+        // the response may have been perfectly valid and simply too slow, so
+        // it is reported as the timeout it is.
+        if (isAbortError(err)) {
+          console.error('/api/news: upstream body read timed out:', err);
+          const failure = classifyFetchError(err, timeoutMs, 'news');
+          return res.status(failure.status).json(failureBody(failure));
+        }
         console.error('/api/news: upstream response was not valid JSON:', err);
         return res
           .status(502)
@@ -120,7 +137,8 @@ export function createHandler(timeoutMs: number) {
       }
     } catch (err) {
       console.error('/api/news: upstream fetch failed:', err);
-      return res.status(502).json({ error: 'upstream_unavailable', message: 'Could not reach the news provider.' });
+      const failure = classifyFetchError(err, timeoutMs, 'news');
+      return res.status(failure.status).json(failureBody(failure));
     } finally {
       clearTimeout(timeout);
     }

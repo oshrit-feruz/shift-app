@@ -199,3 +199,24 @@ describe('fetchTickerEarnings', () => {
     expect(called).toBe(0);
   });
 });
+
+describe('earnings failure reasons', () => {
+  it('says a refused subscription instead of a generic outage', async () => {
+    const fetchImpl = (async () =>
+      new Response(JSON.stringify({ error: 'upstream_forbidden', upstreamStatus: 403 }), {
+        status: 502,
+      })) as unknown as typeof fetch;
+    const result = await fetchWeekEarnings(fetchImpl, new Date('2026-08-27T00:00:00Z'));
+    expect(result.status).toBe('unavailable');
+    if (result.status !== 'unavailable') return;
+    expect(result.reason?.he).toContain('מנוי');
+  });
+
+  it('falls back to the calendar wording for an unrecognised failure', async () => {
+    const fetchImpl = (async () => new Response('nope', { status: 500 })) as unknown as typeof fetch;
+    const result = await fetchTickerEarnings('AAPL', fetchImpl, new Date('2026-08-27T00:00:00Z'));
+    expect(result.status).toBe('unavailable');
+    if (result.status !== 'unavailable') return;
+    expect(result.reason?.he).toContain('יומן הדוחות');
+  });
+});

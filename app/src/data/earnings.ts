@@ -17,6 +17,7 @@
  * distinct all the way to the UI.
  */
 
+import { reasonFromResponse } from './providerReason';
 import { ok, unavailable, type EarningsRow, type Loadable } from './types';
 
 /**
@@ -34,8 +35,13 @@ export interface EarningsPage {
 
 export const EARNINGS_URL = '/api/earnings';
 
-/** Client-side ceiling on top of the function's own 10s upstream budget. */
-const TIMEOUT_MS = 20_000;
+/**
+ * Client-side ceiling, deliberately above the function's own 20s upstream
+ * budget: if this fired first the user would see a generic client timeout
+ * instead of the function's specific reason (plan, quota, provider timeout),
+ * which is the diagnosis they actually need.
+ */
+const TIMEOUT_MS = 30_000;
 
 /**
  * How far back a stock's report history is read. Twelve quarters is three
@@ -141,7 +147,9 @@ async function read(url: string, fetchImpl: typeof fetch): Promise<Loadable<Earn
       signal: controller.signal,
       headers: { Accept: 'application/json' },
     });
-    if (!res.ok) return unavailable(UNAVAILABLE);
+    // A failure body carries a code saying which failure it was; a plan the
+    // provider refuses and a provider that is down need different wording.
+    if (!res.ok) return unavailable(await reasonFromResponse(res, UNAVAILABLE));
 
     const body: unknown = await res.json();
     if (body === null || typeof body !== 'object' || Array.isArray(body)) return unavailable(UNAVAILABLE);

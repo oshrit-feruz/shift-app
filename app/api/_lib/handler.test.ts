@@ -103,8 +103,8 @@ describe('handler', () => {
     expect(res._body).toMatchObject({ error: 'upstream_unavailable' });
   });
 
-  it('reports upstream_error on a non-2xx upstream status', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(new Response('rate limited', { status: 429 }));
+  it('reports upstream_error on an unclassified non-2xx upstream status', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response('upstream broke', { status: 503 }));
     const res = makeRes();
     await handler({ method: 'GET', query: { ticker: 'NVDA' } }, res);
     expect(res._status).toBe(502);
@@ -258,7 +258,44 @@ describe('handler', () => {
     expect(res._headers['Cache-Control']).toBeUndefined();
   });
 
-  it('times out and reports bad_response if the body stalls past the budget', async () => {
+  // Every failure path stays uncacheable AND now says which failure it was:
+  // a 403 from a plan that does not cover the endpoint needs a subscription
+  // change, not a retry, and the old single upstream_error could not say so.
+  it.each([
+    [401, 'upstream_unauthorized'],
+    [403, 'upstream_forbidden'],
+    [429, 'upstream_rate_limited'],
+    [500, 'upstream_error'],
+  ])('reports upstream %i as %s, and never caches it', async (status, error) => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status } as unknown as Response) as unknown as typeof fetch;
+    const res = makeRes();
+    await handler({ method: 'GET', query: { ticker: 'NVDA' } }, res);
+    expect(res._status).toBe(502);
+    expect(res._body).toMatchObject({ error, upstreamStatus: status });
+    expect(res._headers['Cache-Control']).toBeUndefined();
+  });
+
+  it('distinguishes a provider that timed out from one it could not reach', async () => {
+    const shortHandler = createHandler(20);
+    globalThis.fetch = vi.fn().mockImplementation(
+      (_url: URL, init?: { signal?: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+        }),
+    ) as unknown as typeof fetch;
+    const timedOut = makeRes();
+    await shortHandler({ method: 'GET', query: { ticker: 'NVDA' } }, timedOut);
+    expect(timedOut._status).toBe(502);
+    expect(timedOut._body).toMatchObject({ error: 'upstream_timeout', timeoutMs: 20 });
+
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError('fetch failed')) as unknown as typeof fetch;
+    const unreachable = makeRes();
+    await handler({ method: 'GET', query: { ticker: 'NVDA' } }, unreachable);
+    expect(unreachable._body).toMatchObject({ error: 'upstream_unavailable' });
+    expect((unreachable._body as { timeoutMs?: number }).timeoutMs).toBeUndefined();
+  });
+
+  it('reports a stalled body as a timeout, not as a malformed response', async () => {
     const shortHandler = createHandler(20);
     globalThis.fetch = vi.fn().mockImplementation(async (_url: URL, init?: { signal?: AbortSignal }) => {
       // fetch() itself resolves right away (headers "arrived"); only the body
@@ -276,6 +313,19 @@ describe('handler', () => {
     const res = makeRes();
     await shortHandler({ method: 'GET', query: { ticker: 'NVDA' } }, res);
     expect(res._status).toBe(502);
+    // The body may have been perfectly valid and merely too slow, so calling
+    // it unreadable was a guess about a response we never saw.
+    expect(res._body).toMatchObject({ error: 'upstream_timeout', timeoutMs: 20 });
+  });
+
+  it('still reports a genuinely malformed body as unreadable', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.reject(new SyntaxError('Unexpected token <')),
+    } as unknown as Response) as unknown as typeof fetch;
+    const res = makeRes();
+    await handler({ method: 'GET', query: { ticker: 'NVDA' } }, res);
     expect(res._body).toMatchObject({ error: 'bad_response' });
   });
 });

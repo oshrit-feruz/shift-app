@@ -19,17 +19,20 @@
  * the UI.
  */
 
+import { reasonFromResponse } from './providerReason';
 import { ok, unavailable, type Loadable, type StockNewsArticle } from './types';
 
 /** Same-origin: the function is deployed alongside the app on Vercel. */
 export const STOCK_NEWS_URL = '/api/news';
 
 /**
- * The function's own upstream budget is 10s; this is the client-side ceiling
+ * The function's own upstream budget is 15s; this is the client-side ceiling
  * on top of that, leaving room for the round trip without hanging a screen
- * indefinitely if the platform itself stalls.
+ * indefinitely if the platform itself stalls. It must stay ABOVE the
+ * function's budget, or a slow provider would surface as a bare client
+ * timeout instead of the function's specific reason.
  */
-const TIMEOUT_MS = 20_000;
+const TIMEOUT_MS = 25_000;
 
 /** Trimmed non-empty string, or null. */
 function str(v: unknown): string | null {
@@ -162,8 +165,9 @@ async function readNews(
     });
     // The function returns an {error, message} body on every failure path.
     // None of them are recoverable here, and none may be dressed up as "no
-    // news for this ticker".
-    if (!res.ok) return unavailable(UNAVAILABLE);
+    // news for this ticker" — but they are not all the same failure either,
+    // so the code in that body picks the wording where it recognises one.
+    if (!res.ok) return unavailable(await reasonFromResponse(res, UNAVAILABLE));
 
     const body: unknown = await res.json();
     if (body === null || typeof body !== 'object' || Array.isArray(body)) {

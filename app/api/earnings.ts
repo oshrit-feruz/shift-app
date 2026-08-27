@@ -1,5 +1,6 @@
 import { isValidTicker, resolveSymbol } from './_lib/news.js';
 import { mapEarning, parseIsoDate, validateRange, type EarningsRow } from './_lib/earnings.js';
+import { classifyFetchError, classifyUpstreamStatus, failureBody, isAbortError } from './_lib/upstream.js';
 
 /** See api/news.ts — the same minimal shape of what Vercel's Node runtime hands a function. */
 interface ApiRequest {
@@ -13,7 +14,13 @@ interface ApiResponse {
 }
 
 const EODHD_CALENDAR_URL = 'https://eodhd.com/api/calendar/earnings';
-const DEFAULT_UPSTREAM_TIMEOUT_MS = 10_000;
+/**
+ * Upstream budget, wider than the news route's: a market-wide week is
+ * thousands of rows in one uncompressed JSON body, and the platform limit in
+ * vercel.json sits above this so OUR timeout fires first and the caller gets
+ * this app's honest JSON rather than the platform's 504 page.
+ */
+const DEFAULT_UPSTREAM_TIMEOUT_MS = 20_000;
 /**
  * Upper bound on rows returned in one response.
  *
@@ -132,12 +139,23 @@ export function createHandler(timeoutMs: number) {
     try {
       const upstreamRes = await fetch(upstreamUrl, { signal: controller.signal });
       if (!upstreamRes.ok) {
+        // 403 here is the one worth naming: EODHD's calendar sits in specific
+        // plans, and a key without it is refused indefinitely rather than
+        // transiently. Reporting that as a generic error would have someone
+        // retrying an outage that is really a subscription.
         console.error(`/api/earnings: upstream returned ${upstreamRes.status}`);
-        return res.status(502).json({ error: 'upstream_error', message: 'The earnings provider returned an error.' });
+        const failure = classifyUpstreamStatus(upstreamRes.status, 'earnings');
+        return res.status(failure.status).json(failureBody(failure));
       }
       try {
         body = await upstreamRes.json();
       } catch (err) {
+        // An abort mid-body-read is a timeout, not a malformed body.
+        if (isAbortError(err)) {
+          console.error('/api/earnings: upstream body read timed out:', err);
+          const failure = classifyFetchError(err, timeoutMs, 'earnings');
+          return res.status(failure.status).json(failureBody(failure));
+        }
         console.error('/api/earnings: upstream response was not valid JSON:', err);
         return res
           .status(502)
@@ -145,7 +163,8 @@ export function createHandler(timeoutMs: number) {
       }
     } catch (err) {
       console.error('/api/earnings: upstream fetch failed:', err);
-      return res.status(502).json({ error: 'upstream_unavailable', message: 'Could not reach the earnings provider.' });
+      const failure = classifyFetchError(err, timeoutMs, 'earnings');
+      return res.status(failure.status).json(failureBody(failure));
     } finally {
       clearTimeout(timeout);
     }
