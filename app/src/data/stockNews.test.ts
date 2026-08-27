@@ -47,6 +47,16 @@ describe('mapNewsArticle', () => {
     for (const bad of ['garbage', 'not-a-date-at-all', '2026-13-45T09:00:00Z', '2026-02-31T00:00:00Z', '26/08/2026']) {
       expect(mapNewsArticle({ ...ARTICLE, publishedAt: bad })?.publishedAt, bad).toBe('');
     }
+    // The whole string must validate, not just its date prefix: publishedAt
+    // is the reverse-chronological sort key, and an impossible hour sorts
+    // above every real one.
+    for (const bad of ['2026-08-26T99:00:00Z', '2026-08-26T12:99:00Z', '2026-08-26junk', '2026-08-26T12:00:00Z tail']) {
+      expect(mapNewsArticle({ ...ARTICLE, publishedAt: bad })?.publishedAt, bad).toBe('');
+    }
+    // Real provider formats survive.
+    for (const good of ['2026-08-26T13:04:00Z', '2026-08-26T13:04:00+03:00', '2026-08-26 13:04', '2026-08-26T13:04:00.512Z']) {
+      expect(mapNewsArticle({ ...ARTICLE, publishedAt: good })?.publishedAt, good).toBe(good);
+    }
     // A real timestamp survives untouched.
     expect(mapNewsArticle(ARTICLE)?.publishedAt).toBe('2026-08-26T13:04:00Z');
     // A bare date with no time part is also fine — providers vary.

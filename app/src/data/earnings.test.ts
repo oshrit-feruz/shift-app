@@ -72,6 +72,41 @@ describe('mapRow', () => {
   });
 });
 
+describe('calendar-date validation (regression)', () => {
+  it('rejects an impossible reportDate rather than letting it render as an invented day', () => {
+    // Shape alone passed before: the calendar renders the weekday through
+    // Date.UTC(y, m-1, d), which silently rolled 2026-02-31 to 3 March.
+    for (const bad of ['2026-02-31', '2026-13-45', '2026-00-10', '2026-02-29', '2026-08-32']) {
+      expect(mapRow({ ...ROW, reportDate: bad }), bad).toBeNull();
+    }
+    expect(mapRow({ ...ROW, reportDate: '2028-02-29' })?.reportDate).toBe('2028-02-29');
+  });
+
+  it('nulls an impossible periodEnd instead of carrying it', () => {
+    expect(mapRow({ ...ROW, periodEnd: '2026-02-31' })?.periodEnd).toBeNull();
+    expect(mapRow({ ...ROW, periodEnd: '2026-06-30' })?.periodEnd).toBe('2026-06-30');
+  });
+});
+
+describe('truncation is reported, never silent', () => {
+  const NOW = new Date('2026-08-27T09:00:00Z');
+
+  it('carries the endpoint\'s truncated flag and total through to the caller', async () => {
+    const r = await fetchWeekEarnings(
+      async () => res({ earnings: [ROW], truncated: true, totalAvailable: 2317 }), NOW,
+    );
+    expect(r.status).toBe('ok');
+    expect(r.status === 'ok' && r.data.truncated).toBe(true);
+    expect(r.status === 'ok' && r.data.totalAvailable).toBe(2317);
+  });
+
+  it('defaults to not-truncated when the endpoint says nothing', async () => {
+    const r = await fetchWeekEarnings(async () => res({ earnings: [ROW] }), NOW);
+    expect(r.status === 'ok' && r.data.truncated).toBe(false);
+    expect(r.status === 'ok' && r.data.totalAvailable).toBe(1);
+  });
+});
+
 describe('fetchWeekEarnings', () => {
   const NOW = new Date('2026-08-27T09:00:00Z');
 
@@ -83,13 +118,13 @@ describe('fetchWeekEarnings', () => {
     }, NOW);
     expect(seen).toBe(`${EARNINGS_URL}?from=2026-08-24&to=2026-08-30`);
     expect(r.status).toBe('ok');
-    expect(r.status === 'ok' && r.data).toHaveLength(1);
+    expect(r.status === 'ok' && r.data.rows).toHaveLength(1);
   });
 
   it('treats a week with no reports as a legitimate ok, NOT an error', async () => {
     const r = await fetchWeekEarnings(async () => res({ earnings: [] }), NOW);
     expect(r.status).toBe('ok');
-    expect(r.status === 'ok' && r.data).toEqual([]);
+    expect(r.status === 'ok' && r.data.rows).toEqual([]);
   });
 
   it('is unavailable — never an empty week — when the function errors', async () => {
@@ -113,7 +148,7 @@ describe('fetchWeekEarnings', () => {
     const r = await fetchWeekEarnings(
       async () => res({ earnings: [ROW, { ticker: 'X' }, null, { ...ROW, ticker: 'AAPL' }] }), NOW,
     );
-    expect(r.status === 'ok' && r.data.map((e) => e.ticker)).toEqual(['NVDA', 'AAPL']);
+    expect(r.status === 'ok' && r.data.rows.map((e) => e.ticker)).toEqual(['NVDA', 'AAPL']);
   });
 });
 
@@ -154,7 +189,7 @@ describe('fetchTickerEarnings', () => {
     // A newly-listed company genuinely has none.
     const r = await fetchTickerEarnings('NVDA', async () => res({ earnings: [] }), NOW);
     expect(r.status).toBe('ok');
-    expect(r.status === 'ok' && r.data).toEqual([]);
+    expect(r.status === 'ok' && r.data.rows).toEqual([]);
   });
 
   it('rejects an empty ticker without calling the network', async () => {

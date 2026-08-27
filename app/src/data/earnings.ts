@@ -19,6 +19,19 @@
 
 import { ok, unavailable, type EarningsRow, type Loadable } from './types';
 
+/**
+ * A calendar result, plus whether the endpoint had more rows than it sent.
+ *
+ * `truncated` is carried all the way to the screen rather than dropped here:
+ * a partial week rendered as though it were the whole week is exactly the
+ * quiet inaccuracy this app's data contract exists to prevent.
+ */
+export interface EarningsPage {
+  rows: EarningsRow[];
+  truncated: boolean;
+  totalAvailable: number;
+}
+
 export const EARNINGS_URL = '/api/earnings';
 
 /** Client-side ceiling on top of the function's own 10s upstream budget. */
@@ -73,21 +86,45 @@ export function weekWindow(now: Date = new Date()): { from: string; to: string }
   return { from: isoDay(monday), to: isoDay(new Date(monday.getTime() + 6 * 86_400_000)) };
 }
 
+/**
+ * A bare YYYY-MM-DD that is a real day, else null.
+ *
+ * Round-trips through Date.UTC because that constructor silently normalises
+ * impossible input rather than rejecting it — the same guard snapshotAgeDays
+ * uses, for the same reason.
+ */
+export function calendarDate(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v.trim());
+  if (!m) return null;
+  const [, y, mo, d] = m;
+  const back = new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d)));
+  return back.getUTCFullYear() === Number(y) &&
+    back.getUTCMonth() === Number(mo) - 1 &&
+    back.getUTCDate() === Number(d)
+    ? `${y}-${mo}-${d}`
+    : null;
+}
+
 /** Map one row from the function's response. Returns null for an unusable row. */
 export function mapRow(raw: unknown): EarningsRow | null {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const r = raw as Record<string, unknown>;
   const ticker = typeof r.ticker === 'string' ? r.ticker.trim().toUpperCase() : '';
-  const reportDate = typeof r.reportDate === 'string' ? r.reportDate.trim() : '';
   // The function already validated both; re-checking here keeps this layer
-  // independently trustworthy rather than assuming its own backend is sane.
-  if (!ticker || !/^\d{4}-\d{2}-\d{2}$/.test(reportDate)) return null;
+  // independently trustworthy rather than assuming its own backend is sane —
+  // and the check has to be the CALENDAR one, not just the shape. "2026-02-31"
+  // matches the shape, and the calendar renders its weekday through
+  // Date.UTC(y, m-1, d), which rolls it forward to 3 March: an invented date
+  // shown as a real report date.
+  const reportDate = calendarDate(r.reportDate);
+  if (!ticker || reportDate === null) return null;
 
   const numOrNull = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
   return {
     ticker,
     reportDate,
-    periodEnd: typeof r.periodEnd === 'string' && r.periodEnd.trim() !== '' ? r.periodEnd.trim() : null,
+    periodEnd: calendarDate(r.periodEnd),
     timing: r.timing === 'BMO' || r.timing === 'AMC' ? r.timing : null,
     actual: numOrNull(r.actual),
     estimate: numOrNull(r.estimate),
@@ -96,7 +133,7 @@ export function mapRow(raw: unknown): EarningsRow | null {
 }
 
 /** Shared transport and honesty handling. Never throws. */
-async function read(url: string, fetchImpl: typeof fetch): Promise<Loadable<EarningsRow[]>> {
+async function read(url: string, fetchImpl: typeof fetch): Promise<Loadable<EarningsPage>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
@@ -114,7 +151,13 @@ async function read(url: string, fetchImpl: typeof fetch): Promise<Loadable<Earn
     // response we actually understood.
     if (!Array.isArray(rows)) return unavailable(UNAVAILABLE);
 
-    return ok(rows.map(mapRow).filter((r): r is EarningsRow => r !== null));
+    const mapped = rows.map(mapRow).filter((r): r is EarningsRow => r !== null);
+    const body2 = body as Record<string, unknown>;
+    return ok({
+      rows: mapped,
+      truncated: body2.truncated === true,
+      totalAvailable: typeof body2.totalAvailable === 'number' ? body2.totalAvailable : mapped.length,
+    });
   } catch {
     return unavailable(UNAVAILABLE);
   } finally {
@@ -126,7 +169,7 @@ async function read(url: string, fetchImpl: typeof fetch): Promise<Loadable<Earn
 export async function fetchWeekEarnings(
   fetchImpl: typeof fetch = fetch,
   now: Date = new Date(),
-): Promise<Loadable<EarningsRow[]>> {
+): Promise<Loadable<EarningsPage>> {
   const { from, to } = weekWindow(now);
   return read(`${EARNINGS_URL}?from=${from}&to=${to}`, fetchImpl);
 }
@@ -140,7 +183,7 @@ export async function fetchTickerEarnings(
   ticker: string,
   fetchImpl: typeof fetch = fetch,
   now: Date = new Date(),
-): Promise<Loadable<EarningsRow[]>> {
+): Promise<Loadable<EarningsPage>> {
   const clean = ticker.trim().toUpperCase();
   if (!clean) return unavailable(UNAVAILABLE);
   const from = isoDay(new Date(now.getTime() - HISTORY_QUARTERS * DAYS_PER_QUARTER * 86_400_000));

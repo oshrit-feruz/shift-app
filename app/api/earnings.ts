@@ -14,6 +14,17 @@ interface ApiResponse {
 
 const EODHD_CALENDAR_URL = 'https://eodhd.com/api/calendar/earnings';
 const DEFAULT_UPSTREAM_TIMEOUT_MS = 10_000;
+/**
+ * Upper bound on rows returned in one response.
+ *
+ * EODHD's calendar has no pagination and returns every record in the range —
+ * their own docs put a full year at roughly 120,000 rows, so a market-wide
+ * week is on the order of a couple of thousand. A bound is therefore right
+ * for a mobile client, but a SILENT one is not: dropping the tail of a week
+ * while answering 200 tells the caller it has the whole week when it does
+ * not. The response says when it truncated and how many rows existed, and
+ * the UI says so too.
+ */
 const MAX_ROWS = 400;
 
 /**
@@ -61,6 +72,17 @@ export function createHandler(timeoutMs: number) {
       return res.status(405).json({ error: 'method_not_allowed', message: 'Use GET.' });
     }
 
+    // A repeated query parameter is ambiguous, not a value to pick from.
+    // Silently taking the first would let ?ticker=NVDA&ticker=BAD%20TICKER
+    // reach upstream as NVDA — answering a question that was not asked.
+    for (const key of ['ticker', 'from', 'to'] as const) {
+      const v = req.query[key];
+      if (Array.isArray(v) && v.length > 1) {
+        return res
+          .status(400)
+          .json({ error: 'repeated_param', message: `Query param "${key}" must be given once.` });
+      }
+    }
     const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v)?.trim();
 
     // Ticker is optional: absent means "the whole market in this window".
@@ -136,11 +158,12 @@ export function createHandler(timeoutMs: number) {
         .json({ error: 'bad_response', message: 'The earnings provider returned an unexpected shape.' });
     }
 
-    const earnings: EarningsRow[] = rows
+    const all: EarningsRow[] = rows
       .map(mapEarning)
       .filter((e): e is EarningsRow => e !== null)
-      .sort((a, b) => a.reportDate.localeCompare(b.reportDate))
-      .slice(0, MAX_ROWS);
+      .sort((a, b) => a.reportDate.localeCompare(b.reportDate));
+    const earnings = all.slice(0, MAX_ROWS);
+    const truncated = all.length > earnings.length;
 
     // Success only, like /api/news — an error must never be frozen and served
     // for the TTL. Longer than the news TTL because a calendar changes on the
@@ -148,7 +171,16 @@ export function createHandler(timeoutMs: number) {
     // between two page loads, so a shorter window would spend quota for no
     // freshness anyone can perceive.
     res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=900');
-    return res.status(200).json({ ticker: ticker === null ? null : ticker.toUpperCase(), from, to, earnings });
+    return res.status(200).json({
+      ticker: ticker === null ? null : ticker.toUpperCase(),
+      from,
+      to,
+      earnings,
+      // Reported, not implied: a caller that gets fewer rows than exist must
+      // be able to tell, rather than treating a partial week as the week.
+      truncated,
+      totalAvailable: all.length,
+    });
   };
 }
 

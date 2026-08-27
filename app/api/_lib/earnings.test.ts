@@ -188,6 +188,52 @@ describe('earnings handler', () => {
     expect(res._headers['Cache-Control']).toBeUndefined();
   });
 
+  it('reports truncation instead of silently dropping the tail of a week', async () => {
+    // EODHD's calendar has no pagination and returns every row in the range;
+    // their docs put a year near 120,000, so a market week runs to thousands.
+    // A bound is right for a mobile client — a silent one is not, because the
+    // caller would treat a partial week as the whole week.
+    const many = Array.from({ length: 450 }, (_, i) => ({
+      ...ROW, code: `T${i}.US`, report_date: '2026-08-25',
+    }));
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ earnings: many }), { status: 200 }),
+    ) as unknown as typeof fetch;
+    const res = makeRes();
+    await handler({ method: 'GET', query: GOOD }, res);
+    const body = res._body as { earnings: unknown[]; truncated: boolean; totalAvailable: number };
+    expect(body.earnings).toHaveLength(400);
+    expect(body.truncated).toBe(true);
+    expect(body.totalAvailable).toBe(450);
+  });
+
+  it('reports truncated:false when everything fit', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ earnings: [ROW] }), { status: 200 }),
+    ) as unknown as typeof fetch;
+    const res = makeRes();
+    await handler({ method: 'GET', query: GOOD }, res);
+    const body = res._body as { truncated: boolean; totalAvailable: number };
+    expect(body.truncated).toBe(false);
+    expect(body.totalAvailable).toBe(1);
+  });
+
+  it.each([
+    ['ticker', { ...GOOD, ticker: ['NVDA', 'BAD TICKER'] }],
+    ['from', { ...GOOD, from: ['2026-08-24', 'garbage'] }],
+    ['to', { ...GOOD, to: ['2026-08-30', 'garbage'] }],
+  ])('rejects a repeated %s parameter without an upstream call', async (_label, query) => {
+    // Taking the first value would let a second, malformed one ride along —
+    // answering a question nobody asked, at the cost of a credit.
+    const spy = vi.fn();
+    globalThis.fetch = spy as unknown as typeof fetch;
+    const res = makeRes();
+    await handler({ method: 'GET', query: query as Record<string, string | string[]> }, res);
+    expect(res._status).toBe(400);
+    expect(res._body).toMatchObject({ error: 'repeated_param' });
+    expect(spy).not.toHaveBeenCalled();
+  });
+
   it('rejects a non-GET without an upstream call', async () => {
     const spy = vi.fn();
     globalThis.fetch = spy as unknown as typeof fetch;

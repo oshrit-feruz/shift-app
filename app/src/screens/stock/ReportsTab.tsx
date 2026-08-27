@@ -118,7 +118,8 @@ export function EarningsHistory({ ticker }: { ticker: string }) {
 
   return (
     <DataState state={e.state} onRetry={e.retry} skeleton={<SkeletonCard height={190} lines={4} />}>
-      {(rows) => {
+      {(page) => {
+        const rows = page.rows;
         // Newest first: the most recent quarter is what someone opened this
         // for, and older ones are context below it.
         const sorted = [...rows].sort((a, b) => b.reportDate.localeCompare(a.reportDate));

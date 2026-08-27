@@ -375,6 +375,10 @@ export const STRINGS = {
     'הווטצ׳ליסט שלך ריק, אז אין עבור מה למשוך חדשות.',
   ),
   'news.openSource': p('Open at the source', 'לפתוח במקור'),
+  'earn.truncated': p(
+    'Showing {shown} of {total} reports this week.',
+    'מוצגים {shown} מתוך {total} דוחות השבוע.',
+  ),
   'earn.weekEmpty': p('No companies report this week.', 'אין חברות שמדווחות השבוע.'),
   'stock.nextEarn': p('Next earnings', 'הדוח הבא'),
   'stock.nov': p('Nov', 'נוב׳'),

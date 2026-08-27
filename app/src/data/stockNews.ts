@@ -48,9 +48,16 @@ function str(v: unknown): string | null {
  * impossible dates, so shape alone is not enough.
  */
 function validTimestamp(raw: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
+  // Anchored at BOTH ends: matching only the prefix let "2026-08-26T99:00:00Z"
+  // and "2026-08-26junk" through. The rendered label only uses the date part,
+  // so a bad time would not show — but publishedAt is also the reverse-chron
+  // sort key, and an impossible hour sorts above every real one.
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/.exec(
+    raw.trim(),
+  );
   if (!m) return '';
-  const [, y, mo, d] = m;
+  const [, y, mo, d, hh, mm, ss] = m;
+  if (Number(hh ?? 0) > 23 || Number(mm ?? 0) > 59 || Number(ss ?? 0) > 60) return '';
   const back = new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d)));
   return back.getUTCFullYear() === Number(y) &&
     back.getUTCMonth() === Number(mo) - 1 &&

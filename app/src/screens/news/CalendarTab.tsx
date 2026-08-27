@@ -59,7 +59,8 @@ export function CalendarTab({ watchlist }: { watchlist: string[] }) {
         </div>
       }
     >
-      {(rows) => {
+      {(page) => {
+        const rows = page.rows;
         // Filter before grouping, so a filter that empties a day drops that
         // day's heading too rather than leaving a header with nothing under it.
         const filtered = onlyWatchlist ? rows.filter((r) => watchlist.includes(r.ticker)) : rows;
@@ -119,6 +120,17 @@ export function CalendarTab({ watchlist }: { watchlist: string[] }) {
                   </button>
                 ))}
               </ChipRail>
+            )}
+
+            {/* Say it plainly when the endpoint had more than it sent: a
+                partial week rendered as the whole week is the quiet kind of
+                inaccuracy this app exists to avoid. */}
+            {page.truncated && (
+              <Card padding={12} gap={0}>
+                <span className="text-muted" style={{ fontSize: 12.5 }}>
+                  {t('earn.truncated', { shown: rows.length, total: page.totalAvailable })}
+                </span>
+              </Card>
             )}
 
             {shown.length === 0 ? (
@@ -190,9 +202,14 @@ function EarningsRowView({
           )}
         </span>
       </span>
-      {reported && row.surprisePct !== null ? (
-        <Num size={13} style={{ color: signalColor(row.surprisePct) }}>
-          {pct(row.surprisePct, 1)}
+      {/* Branch on REPORTED first. A quarter that has been reported but whose
+          surprise figure is unavailable is still reported — labelling it
+          "scheduled" would state a falsehood about a company that has already
+          published. Missing surprise renders as the actual EPS, or an em dash
+          when even that is absent. */}
+      {reported ? (
+        <Num size={13} style={{ color: row.surprisePct === null ? undefined : signalColor(row.surprisePct) }}>
+          {row.surprisePct === null ? row.actual!.toFixed(2) : pct(row.surprisePct, 1)}
         </Num>
       ) : (
         <Tag variant="outline" fontSize={11.5}>

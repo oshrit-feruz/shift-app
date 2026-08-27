@@ -60,6 +60,14 @@ export function createHandler(timeoutMs: number) {
     // still an error. Those must not be conflated, or a typo'd ticker would
     // silently serve unrelated market news as though it were that stock's.
     const tickerParam = req.query.ticker;
+    // A repeated parameter is ambiguous, not a value to pick from. Taking the
+    // first would let ?ticker=NVDA&ticker=BAD%20TICKER pass validation as
+    // NVDA and spend an upstream call on a request nobody made.
+    if (Array.isArray(tickerParam) && tickerParam.length > 1) {
+      return res
+        .status(400)
+        .json({ error: 'repeated_param', message: 'Query param "ticker" must be given once.' });
+    }
     const raw = (Array.isArray(tickerParam) ? tickerParam[0] : tickerParam)?.trim();
     const wantsFeed = raw === undefined || raw === '';
     const ticker = wantsFeed ? null : raw;

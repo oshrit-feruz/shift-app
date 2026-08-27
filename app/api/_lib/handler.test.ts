@@ -232,6 +232,21 @@ describe('handler', () => {
     expect(res._headers['Cache-Control']).toBeUndefined();
   });
 
+  it('rejects a repeated ticker parameter without spending an upstream call', async () => {
+    // ?ticker=NVDA&ticker=BAD%20TICKER used to pass validation as NVDA and
+    // reach upstream. A repeated parameter is ambiguous, not a value to pick
+    // from — and an ambiguous request must not cost a credit.
+    process.env.EODHD_API_KEY = 'test-key';
+    const fetchSpy = vi.fn();
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+    const res = makeRes();
+    await handler({ method: 'GET', query: { ticker: ['NVDA', 'BAD TICKER'] } }, res);
+    expect(res._status).toBe(400);
+    expect(res._body).toMatchObject({ error: 'repeated_param' });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(res._headers['Cache-Control']).toBeUndefined();
+  });
+
   it('rejects a non-GET request without spending an upstream call', async () => {
     process.env.EODHD_API_KEY = 'test-key';
     const fetchSpy = vi.fn();
