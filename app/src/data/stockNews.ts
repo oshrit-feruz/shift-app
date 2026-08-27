@@ -116,6 +116,28 @@ export function mapNewsArticle(raw: unknown): StockNewsArticle | null {
   };
 }
 
+/**
+ * Sort key for a published timestamp, in epoch milliseconds.
+ *
+ * Comparing the raw strings compares text, not time: 2026-08-27T22:00+03:00
+ * is 19:00 UTC yet sorts above 2026-08-27T20:00Z, so a feed merged from
+ * sources that use different offsets comes out in an order that looks
+ * plausible and is wrong. Parsing gives the instant the string denotes,
+ * which is the thing "newest first" is actually about.
+ *
+ * A missing or unparseable timestamp sorts oldest — an article we cannot
+ * date must not be presented as the freshest thing on the screen. It is
+ * MIN_SAFE_INTEGER rather than -Infinity so that subtracting two of them
+ * stays a number a comparator can use.
+ */
+export const UNDATED = Number.MIN_SAFE_INTEGER;
+
+export function publishedAtMs(iso: string | null | undefined): number {
+  if (!iso) return UNDATED;
+  const ms = Date.parse(iso);
+  return Number.isNaN(ms) ? UNDATED : ms;
+}
+
 const UNAVAILABLE = {
   en: 'News is unavailable right now.',
   he: 'החדשות אינן זמינות כרגע.',

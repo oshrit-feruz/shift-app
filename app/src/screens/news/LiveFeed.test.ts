@@ -68,3 +68,26 @@ describe('fetchWatchlistNews', () => {
     expect(r.status === 'ok' && r.data.map((a) => a.url)).toEqual(['https://e/dated', 'https://e/nodate']);
   });
 });
+
+describe('feed ordering across timezones', () => {
+  // Two providers, two offsets, one feed. Before this, the +03:00 article
+  // sorted first because its text does, and the feed claimed to be
+  // newest-first while showing the older story on top.
+  it('orders merged articles by instant, not by timestamp text', async () => {
+    const article = (url: string, publishedAt: string) => ({
+      id: url, headline: url, url, source: 'X', publishedAt, summary: '', symbols: [],
+    });
+    const fetchImpl = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const body = url.includes('AAA')
+        ? { articles: [article('a', '2026-08-27T22:00:00+03:00')] }
+        : { articles: [article('b', '2026-08-27T20:00:00Z')] };
+      return new Response(JSON.stringify(body), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const result = await fetchWatchlistNews(['AAA', 'BBB'], fetchImpl);
+    expect(result.status).toBe('ok');
+    if (result.status !== 'ok') return;
+    expect(result.data.map((a) => a.url)).toEqual(['b', 'a']);
+  });
+});

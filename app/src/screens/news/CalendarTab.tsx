@@ -72,7 +72,8 @@ export function CalendarTab({ watchlist }: { watchlist: string[] }) {
           else byDate.set(r.reportDate, [r]);
         }
         const days = [...byDate.entries()].sort(([a], [b]) => a.localeCompare(b));
-        const shown = day ? days.filter(([d]) => d === day) : days;
+        const selected = activeDay(day, [...byDate.keys()]);
+        const shown = selected ? days.filter(([d]) => d === selected) : days;
 
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
@@ -94,14 +95,14 @@ export function CalendarTab({ watchlist }: { watchlist: string[] }) {
                   <button
                     key={d}
                     type="button"
-                    onClick={() => setDay(day === d ? null : d)}
+                    onClick={() => setDay(selected === d ? null : d)}
                     style={{
                       flex: 'none',
                       minWidth: 68,
                       padding: '7px 10px',
                       borderRadius: 'var(--radius-md)',
-                      border: `1px solid ${day === d ? 'var(--color-accent)' : 'var(--color-divider)'}`,
-                      background: day === d ? 'var(--color-accent-900)' : 'transparent',
+                      border: `1px solid ${selected === d ? 'var(--color-accent)' : 'var(--color-divider)'}`,
+                      background: selected === d ? 'var(--color-accent-900)' : 'transparent',
                       color: 'inherit',
                       font: 'inherit',
                       cursor: 'pointer',
@@ -158,6 +159,20 @@ export function CalendarTab({ watchlist }: { watchlist: string[] }) {
       }}
     </DataState>
   );
+}
+
+/**
+ * The day selection that is still real, given the days actually on offer.
+ *
+ * A day picked before the scope changed can vanish from the filtered week —
+ * switch to the watchlist and Tuesday may no longer carry a report. Keeping
+ * that selection leaves the day strip with no chip highlighted and the list
+ * empty: a filter is still applied and nothing on screen says so, which is
+ * an empty screen the reader cannot explain or undo. A selection that is no
+ * longer offered is therefore no selection.
+ */
+export function activeDay(day: string | null, available: string[]): string | null {
+  return day !== null && available.includes(day) ? day : null;
 }
 
 /**

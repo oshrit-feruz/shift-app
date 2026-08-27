@@ -5,7 +5,7 @@ import { Tag } from '../../components/Tag';
 import { useT } from '../../i18n/useT';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useLoadable } from '../../data/useLoadable';
-import { fetchMarketNews, fetchStockNews } from '../../data/stockNews';
+import { fetchMarketNews, fetchStockNews, publishedAtMs } from '../../data/stockNews';
 import { isoDate } from '../../lib/format';
 import { ok, unavailable, type Loadable, type StockNewsArticle } from '../../data/types';
 
@@ -108,9 +108,14 @@ export async function fetchWatchlistNews(
       merged.push(a);
     }
   }
-  // Newest first. Articles with no usable date sort last rather than being
-  // dropped — the headline is still real, only its timestamp is missing.
-  merged.sort((a, b) => (b.publishedAt || '').localeCompare(a.publishedAt || ''));
+  // Newest first, by the instant each timestamp denotes rather than by its
+  // text: these articles come from several requests and providers stamp
+  // them with different UTC offsets, so a string comparison would order
+  // them by how they were written instead of when they were published.
+  // Articles with no usable date sort last rather than being dropped — the
+  // headline is still real, only its timestamp is missing — and ties break
+  // on URL so the order is stable rather than left to the sort's whim.
+  merged.sort((a, b) => publishedAtMs(b.publishedAt) - publishedAtMs(a.publishedAt) || a.url.localeCompare(b.url));
   return ok(merged);
 }
 

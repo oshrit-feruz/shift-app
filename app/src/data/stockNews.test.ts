@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fetchMarketNews, fetchStockNews, mapNewsArticle, STOCK_NEWS_URL } from './stockNews';
+import { fetchMarketNews, fetchStockNews, mapNewsArticle, publishedAtMs, STOCK_NEWS_URL, UNDATED } from './stockNews';
 
 const ARTICLE = {
   headline: 'Nvidia beats on datacenter revenue',
@@ -203,5 +203,35 @@ describe('failure reasons', () => {
     expect(result.status).toBe('unavailable');
     if (result.status !== 'unavailable') return;
     expect(result.reason?.he).toContain('אינן זמינות');
+  });
+});
+
+describe('publishedAtMs', () => {
+  // The bug this exists for: +03:00 22:00 IS 19:00Z, but as text it sorts
+  // above 20:00Z. A merged feed then reads newest-first and is not.
+  it('orders by the instant, not by the text', () => {
+    const later = publishedAtMs('2026-08-27T20:00:00+00:00');
+    const earlier = publishedAtMs('2026-08-27T22:00:00+03:00');
+    expect(earlier).toBeLessThan(later);
+    expect('2026-08-27T22:00:00+03:00' > '2026-08-27T20:00:00+00:00').toBe(true);
+  });
+
+  it('treats the same instant written three ways as equal', () => {
+    const ms = publishedAtMs('2026-08-27T19:00:00Z');
+    expect(publishedAtMs('2026-08-27T22:00:00+03:00')).toBe(ms);
+    expect(publishedAtMs('2026-08-27T14:00:00-05:00')).toBe(ms);
+  });
+
+  // An article we cannot date must never be presented as the freshest thing
+  // on the screen.
+  it.each([['missing', undefined], ['empty', ''], ['unparseable', 'yesterday'], ['null', null]])(
+    'sorts a %s timestamp oldest',
+    (_label, value) => {
+      expect(publishedAtMs(value as string | null | undefined)).toBe(UNDATED);
+    },
+  );
+
+  it('stays a usable comparator when both sides are undated', () => {
+    expect(publishedAtMs(undefined) - publishedAtMs(undefined)).toBe(0);
   });
 });
