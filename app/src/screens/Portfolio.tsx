@@ -22,6 +22,14 @@ import { NewPortfolioSheet } from '../sheets/NewPortfolioSheet';
 import { manualPortfolioSummaries, mergeManualTransactions } from '../lib/holdings';
 import type { ScreenProps } from '../App';
 
+/**
+ * The portfolio tab: one chip per account, then the selected account's value,
+ * performance, allocation and holdings.
+ *
+ * The list is the service-reported portfolios plus the user's own manual ones,
+ * built through the shared manualPortfolioSummaries() so this screen and the
+ * stock page can never describe the same portfolio differently.
+ */
 export function PortfolioScreen(_: ScreenProps) {
   const s = useAppState();
   const dispatch = useDispatch();
@@ -256,6 +264,11 @@ export function PortfolioScreen(_: ScreenProps) {
   );
 }
 
+/**
+ * One portfolio's holdings list — the service-reported rows with that
+ * portfolio's manual buy/sell log applied on top, so a position the user
+ * entered by hand reads the same as a synced one.
+ */
 function Holdings({ pfId }: { pfId: string }) {
   const s = useAppState();
   const dispatch = useDispatch();

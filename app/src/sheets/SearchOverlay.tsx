@@ -12,6 +12,13 @@ import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
 import { money, pct, signalColor } from '../lib/format';
 
+/**
+ * Full-screen ticker search. Opens over the current screen rather than
+ * navigating, so dismissing it returns the user exactly where they were.
+ *
+ * With no query it lists a few recent symbols instead of nothing, so the
+ * overlay is never an empty box on open.
+ */
 export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
   const dispatch = useDispatch();
   const t = useT();

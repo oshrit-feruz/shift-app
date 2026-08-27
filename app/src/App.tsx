@@ -58,6 +58,15 @@ export interface ScreenProps {
   openAlert: () => void;
 }
 
+/**
+ * The app shell: header, the single shared scroll container every screen
+ * renders into, the floating tab bar, and the sheets that can be opened from
+ * more than one screen (search, notifications, price alert).
+ *
+ * Screens are swapped inside one scroll container rather than remounted per
+ * route, which is why the scroll position has to be reset explicitly on
+ * navigation — see the layout effect below.
+ */
 export function App() {
   const s = useAppState();
   const dispatch = useDispatch();

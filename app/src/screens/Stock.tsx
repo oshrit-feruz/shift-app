@@ -20,6 +20,15 @@ import type { ScreenProps } from '../App';
 
 const TIMEFRAMES = ['1D', '1W', '1M', '3M', '1Y'];
 
+/**
+ * A single ticker's page: price and after-hours header, the user's own
+ * position in it across portfolios, chart with timeframe and indicator
+ * toggles, key statistics, analyst ratings and related news.
+ *
+ * Beginner mode hides the indicator controls and swaps the denser tables for
+ * plain-language cards; it no longer hides analyst ratings, which read the
+ * same in both modes.
+ */
 export function StockScreen({ openAlert }: ScreenProps) {
   const s = useAppState();
   const dispatch = useDispatch();
