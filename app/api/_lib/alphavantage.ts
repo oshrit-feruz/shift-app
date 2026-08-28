@@ -158,7 +158,10 @@ export function splitCsvLine(line: string): string[] {
  * have not happened yet. That is a fact about the feed, not a gap to fill.
  */
 export function parseCalendarCsv(csv: string): EarningsRow[] | null {
-  const lines = csv.split('\n').map((l) => l.replace(/\r$/, '')).filter((l) => l.trim() !== '');
+  const lines = csv
+    .split('\n')
+    .map((l) => l.replace(/\r$/, ''))
+    .filter((l) => l.trim() !== '');
   if (lines.length === 0) return null;
   const header = splitCsvLine(lines[0]).map((h) => h.toLowerCase());
   const at = (name: string) => header.indexOf(name);

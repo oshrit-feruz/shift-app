@@ -19,7 +19,13 @@ import { money, pct, signalColor } from '../../lib/format';
 import type { StringKey } from '../../i18n/strings';
 import type { ScreenProps } from '../../App';
 
-const SAT_RULES: StringKey[] = ['rec.satRule1', 'rec.satRule2', 'rec.satRule3', 'rec.satRule4', 'rec.satRule5'];
+const SAT_RULES: StringKey[] = [
+  'rec.satRule1',
+  'rec.satRule2',
+  'rec.satRule3',
+  'rec.satRule4',
+  'rec.satRule5',
+];
 
 /** Rendered in place of any numeric the live engine did not supply. */
 const DASH = '—';
@@ -46,9 +52,16 @@ export function AdvisoryRecommendation(_: ScreenProps) {
           </Tag>
         </div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 23 }}>{t(`profile.${profileKey}` as StringKey)}</div>
+          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 23 }}>
+            {t(`profile.${profileKey}` as StringKey)}
+          </div>
           <span style={{ marginInlineStart: 'auto' }}>
-            <Button variant="ghost" fontSize={12.5} style={{ padding: 0 }} onClick={() => dispatch({ type: 'advReset' })}>
+            <Button
+              variant="ghost"
+              fontSize={12.5}
+              style={{ padding: 0 }}
+              onClick={() => dispatch({ type: 'advReset' })}
+            >
               {t('adv.redoChat')}
             </Button>
           </span>
@@ -68,7 +81,16 @@ export function AdvisoryRecommendation(_: ScreenProps) {
         <p className="text-muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.5 }}>
           {t('rec.coreHelp')}
         </p>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', padding: '8px 10px', borderRadius: 'var(--radius-sm)', background: 'var(--sunk)' }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+            alignItems: 'baseline',
+            padding: '8px 10px',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--sunk)',
+          }}
+        >
           <Tag variant="neutral" fontSize={12}>
             {t('adv.fromLibrary')}
           </Tag>
@@ -151,11 +173,7 @@ export function AdvisoryRecommendation(_: ScreenProps) {
             {!hasAnyTradeDeepLink() && ` ${t('buy.noDeepLink')}`}
           </p>
         )}
-        <DataState
-          state={sat.state}
-          onRetry={sat.retry}
-          skeleton={<SkeletonList count={3} minHeight={52} />}
-        >
+        <DataState state={sat.state} onRetry={sat.retry} skeleton={<SkeletonList count={3} minHeight={52} />}>
           {(signals) =>
             signals.length === 0 ? (
               <EmptyState>{t('rec.noPositions')}</EmptyState>
@@ -168,23 +186,18 @@ export function AdvisoryRecommendation(_: ScreenProps) {
                   // its 52-week high, so it is shown as a negative move.
                   const priceStr = x.price === null ? DASH : money(x.price);
                   const ddStr = x.drawdownPct === null ? DASH : pct(-x.drawdownPct, 1);
-                  const scoreStr =
-                    x.compositeScore === null ? DASH : x.compositeScore.toFixed(2);
+                  const scoreStr = x.compositeScore === null ? DASH : x.compositeScore.toFixed(2);
                   return (
                     <ListRow
                       key={x.ticker}
                       leading={<TickerTile ticker={x.ticker} />}
                       title={x.ticker}
-                      subtitle={
-                        <Num>{`${t('rec.fromHigh')} ${ddStr} · ${t('rec.score')} ${scoreStr}`}</Num>
-                      }
+                      subtitle={<Num>{`${t('rec.fromHigh')} ${ddStr} · ${t('rec.score')} ${scoreStr}`}</Num>}
                       right={
                         <RowValues
                           main={priceStr}
                           sub={ddStr}
-                          subColor={
-                            x.drawdownPct === null ? 'var(--muted)' : signalColor(-x.drawdownPct)
-                          }
+                          subColor={x.drawdownPct === null ? 'var(--muted)' : signalColor(-x.drawdownPct)}
                         />
                       }
                       trailing={<BuyAtBrokerButton ticker={x.ticker} />}
@@ -199,16 +212,24 @@ export function AdvisoryRecommendation(_: ScreenProps) {
         </DataState>
       </Card>
 
-
       <Card padding={13} gap={8}>
         <CardTitle>{t('rec.nextStep')}</CardTitle>
         <p className="text-muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>
           {t('rec.nextStepHelp')}
         </p>
-        <Button block minHeight={44} onClick={() => dispatch({ type: 'advGoto', screen: 'advConnect', stage: 3 })}>
+        <Button
+          block
+          minHeight={44}
+          onClick={() => dispatch({ type: 'advGoto', screen: 'advConnect', stage: 3 })}
+        >
           {t('rec.chooseBroker')}
         </Button>
-        <Button variant="ghost" alignSelf="center" fontSize={13} onClick={() => dispatch({ type: 'go', screen: 'home' })}>
+        <Button
+          variant="ghost"
+          alignSelf="center"
+          fontSize={13}
+          onClick={() => dispatch({ type: 'go', screen: 'home' })}
+        >
           {t('adv.later')}
         </Button>
       </Card>

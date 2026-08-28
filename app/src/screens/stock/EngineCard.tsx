@@ -48,9 +48,7 @@ export function EngineCard({ ticker }: { ticker: string }) {
         <Card padding={12} gap={8}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <CardTitle>{t('stock.engineTitle')}</CardTitle>
-            {r?.signal && (
-              <Tag variant={SIGNAL_TONE[r.signal]}>{r.signal}</Tag>
-            )}
+            {r?.signal && <Tag variant={SIGNAL_TONE[r.signal]}>{r.signal}</Tag>}
           </div>
 
           {r === null ? (

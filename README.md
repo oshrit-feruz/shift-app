@@ -12,7 +12,24 @@ npm install
 npm run dev        # app at http://localhost:5173/  ·  design system at /ds.html
 npm test           # vitest — advisory profile mapping + formatters
 npm run build      # tsc --noEmit + vite build (app + design-system page)
+npm run format     # prettier --write .
+npm run format:check
 ```
+
+**Formatting is Prettier, configured to the style the codebase already had**
+(`.prettierrc`: `singleQuote`, `printWidth: 110`) rather than to Prettier's
+defaults — so adopting it rewrapped long lines without rewriting the whole
+tree to 80 columns and double quotes. Proof that the pass changed nothing that
+ships: the production bundles it produces are byte-identical to the ones from
+before it, down to Vite's content hashes.
+
+Two things are deliberately left out of it (`.prettierignore`): **Markdown**,
+because wrapping prose churns the docs on every edit, and **CSS**, because
+Prettier lowercases hex colours and `tokens.css` carries the palette lifted
+verbatim from the design file, where it is uppercase. A few hand-formatted
+data literals in `demoAdapter.ts` carry `// prettier-ignore`: they are laid out
+one row per record so they read as a table, and Prettier would explode each
+row into a dozen lines and lose the shape of the data.
 
 ## Architecture — one component system
 

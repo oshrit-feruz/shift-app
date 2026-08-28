@@ -13,7 +13,10 @@ import type { AppNotification } from '../data/types';
 const NOTIFS: AppNotification[] = [
   {
     glyph: '▲',
-    title: { en: 'NVDA crossed your +25% alert (currently +27% from entry)', he: 'NVDA חצתה את ההתראה שלך של +25% (כרגע +27% מנקודת הכניסה)' },
+    title: {
+      en: 'NVDA crossed your +25% alert (currently +27% from entry)',
+      he: 'NVDA חצתה את ההתראה שלך של +25% (כרגע +27% מנקודת הכניסה)',
+    },
     detail: { en: 'Personal threshold alert', he: 'התראת סף אישית' },
     ago: { en: '4m', he: 'לפני 4 ד׳' },
     ticker: 'NVDA',
@@ -116,7 +119,9 @@ export function NotificationsSheet({ open, onClose }: { open: boolean; onClose: 
               {n.glyph}
             </span>
             <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontSize: 14, whiteSpace: 'normal' }}>{n.title[language]}</span>
+              <span style={{ display: 'block', fontSize: 14, whiteSpace: 'normal' }}>
+                {n.title[language]}
+              </span>
               <span className="text-muted" style={{ display: 'block', fontSize: 12.5, marginTop: 1 }}>
                 {n.detail[language]}
               </span>
@@ -128,7 +133,9 @@ export function NotificationsSheet({ open, onClose }: { open: boolean; onClose: 
           {n.isThresholdAlert && (
             <>
               {/* Equal-prominence disclaimer: same size as the title, not fine print. */}
-              <p style={{ fontSize: 14, lineHeight: 1.5, margin: 0, whiteSpace: 'normal' }}>{t('thresh.disclaimer')}</p>
+              <p style={{ fontSize: 14, lineHeight: 1.5, margin: 0, whiteSpace: 'normal' }}>
+                {t('thresh.disclaimer')}
+              </p>
               <Button
                 variant="secondary"
                 fontSize={13}

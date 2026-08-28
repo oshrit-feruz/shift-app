@@ -27,7 +27,11 @@ export function NewPortfolioSheet({ open, onClose }: { open: boolean; onClose: (
   return (
     <Sheet open={open} onClose={onClose} title={t('pf.newPf')}>
       <Field label={t('pf.name')} value={name} onChange={(e) => setName(e.target.value)} />
-      <Field label={t('pf.startCash')} value={startingCash} onChange={(e) => setStartingCash(e.target.value)} />
+      <Field
+        label={t('pf.startCash')}
+        value={startingCash}
+        onChange={(e) => setStartingCash(e.target.value)}
+      />
       <Button block minHeight={44} onClick={submit} disabled={!name.trim()}>
         {t('pf.createPf')}
       </Button>

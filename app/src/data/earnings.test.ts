@@ -1,11 +1,23 @@
 import { describe, it, expect } from 'vitest';
 import {
-  EARNINGS_URL, HISTORY_QUARTERS, WINDOW_DAYS, fetchTickerEarnings, fetchWeekEarnings, isoDay, mapRow, weekAheadWindow,
+  EARNINGS_URL,
+  HISTORY_QUARTERS,
+  WINDOW_DAYS,
+  fetchTickerEarnings,
+  fetchWeekEarnings,
+  isoDay,
+  mapRow,
+  weekAheadWindow,
 } from './earnings';
 
 const ROW = {
-  ticker: 'NVDA', reportDate: '2026-02-25', periodEnd: '2026-01-25',
-  timing: 'AMC', actual: 1.24, estimate: 1.18, surprisePct: 5.08,
+  ticker: 'NVDA',
+  reportDate: '2026-02-25',
+  periodEnd: '2026-01-25',
+  timing: 'AMC',
+  actual: 1.24,
+  estimate: 1.18,
+  surprisePct: 5.08,
 };
 const res = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
@@ -15,7 +27,10 @@ describe('weekAheadWindow', () => {
   // happened yet, so a Monday-anchored week spends most of itself in the
   // past: by Friday it could only ever fill two of its seven days.
   it('starts today rather than on Monday', () => {
-    expect(weekAheadWindow(new Date('2026-08-28T09:00:00Z'))).toEqual({ from: '2026-08-28', to: '2026-09-03' });
+    expect(weekAheadWindow(new Date('2026-08-28T09:00:00Z'))).toEqual({
+      from: '2026-08-28',
+      to: '2026-09-03',
+    });
   });
 
   it('covers exactly WINDOW_DAYS days, both ends inclusive', () => {
@@ -25,7 +40,10 @@ describe('weekAheadWindow', () => {
   });
 
   it('crosses a month and a year boundary correctly', () => {
-    expect(weekAheadWindow(new Date('2026-12-29T12:00:00Z'))).toEqual({ from: '2026-12-29', to: '2027-01-04' });
+    expect(weekAheadWindow(new Date('2026-12-29T12:00:00Z'))).toEqual({
+      from: '2026-12-29',
+      to: '2027-01-04',
+    });
   });
 
   it('ignores the time of day, in UTC', () => {
@@ -65,10 +83,15 @@ describe('mapRow', () => {
 
   it('drops a row with no ticker or a malformed report date', () => {
     for (const bad of [
-      { ...ROW, ticker: '' }, { ...ROW, ticker: null },
-      { ...ROW, reportDate: '25/02/2026' }, { ...ROW, reportDate: '' },
-      null, [ROW], 'x',
-    ]) expect(mapRow(bad), JSON.stringify(bad)).toBeNull();
+      { ...ROW, ticker: '' },
+      { ...ROW, ticker: null },
+      { ...ROW, reportDate: '25/02/2026' },
+      { ...ROW, reportDate: '' },
+      null,
+      [ROW],
+      'x',
+    ])
+      expect(mapRow(bad), JSON.stringify(bad)).toBeNull();
   });
 });
 
@@ -91,9 +114,10 @@ describe('calendar-date validation (regression)', () => {
 describe('truncation is reported, never silent', () => {
   const NOW = new Date('2026-08-27T09:00:00Z');
 
-  it('carries the endpoint\'s truncated flag and total through to the caller', async () => {
+  it("carries the endpoint's truncated flag and total through to the caller", async () => {
     const r = await fetchWeekEarnings(
-      async () => res({ earnings: [ROW], truncated: true, totalAvailable: 2317 }), NOW,
+      async () => res({ earnings: [ROW], truncated: true, totalAvailable: 2317 }),
+      NOW,
     );
     expect(r.status).toBe('ok');
     expect(r.status === 'ok' && r.data.truncated).toBe(true);
@@ -138,15 +162,26 @@ describe('fetchWeekEarnings', () => {
 
   it('is unavailable on an unrecognised shape, a network failure and bad JSON', async () => {
     for (const body of [{}, { earnings: null }, [ROW], null, 7]) {
-      expect((await fetchWeekEarnings(async () => res(body), NOW)).status, JSON.stringify(body)).toBe('unavailable');
+      expect((await fetchWeekEarnings(async () => res(body), NOW)).status, JSON.stringify(body)).toBe(
+        'unavailable',
+      );
     }
-    expect((await fetchWeekEarnings(async () => { throw new Error('offline'); }, NOW)).status).toBe('unavailable');
-    expect((await fetchWeekEarnings(async () => new Response('<html>', { status: 200 }), NOW)).status).toBe('unavailable');
+    expect(
+      (
+        await fetchWeekEarnings(async () => {
+          throw new Error('offline');
+        }, NOW)
+      ).status,
+    ).toBe('unavailable');
+    expect((await fetchWeekEarnings(async () => new Response('<html>', { status: 200 }), NOW)).status).toBe(
+      'unavailable',
+    );
   });
 
   it('drops unusable rows but keeps the good ones', async () => {
     const r = await fetchWeekEarnings(
-      async () => res({ earnings: [ROW, { ticker: 'X' }, null, { ...ROW, ticker: 'AAPL' }] }), NOW,
+      async () => res({ earnings: [ROW, { ticker: 'X' }, null, { ...ROW, ticker: 'AAPL' }] }),
+      NOW,
     );
     expect(r.status === 'ok' && r.data.rows.map((e) => e.ticker)).toEqual(['NVDA', 'AAPL']);
   });
@@ -157,10 +192,14 @@ describe('fetchTickerEarnings', () => {
 
   it('asks for three years of history plus the next scheduled report', async () => {
     let seen = '';
-    await fetchTickerEarnings('nvda', async (url) => {
-      seen = String(url);
-      return res({ earnings: [ROW] });
-    }, NOW);
+    await fetchTickerEarnings(
+      'nvda',
+      async (url) => {
+        seen = String(url);
+        return res({ earnings: [ROW] });
+      },
+      NOW,
+    );
     const u = new URL(seen, 'https://x.test');
     expect(u.pathname).toBe(EARNINGS_URL);
     expect(u.searchParams.get('ticker')).toBe('NVDA');
@@ -174,9 +213,17 @@ describe('fetchTickerEarnings', () => {
     // The function refuses anything wider than MAX_RANGE_DAYS, and upstream
     // 500s beyond ~5 years — so this window must not drift past it.
     let seen = '';
-    await fetchTickerEarnings('NVDA', async (url) => { seen = String(url); return res({ earnings: [] }); }, NOW);
+    await fetchTickerEarnings(
+      'NVDA',
+      async (url) => {
+        seen = String(url);
+        return res({ earnings: [] });
+      },
+      NOW,
+    );
     const u = new URL(seen, 'https://x.test');
-    const days = (Date.parse(u.searchParams.get('to')!) - Date.parse(u.searchParams.get('from')!)) / 86_400_000;
+    const days =
+      (Date.parse(u.searchParams.get('to')!) - Date.parse(u.searchParams.get('from')!)) / 86_400_000;
     // MAX_RANGE_DAYS in api/_lib/earnings.ts. A client window wider than
     // this gets a 400 and the user sees nothing at all, so the two layers
     // must agree — this is the assertion that keeps them agreeing.
@@ -194,7 +241,14 @@ describe('fetchTickerEarnings', () => {
 
   it('rejects an empty ticker without calling the network', async () => {
     let called = 0;
-    const r = await fetchTickerEarnings('  ', async () => { called += 1; return res({ earnings: [] }); }, NOW);
+    const r = await fetchTickerEarnings(
+      '  ',
+      async () => {
+        called += 1;
+        return res({ earnings: [] });
+      },
+      NOW,
+    );
     expect(r.status).toBe('unavailable');
     expect(called).toBe(0);
   });

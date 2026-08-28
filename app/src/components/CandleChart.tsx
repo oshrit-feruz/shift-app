@@ -24,18 +24,29 @@ export function CandleChart({
   const bw = Math.max(2.6, step * 0.55);
   const { macd, signal } = macdSeries(closes);
   const mMax = Math.max(...macd.map(Math.abs), 1);
-  const mLine = (v: number[]) =>
-    linePath(v.map((x, i) => [i * step + step / 2, 30 - (x / mMax) * 18]));
+  const mLine = (v: number[]) => linePath(v.map((x, i) => [i * step + step / 2, 30 - (x / mMax) * 18]));
 
   return (
     <>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: H }} preserveAspectRatio="none" aria-hidden="true">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        style={{ width: '100%', height: H }}
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
         {[24, 60, 96, 132].map((y) => (
           <line key={y} x1="0" y1={y} x2={W} y2={y} stroke="var(--grid)" />
         ))}
         {cs.map((c, i) => (
           <g key={i}>
-            <line x1={c.x} y1={c.hy} x2={c.x} y2={c.ly} stroke={c.up ? 'var(--up)' : 'var(--down)'} strokeWidth="1" />
+            <line
+              x1={c.x}
+              y1={c.hy}
+              x2={c.x}
+              y2={c.ly}
+              stroke={c.up ? 'var(--up)' : 'var(--down)'}
+              strokeWidth="1"
+            />
             <rect x={c.bx} y={c.by} width={c.bw} height={c.bh} fill={c.up ? 'var(--up)' : 'var(--down)'} />
           </g>
         ))}
@@ -47,7 +58,12 @@ export function CandleChart({
         )}
       </svg>
       {/* volume pane */}
-      <svg viewBox={`0 0 ${W} 40`} style={{ width: '100%', height: 40 }} preserveAspectRatio="none" aria-hidden="true">
+      <svg
+        viewBox={`0 0 ${W} 40`}
+        style={{ width: '100%', height: 40 }}
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
         {closes.map((c, i) => {
           const h = 8 + ((i * 37) % 26);
           const up = i > 0 && c >= closes[i - 1];
@@ -73,7 +89,12 @@ export function CandleChart({
         >
           <line x1="0" y1="14" x2={W} y2="14" stroke="var(--line)" strokeDasharray="3 3" />
           <line x1="0" y1="40" x2={W} y2="40" stroke="var(--line)" strokeDasharray="3 3" />
-          <path d={linePath(fit(rsiSeries(closes), W, 52, 8))} fill="none" stroke="var(--acc-pale)" strokeWidth="1.2" />
+          <path
+            d={linePath(fit(rsiSeries(closes), W, 52, 8))}
+            fill="none"
+            stroke="var(--acc-pale)"
+            strokeWidth="1.2"
+          />
           <text x="3" y="10" fill="var(--muted)" fontSize="8">
             RSI(14) {rsiNow}
           </text>

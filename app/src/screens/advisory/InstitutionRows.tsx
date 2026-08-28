@@ -9,7 +9,12 @@ interface Provider {
   logo: string | null;
 }
 
-const INSTITUTIONS: Array<{ key: InstitutionKey; label: StringKey; initial: { en: string; he: string }; providers: Provider[] }> = [
+const INSTITUTIONS: Array<{
+  key: InstitutionKey;
+  label: StringKey;
+  initial: { en: string; he: string };
+  providers: Provider[];
+}> = [
   {
     key: 'broker',
     label: 'conn.broker',
@@ -73,10 +78,15 @@ export function InstitutionRows() {
   return (
     <>
       {INSTITUTIONS.map((inst) => {
-        const chosen = s.advConnections[inst.key] ?? (inst.key === 'broker' && s.advBroker ? brokerName(s.advBroker) : undefined);
+        const chosen =
+          s.advConnections[inst.key] ??
+          (inst.key === 'broker' && s.advBroker ? brokerName(s.advBroker) : undefined);
         const openNow = openKey === inst.key;
         return (
-          <div key={inst.key} style={{ display: 'flex', flexDirection: 'column', borderTop: '1px solid var(--color-divider)' }}>
+          <div
+            key={inst.key}
+            style={{ display: 'flex', flexDirection: 'column', borderTop: '1px solid var(--color-divider)' }}
+          >
             <button
               type="button"
               onClick={() => setOpenKey(openNow ? null : inst.key)}
@@ -130,7 +140,11 @@ export function InstitutionRows() {
                         background: 'var(--color-accent-900)',
                         color: 'var(--color-accent-200)',
                       }
-                    : { border: '1px solid var(--color-divider)', background: 'var(--sunk)', color: 'inherit' }),
+                    : {
+                        border: '1px solid var(--color-divider)',
+                        background: 'var(--sunk)',
+                        color: 'inherit',
+                      }),
                 }}
               >
                 {chosen ? t('conn.connected') : openNow ? t('conn.close') : t('conn.connect')}
@@ -159,8 +173,16 @@ export function InstitutionRows() {
                         fontSize: 13,
                         cursor: 'pointer',
                         ...(selected
-                          ? { border: '1px solid var(--color-accent)', background: 'var(--color-accent-800)', color: 'var(--acc-pale)' }
-                          : { border: '1px solid var(--color-divider)', background: 'var(--sunk)', color: 'inherit' }),
+                          ? {
+                              border: '1px solid var(--color-accent)',
+                              background: 'var(--color-accent-800)',
+                              color: 'var(--acc-pale)',
+                            }
+                          : {
+                              border: '1px solid var(--color-divider)',
+                              background: 'var(--sunk)',
+                              color: 'inherit',
+                            }),
                       }}
                     >
                       {prov.logo && (

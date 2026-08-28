@@ -10,7 +10,17 @@ import { useDispatch, type TransactionSide } from '../state/appState';
 
 /** Manual-transaction sheet — exists only for theoretical portfolios; nothing
  *  is ordered anywhere. */
-export function TxSheet({ open, onClose, pfId, pfName }: { open: boolean; onClose: () => void; pfId: string; pfName: string }) {
+export function TxSheet({
+  open,
+  onClose,
+  pfId,
+  pfName,
+}: {
+  open: boolean;
+  onClose: () => void;
+  pfId: string;
+  pfName: string;
+}) {
   const { mode, language } = useTheme();
   const t = useT();
   const dispatch = useDispatch();
@@ -62,18 +72,28 @@ export function TxSheet({ open, onClose, pfId, pfName }: { open: boolean; onClos
         onChange={setSide}
         fontSize={13}
       />
-      <Field label={t('tx.symbol')} value={ticker} onChange={(e) => setTicker(e.target.value.toUpperCase())} />
+      <Field
+        label={t('tx.symbol')}
+        value={ticker}
+        onChange={(e) => setTicker(e.target.value.toUpperCase())}
+      />
       <div style={{ display: 'flex', gap: 9 }}>
         <Field label={t('tx.shares')} value={shares} onChange={(e) => setShares(e.target.value)} />
         <Field label={t('tx.price')} value={price} onChange={(e) => setPrice(e.target.value)} />
       </div>
       <Field label={t('tx.date')} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
       <div
-        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 'var(--radius-md)', background: 'var(--sunk)' }}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          padding: '11px 12px',
+          borderRadius: 'var(--radius-md)',
+          background: 'var(--sunk)',
+        }}
       >
         <span className="text-muted" style={{ fontSize: 13, flex: 1 }}>
-          {verb} <Num>{`${sh} × ${ticker}`}</Num>{' '}
-          <Num>{`@ $${px.toFixed(2)}`}</Num>
+          {verb} <Num>{`${sh} × ${ticker}`}</Num> <Num>{`@ $${px.toFixed(2)}`}</Num>
         </span>
         <Num size={17}>
           {(side === 'sell' ? '+' : '−') +

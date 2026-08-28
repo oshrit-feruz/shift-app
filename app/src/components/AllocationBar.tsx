@@ -40,7 +40,13 @@ export function AllocationBar({
       )}
       <span style={{ height: 6, borderRadius: 4, background: 'var(--line)', overflow: 'hidden' }}>
         <span
-          style={{ display: 'block', height: '100%', width: `${pct}%`, borderRadius: 4, background: colorVar }}
+          style={{
+            display: 'block',
+            height: '100%',
+            width: `${pct}%`,
+            borderRadius: 4,
+            background: colorVar,
+          }}
         />
       </span>
     </div>

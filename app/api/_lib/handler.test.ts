@@ -92,7 +92,9 @@ describe('handler', () => {
   });
 
   it('reports bad_response on a non-array body', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ oops: true }), { status: 200 }));
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ oops: true }), { status: 200 }));
     const res = makeRes();
     await handler({ method: 'GET', query: { ticker: 'NVDA' } }, res);
     expect(res._status).toBe(502);

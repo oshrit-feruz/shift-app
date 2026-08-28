@@ -82,7 +82,8 @@ export function AlertSheet({
               color: 'inherit',
               textAlign: 'start',
               border: `1px solid ${kind === a.k ? 'var(--color-accent)' : 'var(--color-divider)'}`,
-              background: kind === a.k ? 'color-mix(in srgb, var(--color-accent) 10%, transparent)' : 'transparent',
+              background:
+                kind === a.k ? 'color-mix(in srgb, var(--color-accent) 10%, transparent)' : 'transparent',
             }}
           >
             <span

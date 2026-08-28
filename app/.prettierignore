@@ -1,0 +1,13 @@
+dist
+node_modules
+public/data
+
+# Prose, not code — wrapping it would churn the docs on every edit.
+*.md
+
+# CSS is left alone deliberately. Prettier lowercases hex colours, and
+# tokens.css carries the palette lifted verbatim from the design file, where
+# it is uppercase — rewriting 60-odd brand values to #1e293b buys nothing and
+# breaks a literal comparison against the design. The formatting conflicts
+# this config exists to stop were all in .ts/.tsx anyway.
+*.css

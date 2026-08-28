@@ -41,7 +41,9 @@ export function ArticleSheet({ item, onClose }: { item: NewsItem | null; onClose
               {pct(item.changePct)}
             </Num>
           </span>
-          <span style={{ display: 'block', fontFamily: 'var(--font-heading)', fontSize: 18, lineHeight: 1.3 }}>
+          <span
+            style={{ display: 'block', fontFamily: 'var(--font-heading)', fontSize: 18, lineHeight: 1.3 }}
+          >
             {item.headline}
           </span>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 14, lineHeight: 1.55 }}>

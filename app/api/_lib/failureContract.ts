@@ -22,6 +22,7 @@ export interface FakeRes {
   setHeader(k: string, v: string): void;
 }
 
+/** Create a fake response object for testing API handlers without a real Vercel environment. */
 export function makeRes(): FakeRes {
   const res: FakeRes = {
     _status: undefined,
@@ -41,7 +42,10 @@ export function makeRes(): FakeRes {
   return res;
 }
 
-type Handler = (req: { method?: string; query: Record<string, string | string[]> }, res: FakeRes) => Promise<unknown>;
+type Handler = (
+  req: { method?: string; query: Record<string, string | string[]> },
+  res: FakeRes,
+) => Promise<unknown>;
 
 /**
  * Registers the shared failure cases inside the caller's `describe`.

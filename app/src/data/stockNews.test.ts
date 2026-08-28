@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { fetchMarketNews, fetchStockNews, mapNewsArticle, publishedAtMs, STOCK_NEWS_URL, UNDATED } from './stockNews';
+import {
+  fetchMarketNews,
+  fetchStockNews,
+  mapNewsArticle,
+  publishedAtMs,
+  STOCK_NEWS_URL,
+  UNDATED,
+} from './stockNews';
 
 const ARTICLE = {
   headline: 'Nvidia beats on datacenter revenue',
@@ -17,7 +24,7 @@ describe('mapNewsArticle', () => {
     expect(mapNewsArticle(ARTICLE)).toEqual({ ...ARTICLE, symbols: [] });
   });
 
-  it('carries the feed\'s tagged symbols, dropping unusable entries', () => {
+  it("carries the feed's tagged symbols, dropping unusable entries", () => {
     // Only the general market feed populates these; a per-ticker response
     // legitimately has none, since the caller already knows the stock.
     expect(mapNewsArticle({ ...ARTICLE, symbols: ['NVDA', 'AMD'] })?.symbols).toEqual(['NVDA', 'AMD']);
@@ -37,32 +44,60 @@ describe('mapNewsArticle', () => {
 
   it('keeps a missing source, date or summary as empty rather than inventing one', () => {
     const m = mapNewsArticle({ headline: 'H', url: 'https://e.com/x' });
-    expect(m).toEqual({ headline: 'H', url: 'https://e.com/x', source: '', publishedAt: '', summary: '', symbols: [] });
+    expect(m).toEqual({
+      headline: 'H',
+      url: 'https://e.com/x',
+      source: '',
+      publishedAt: '',
+      summary: '',
+      symbols: [],
+    });
   });
 
   it('drops a malformed publishedAt rather than passing it through as metadata', () => {
     // The card renders publishedAt as a date, and the date formatter passes
     // anything unparseable through unchanged — so garbage kept here would
     // reach the screen verbatim. No date is honest; fake metadata is not.
-    for (const bad of ['garbage', 'not-a-date-at-all', '2026-13-45T09:00:00Z', '2026-02-31T00:00:00Z', '26/08/2026']) {
+    for (const bad of [
+      'garbage',
+      'not-a-date-at-all',
+      '2026-13-45T09:00:00Z',
+      '2026-02-31T00:00:00Z',
+      '26/08/2026',
+    ]) {
       expect(mapNewsArticle({ ...ARTICLE, publishedAt: bad })?.publishedAt, bad).toBe('');
     }
     // The whole string must validate, not just its date prefix: publishedAt
     // is the reverse-chronological sort key, and an impossible hour sorts
     // above every real one.
-    for (const bad of ['2026-08-26T99:00:00Z', '2026-08-26T12:99:00Z', '2026-08-26junk', '2026-08-26T12:00:00Z tail']) {
+    for (const bad of [
+      '2026-08-26T99:00:00Z',
+      '2026-08-26T12:99:00Z',
+      '2026-08-26junk',
+      '2026-08-26T12:00:00Z tail',
+    ]) {
       expect(mapNewsArticle({ ...ARTICLE, publishedAt: bad })?.publishedAt, bad).toBe('');
     }
     // Timezone offsets are range-checked too: only the local clock fields
     // were validated before, so these passed.
-    for (const bad of ['2026-08-26T13:04+24:00', '2026-08-26T13:04+03:60', '2026-08-26T13:04+9999', '2026-08-26T13:04+03']) {
+    for (const bad of [
+      '2026-08-26T13:04+24:00',
+      '2026-08-26T13:04+03:60',
+      '2026-08-26T13:04+9999',
+      '2026-08-26T13:04+03',
+    ]) {
       expect(mapNewsArticle({ ...ARTICLE, publishedAt: bad })?.publishedAt, bad).toBe('');
     }
     // Real provider formats survive.
     for (const good of [
-      '2026-08-26T13:04:00Z', '2026-08-26T13:04:00+03:00', '2026-08-26 13:04',
-      '2026-08-26T13:04:00.512Z', '2026-08-26T13:04:00-05:00', '2026-08-26T13:04:00+0330',
-      '2026-08-26T23:59:60Z', '2026-08-26',
+      '2026-08-26T13:04:00Z',
+      '2026-08-26T13:04:00+03:00',
+      '2026-08-26 13:04',
+      '2026-08-26T13:04:00.512Z',
+      '2026-08-26T13:04:00-05:00',
+      '2026-08-26T13:04:00+0330',
+      '2026-08-26T23:59:60Z',
+      '2026-08-26',
     ]) {
       expect(mapNewsArticle({ ...ARTICLE, publishedAt: good })?.publishedAt, good).toBe(good);
     }
@@ -185,7 +220,7 @@ describe('fetchStockNews', () => {
 describe('failure reasons', () => {
   // The screen used to say "News is unavailable right now" for a plan the
   // provider refuses — advice to wait for something that will not change.
-  it('carries the function\'s specific reason through to the screen', async () => {
+  it("carries the function's specific reason through to the screen", async () => {
     const fetchImpl = (async () =>
       new Response(JSON.stringify({ error: 'upstream_forbidden', upstreamStatus: 403 }), {
         status: 502,
@@ -224,12 +259,14 @@ describe('publishedAtMs', () => {
 
   // An article we cannot date must never be presented as the freshest thing
   // on the screen.
-  it.each([['missing', undefined], ['empty', ''], ['unparseable', 'yesterday'], ['null', null]])(
-    'sorts a %s timestamp oldest',
-    (_label, value) => {
-      expect(publishedAtMs(value as string | null | undefined)).toBe(UNDATED);
-    },
-  );
+  it.each([
+    ['missing', undefined],
+    ['empty', ''],
+    ['unparseable', 'yesterday'],
+    ['null', null],
+  ])('sorts a %s timestamp oldest', (_label, value) => {
+    expect(publishedAtMs(value as string | null | undefined)).toBe(UNDATED);
+  });
 
   // validTimestamp deliberately accepts a leap second because providers emit
   // them — but Date.parse answers NaN for one, so the article we went out of
@@ -251,7 +288,9 @@ describe('publishedAtMs', () => {
   });
 
   it('handles a leap second carrying an offset', () => {
-    expect(publishedAtMs('2016-12-31T23:59:60+02:00')).toBe(publishedAtMs('2016-12-31T23:59:59+02:00') + 1000);
+    expect(publishedAtMs('2016-12-31T23:59:60+02:00')).toBe(
+      publishedAtMs('2016-12-31T23:59:59+02:00') + 1000,
+    );
   });
 
   it('stays a usable comparator when both sides are undated', () => {

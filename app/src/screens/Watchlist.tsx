@@ -51,7 +51,11 @@ export function WatchlistScreen({ openAlert }: ScreenProps) {
       };
     }
     const remindKey =
-      alert.remind === 'day' ? 'alert.dayBefore' : alert.remind === 'morning' ? 'alert.morningOf' : 'alert.whenLands';
+      alert.remind === 'day'
+        ? 'alert.dayBefore'
+        : alert.remind === 'morning'
+          ? 'alert.morningOf'
+          : 'alert.whenLands';
     return {
       id: alert.id,
       glyph: '📅',
@@ -135,7 +139,13 @@ export function WatchlistScreen({ openAlert }: ScreenProps) {
                         ))}
                       </span>
                     }
-                    right={<RowValues main={money(x.price)} sub={pct(x.changePct)} subColor={signalColor(x.changePct)} />}
+                    right={
+                      <RowValues
+                        main={money(x.price)}
+                        sub={pct(x.changePct)}
+                        subColor={signalColor(x.changePct)}
+                      />
+                    }
                     trailing={
                       <button
                         type="button"
@@ -171,7 +181,10 @@ export function WatchlistScreen({ openAlert }: ScreenProps) {
       <Card padding={13} gap={8}>
         <CardTitle>{t('watch.activeAlerts')}</CardTitle>
         {activeAlerts.map((a) => (
-          <div key={a.id} style={{ display: 'flex', gap: 9, paddingTop: 8, borderTop: '1px solid var(--color-divider)' }}>
+          <div
+            key={a.id}
+            style={{ display: 'flex', gap: 9, paddingTop: 8, borderTop: '1px solid var(--color-divider)' }}
+          >
             <span
               style={{
                 width: 24,
@@ -209,8 +222,24 @@ export function WatchlistScreen({ openAlert }: ScreenProps) {
 }
 
 const ALERTS = [
-  { glyph: '▲', title: { en: 'NVDA rises above $200', he: 'NVDA עולה מעל $200' }, detail: { en: 'Push · created Aug 12', he: 'פוש · נוצר ב-12 באוג׳' } },
-  { glyph: '📅', title: { en: 'NVDA earnings', he: 'דוח רבעוני של NVDA' }, detail: { en: 'Remind 1 day before · Nov 18', he: 'תזכורת יום לפני · 18 בנוב׳' } },
-  { glyph: '◎', title: { en: 'AMD news mentions "MI400"', he: 'אזכור "MI400" בחדשות AMD' }, detail: { en: 'Push, major wires', he: 'פוש, סוכנויות ידיעות' } },
-  { glyph: '▼', title: { en: 'TSLA falls below $300', he: 'TSLA יורד מתחת ל-$300' }, detail: { en: 'Push · created Jul 30', he: 'פוש · נוצר ב-30 ביולי' } },
+  {
+    glyph: '▲',
+    title: { en: 'NVDA rises above $200', he: 'NVDA עולה מעל $200' },
+    detail: { en: 'Push · created Aug 12', he: 'פוש · נוצר ב-12 באוג׳' },
+  },
+  {
+    glyph: '📅',
+    title: { en: 'NVDA earnings', he: 'דוח רבעוני של NVDA' },
+    detail: { en: 'Remind 1 day before · Nov 18', he: 'תזכורת יום לפני · 18 בנוב׳' },
+  },
+  {
+    glyph: '◎',
+    title: { en: 'AMD news mentions "MI400"', he: 'אזכור "MI400" בחדשות AMD' },
+    detail: { en: 'Push, major wires', he: 'פוש, סוכנויות ידיעות' },
+  },
+  {
+    glyph: '▼',
+    title: { en: 'TSLA falls below $300', he: 'TSLA יורד מתחת ל-$300' },
+    detail: { en: 'Push · created Jul 30', he: 'פוש · נוצר ב-30 ביולי' },
+  },
 ];

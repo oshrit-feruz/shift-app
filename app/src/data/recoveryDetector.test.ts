@@ -91,7 +91,14 @@ describe('extractBuySignals', () => {
   it('maps the engine buy_signals array', () => {
     const out = extractBuySignals({
       buy_signals: [
-        { ticker: 'ORCL', price: 144.76, drawdown_pct: 55.4, composite_score: 0.715, high_52w: 324.63, signal: 'BUY' },
+        {
+          ticker: 'ORCL',
+          price: 144.76,
+          drawdown_pct: 55.4,
+          composite_score: 0.715,
+          high_52w: 324.63,
+          signal: 'BUY',
+        },
         { symbol: 'app', price: '310.54', signal: 'BUY' },
       ],
     });
@@ -105,13 +112,18 @@ describe('extractBuySignals', () => {
   });
 
   it('ignores unrelated sibling fields on the screener body', () => {
-    expect(extractBuySignals({ as_of: '2026-08-26', computed_on: '2026-08-26', buy_signals: [] })).toEqual([]);
+    expect(extractBuySignals({ as_of: '2026-08-26', computed_on: '2026-08-26', buy_signals: [] })).toEqual(
+      [],
+    );
   });
 
   it('prefers buy_signals over full_ranking when both are present', () => {
     const out = extractBuySignals({
       buy_signals: [{ ticker: 'ORCL', signal: 'BUY' }],
-      full_ranking: [{ ticker: 'NFLX', signal: 'BUY' }, { ticker: 'SNDK', signal: 'SKIP' }],
+      full_ranking: [
+        { ticker: 'NFLX', signal: 'BUY' },
+        { ticker: 'SNDK', signal: 'SKIP' },
+      ],
     });
     expect(out?.map((s) => s.ticker)).toEqual(['ORCL']);
   });
@@ -139,7 +151,15 @@ describe('extractBuySignals', () => {
   });
 
   it('returns null for an unrecognised shape — we cannot claim "no candidates"', () => {
-    for (const body of [{}, { buy_signals: null }, { buy_signals: 'none' }, { open_positions: [] }, [], null, 'x']) {
+    for (const body of [
+      {},
+      { buy_signals: null },
+      { buy_signals: 'none' },
+      { open_positions: [] },
+      [],
+      null,
+      'x',
+    ]) {
       expect(extractBuySignals(body)).toBeNull();
     }
   });
@@ -188,7 +208,13 @@ describe('fetchSatelliteSignals — honest states, no demo fallback', () => {
   it('unavailable on an unparseable body', async () => {
     const r = await fetchSatelliteSignals(
       async () =>
-        ({ ok: true, status: 200, json: async () => { throw new SyntaxError('bad json'); } }) as unknown as Response,
+        ({
+          ok: true,
+          status: 200,
+          json: async () => {
+            throw new SyntaxError('bad json');
+          },
+        }) as unknown as Response,
     );
     expect(r).toEqual({ status: 'unavailable' });
   });
@@ -201,7 +227,9 @@ describe('fetchSatelliteSignals — honest states, no demo fallback', () => {
   it('never returns the old demo tickers on any failure path', async () => {
     const demoTickers = ['MRNA', 'ALB', 'TEVA', 'MDA'];
     const failures = [
-      async () => { throw new Error('network'); },
+      async () => {
+        throw new Error('network');
+      },
       async () => res(null, false, 500),
       async () => res({ nope: true }),
     ];
@@ -388,8 +416,22 @@ describe('findRankingRow / fetchRankingRow', () => {
   const SNAP = {
     computed_on: FRESH,
     full_ranking: [
-      { ticker: 'ORCL', price: 144.76, high_52w: 324.63, drawdown_pct: 55.4, composite_score: 0.715, signal: 'BUY' },
-      { ticker: 'INTC', price: 20.1, high_52w: 50.2, drawdown_pct: 60.0, composite_score: 0.4, signal: 'SKIP' },
+      {
+        ticker: 'ORCL',
+        price: 144.76,
+        high_52w: 324.63,
+        drawdown_pct: 55.4,
+        composite_score: 0.715,
+        signal: 'BUY',
+      },
+      {
+        ticker: 'INTC',
+        price: 20.1,
+        high_52w: 50.2,
+        drawdown_pct: 60.0,
+        composite_score: 0.4,
+        signal: 'SKIP',
+      },
     ],
   };
 
@@ -445,10 +487,14 @@ describe('findRankingRow / fetchRankingRow', () => {
 
   it('reads the mirror, never onrender.com', async () => {
     let seen = '';
-    await fetchRankingRow('ORCL', async (url) => {
-      seen = String(url);
-      return res(SNAP);
-    }, NOW);
+    await fetchRankingRow(
+      'ORCL',
+      async (url) => {
+        seen = String(url);
+        return res(SNAP);
+      },
+      NOW,
+    );
     expect(seen).toBe(SCREENER_MIRROR_URL);
     expect(seen).not.toContain('onrender.com');
   });
