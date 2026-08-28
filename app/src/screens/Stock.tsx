@@ -22,6 +22,7 @@ import { DemoBanner } from '../components/DemoBanner';
 import { money, pct, signalColor } from '../lib/format';
 import { ReportsTab, EarningsHistory } from './stock/ReportsTab';
 import { NewsTab } from './stock/NewsTab';
+import { TabPanel } from '../components/TabPanel';
 import { EngineCard } from './stock/EngineCard';
 import type { ScreenProps } from '../App';
 
@@ -65,10 +66,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
 
   // Deterministic per ticker — recomputing them on every chip tap (tf/ind
   // are unrelated state) was wasted work, so memo on the ticker alone.
-  const closes = useMemo(
-    () => demoService.series(`${s.ticker}-candles`, 46, 0.5, 3.4).slice(4),
-    [s.ticker],
-  );
+  const closes = useMemo(() => demoService.series(`${s.ticker}-candles`, 46, 0.5, 3.4).slice(4), [s.ticker]);
   const begSeries = useMemo(() => demoService.series(`${s.ticker}-line`, 64, 0.55, 2.6), [s.ticker]);
 
   // The sample price table covers a handful of tickers. Any other symbol —
@@ -152,7 +150,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
             onChange={setTab}
           />
 
-          {tab === 'overview' && (
+          <TabPanel key={`ov-${s.ticker}`} active={tab === 'overview'}>
             <>
               <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                 {TIMEFRAMES.map((f) => (
@@ -306,15 +304,18 @@ export function StockScreen({ openAlert }: ScreenProps) {
               real answer that needs room to say so. */}
               <EngineCard ticker={s.ticker} />
             </>
-          )}
+          </TabPanel>
 
-          {tab === 'reports' && (
-            <>
-              <ReportsTab ticker={s.ticker} />
-              <EarningsHistory ticker={s.ticker} />
-            </>
-          )}
-          {tab === 'news' && <NewsTab ticker={s.ticker} />}
+          {/* Keyed by ticker: a stock→stock navigation resets the visited
+              flags, so tabs never opened for the new symbol stay unfetched
+              (the one-Render-call-per-tab cost rule above still holds). */}
+          <TabPanel key={`re-${s.ticker}`} active={tab === 'reports'}>
+            <ReportsTab ticker={s.ticker} />
+            <EarningsHistory ticker={s.ticker} />
+          </TabPanel>
+          <TabPanel key={`ne-${s.ticker}`} active={tab === 'news'}>
+            <NewsTab ticker={s.ticker} />
+          </TabPanel>
         </div>
       )}
     </DataState>
@@ -475,14 +476,14 @@ function LiveOnlyStock({ ticker }: { ticker: string }) {
         onChange={setTab}
       />
 
-      {tab === 'reports' && (
-        <>
-          <NextEarnings ticker={ticker} />
-          <ReportsTab ticker={ticker} />
-          <EarningsHistory ticker={ticker} />
-        </>
-      )}
-      {tab === 'news' && <NewsTab ticker={ticker} />}
+      <TabPanel key={`re-${ticker}`} active={tab === 'reports'}>
+        <NextEarnings ticker={ticker} />
+        <ReportsTab ticker={ticker} />
+        <EarningsHistory ticker={ticker} />
+      </TabPanel>
+      <TabPanel key={`ne-${ticker}`} active={tab === 'news'}>
+        <NewsTab ticker={ticker} />
+      </TabPanel>
     </div>
   );
 }
