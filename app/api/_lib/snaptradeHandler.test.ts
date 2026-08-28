@@ -1,34 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import handler, { createHandler } from '../snaptrade.js';
-
-interface FakeResponse {
-  _status: number | undefined;
-  _body: unknown;
-  _headers: Record<string, string>;
-  status(code: number): FakeResponse;
-  json(body: unknown): void;
-  setHeader(k: string, v: string): void;
-}
-
-/** Minimal stand-in for Vercel's response object, recording what the handler sends. */
-function makeRes(): FakeResponse {
-  const res: FakeResponse = {
-    _status: undefined,
-    _body: undefined,
-    _headers: {},
-    status(code) {
-      res._status = code;
-      return res;
-    },
-    json(body) {
-      res._body = body;
-    },
-    setHeader(k, v) {
-      res._headers[k] = v;
-    },
-  };
-  return res;
-}
+// The response stand-in is the shared one the other two route suites use —
+// a local copy of it was 28 duplicated lines for no benefit.
+import { makeRes } from './failureContract.js';
 
 function jsonResponse(body: unknown, status = 200) {
   return {
