@@ -98,7 +98,7 @@ export function toNumber(v: unknown): number | null {
   return null;
 }
 
-/** First non-empty string among the candidate keys. */
+/** Return the first non-empty string value found among the given keys in the row, or null if none exist. */
 function pickString(row: Record<string, unknown>, keys: string[]): string | null {
   for (const k of keys) {
     const v = row[k];
@@ -107,7 +107,7 @@ function pickString(row: Record<string, unknown>, keys: string[]): string | null
   return null;
 }
 
-/** First parseable number among the candidate keys. */
+/** Return the first parseable finite number found among the given keys in the row, or null if none exist. */
 function pickNumber(row: Record<string, unknown>, keys: string[]): number | null {
   for (const k of keys) {
     if (k in row) {

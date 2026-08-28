@@ -22,6 +22,7 @@ export interface FakeRes {
   setHeader(k: string, v: string): void;
 }
 
+/** Create a fake response object for testing API handlers without a real Vercel environment. */
 export function makeRes(): FakeRes {
   const res: FakeRes = {
     _status: undefined,

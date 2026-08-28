@@ -2,6 +2,7 @@
 
 export type Pt = [number, number];
 
+/** Scale a series of values into 2D points that fit within the given width and height, with optional padding and domain override. */
 export function fit(vals: number[], w: number, h: number, pad = 6, domain?: readonly [number, number]): Pt[] {
   const lo = domain?.[0] ?? Math.min(...vals);
   const hi = domain?.[1] ?? Math.max(...vals);
@@ -9,10 +10,12 @@ export function fit(vals: number[], w: number, h: number, pad = 6, domain?: read
   return vals.map((v, i) => [i * (w / (vals.length - 1)), h - pad - ((v - lo) / sp) * (h - pad * 2)]);
 }
 
+/** Convert a series of points into an SVG path string for a line chart. */
 export function linePath(pts: Pt[]): string {
   return pts.map((q, i) => (i ? 'L' : 'M') + q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join(' ');
 }
 
+/** Convert a series of points into an SVG path string for an area chart, closing the path at the given height. */
 export function areaPath(pts: Pt[], h: number): string {
   return linePath(pts) + ` L${pts[pts.length - 1][0].toFixed(1)} ${h} L0 ${h} Z`;
 }
@@ -58,11 +61,13 @@ export function candles(closes: number[], w: number, h: number): Candle[] {
   });
 }
 
+/** Calculate a simplified RSI-like series from closing prices using a 12-period moving average. */
 export function rsiSeries(closes: number[]): number[] {
   const m = ma(closes, 12);
   return closes.map((c, i) => 50 + (c - (m[i] ?? c)) * 3.6);
 }
 
+/** Calculate MACD and signal line from closing prices using 12/26/9-period moving averages. */
 export function macdSeries(closes: number[]): { macd: number[]; signal: number[] } {
   const m12 = ma(closes, 12);
   const m26 = ma(closes, 26);

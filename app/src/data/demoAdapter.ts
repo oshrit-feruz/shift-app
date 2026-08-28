@@ -181,8 +181,11 @@ const EARNINGS: EarningsEvent[] = [
 ];
 
 const LATENCY_MS = 250;
+
+/** Simulate network latency by waiting for a fixed duration. */
 const wait = () => new Promise((r) => setTimeout(r, LATENCY_MS));
 
+/** Wrap demo data in a Loadable, simulating network latency and respecting the unavailable demo flag. */
 async function respond<T>(data: T): Promise<Loadable<T>> {
   await wait();
   if (DEMO_FLAGS.unavailable) return unavailable();

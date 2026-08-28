@@ -75,7 +75,7 @@ const NOTICE_FAILURES: Record<
   rejected: { error: 'upstream_error', message: 'The earnings provider refused the request.' },
 };
 
-/** Parse text that should be JSON, without throwing. Null when it is not. */
+/** Safely parse a string as JSON. Returns null if the string is not valid JSON instead of throwing. */
 function safeJson(text: string): unknown {
   try {
     return JSON.parse(text);
@@ -85,16 +85,16 @@ function safeJson(text: string): unknown {
 }
 
 /**
- * The market-wide calendar, from the CSV body. Null means "not a shape we
- * understand", which the caller reports rather than treating as a quiet week.
+ * Parse the market-wide calendar from CSV response body.
+ * Returns null if the body is not a recognizable CSV format, which the caller reports as unreadable rather than treating as an empty week.
  */
 function readCalendar(body: unknown): EarningsRow[] | null {
   return typeof body === 'string' ? parseCalendarCsv(body) : null;
 }
 
 /**
- * One company's reported quarters, from EARNINGS' quarterlyEarnings array.
- * A body without that array is unreadable, not an empty history.
+ * Extract a company's reported quarters from the EARNINGS response's quarterlyEarnings array.
+ * Returns null if the array is missing (unreadable response), not an empty array (which would mean no history).
  */
 function readHistory(body: unknown, ticker: string): EarningsRow[] | null {
   if (typeof body !== 'object' || body === null) return null;

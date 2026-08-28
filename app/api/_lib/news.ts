@@ -49,7 +49,7 @@ const SUMMARY_MAX_CHARS = 280;
  */
 const WORKING_MAX_CHARS = 4_000;
 
-/** First candidate that is a non-empty string, trimmed — EODHD's field names vary by row, so callers pass several in priority order. */
+/** Return the first value that is a non-empty trimmed string, or null if none exist. Useful when EODHD's field names vary by row. */
 function firstString(...values: unknown[]): string | null {
   for (const v of values) {
     if (typeof v === 'string' && v.trim() !== '') return v.trim();
@@ -128,14 +128,11 @@ export function summarize(content: string | null): string {
 }
 
 /**
- * Does the "<" at `i` begin an HTML tag?
+ * Check if the "<" character at position i begins an HTML tag.
  *
- * Two conditions, and both are needed:
- * - the next character is a letter, "/" or "!" — so "< 5%" and "<= 3" stay
- *   text, since no tag name starts with a space or an equals sign;
- * - a ">" closes it before any further "<" — so "margins < 30% and volumes >
- *   2m" is not read as one long tag just because a ">" appears later in the
- *   sentence, which is the trap a plain indexOf falls into.
+ * Returns true only if both conditions hold:
+ * 1. The next character is a letter, "/" or "!" (so "< 5%" stays text)
+ * 2. A ">" closes it before any further "<" (so "margins < 30% and volumes > 2m" isn't treated as one tag)
  */
 function looksLikeTag(src: string, i: number): boolean {
   const next = src[i + 1];
@@ -148,27 +145,26 @@ function looksLikeTag(src: string, i: number): boolean {
   return nextOpen === -1 || nextOpen > close;
 }
 
-/** Whitespace, without a regex so the scan above stays allocation-free. */
+/** Check if a character is whitespace (space, tab, newline, carriage return, form feed, or vertical tab). */
 function isSpace(ch: string): boolean {
   return ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r' || ch === '\f' || ch === '\v';
 }
 
-/** Punctuation that should not be preceded by a space. */
+/** Check if a character is punctuation that should not be preceded by a space (period, comma, exclamation, question, semicolon, colon). */
 function isTightPunctuation(ch: string): boolean {
   return ch === '.' || ch === ',' || ch === '!' || ch === '?' || ch === ';' || ch === ':';
 }
 
-/** A sentence terminator. */
+/** Check if a character is a sentence terminator (period, exclamation, or question mark). */
 function isTerminator(ch: string): boolean {
   return ch === '.' || ch === '!' || ch === '?';
 }
 
 /**
- * The first `count` sentences of already-cleaned text, joined by a space.
+ * Extract the first N sentences from already-cleaned text, joined by a space.
  *
- * A sentence is a run of non-terminator characters followed by a run of
- * terminators — the same shape the previous regex matched, which means text
- * with no terminator at all yields the whole string rather than nothing.
+ * A sentence is a run of non-terminator characters followed by terminators.
+ * Text with no terminator at all returns the whole string rather than nothing.
  */
 function takeSentences(text: string, count: number): string {
   const parts: string[] = [];
@@ -207,7 +203,7 @@ export function deriveSource(a: UpstreamArticle, url: string | null): string {
   return 'Unknown';
 }
 
-/** True only for a well-formed http(s) URL — never a relative path, javascript:, or other scheme. */
+/** Check if a string is a well-formed HTTP or HTTPS URL (not a relative path, javascript:, or other scheme). */
 function isHttpUrl(u: string): boolean {
   try {
     const parsed = new URL(u);
