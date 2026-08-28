@@ -1,43 +1,91 @@
 import { useMemo } from 'react';
-import { candles, fit, linePath, ma, macdSeries, rsiSeries } from './charts';
+import {
+  candlesFromBars,
+  macdSeries,
+  priceScale,
+  rsi,
+  sma,
+  sparseLinePath,
+  volumeBars,
+  type Pt,
+} from './charts';
+import type { Bar } from '../data/types';
 
-/** Advanced-mode candlestick chart with optional MA/volume/RSI/MACD panes —
- *  the prototype's procedural SVG, componentized. */
+const W = 340;
+const H = 170;
+const VOL_H = 40;
+const PANE_H = 52;
+
+/**
+ * Advanced-mode candlestick chart, drawn from real sessions.
+ *
+ * Every mark here corresponds to a trading day the mirror published: the
+ * candle bodies are that day's open and close, the wicks its high and low, the
+ * volume pane its traded shares, and the indicators are computed from the
+ * closes on screen. The prototype this replaces derived all of it from a
+ * seeded random walk — including a volume pane that was a fixed sawtooth —
+ * which is precisely the kind of picture a reader cannot tell from a real one.
+ *
+ * Indicators start where their window fills rather than at the left edge, so
+ * MA(50) is absent for the first fifty sessions instead of being the mean of
+ * however many bars happened to precede it.
+ */
 export function CandleChart({
-  closes,
+  bars,
   showMA,
   showRSI,
   showMACD,
-  rsiNow,
 }: {
-  closes: number[];
+  bars: Bar[];
   showMA: boolean;
   showRSI: boolean;
   showMACD: boolean;
-  rsiNow: number;
 }) {
-  const W = 340;
-  const H = 170;
-  const step = W / closes.length;
-  const bw = Math.max(2.6, step * 0.55);
-  // All the derived series depend only on `closes`; a parent re-render (a
+  const step = W / bars.length;
+  const barW = Math.max(1, Math.min(step * 0.7, 12));
+  const at = (i: number) => i * step + step / 2;
+  // RSI is defined on a fixed 0..100 scale, so its pane is scaled to that and
+  // not to the values present — otherwise the 30 and 70 guide lines would sit
+  // wherever the window happened to range, which is what made them decorative
+  // before. The padding keeps a reading of exactly 0 or 100 inside the pane.
+  const rsiY = (v: number) => PANE_H - 6 - (v / 100) * (PANE_H - 12);
+  const mZero = PANE_H / 2;
+
+  // Every derived series depends only on `bars`; a parent re-render (a
   // timeframe chip, an indicator toggle) must not redo the O(n·window) math.
-  const { cs, ma20, ma50, macd, signal, mMax, rsiPath } = useMemo(() => {
+  const { cs, vols, ma20, ma50, rsiPath, rsiNow, macd, signal, mMax } = useMemo(() => {
+    const closes = bars.map((b) => b.close);
+    const scale = priceScale(bars, H - 4);
+    const rsiVals = rsi(closes);
     const macdOut = macdSeries(closes);
-    const max = Math.max(...macdOut.macd.map(Math.abs), 1);
+
+    /** Map an indicator series onto the price pane, keeping its gaps. */
+    const overPrice = (vals: Array<number | null>): Array<Pt | null> =>
+      vals.map((v, i) => (v === null ? null : ([at(i), scale.yFor(v)] as Pt)));
+
     return {
-      cs: candles(closes, W, H - 4),
-      ma20: linePath(ma(closes, 12).map((v, i) => [i * step + step / 2, yFor(v, closes, H - 4)])),
-      ma50: linePath(ma(closes, 26).map((v, i) => [i * step + step / 2, yFor(v, closes, H - 4)])),
+      cs: candlesFromBars(bars, W, scale),
+      vols: volumeBars(bars, W, VOL_H - 2),
+      ma20: sparseLinePath(overPrice(sma(closes, 20))),
+      ma50: sparseLinePath(overPrice(sma(closes, 50))),
+      rsiPath: sparseLinePath(rsiVals.map((v, i) => (v === null ? null : ([at(i), rsiY(v)] as Pt)))),
+      rsiNow: [...rsiVals].reverse().find((v) => v !== null) ?? null,
       macd: macdOut.macd,
       signal: macdOut.signal,
-      mMax: max,
-      rsiPath: linePath(fit(rsiSeries(closes), W, 52, 8)),
+      // Both lines share one scale; 1e-6 only guards the divide for a window
+      // in which MACD is flat at zero.
+      mMax: Math.max(
+        ...[...macdOut.macd, ...macdOut.signal].map((v) => (v === null ? 0 : Math.abs(v))),
+        1e-6,
+      ),
     };
-    // W/H/step are constants derived from closes; closes is the real input.
+    // step/at/rsiY are all derived from bars.length; bars is the real input.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [closes]);
-  const mLine = (v: number[]) => linePath(v.map((x, i) => [i * step + step / 2, 30 - (x / mMax) * 18]));
+  }, [bars]);
+
+  const mY = (v: number) => mZero - (v / mMax) * (PANE_H / 2 - 8);
+  const mLine = (vals: Array<number | null>) =>
+    sparseLinePath(vals.map((v, i) => (v === null ? null : ([at(i), mY(v)] as Pt))));
 
   return (
     <>
@@ -70,60 +118,62 @@ export function CandleChart({
           </g>
         )}
       </svg>
-      {/* volume pane */}
+
+      {/* Volume pane — real traded shares, scaled to the busiest session shown. */}
       <svg
-        viewBox={`0 0 ${W} 40`}
-        style={{ width: '100%', height: 40 }}
+        viewBox={`0 0 ${W} ${VOL_H}`}
+        style={{ width: '100%', height: VOL_H }}
         preserveAspectRatio="none"
         aria-hidden="true"
       >
-        {closes.map((c, i) => {
-          const h = 8 + ((i * 37) % 26);
-          const up = i > 0 && c >= closes[i - 1];
-          return (
-            <rect
-              key={i}
-              x={i * step + step / 2 - bw / 2}
-              y={38 - h}
-              width={bw}
-              height={h}
-              fill={up ? 'var(--up)' : 'var(--down)'}
-              opacity=".5"
-            />
-          );
-        })}
+        {vols.map((v, i) => (
+          <rect
+            key={i}
+            x={v.bx}
+            y={v.y}
+            width={v.bw}
+            height={v.h}
+            fill={v.up ? 'var(--up)' : 'var(--down)'}
+            opacity=".5"
+          />
+        ))}
       </svg>
+
       {showRSI && (
         <svg
-          viewBox={`0 0 ${W} 52`}
-          style={{ width: '100%', height: 52, borderTop: '1px solid var(--grid)' }}
+          viewBox={`0 0 ${W} ${PANE_H}`}
+          style={{ width: '100%', height: PANE_H, borderTop: '1px solid var(--grid)' }}
           preserveAspectRatio="none"
           aria-hidden="true"
         >
-          <line x1="0" y1="14" x2={W} y2="14" stroke="var(--line)" strokeDasharray="3 3" />
-          <line x1="0" y1="40" x2={W} y2="40" stroke="var(--line)" strokeDasharray="3 3" />
+          <line x1="0" y1={rsiY(70)} x2={W} y2={rsiY(70)} stroke="var(--line)" strokeDasharray="3 3" />
+          <line x1="0" y1={rsiY(30)} x2={W} y2={rsiY(30)} stroke="var(--line)" strokeDasharray="3 3" />
           <path d={rsiPath} fill="none" stroke="var(--acc-pale)" strokeWidth="1.2" />
           <text x="3" y="10" fill="var(--muted)" fontSize="14">
-            RSI(14) {rsiNow}
+            {/* Dashed rather than rounded-to-something when the window is too
+                short to have a reading — a label is not the place to invent one. */}
+            RSI(14) {rsiNow === null ? '—' : Math.round(rsiNow)}
           </text>
         </svg>
       )}
+
       {showMACD && (
         <svg
-          viewBox={`0 0 ${W} 52`}
-          style={{ width: '100%', height: 52, borderTop: '1px solid var(--grid)' }}
+          viewBox={`0 0 ${W} ${PANE_H}`}
+          style={{ width: '100%', height: PANE_H, borderTop: '1px solid var(--grid)' }}
           preserveAspectRatio="none"
           aria-hidden="true"
         >
           {macd.map((v, i) => {
-            const h = (Math.abs(v) / mMax) * 18;
+            if (v === null) return null;
+            const h = Math.abs(mY(v) - mZero);
             return (
               <rect
                 key={i}
-                x={i * step + step / 2 - bw / 2}
-                y={v >= 0 ? 30 - h : 30}
-                width={bw}
-                height={Math.max(0.8, h)}
+                x={at(i) - barW / 2}
+                y={v >= 0 ? mZero - h : mZero}
+                width={barW}
+                height={Math.max(0.5, h)}
                 fill={v >= 0 ? 'var(--up)' : 'var(--down)'}
                 opacity=".65"
               />
@@ -138,10 +188,4 @@ export function CandleChart({
       )}
     </>
   );
-}
-
-function yFor(v: number, closes: number[], h: number): number {
-  const lo = Math.min(...closes) - 4;
-  const hi = Math.max(...closes) + 4;
-  return h - ((v - lo) / (hi - lo)) * (h - 8) - 4;
 }

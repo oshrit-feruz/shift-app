@@ -11,7 +11,7 @@ import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
-import { money, pct, signalColor } from '../lib/format';
+import { moneyOrDash, pct, signalColor } from '../lib/format';
 import type { ScreenProps } from '../App';
 
 const ROW_ALERTS: Record<string, string[]> = {
@@ -141,9 +141,9 @@ export function WatchlistScreen({ openAlert }: ScreenProps) {
                     }
                     right={
                       <RowValues
-                        main={money(x.price)}
-                        sub={pct(x.changePct)}
-                        subColor={signalColor(x.changePct)}
+                        main={moneyOrDash(x.quote?.price)}
+                        sub={pct(x.demo.changePct)}
+                        subColor={signalColor(x.demo.changePct)}
                       />
                     }
                     trailing={

@@ -1,0 +1,4 @@
+{
+  "_comment": "The tickers whose daily price history is mirrored into app/public/data/series/. Read by scripts/mirror-prices.mjs (the publisher) and by the app (the reader), so the two cannot drift. A test asserts this list matches the symbol table in demoAdapter.ts.",
+  "tickers": ["NVDA", "AAPL", "MSFT", "AMD", "TSLA", "JPM", "XOM", "LLY", "TEVA", "MDA"]
+}

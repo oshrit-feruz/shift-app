@@ -4,6 +4,8 @@ import {
   MAX_SNAPSHOT_AGE_DAYS,
   SCREENER_MIRROR_URL,
   extractBuySignals,
+  extractQuotes,
+  fetchQuotes,
   fetchRankingRow,
   fetchSatelliteSignals,
   findRankingRow,
@@ -497,5 +499,90 @@ describe('findRankingRow / fetchRankingRow', () => {
     );
     expect(seen).toBe(SCREENER_MIRROR_URL);
     expect(seen).not.toContain('onrender.com');
+  });
+});
+
+describe('extractQuotes / fetchQuotes — real prices for the whole app', () => {
+  it("keys every ranked ticker, regardless of the engine's verdict", () => {
+    const q = extractQuotes({
+      full_ranking: [
+        { ticker: 'ORCL', price: 144.76, high_52w: 324.63, drawdown_pct: 55.4, signal: 'BUY' },
+        { ticker: 'SNDK', price: 1480.77, high_52w: 2335, drawdown_pct: 36.6, signal: 'SKIP' },
+      ],
+    });
+    // A price is a price: SKIP is the engine declining to recommend the
+    // stock, not doubting what it costs, so both rows are usable quotes.
+    expect(Object.keys(q!).sort()).toEqual(['ORCL', 'SNDK']);
+    expect(q!.ORCL).toEqual({ price: 144.76, high52w: 324.63, drawdownPct: 55.4 });
+  });
+
+  it('keeps a ranked row whose price the engine omitted, with a null price', () => {
+    const q = extractQuotes({ full_ranking: [{ ticker: 'ORCL', signal: 'BUY' }] });
+    // "ranked, price unknown" must stay distinguishable from "not ranked":
+    // the first is present with a null price, the second is simply absent.
+    expect(q!.ORCL).toEqual({ price: null, high52w: null, drawdownPct: null });
+    expect('AAPL' in q!).toBe(false);
+  });
+
+  it('drops rows with no usable ticker rather than keying them under ""', () => {
+    const q = extractQuotes({ full_ranking: [{ price: 10 }, { ticker: 'ORCL', price: 144.76 }] });
+    expect(Object.keys(q!)).toEqual(['ORCL']);
+  });
+
+  it('keeps the first of a duplicated ticker, not whichever came last', () => {
+    const q = extractQuotes({
+      full_ranking: [
+        { ticker: 'ORCL', price: 144.76 },
+        { ticker: 'ORCL', price: 999 },
+      ],
+    });
+    expect(q!.ORCL.price).toBe(144.76);
+  });
+
+  it('returns null for a body with no recognisable ranking', () => {
+    expect(extractQuotes({ buy_signals: [] })).toBeNull();
+    expect(extractQuotes(null)).toBeNull();
+    expect(extractQuotes([])).toBeNull();
+  });
+
+  it('reads the same mirror as the satellite card, not the Render origin', async () => {
+    let requested = '';
+    await fetchQuotes(async (url) => {
+      requested = String(url);
+      return res({ computed_on: FRESH, full_ranking: [] });
+    }, NOW);
+    expect(requested).toBe(SCREENER_MIRROR_URL);
+    expect(requested).not.toContain('onrender.com');
+  });
+
+  it("refuses a stale snapshot — week-old prices are not today's prices", async () => {
+    const r = await fetchQuotes(
+      async () => res({ computed_on: '2026-08-20', full_ranking: [{ ticker: 'ORCL', price: 144.76 }] }),
+      NOW,
+    );
+    expect(r.status).toBe('unavailable');
+    expect(JSON.stringify(r)).not.toContain('144.76');
+  });
+
+  it('is unavailable — never an empty map — on a network failure', async () => {
+    // An empty map would read to every caller as "no ticker is covered",
+    // which is indistinguishable from a healthy but narrow snapshot. The
+    // failure has to stay a failure.
+    const r = await fetchQuotes(async () => {
+      throw new TypeError('Failed to fetch');
+    });
+    expect(r).toEqual({ status: 'unavailable' });
+  });
+
+  it('prices the committed mirror artifact for real', async () => {
+    const snapshot = JSON.parse(
+      readFileSync(new URL('../../public/data/screener.json', import.meta.url), 'utf8'),
+    ) as Record<string, unknown>;
+    const q = extractQuotes(snapshot)!;
+    expect(Object.keys(q).length).toBeGreaterThan(50);
+    for (const [ticker, quote] of Object.entries(q)) {
+      expect(ticker).toMatch(/^[A-Z.-]+$/);
+      if (quote.price !== null) expect(quote.price).toBeGreaterThan(0);
+    }
   });
 });
