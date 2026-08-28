@@ -1,15 +1,15 @@
-import { useLayoutEffect, useRef, useState } from 'react';
-import { Icon, type IconName } from './Icon';
-import type { Screen } from '../state/appState';
-import { useT } from '../i18n/useT';
-import type { StringKey } from '../i18n/strings';
+import { useLayoutEffect, useRef, useState } from "react";
+import { Icon, type IconName } from "./Icon";
+import type { Screen } from "../state/appState";
+import { useT } from "../i18n/useT";
+import type { StringKey } from "../i18n/strings";
 
 const TABS: Array<{ screen: Screen; icon: IconName; label: StringKey }> = [
-  { screen: 'home', icon: 'home', label: 'nav.home' },
-  { screen: 'watch', icon: 'watch', label: 'nav.watch' },
-  { screen: 'news', icon: 'news', label: 'nav.news' },
-  { screen: 'pf', icon: 'portfolio', label: 'nav.pf' },
-  { screen: 'more', icon: 'more', label: 'nav.more' },
+  { screen: "home", icon: "home", label: "nav.home" },
+  { screen: "watch", icon: "watch", label: "nav.watch" },
+  { screen: "news", icon: "news", label: "nav.news" },
+  { screen: "pf", icon: "portfolio", label: "nav.pf" },
+  { screen: "more", icon: "more", label: "nav.more" },
 ];
 
 interface Rect {
@@ -33,7 +33,13 @@ interface Rect {
  * free: getBoundingClientRect returns physical coordinates regardless of
  * text direction.
  */
-export function TabBar({ current, onGo }: { current: Screen; onGo: (s: Screen) => void }) {
+export function TabBar({
+  current,
+  onGo,
+}: {
+  current: Screen;
+  onGo: (s: Screen) => void;
+}) {
   const translate = useT();
   const barRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Array<HTMLSpanElement | null>>([]);
@@ -73,13 +79,16 @@ export function TabBar({ current, onGo }: { current: Screen; onGo: (s: Screen) =
     // actually landed in the DOM, whereas a rAF can fire before it and
     // re-measure the stale layout.
     const dirWatch = new MutationObserver(measure);
-    dirWatch.observe(document.documentElement, { attributes: true, attributeFilter: ['dir'] });
+    dirWatch.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["dir"],
+    });
     // Labels can reflow on rotation or a text-size change; re-measure rather
     // than trusting a value computed for a different layout.
-    window.addEventListener('resize', measure);
+    window.addEventListener("resize", measure);
     return () => {
       dirWatch.disconnect();
-      window.removeEventListener('resize', measure);
+      window.removeEventListener("resize", measure);
     };
     // `translate` is a new reference whenever the language changes, which is
     // what re-runs this effect for the relabelled bar.
@@ -90,14 +99,14 @@ export function TabBar({ current, onGo }: { current: Screen; onGo: (s: Screen) =
       ref={barRef}
       className="glass-bar"
       style={{
-        position: 'absolute',
+        position: "absolute",
         insetInline: 12,
-        bottom: 'calc(10px + env(safe-area-inset-bottom))',
+        bottom: "calc(10px + env(safe-area-inset-bottom))",
         zIndex: 50,
-        padding: '6px 6px',
+        padding: "6px 6px",
         borderRadius: 999,
-        boxShadow: 'var(--shadow-lg)',
-        display: 'flex',
+        boxShadow: "var(--shadow-lg)",
+        display: "flex",
       }}
     >
       {/* Painted before the buttons, so their (transparent-background)
@@ -111,15 +120,16 @@ export function TabBar({ current, onGo }: { current: Screen; onGo: (s: Screen) =
         <span
           aria-hidden
           style={{
-            position: 'absolute',
-            left: indicator.left,
-            top: indicator.top,
-            width: indicator.width,
-            height: indicator.height,
-            borderRadius: 999,
-            background: 'var(--color-accent-900)',
-            transition: 'left .32s cubic-bezier(.34, 1.1, .4, 1), width .32s cubic-bezier(.34, 1.1, .4, 1)',
-            pointerEvents: 'none',
+            position: "absolute",
+            left: indicator.left - 10,
+            top: indicator.top - 2,
+            width: indicator.width + 20,
+            height: indicator.height + 4,
+            borderRadius: 99,
+            background: "var(--color-accent-900)",
+            transition:
+              "left .32s cubic-bezier(.34, 1.1, .4, 1), width .32s cubic-bezier(.34, 1.1, .4, 1)",
+            pointerEvents: "none",
           }}
         />
       )}
@@ -133,14 +143,14 @@ export function TabBar({ current, onGo }: { current: Screen; onGo: (s: Screen) =
             onClick={() => onGo(t.screen)}
             style={{
               flex: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               minHeight: 52,
               border: 0,
-              background: 'transparent',
-              cursor: 'pointer',
-              font: 'inherit',
+              background: "transparent",
+              cursor: "pointer",
+              font: "inherit",
             }}
           >
             <span
@@ -148,21 +158,27 @@ export function TabBar({ current, onGo }: { current: Screen; onGo: (s: Screen) =
                 itemRefs.current[i] = el;
               }}
               style={{
-                position: 'relative',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
+                position: "relative",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
                 gap: 3,
-                padding: '7px 13px',
+                padding: "7px 13px",
                 borderRadius: 999,
-                transition: 'color .2s ease',
+                transition: "color .2s ease",
                 color: active
-                  ? 'var(--color-accent-200)'
-                  : 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+                  ? "var(--color-accent-200)"
+                  : "color-mix(in srgb, var(--color-text) 45%, transparent)",
               }}
             >
               <Icon name={t.icon} size={22} strokeWidth={1.7} />
-              <span style={{ fontSize: 10.5, lineHeight: 1, fontWeight: active ? 600 : 400 }}>
+              <span
+                style={{
+                  fontSize: 10.5,
+                  lineHeight: 1,
+                  fontWeight: active ? 600 : 400,
+                }}
+              >
                 {translate(t.label)}
               </span>
             </span>
