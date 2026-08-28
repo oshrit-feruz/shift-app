@@ -32,7 +32,7 @@ body {
   background: var(--g2);
   color: var(--color-text);
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: 21px;
   line-height: 1.5;
 }
 
@@ -110,7 +110,7 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
   padding: 0 20px;
   border: 0;
   border-radius: var(--radius-sm);
-  font: 600 15px var(--font-body);
+  font: 600 21px var(--font-body);
   cursor: pointer;
   white-space: nowrap;
   color: inherit;
@@ -159,7 +159,7 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
   gap: 4px;
   padding: 4px 10px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 18px;
   font-weight: 500;
   border: 1px solid transparent;
   white-space: nowrap;
@@ -201,7 +201,7 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
 
 /* ── Fields ────────────────────────────────────────────────────────────── */
 .field { display: flex; flex-direction: column; gap: 5px; }
-.field > label { font-size: 12.5px; color: var(--muted); }
+.field > label { font-size: 18.5px; color: var(--muted); }
 .input {
   min-height: 44px;
   padding: 0 14px;
@@ -215,7 +215,7 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
    * behaviour on focus — the fix is the font size, not fighting the zoom
    * itself (disabling it via viewport user-scalable=no would also disable
    * pinch-zoom for everyone, which is an accessibility regression). */
-  font: 400 16px var(--font-body);
+  font: 400 22px var(--font-body);
   width: 100%;
 }
 [data-theme="light"] .input { background: var(--color-surface); color: #FFFFFF; }
@@ -240,7 +240,7 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
   padding: 9px 0;
   border-radius: 8px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 20px;
   cursor: pointer;
   white-space: nowrap;
   border: 0;

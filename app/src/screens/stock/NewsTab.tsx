@@ -44,7 +44,7 @@ export function NewsTab({ ticker }: { ticker: string }) {
             {articles.map((a) => (
               <Article key={a.url} article={a} language={language} readLabel={t('stock.newsRead')} />
             ))}
-            <p className="text-muted" style={{ fontSize: 12, lineHeight: 1.5, margin: '2px 0 0' }}>
+            <p className="text-muted" style={{ fontSize: 18, lineHeight: 1.5, margin: '2px 0 0' }}>
               {t('stock.newsExcerptNote')}
             </p>
           </Card>
@@ -83,7 +83,7 @@ function Article({
           "2026 באוג׳ Reuters · 26". Isolating the source keeps each part
           intact and the separator where it was written. */}
       {(article.source || published) && (
-        <div className="text-muted" style={{ fontSize: 12.5, display: 'flex', gap: 5 }}>
+        <div className="text-muted" style={{ fontSize: 18.5, display: 'flex', gap: 5 }}>
           {article.source && <bdi>{article.source}</bdi>}
           {article.source && published && <span>·</span>}
           {published && <span>{published}</span>}
@@ -99,7 +99,7 @@ function Article({
       <div
         dir="auto"
         style={{
-          fontSize: 13.5,
+          fontSize: 19.5,
           fontFamily: 'var(--font-heading)',
           marginTop: 4,
           lineHeight: 1.35,
@@ -109,7 +109,7 @@ function Article({
         {article.headline}
       </div>
       {article.summary && (
-        <p dir="auto" style={{ fontSize: 13, margin: '3px 0 0', opacity: 0.76, lineHeight: 1.45 }}>
+        <p dir="auto" style={{ fontSize: 19, margin: '3px 0 0', opacity: 0.76, lineHeight: 1.45 }}>
           {article.summary}
         </p>
       )}
@@ -122,7 +122,7 @@ function Article({
         style={{
           display: 'inline-block',
           marginTop: 5,
-          fontSize: 12.5,
+          fontSize: 18.5,
           color: 'var(--color-accent-200)',
           textDecoration: 'none',
         }}

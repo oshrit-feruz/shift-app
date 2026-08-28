@@ -16,7 +16,7 @@ export function DemoBanner() {
   if (!DEMO_FLAGS.showcase) return null;
   return (
     <Card padding={12} gap={0}>
-      <span style={{ fontSize: 12.5, color: 'var(--color-warn, var(--color-text))' }}>
+      <span style={{ fontSize: 18.5, color: 'var(--color-warn, var(--color-text))' }}>
         {t('demo.showcase')}
       </span>
     </Card>

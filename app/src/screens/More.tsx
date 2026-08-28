@@ -26,7 +26,7 @@ export function MoreScreen(_: ScreenProps) {
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <Card padding="10px 12px" gap={6}>
-        <CardTitle size={14}>{t('more.viewMode')}</CardTitle>
+        <CardTitle size={20}>{t('more.viewMode')}</CardTitle>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <ModeCard
             active={beg}
@@ -43,7 +43,7 @@ export function MoreScreen(_: ScreenProps) {
             onClick={() => setMode('advanced')}
           />
         </div>
-        <p className="text-muted" style={{ fontSize: 12, margin: 0 }}>
+        <p className="text-muted" style={{ fontSize: 18, margin: 0 }}>
           {t('more.switchNote')}
         </p>
       </Card>
@@ -85,19 +85,19 @@ export function MoreScreen(_: ScreenProps) {
               <Icon name={r.icon} size={19} strokeWidth={1.7} />
             </span>
             <span style={{ flex: 1 }}>
-              <span style={{ display: 'block', fontSize: 14.5, fontWeight: 500 }}>{t(r.label)}</span>
-              <span className="text-muted" style={{ display: 'block', fontSize: 13 }}>
+              <span style={{ display: 'block', fontSize: 20.5, fontWeight: 500 }}>{t(r.label)}</span>
+              <span className="text-muted" style={{ display: 'block', fontSize: 19 }}>
                 {t(r.help)}
               </span>
             </span>
-            <span style={{ opacity: 0.4, fontSize: 15 }}>›</span>
+            <span style={{ opacity: 0.4, fontSize: 21 }}>›</span>
           </button>
         ))}
       </Card>
 
       <Card padding={13} gap={4}>
         <CardTitle>{t('more.screener')}</CardTitle>
-        <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
+        <p className="text-muted" style={{ fontSize: 19, margin: 0 }}>
           {t('more.screenerHelp')}
         </p>
       </Card>
@@ -136,12 +136,12 @@ function ModeCard({
       }}
     >
       <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 14, fontWeight: 600 }}>{name}</span>
-        <Tag variant="outline" fontSize={12}>
+        <span style={{ fontSize: 20, fontWeight: 600 }}>{name}</span>
+        <Tag variant="outline" fontSize={18}>
           {badge}
         </Tag>
       </span>
-      <span style={{ display: 'block', fontSize: 13, opacity: 0.78, marginTop: 3 }}>{blurb}</span>
+      <span style={{ display: 'block', fontSize: 19, opacity: 0.78, marginTop: 3 }}>{blurb}</span>
     </button>
   );
 }

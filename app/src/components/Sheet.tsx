@@ -80,12 +80,12 @@ export function Sheet({
         />
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
           <div
-            style={{ fontFamily: 'var(--font-heading)', fontSize: 18, whiteSpace: 'nowrap', flex: 'none' }}
+            style={{ fontFamily: 'var(--font-heading)', fontSize: 22, whiteSpace: 'nowrap', flex: 'none' }}
           >
             {title}
           </div>
           {meta != null && (
-            <span className="text-muted" style={{ fontSize: 13 }}>
+            <span className="text-muted" style={{ fontSize: 19 }}>
               {meta}
             </span>
           )}
@@ -93,7 +93,7 @@ export function Sheet({
           <button
             type="button"
             className="btn btn-ghost"
-            style={{ padding: 0, fontSize: 15, opacity: 0.6 }}
+            style={{ padding: 0, fontSize: 21, opacity: 0.6 }}
             onClick={onClose}
             aria-label="Close"
           >

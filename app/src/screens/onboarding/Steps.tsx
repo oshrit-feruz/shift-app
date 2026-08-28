@@ -147,15 +147,15 @@ export function StepsScreen(_: ScreenProps) {
           />
         ))}
       </div>
-      <div className="text-muted" style={{ fontSize: 13 }}>
+      <div className="text-muted" style={{ fontSize: 19 }}>
         {t('steps.progress', { done: doneN, total: STEPS.length })}
       </div>
 
       <Card padding={13} gap={7}>
-        <CardTitle size={14}>{t('steps.howItWorks')}</CardTitle>
+        <CardTitle size={20}>{t('steps.howItWorks')}</CardTitle>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {HOW_IT_WORKS.map((x, i) => (
-            <div key={i} style={{ display: 'flex', gap: 8, fontSize: 12.5, lineHeight: 1.45 }}>
+            <div key={i} style={{ display: 'flex', gap: 8, fontSize: 18.5, lineHeight: 1.45 }}>
               <span style={{ color: 'var(--color-accent-200)', flex: 'none' }}>·</span>
               <span className="text-muted" style={{ flex: 1 }}>
                 {x[language]}
@@ -178,7 +178,7 @@ export function StepsScreen(_: ScreenProps) {
                 color: 'var(--g2)',
                 display: 'grid',
                 placeItems: 'center',
-                fontSize: 14,
+                fontSize: 20,
                 fontWeight: 600,
               }}
             >
@@ -186,7 +186,7 @@ export function StepsScreen(_: ScreenProps) {
             </span>
             <span
               className="text-muted"
-              style={{ fontSize: 12.5, letterSpacing: '.09em', textTransform: 'uppercase' }}
+              style={{ fontSize: 18.5, letterSpacing: '.09em', textTransform: 'uppercase' }}
             >
               {t('steps.now')}
             </span>
@@ -194,7 +194,7 @@ export function StepsScreen(_: ScreenProps) {
           <div
             style={{
               fontFamily: 'var(--font-heading)',
-              fontSize: 19,
+              fontSize: 23,
               lineHeight: 1.3,
               marginTop: 11,
               whiteSpace: 'normal',
@@ -202,13 +202,13 @@ export function StepsScreen(_: ScreenProps) {
           >
             {cur.title[language]}
           </div>
-          <p style={{ fontSize: 13.5, lineHeight: 1.55, margin: '8px 0 0', opacity: 0.85 }}>
+          <p style={{ fontSize: 19.5, lineHeight: 1.55, margin: '8px 0 0', opacity: 0.85 }}>
             {cur.how[language]}
           </p>
           <Button
             block
             minHeight={46}
-            fontSize={13.5}
+            fontSize={19.5}
             style={{ marginTop: 14 }}
             onClick={() => {
               dispatch({ type: 'stepDone', key: cur.key, done: true });
@@ -224,7 +224,7 @@ export function StepsScreen(_: ScreenProps) {
           <Button
             variant="ghost"
             alignSelf="center"
-            fontSize={13}
+            fontSize={19}
             style={{ marginTop: 6 }}
             onClick={() => dispatch({ type: 'stepDone', key: cur.key, done: true })}
           >
@@ -233,12 +233,12 @@ export function StepsScreen(_: ScreenProps) {
         </Card>
       ) : (
         <Card padding={18} gap={8} highlight>
-          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 19 }}>{t('steps.allDone')}</div>
-          <p style={{ fontSize: 13.5, margin: 0, opacity: 0.85 }}>{t('steps.allDoneBody')}</p>
+          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 23 }}>{t('steps.allDone')}</div>
+          <p style={{ fontSize: 19.5, margin: 0, opacity: 0.85 }}>{t('steps.allDoneBody')}</p>
           <Button
             block
             minHeight={46}
-            fontSize={13.5}
+            fontSize={19.5}
             onClick={() => dispatch({ type: 'go', screen: 'home' })}
           >
             {t('steps.goApp')}
@@ -279,7 +279,7 @@ export function StepsScreen(_: ScreenProps) {
                   borderRadius: '50%',
                   display: 'grid',
                   placeItems: 'center',
-                  fontSize: 12,
+                  fontSize: 18,
                   border: `1px solid ${done ? 'transparent' : 'var(--color-divider)'}`,
                   background: done ? 'var(--color-accent-800)' : 'transparent',
                   color: done ? 'var(--color-accent-200)' : 'inherit',
@@ -290,7 +290,7 @@ export function StepsScreen(_: ScreenProps) {
               <span
                 style={{
                   flex: 1,
-                  fontSize: 14,
+                  fontSize: 20,
                   opacity: done ? 0.5 : 0.78,
                   textDecoration: done ? 'line-through' : undefined,
                 }}

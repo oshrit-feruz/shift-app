@@ -43,7 +43,7 @@ export function AppHeader({
           <div
             className="text-muted"
             style={{
-              fontSize: 14,
+              fontSize: 20,
               letterSpacing: '.08em',
               textTransform: 'uppercase',
               flex: 1,
@@ -71,7 +71,7 @@ export function AppHeader({
                   borderRadius: 9,
                   background: 'var(--down)',
                   color: '#fff',
-                  fontSize: 11,
+                  fontSize: 17,
                   display: 'grid',
                   placeItems: 'center',
                 }}
@@ -84,7 +84,7 @@ export function AppHeader({
         <div
           style={{
             fontFamily: 'var(--font-heading)',
-            fontSize: 28,
+            fontSize: 32,
             lineHeight: 1.2,
             letterSpacing: '-.01em',
           }}
