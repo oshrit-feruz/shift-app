@@ -102,24 +102,37 @@ export function App() {
   );
 }
 
-/** Minimal boot state while the stored session is restored (or the OAuth
- *  redirect is consumed). Same visual language as DataState's loading. */
+/** Boot state while the stored session is restored (or the OAuth redirect is
+ *  consumed) — same gradient backdrop as SignInScreen so the brand mark
+ *  doesn't pop in on top of a plain background once the real screen mounts.
+ *  Usually sub-second, so the mark itself (rather than a spinner) carries the
+ *  "this is Shift, please wait" message. */
 function AuthSplash() {
   const t = useT();
   return (
     <div
       role="status"
-      className="text-muted"
       style={{
         height: '100%',
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'var(--g2)',
-        fontSize: 13,
+        gap: 14,
+        background: 'radial-gradient(120% 60% at 15% -6%, var(--g1) 0%, var(--g2) 55%)',
       }}
     >
-      {t('data.loading')}
+      <img
+        src="/assets/shift-mark.svg"
+        alt="Shift"
+        width={64}
+        height={64}
+        className="anim-mark-breathe"
+        style={{ borderRadius: '50%', boxShadow: 'var(--shadow-lg)' }}
+      />
+      <span className="text-muted" style={{ fontSize: 13 }}>
+        {t('data.loading')}
+      </span>
     </div>
   );
 }
@@ -227,7 +240,11 @@ function AppShell() {
           <ScreenView openAlert={() => setAlertOpen(true)} />
         </div>
         <BackToStepsPill />
-        <TabBar current={s.screen} onGo={(screen) => dispatch({ type: 'go', screen })} />
+        <TabBar
+          current={s.screen}
+          onGo={(screen) => dispatch({ type: 'go', screen })}
+          avatarUrl={profile.avatarUrl}
+        />
         <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
         <NotificationsSheet open={notifOpen} onClose={() => setNotifOpen(false)} />
         <AlertSheet open={alertOpen} onClose={() => setAlertOpen(false)} symbol={currentSymbol ?? null} />

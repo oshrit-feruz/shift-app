@@ -33,7 +33,17 @@ interface Rect {
  * free: getBoundingClientRect returns physical coordinates regardless of
  * text direction.
  */
-export function TabBar({ current, onGo }: { current: Screen; onGo: (s: Screen) => void }) {
+export function TabBar({
+  current,
+  onGo,
+  avatarUrl,
+}: {
+  current: Screen;
+  onGo: (s: Screen) => void;
+  /** Signed-in user's photo — shown on the "more" tab instead of the generic
+   *  dots glyph, since that tab is where their profile lives. */
+  avatarUrl?: string | null;
+}) {
   const translate = useT();
   const barRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Array<HTMLSpanElement | null>>([]);
@@ -164,7 +174,23 @@ export function TabBar({ current, onGo }: { current: Screen; onGo: (s: Screen) =
                   : 'color-mix(in srgb, var(--color-text) 45%, transparent)',
               }}
             >
-              <Icon name={t.icon} size={22} strokeWidth={1.7} />
+              {t.screen === 'more' && avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  width={22}
+                  height={22}
+                  referrerPolicy="no-referrer"
+                  style={{
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    outline: active ? '2px solid var(--color-accent-200)' : '2px solid transparent',
+                    outlineOffset: 1,
+                  }}
+                />
+              ) : (
+                <Icon name={t.icon} size={22} strokeWidth={1.7} />
+              )}
               <span
                 style={{
                   fontSize: 10.5,
