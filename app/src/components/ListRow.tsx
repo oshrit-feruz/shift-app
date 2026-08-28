@@ -105,15 +105,7 @@ export function ListRow({
 }
 
 /** Right-side value pair (main value over signed sub-value) for ListRow. */
-export function RowValues({
-  main,
-  sub,
-  subColor,
-}: {
-  main: ReactNode;
-  sub?: ReactNode;
-  subColor?: string;
-}) {
+export function RowValues({ main, sub, subColor }: { main: ReactNode; sub?: ReactNode; subColor?: string }) {
   return (
     <>
       <span data-num="" style={{ display: 'block', fontSize: 14 }}>

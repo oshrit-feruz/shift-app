@@ -91,7 +91,12 @@ export function MoversScreen(_: ScreenProps) {
             return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                 {filtered.slice(0, 6).map((x, i) => (
-                  <Card key={x.ticker} padding={12} gap={5} onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}>
+                  <Card
+                    key={x.ticker}
+                    padding={12}
+                    gap={5}
+                    onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}
+                  >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <TickerTile ticker={x.ticker} size={26} />
                       <Num size={14} weight={600}>
@@ -99,11 +104,20 @@ export function MoversScreen(_: ScreenProps) {
                       </Num>
                       <span
                         className="text-muted"
-                        style={{ fontSize: 13, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                        style={{
+                          fontSize: 13,
+                          flex: 1,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
                       >
                         {x.name}
                       </span>
-                      <Num size={17} style={{ fontFamily: 'var(--font-heading)', color: signalColor(x.changePct) }}>
+                      <Num
+                        size={17}
+                        style={{ fontFamily: 'var(--font-heading)', color: signalColor(x.changePct) }}
+                      >
                         {pct(x.changePct)}
                       </Num>
                     </div>
@@ -170,7 +184,12 @@ function Th({ children, align = 'end' }: { children: React.ReactNode; align?: 's
   return (
     <th
       className="text-muted"
-      style={{ textAlign: align, fontWeight: 500, padding: '8px 4px', borderBottom: '1px solid var(--color-divider)' }}
+      style={{
+        textAlign: align,
+        fontWeight: 500,
+        padding: '8px 4px',
+        borderBottom: '1px solid var(--color-divider)',
+      }}
     >
       {children}
     </th>

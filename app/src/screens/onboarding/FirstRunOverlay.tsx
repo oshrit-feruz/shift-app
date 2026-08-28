@@ -63,7 +63,10 @@ export function FirstRunOverlay() {
     return shell(
       <>
         <div>
-          <div className="text-muted" style={{ fontSize: 12.5, letterSpacing: '.1em', textTransform: 'uppercase' }}>
+          <div
+            className="text-muted"
+            style={{ fontSize: 12.5, letterSpacing: '.1em', textTransform: 'uppercase' }}
+          >
             Language · שפה
           </div>
           <div style={{ fontFamily: 'var(--font-heading)', fontSize: 23, lineHeight: 1.25, marginTop: 6 }}>
@@ -104,10 +107,21 @@ export function FirstRunOverlay() {
   return shell(
     <>
       <div>
-        <div className="text-muted" style={{ fontSize: 12.5, letterSpacing: '.1em', textTransform: 'uppercase' }}>
+        <div
+          className="text-muted"
+          style={{ fontSize: 12.5, letterSpacing: '.1em', textTransform: 'uppercase' }}
+        >
           {t('firstRun.kicker')}
         </div>
-        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 23, lineHeight: 1.25, marginTop: 6, whiteSpace: 'normal' }}>
+        <div
+          style={{
+            fontFamily: 'var(--font-heading)',
+            fontSize: 23,
+            lineHeight: 1.25,
+            marginTop: 6,
+            whiteSpace: 'normal',
+          }}
+        >
           {t('firstRun.q')}
         </div>
         <p className="text-muted" style={{ fontSize: 13, margin: '8px 0 0' }}>

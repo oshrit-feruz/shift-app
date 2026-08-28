@@ -75,9 +75,13 @@ export function Sheet({
           overflowY: 'auto',
         }}
       >
-        <div style={{ width: 38, height: 4, borderRadius: 2, background: 'var(--line)', alignSelf: 'center' }} />
+        <div
+          style={{ width: 38, height: 4, borderRadius: 2, background: 'var(--line)', alignSelf: 'center' }}
+        />
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 18, whiteSpace: 'nowrap', flex: 'none' }}>
+          <div
+            style={{ fontFamily: 'var(--font-heading)', fontSize: 18, whiteSpace: 'nowrap', flex: 'none' }}
+          >
             {title}
           </div>
           {meta != null && (

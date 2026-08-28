@@ -133,8 +133,7 @@ export function mapSignal(raw: unknown): SatelliteSignal | null {
 
   // An unrecognised verdict is reported as-is rather than coerced to BUY.
   const rawSignal = pickString(row, ['signal']);
-  const signal =
-    rawSignal === 'BUY' || rawSignal === 'WATCH' || rawSignal === 'SKIP' ? rawSignal : null;
+  const signal = rawSignal === 'BUY' || rawSignal === 'WATCH' || rawSignal === 'SKIP' ? rawSignal : null;
 
   return {
     ticker: ticker.toUpperCase(),
@@ -167,9 +166,7 @@ export function extractBuySignals(body: unknown): SatelliteSignal[] | null {
 
   const ranking = obj.full_ranking;
   if (Array.isArray(ranking)) {
-    return ranking
-      .map(mapSignal)
-      .filter((s): s is SatelliteSignal => s !== null && s.signal === 'BUY');
+    return ranking.map(mapSignal).filter((s): s is SatelliteSignal => s !== null && s.signal === 'BUY');
   }
 
   return null;
@@ -201,11 +198,7 @@ export function snapshotAgeDays(computedOn: unknown, now: Date = new Date()): nu
   // fresh. Round-tripping the parsed fields is what makes the age check
   // trustworthy rather than bypassable.
   const back = new Date(stamped);
-  if (
-    back.getUTCFullYear() !== year ||
-    back.getUTCMonth() !== month - 1 ||
-    back.getUTCDate() !== day
-  ) {
+  if (back.getUTCFullYear() !== year || back.getUTCMonth() !== month - 1 || back.getUTCDate() !== day) {
     return null;
   }
 

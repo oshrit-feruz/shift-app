@@ -64,7 +64,9 @@ export function createHandler(timeoutMs: number) {
     const wantsFeed = raw === undefined || raw === '';
     const ticker = wantsFeed ? null : raw;
     if (ticker !== null && !isValidTicker(ticker)) {
-      return res.status(400).json({ error: 'invalid_ticker', message: 'Ticker contains unsupported characters.' });
+      return res
+        .status(400)
+        .json({ error: 'invalid_ticker', message: 'Ticker contains unsupported characters.' });
     }
 
     const apiKey = process.env.EODHD_API_KEY;

@@ -65,6 +65,10 @@ export const DEMO_FLAGS = {
   },
 };
 
+// One row per record, read as a table. Prettier would explode each row into
+// a dozen lines and the shape of the data would be lost, so this literal is
+// left formatted by hand on purpose.
+// prettier-ignore
 const SYMS: SymbolInfo[] = [
   { ticker: 'NVDA', name: 'NVIDIA', price: 182.44, changePct: 2.31, volume: '148.2M', marketCap: '4.45T', pe: 52.1, rsi: 61, sector: 'Technology', plain: { en: 'Chips that power AI data centres', he: 'שבבים שמריצים מרכזי נתונים של AI' }, why: { en: 'Data-centre revenue guide above consensus', he: 'תחזית הכנסות ממרכזי נתונים מעל הקונצנזוס' } },
   { ticker: 'AAPL', name: 'Apple', price: 226.79, changePct: 0.42, volume: '41.6M', marketCap: '3.36T', pe: 34.8, rsi: 55, sector: 'Technology', plain: { en: 'iPhone, Mac and services', he: 'אייפון, מק ושירותים' }, why: { en: 'Analyst raised target on iPhone 17 cycle', he: 'אנליסט העלה מחיר יעד לקראת אייפון 17' } },
@@ -84,6 +88,10 @@ const SYMS: SymbolInfo[] = [
  * no demo rows anywhere in reach of that code path to accidentally fall back
  * to. */
 
+// One row per record, read as a table. Prettier would explode each row into
+// a dozen lines and the shape of the data would be lost, so this literal is
+// left formatted by hand on purpose.
+// prettier-ignore
 const PORTFOLIOS: PortfolioSummary[] = [
   { id: 'agg', kind: 'aggregate', name: 'All accounts', broker: null, logo: null, acct: '', syncedAgo: null, total: 82589.73, dayPct: 0.94, allTimePct: 26.8 },
   { id: 'blink', kind: 'linked', name: 'Blink', broker: 'Blink', logo: '/assets/broker-blink.webp', acct: '••4821', syncedAgo: { en: '4 minutes ago', he: 'לפני 4 דקות' }, total: 48214.6, dayPct: 0.86, allTimePct: 31.4 },
@@ -101,6 +109,9 @@ const HOLDING_SHAPE: Array<[string, number, number]> = [
   ['JPM', 12, 5.6],
 ];
 
+// Fields grouped by hand so each story reads as a few labelled lines rather
+// than one per key.
+// prettier-ignore
 const NEWS: NewsItem[] = [
   {
     time: '09:42', source: 'Reuters', ticker: 'NVDA',
@@ -153,6 +164,10 @@ const NEWS: NewsItem[] = [
   },
 ];
 
+// One row per record, read as a table. Prettier would explode each row into
+// a dozen lines and the shape of the data would be lost, so this literal is
+// left formatted by hand on purpose.
+// prettier-ignore
 const EARNINGS: EarningsEvent[] = [
   { date: 'Mon 25', when: 'AMC', ticker: 'LLY', name: 'Eli Lilly', mktCap: '742B', epsEst: '$1.52', revEst: '$12.9B', impliedMove: '±6.4%', lastSurprise: '+8.1%' },
   { date: 'Mon 25', when: 'BMO', ticker: 'XOM', name: 'Exxon Mobil', mktCap: '486B', epsEst: '$1.88', revEst: '$88.1B', impliedMove: '±3.1%', lastSurprise: '+2.4%' },
@@ -222,7 +237,11 @@ export const demoService: DataService & { isDemo: true } = {
       return { ticker, shares, avgCost: sym.price * 0.72, value: shares * sym.price, plPct };
     });
     // Institutions expose totals only, never holdings (product rule).
-    return ok(portfolioId === 'agg' || PORTFOLIOS.some((pf) => pf.id === portfolioId && pf.kind !== 'institution') ? holdings : []);
+    return ok(
+      portfolioId === 'agg' || PORTFOLIOS.some((pf) => pf.id === portfolioId && pf.kind !== 'institution')
+        ? holdings
+        : [],
+    );
   },
 
   async news() {

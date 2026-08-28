@@ -165,7 +165,11 @@ function QuarterRow({
     <div style={{ paddingTop: 7, borderTop: '1px solid var(--color-divider)' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 13 }}>{isoDate(row.reportDate, language)}</span>
-        {row.timing && <Num size={11.5} style={{ color: 'var(--muted)' }}>{row.timing}</Num>}
+        {row.timing && (
+          <Num size={11.5} style={{ color: 'var(--muted)' }}>
+            {row.timing}
+          </Num>
+        )}
         {!reported && (
           <Tag variant="outline" fontSize={11.5}>
             {t('stock.upcoming')}

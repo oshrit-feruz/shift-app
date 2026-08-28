@@ -53,7 +53,15 @@ export function CalendarTab({ watchlist }: { watchlist: string[] }) {
                 <Skeleton width={90} height={11} />
               </div>
               {Array.from({ length: 2 }, (_, j) => (
-                <div key={j} style={{ display: 'flex', gap: 10, padding: '10px 13px', borderTop: '1px solid var(--color-divider)' }}>
+                <div
+                  key={j}
+                  style={{
+                    display: 'flex',
+                    gap: 10,
+                    padding: '10px 13px',
+                    borderTop: '1px solid var(--color-divider)',
+                  }}
+                >
                   <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <Skeleton width="38%" height={11} />
                     <Skeleton width="62%" height={9} />
@@ -115,7 +123,10 @@ export function CalendarTab({ watchlist }: { watchlist: string[] }) {
                       textAlign: 'center',
                     }}
                   >
-                    <div className="text-muted" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+                    <div
+                      className="text-muted"
+                      style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em' }}
+                    >
                       {weekdayLabel(d, language)}
                     </div>
                     <Num size={17} style={{ fontFamily: 'var(--font-heading)' }}>

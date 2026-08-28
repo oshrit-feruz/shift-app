@@ -41,7 +41,10 @@ export function makeRes(): FakeRes {
   return res;
 }
 
-type Handler = (req: { method?: string; query: Record<string, string | string[]> }, res: FakeRes) => Promise<unknown>;
+type Handler = (
+  req: { method?: string; query: Record<string, string | string[]> },
+  res: FakeRes,
+) => Promise<unknown>;
 
 /**
  * Registers the shared failure cases inside the caller's `describe`.

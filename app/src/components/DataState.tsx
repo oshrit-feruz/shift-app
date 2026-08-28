@@ -55,7 +55,9 @@ export function DataState<T>({
   }
   if (state.status === 'unavailable') {
     return (
-      <div style={{ textAlign: 'center', padding: '14px 0', display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div
+        style={{ textAlign: 'center', padding: '14px 0', display: 'flex', flexDirection: 'column', gap: 6 }}
+      >
         <span style={{ fontSize: 14 }}>{t('data.unavailable')}</span>
         <span className="text-muted" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
           {/* A specific reason from the data layer beats the generic copy:
@@ -78,6 +80,8 @@ export function DataState<T>({
 /** Honest empty state for ok-but-empty lists (e.g. no open satellite positions). */
 export function EmptyState({ children }: { children: ReactNode }) {
   return (
-    <div style={{ textAlign: 'center', padding: '14px 0', color: 'var(--muted)', fontSize: 14 }}>{children}</div>
+    <div style={{ textAlign: 'center', padding: '14px 0', color: 'var(--muted)', fontSize: 14 }}>
+      {children}
+    </div>
   );
 }

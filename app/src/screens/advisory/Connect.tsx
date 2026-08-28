@@ -11,9 +11,33 @@ import { BROKER_URLS } from '../../lib/brokerLinks';
 import type { ScreenProps } from '../../App';
 
 const BROKERS = [
-  { key: 'blink' as const, name: 'Blink', logo: '/assets/broker-blink.webp', help: { en: 'Hebrew-first, a simple app, low minimums — the easy start.', he: 'בעברית, אפליקציה פשוטה, מינימום נמוך — ההתחלה הקלה.' } },
-  { key: 'ibkr' as const, name: 'Interactive Brokers', logo: '/assets/broker-ibkr.png', help: { en: 'The widest market access, lowest fees at larger amounts.', he: 'הגישה הרחבה ביותר לשווקים, והעמלות הנמוכות בסכומים גדולים.' } },
-  { key: 'colmex' as const, name: 'Colmex Pro', logo: '/assets/broker-colmex.webp', help: { en: 'Israeli service with phone support in Hebrew.', he: 'שירות ישראלי עם תמיכה טלפונית בעברית.' } },
+  {
+    key: 'blink' as const,
+    name: 'Blink',
+    logo: '/assets/broker-blink.webp',
+    help: {
+      en: 'Hebrew-first, a simple app, low minimums — the easy start.',
+      he: 'בעברית, אפליקציה פשוטה, מינימום נמוך — ההתחלה הקלה.',
+    },
+  },
+  {
+    key: 'ibkr' as const,
+    name: 'Interactive Brokers',
+    logo: '/assets/broker-ibkr.png',
+    help: {
+      en: 'The widest market access, lowest fees at larger amounts.',
+      he: 'הגישה הרחבה ביותר לשווקים, והעמלות הנמוכות בסכומים גדולים.',
+    },
+  },
+  {
+    key: 'colmex' as const,
+    name: 'Colmex Pro',
+    logo: '/assets/broker-colmex.webp',
+    help: {
+      en: 'Israeli service with phone support in Hebrew.',
+      he: 'שירות ישראלי עם תמיכה טלפונית בעברית.',
+    },
+  },
 ];
 
 /**
@@ -119,11 +143,19 @@ export function AdvisoryConnect(_: ScreenProps) {
 
       {flow ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <Button block minHeight={46} onClick={() => dispatch({ type: 'advGoto', screen: 'advBuy', stage: 4 })}>
+          <Button
+            block
+            minHeight={46}
+            onClick={() => dispatch({ type: 'advGoto', screen: 'advBuy', stage: 4 })}
+          >
             {t('conn.continue')}
           </Button>
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 10 }}>
-            <Button variant="ghost" fontSize={14} onClick={() => dispatch({ type: 'advGoto', screen: 'advBuy', stage: 4 })}>
+            <Button
+              variant="ghost"
+              fontSize={14}
+              onClick={() => dispatch({ type: 'advGoto', screen: 'advBuy', stage: 4 })}
+            >
               {t('adv.skipStep')}
             </Button>
             <span style={{ width: 1, height: 14, background: 'var(--color-divider)' }} />
@@ -133,7 +165,12 @@ export function AdvisoryConnect(_: ScreenProps) {
           </div>
         </div>
       ) : (
-        <Button variant="success" block minHeight={46} onClick={() => dispatch({ type: 'go', screen: 'home' })}>
+        <Button
+          variant="success"
+          block
+          minHeight={46}
+          onClick={() => dispatch({ type: 'go', screen: 'home' })}
+        >
           <Icon name="check" size={16} strokeWidth={2.4} />
           {t('conn.done')}
         </Button>

@@ -181,11 +181,7 @@ export async function fetchMarketNews(
 }
 
 /** Shared transport and honesty handling for both feeds. Never throws. */
-async function readNews(
-  url: string,
-  fetchImpl: typeof fetch,
-): Promise<Loadable<StockNewsArticle[]>> {
-
+async function readNews(url: string, fetchImpl: typeof fetch): Promise<Loadable<StockNewsArticle[]>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {

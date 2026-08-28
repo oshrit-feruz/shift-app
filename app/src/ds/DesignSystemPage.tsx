@@ -32,24 +32,50 @@ export function DesignSystemPage() {
       <div style={{ maxWidth: 1120, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 64 }}>
         {/* Header */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <img src="/assets/shift-wordmark.svg" alt="Shift" style={{ height: 30, width: 'auto', display: 'block' }} />
+          <img
+            src="/assets/shift-wordmark.svg"
+            alt="Shift"
+            style={{ height: 30, width: 'auto', display: 'block' }}
+          />
           <Kicker>Design system</Kicker>
-          <h1 style={{ margin: 0, fontSize: 52, lineHeight: 1.04, letterSpacing: '-.02em', fontWeight: 600, maxWidth: '16ch', whiteSpace: 'normal' }}>
+          <h1
+            style={{
+              margin: 0,
+              fontSize: 52,
+              lineHeight: 1.04,
+              letterSpacing: '-.02em',
+              fontWeight: 600,
+              maxWidth: '16ch',
+              whiteSpace: 'normal',
+            }}
+          >
             The tokens and parts behind Shift
           </h1>
           <p style={{ margin: 0, maxWidth: '60ch', fontSize: 16, lineHeight: 1.6, color: 'var(--muted)' }}>
-            Every value here is read live from tokens.css and rendered with the shipping component library — the same
-            code the app itself composes from. Dark is the default surface; light mode swaps the ramp but keeps cards
-            dark on purpose, so contrast against the page stays high in both.
+            Every value here is read live from tokens.css and rendered with the shipping component library —
+            the same code the app itself composes from. Dark is the default surface; light mode swaps the ramp
+            but keeps cards dark on purpose, so contrast against the page stays high in both.
           </p>
           <div style={{ display: 'flex', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
             <a
               href="/"
-              style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid var(--color-divider)', color: 'var(--acc-pale)', fontSize: 14, fontWeight: 500 }}
+              style={{
+                padding: '10px 16px',
+                borderRadius: 10,
+                border: '1px solid var(--color-divider)',
+                color: 'var(--acc-pale)',
+                fontSize: 14,
+                fontWeight: 500,
+              }}
             >
               Mobile app →
             </a>
-            <Button variant="secondary" minHeight={0} fontSize={14} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+            <Button
+              variant="secondary"
+              minHeight={0}
+              fontSize={14}
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            >
               Toggle theme (now: {theme})
             </Button>
           </div>
@@ -58,14 +84,23 @@ export function DesignSystemPage() {
         {/* 01 — Color */}
         <Section n="01" title="Color" note="tokens.css · dark default, light overrides">
           <SubTitle>Surfaces</SubTitle>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(168px, 1fr))', gap: 12 }}>
+          <div
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(168px, 1fr))', gap: 12 }}
+          >
             <Swatch varName="--color-bg" hexNote="#0F172A / #F1F5F9" />
             <Swatch varName="--g1" hexNote="gradient top" />
             <Swatch varName="--color-surface" hexNote="glass card fill" />
             <Swatch varName="--sunk" hexNote="sunken fills" />
           </div>
           <SubTitle>Accent ramp — violet (indigo in light)</SubTitle>
-          <div style={{ display: 'flex', borderRadius: 12, overflow: 'hidden', border: '1px solid var(--color-divider)' }}>
+          <div
+            style={{
+              display: 'flex',
+              borderRadius: 12,
+              overflow: 'hidden',
+              border: '1px solid var(--color-divider)',
+            }}
+          >
             {(
               [
                 ['--color-accent-200', '200'],
@@ -75,24 +110,61 @@ export function DesignSystemPage() {
                 ['--color-accent-800', '800'],
               ] as const
             ).map(([v, label]) => (
-              <div key={v} style={{ flex: 1, padding: '20px 14px 16px', background: `var(${v})`, display: 'flex', flexDirection: 'column', gap: 32 }}>
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: label === '200' || label === '300' ? '#1E293B' : '#fff' }}>{label}</span>
-                <span style={{ fontSize: 12, fontFamily: 'ui-monospace, monospace', color: label === '200' || label === '300' ? '#4C1D95' : '#DDD6FE' }}>{v}</span>
+              <div
+                key={v}
+                style={{
+                  flex: 1,
+                  padding: '20px 14px 16px',
+                  background: `var(${v})`,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 32,
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    color: label === '200' || label === '300' ? '#1E293B' : '#fff',
+                  }}
+                >
+                  {label}
+                </span>
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontFamily: 'ui-monospace, monospace',
+                    color: label === '200' || label === '300' ? '#4C1D95' : '#DDD6FE',
+                  }}
+                >
+                  {v}
+                </span>
               </div>
             ))}
           </div>
           <Note>
-            800 backs icon tiles and pills. 300 carries interactive text. --color-accent-900 is the accent at 14% alpha
-            and is the only accent fill used behind body copy.
+            800 backs icon tiles and pills. 300 carries interactive text. --color-accent-900 is the accent at
+            14% alpha and is the only accent fill used behind body copy.
           </Note>
           <SubTitle>Signal — up / down</SubTitle>
           <Note>
-            Three intensities ship behind the data-signal attribute so the same screens can be read by users who find
-            saturated red/green stressful.
+            Three intensities ship behind the data-signal attribute so the same screens can be read by users
+            who find saturated red/green stressful.
           </Note>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, maxWidth: 640 }}>
             {(['vivid', 'balanced', 'muted'] as const).map((sig) => (
-              <div key={sig} data-signal={sig === 'vivid' ? undefined : sig} style={{ padding: 14, borderRadius: 12, border: '1px solid var(--color-divider)', display: 'flex', flexDirection: 'column', gap: 9 }}>
+              <div
+                key={sig}
+                data-signal={sig === 'vivid' ? undefined : sig}
+                style={{
+                  padding: 14,
+                  borderRadius: 12,
+                  border: '1px solid var(--color-divider)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 9,
+                }}
+              >
                 <Kicker>{sig}</Kicker>
                 <Num size={20} weight={600} style={{ color: 'var(--up)' }}>
                   +0.86%
@@ -109,35 +181,128 @@ export function DesignSystemPage() {
         <Section n="02" title="Type" note="Rubik, 300–700">
           {(
             [
-              ['42 / 1.05 / 700', <Num key="a" size={42} weight={700} style={{ lineHeight: 1.05, fontFamily: 'var(--font-heading)' }}>$48,214.60</Num>, 'Portfolio value'],
-              ['22 / 1.2 / −.01em', <span key="b" style={{ fontSize: 22, lineHeight: 1.2, letterSpacing: '-.01em' }}>Watchlist</span>, 'Screen title'],
-              ['16 / 600', <span key="c" style={{ fontSize: 16, fontWeight: 600 }}>Track it yourself</span>, 'Card title, row label'],
-              ['14 / 1.5', <span key="d" style={{ fontSize: 14, lineHeight: 1.5, color: 'var(--muted)', maxWidth: '46ch', display: 'inline-block', whiteSpace: 'normal' }}>Body copy sits at 14 with a 1.5 leading and the muted grey, so a paragraph never competes with the number above it.</span>, 'Body'],
-              ['15 / .08em / 600', <span key="e" style={{ fontSize: 15, letterSpacing: '.08em', textTransform: 'uppercase', fontWeight: 600, color: 'var(--muted)' }}>Good morning</span>, 'Kicker'],
-              ['12 / 500', <span key="f" style={{ fontSize: 12, fontWeight: 500, color: 'var(--muted-2)' }}>NASDAQ · Delayed 15m</span>, 'Meta, tags'],
+              [
+                '42 / 1.05 / 700',
+                <Num
+                  key="a"
+                  size={42}
+                  weight={700}
+                  style={{ lineHeight: 1.05, fontFamily: 'var(--font-heading)' }}
+                >
+                  $48,214.60
+                </Num>,
+                'Portfolio value',
+              ],
+              [
+                '22 / 1.2 / −.01em',
+                <span key="b" style={{ fontSize: 22, lineHeight: 1.2, letterSpacing: '-.01em' }}>
+                  Watchlist
+                </span>,
+                'Screen title',
+              ],
+              [
+                '16 / 600',
+                <span key="c" style={{ fontSize: 16, fontWeight: 600 }}>
+                  Track it yourself
+                </span>,
+                'Card title, row label',
+              ],
+              [
+                '14 / 1.5',
+                <span
+                  key="d"
+                  style={{
+                    fontSize: 14,
+                    lineHeight: 1.5,
+                    color: 'var(--muted)',
+                    maxWidth: '46ch',
+                    display: 'inline-block',
+                    whiteSpace: 'normal',
+                  }}
+                >
+                  Body copy sits at 14 with a 1.5 leading and the muted grey, so a paragraph never competes
+                  with the number above it.
+                </span>,
+                'Body',
+              ],
+              [
+                '15 / .08em / 600',
+                <span
+                  key="e"
+                  style={{
+                    fontSize: 15,
+                    letterSpacing: '.08em',
+                    textTransform: 'uppercase',
+                    fontWeight: 600,
+                    color: 'var(--muted)',
+                  }}
+                >
+                  Good morning
+                </span>,
+                'Kicker',
+              ],
+              [
+                '12 / 500',
+                <span key="f" style={{ fontSize: 12, fontWeight: 500, color: 'var(--muted-2)' }}>
+                  NASDAQ · Delayed 15m
+                </span>,
+                'Meta, tags',
+              ],
             ] as const
           ).map(([spec, sample, label], i) => (
-            <div key={i} style={{ display: 'flex', gap: 24, alignItems: 'baseline', padding: '16px 0', borderBottom: '1px solid var(--color-divider)' }}>
-              <span style={{ width: 150, flex: 'none', fontSize: 12.5, fontFamily: 'ui-monospace, monospace', color: 'var(--muted-2)' }}>{spec}</span>
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                gap: 24,
+                alignItems: 'baseline',
+                padding: '16px 0',
+                borderBottom: '1px solid var(--color-divider)',
+              }}
+            >
+              <span
+                style={{
+                  width: 150,
+                  flex: 'none',
+                  fontSize: 12.5,
+                  fontFamily: 'ui-monospace, monospace',
+                  color: 'var(--muted-2)',
+                }}
+              >
+                {spec}
+              </span>
               {sample}
               <span style={{ fontSize: 13, color: 'var(--muted-2)', marginLeft: 'auto' }}>{label}</span>
             </div>
           ))}
           <Note>
-            Every numeral renders through the {'<Num>'} component (direction:ltr; unicode-bidi:isolate) so prices and
-            percentages stay readable when the interface flips to RTL.
+            Every numeral renders through the {'<Num>'} component (direction:ltr; unicode-bidi:isolate) so
+            prices and percentages stay readable when the interface flips to RTL.
           </Note>
         </Section>
 
         {/* 03 — Space, radius, elevation */}
         <Section n="03" title="Space, radius, elevation">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 32 }}>
+          <div
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 32 }}
+          >
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <SubTitle>Spacing</SubTitle>
               {[4, 6, 8, 10, 12, 16, 22].map((n) => (
                 <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span style={{ width: 46, fontSize: 12.5, fontFamily: 'ui-monospace, monospace', color: 'var(--muted-2)' }}>{n}</span>
-                  <span style={{ height: 12, width: n, background: 'var(--color-accent)', borderRadius: 2 }} />
+                  <span
+                    style={{
+                      width: 46,
+                      fontSize: 12.5,
+                      fontFamily: 'ui-monospace, monospace',
+                      color: 'var(--muted-2)',
+                    }}
+                  >
+                    {n}
+                  </span>
+                  <span
+                    style={{ height: 12, width: n, background: 'var(--color-accent)', borderRadius: 2 }}
+                  />
                 </div>
               ))}
               <Note>Cards use 12–16 padding with a 10–12 internal gap. Screen gutters are 16 on mobile.</Note>
@@ -153,45 +318,112 @@ export function DesignSystemPage() {
                     ['var(--radius-lg)', 'card 16'],
                   ] as const
                 ).map(([r, label]) => (
-                  <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 7, alignItems: 'center' }}>
-                    <span style={{ width: 60, height: 60, background: 'var(--color-surface)', border: '1px solid var(--color-divider)', borderRadius: r }} />
-                    <span style={{ fontSize: 12, color: 'var(--muted-2)', fontFamily: 'ui-monospace, monospace' }}>{label}</span>
+                  <div
+                    key={label}
+                    style={{ display: 'flex', flexDirection: 'column', gap: 7, alignItems: 'center' }}
+                  >
+                    <span
+                      style={{
+                        width: 60,
+                        height: 60,
+                        background: 'var(--color-surface)',
+                        border: '1px solid var(--color-divider)',
+                        borderRadius: r,
+                      }}
+                    />
+                    <span
+                      style={{ fontSize: 12, color: 'var(--muted-2)', fontFamily: 'ui-monospace, monospace' }}
+                    >
+                      {label}
+                    </span>
                   </div>
                 ))}
               </div>
               <SubTitle>Elevation</SubTitle>
               <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-                <div className="card elev-sm" style={{ width: 130, height: 66, display: 'grid', placeItems: 'center', fontSize: 12.5, color: 'var(--muted)' }}>
+                <div
+                  className="card elev-sm"
+                  style={{
+                    width: 130,
+                    height: 66,
+                    display: 'grid',
+                    placeItems: 'center',
+                    fontSize: 12.5,
+                    color: 'var(--muted)',
+                  }}
+                >
                   shadow-sm
                 </div>
-                <div className="card elev-lg" style={{ width: 130, height: 66, display: 'grid', placeItems: 'center', fontSize: 12.5, color: 'var(--muted)' }}>
+                <div
+                  className="card elev-lg"
+                  style={{
+                    width: 130,
+                    height: 66,
+                    display: 'grid',
+                    placeItems: 'center',
+                    fontSize: 12.5,
+                    color: 'var(--muted)',
+                  }}
+                >
                   shadow-lg
                 </div>
               </div>
               <Note>
-                Cards are glass: a translucent fill plus a 12px backdrop blur, with the hairline carried by the shadow's
-                first ring rather than a border. The specular rim rides inside these same shadow tokens, so a surface
-                cannot take the elevation without taking the material.
+                Cards are glass: a translucent fill plus a 12px backdrop blur, with the hairline carried by
+                the shadow's first ring rather than a border. The specular rim rides inside these same shadow
+                tokens, so a surface cannot take the elevation without taking the material.
               </Note>
 
               <SubTitle>Glass</SubTitle>
               <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-                <div className="card elev-sm" style={{ width: 130, height: 66, display: 'grid', placeItems: 'center', fontSize: 12.5, color: 'var(--muted)' }}>
+                <div
+                  className="card elev-sm"
+                  style={{
+                    width: 130,
+                    height: 66,
+                    display: 'grid',
+                    placeItems: 'center',
+                    fontSize: 12.5,
+                    color: 'var(--muted)',
+                  }}
+                >
                   card
                 </div>
-                <div className="glass-bar elev-lg" style={{ width: 130, height: 66, borderRadius: 999, display: 'grid', placeItems: 'center', fontSize: 12.5, color: 'var(--muted)' }}>
+                <div
+                  className="glass-bar elev-lg"
+                  style={{
+                    width: 130,
+                    height: 66,
+                    borderRadius: 999,
+                    display: 'grid',
+                    placeItems: 'center',
+                    fontSize: 12.5,
+                    color: 'var(--muted)',
+                  }}
+                >
                   bar
                 </div>
-                <div className="glass-sheet elev-lg" style={{ width: 130, height: 66, borderRadius: 20, display: 'grid', placeItems: 'center', fontSize: 12.5, color: 'var(--muted)' }}>
+                <div
+                  className="glass-sheet elev-lg"
+                  style={{
+                    width: 130,
+                    height: 66,
+                    borderRadius: 20,
+                    display: 'grid',
+                    placeItems: 'center',
+                    fontSize: 12.5,
+                    color: 'var(--muted)',
+                  }}
+                >
                   sheet
                 </div>
               </div>
               <Note>
-                Three depths of one material — card, bar, sheet — differing only in how much they blur and how far they
-                lift the colour behind them. It is an approximation of iOS's Liquid Glass, not the real material: the web
-                has no API for that one. Tint and specular are here; refraction (the background bending at the rim) is
-                not, because it costs an SVG displacement map per pane and these panes sit over live charts. Turn on
-                "reduce transparency" and all three go opaque.
+                Three depths of one material — card, bar, sheet — differing only in how much they blur and how
+                far they lift the colour behind them. It is an approximation of iOS's Liquid Glass, not the
+                real material: the web has no API for that one. Tint and specular are here; refraction (the
+                background bending at the rim) is not, because it costs an SVG displacement map per pane and
+                these panes sit over live charts. Turn on "reduce transparency" and all three go opaque.
               </Note>
             </div>
           </div>
@@ -199,7 +431,9 @@ export function DesignSystemPage() {
 
         {/* 04 — Components (the real ones) */}
         <Section n="04" title="Components" note="rendered from src/components — not copies">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 28 }}>
+          <div
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 28 }}
+          >
             <Cell title="Buttons">
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
                 <Button>Add alert</Button>
@@ -277,20 +511,41 @@ export function DesignSystemPage() {
             <Cell title="Highlight card">
               <div
                 className="card"
-                style={{ padding: 13, border: '1px solid var(--color-accent)', background: 'var(--color-accent-900)', flexDirection: 'row', alignItems: 'center', gap: 11 }}
+                style={{
+                  padding: 13,
+                  border: '1px solid var(--color-accent)',
+                  background: 'var(--color-accent-900)',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 11,
+                }}
               >
-                <span style={{ width: 30, height: 30, flex: 'none', borderRadius: 9, background: 'var(--color-accent-800)', color: 'var(--color-accent-200)', display: 'grid', placeItems: 'center', fontSize: 15 }}>
+                <span
+                  style={{
+                    width: 30,
+                    height: 30,
+                    flex: 'none',
+                    borderRadius: 9,
+                    background: 'var(--color-accent-800)',
+                    color: 'var(--color-accent-200)',
+                    display: 'grid',
+                    placeItems: 'center',
+                    fontSize: 15,
+                  }}
+                >
                   ◉
                 </span>
                 <span style={{ flex: 1 }}>
                   <span style={{ display: 'block', fontSize: 13.5 }}>Start here</span>
-                  <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted-2)', marginTop: 2 }}>Five short lessons · 2 of 5</span>
+                  <span style={{ display: 'block', fontSize: 12.5, color: 'var(--muted-2)', marginTop: 2 }}>
+                    Five short lessons · 2 of 5
+                  </span>
                 </span>
                 <span style={{ opacity: 0.5, fontSize: 15 }}>›</span>
               </div>
               <Note>
-                The accent border plus the 14%-alpha fill is the only "look at this" treatment in the system. One per
-                screen, at most.
+                The accent border plus the 14%-alpha fill is the only "look at this" treatment in the system.
+                One per screen, at most.
               </Note>
             </Cell>
           </div>
@@ -298,7 +553,9 @@ export function DesignSystemPage() {
 
         {/* 05 — Rules */}
         <Section n="05" title="Rules">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 26 }}>
+          <div
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 26 }}
+          >
             <Rule title="Numbers stay LTR">
               Prices, percentages and tickers isolate their direction. Layout mirrors; the figures don't.
             </Rule>
@@ -306,24 +563,25 @@ export function DesignSystemPage() {
               Use inset-inline-end and text-align:start so Hebrew flips without extra rules.
             </Rule>
             <Rule title="Two view modes">
-              Beginner hides ratios and shows plain-language framing. Advanced exposes metric strips. Same components,
-              different density.
+              Beginner hides ratios and shows plain-language framing. Advanced exposes metric strips. Same
+              components, different density.
             </Rule>
             <Rule title="Colour is never the only signal">
-              Every up/down colour is paired with a sign, and the signal palette can be dialled down in Settings.
+              Every up/down colour is paired with a sign, and the signal palette can be dialled down in
+              Settings.
             </Rule>
             <Rule title="No execution, ever">
-              Money-touching actions show a confirmation/disclosure or refer out to the user's own broker. Alerts inform;
-              they never trade.
+              Money-touching actions show a confirmation/disclosure or refer out to the user's own broker.
+              Alerts inform; they never trade.
             </Rule>
             <Rule title="One material, three depths">
-              The tint and specular values live once in tokens.css; base.css turns them into .card, .glass-bar and
-              .glass-sheet. No screen writes its own backdrop-filter, which is what lets one place in base.css take the
-              transparency back out everywhere at once.
+              The tint and specular values live once in tokens.css; base.css turns them into .card, .glass-bar
+              and .glass-sheet. No screen writes its own backdrop-filter, which is what lets one place in
+              base.css take the transparency back out everywhere at once.
             </Rule>
             <Rule title="Honest data">
-              Loading, empty and unavailable states are real states. A missing number renders as missing — never as a
-              plausible-looking placeholder.
+              Loading, empty and unavailable states are real states. A missing number renders as missing —
+              never as a plausible-looking placeholder.
             </Rule>
           </div>
         </Section>
@@ -332,11 +590,38 @@ export function DesignSystemPage() {
   );
 }
 
-function Section({ n, title, note, children }: { n: string; title: string; note?: string; children: React.ReactNode }) {
+function Section({
+  n,
+  title,
+  note,
+  children,
+}: {
+  n: string;
+  title: string;
+  note?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, borderBottom: '1px solid var(--color-divider)', paddingBottom: 12 }}>
-        <h2 style={{ margin: 0, fontSize: 13, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--muted-2)', fontWeight: 600 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: 14,
+          borderBottom: '1px solid var(--color-divider)',
+          paddingBottom: 12,
+        }}
+      >
+        <h2
+          style={{
+            margin: 0,
+            fontSize: 13,
+            letterSpacing: '.16em',
+            textTransform: 'uppercase',
+            color: 'var(--muted-2)',
+            fontWeight: 600,
+          }}
+        >
           {n} — {title}
         </h2>
         {note && <span style={{ fontSize: 14, color: 'var(--muted-2)' }}>{note}</span>}
@@ -352,21 +637,45 @@ function SubTitle({ children }: { children: React.ReactNode }) {
 
 function Kicker({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ fontSize: 13, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--muted-2)', fontWeight: 600 }}>{children}</div>
+    <div
+      style={{
+        fontSize: 13,
+        letterSpacing: '.16em',
+        textTransform: 'uppercase',
+        color: 'var(--muted-2)',
+        fontWeight: 600,
+      }}
+    >
+      {children}
+    </div>
   );
 }
 
 function Note({ children }: { children: React.ReactNode }) {
-  return <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.6, color: 'var(--muted-2)', maxWidth: '70ch' }}>{children}</p>;
+  return (
+    <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.6, color: 'var(--muted-2)', maxWidth: '70ch' }}>
+      {children}
+    </p>
+  );
 }
 
 function Swatch({ varName, hexNote }: { varName: string; hexNote: string }) {
   return (
     <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--color-divider)' }}>
       <div style={{ height: 76, background: `var(${varName})` }} />
-      <div style={{ padding: '10px 12px', background: 'var(--color-surface)', display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <div
+        style={{
+          padding: '10px 12px',
+          background: 'var(--color-surface)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+        }}
+      >
         <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{varName}</span>
-        <span style={{ fontSize: 12.5, color: 'var(--muted-2)', fontFamily: 'ui-monospace, monospace' }}>{hexNote}</span>
+        <span style={{ fontSize: 12.5, color: 'var(--muted-2)', fontFamily: 'ui-monospace, monospace' }}>
+          {hexNote}
+        </span>
       </div>
     </div>
   );

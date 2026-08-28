@@ -31,11 +31,7 @@ export function NewsTab({ ticker }: { ticker: string }) {
   const news = useLoadable(() => fetchStockNews(ticker), [ticker]);
 
   return (
-    <DataState
-      state={news.state}
-      onRetry={news.retry}
-      skeleton={<SkeletonCard height={210} lines={4} />}
-    >
+    <DataState state={news.state} onRetry={news.retry} skeleton={<SkeletonCard height={210} lines={4} />}>
       {(articles) =>
         articles.length === 0 ? (
           <Card padding={12} gap={8}>

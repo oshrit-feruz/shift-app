@@ -238,9 +238,9 @@ export type Loadable<T> =
   | { status: 'unavailable'; reason?: { en: string; he: string } }
   | { status: 'ok'; data: T };
 
-export const loading = <T,>(): Loadable<T> => ({ status: 'loading' });
-export const unavailable = <T,>(reason?: { en: string; he: string }): Loadable<T> => ({
+export const loading = <T>(): Loadable<T> => ({ status: 'loading' });
+export const unavailable = <T>(reason?: { en: string; he: string }): Loadable<T> => ({
   status: 'unavailable',
   reason,
 });
-export const ok = <T,>(data: T): Loadable<T> => ({ status: 'ok', data });
+export const ok = <T>(data: T): Loadable<T> => ({ status: 'ok', data });

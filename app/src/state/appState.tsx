@@ -165,9 +165,7 @@ function reducer(s: AppState, a: Action): AppState {
     case 'stepDone':
       return { ...s, stepsDone: { ...s.stepsDone, [a.key]: a.done } };
     case 'setThreshold':
-      return a.which === 'up'
-        ? { ...s, alertUpThreshold: a.value }
-        : { ...s, alertDownThreshold: a.value };
+      return a.which === 'up' ? { ...s, alertUpThreshold: a.value } : { ...s, alertDownThreshold: a.value };
     case 'markNotificationsRead':
       return { ...s, notificationsRead: true };
     case 'pfIndex':

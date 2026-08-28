@@ -29,9 +29,7 @@ import { ok, unavailable, type Loadable, type StockNewsArticle } from '../../dat
 export function MarketFeed() {
   const news = useLoadable(() => fetchMarketNews(), []);
   const t = useT();
-  return (
-    <FeedBody state={news.state} onRetry={news.retry} emptyText={t('news.feedEmpty')} showTicker />
-  );
+  return <FeedBody state={news.state} onRetry={news.retry} emptyText={t('news.feedEmpty')} showTicker />;
 }
 
 /**
@@ -51,10 +49,7 @@ export function WatchlistFeed({ tickers }: { tickers: string[] }) {
   // unreliable in general — and here the key's stability is the whole point,
   // so leaving the ordering to a default is exactly the wrong trade.
   const key = [...tickers].sort((a, b) => a.localeCompare(b)).join(',');
-  const news = useLoadable<StockNewsArticle[]>(
-    () => fetchWatchlistNews(tickers),
-    [key],
-  );
+  const news = useLoadable<StockNewsArticle[]>(() => fetchWatchlistNews(tickers), [key]);
 
   if (tickers.length === 0) {
     return (
@@ -115,7 +110,9 @@ export async function fetchWatchlistNews(
   // Articles with no usable date sort last rather than being dropped — the
   // headline is still real, only its timestamp is missing — and ties break
   // on URL so the order is stable rather than left to the sort's whim.
-  merged.sort((a, b) => publishedAtMs(b.publishedAt) - publishedAtMs(a.publishedAt) || a.url.localeCompare(b.url));
+  merged.sort(
+    (a, b) => publishedAtMs(b.publishedAt) - publishedAtMs(a.publishedAt) || a.url.localeCompare(b.url),
+  );
   return ok(merged);
 }
 

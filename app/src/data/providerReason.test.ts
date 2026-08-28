@@ -9,23 +9,24 @@ function failure(body: unknown): Response {
 
 describe('reasonFromResponse', () => {
   it('names a refused subscription rather than telling the reader to wait', async () => {
-    const reason = await reasonFromResponse(failure({ error: 'upstream_forbidden', upstreamStatus: 403 }), FALLBACK);
+    const reason = await reasonFromResponse(
+      failure({ error: 'upstream_forbidden', upstreamStatus: 403 }),
+      FALLBACK,
+    );
     expect(reason).not.toEqual(FALLBACK);
     expect(reason.he).toContain('מנוי');
     expect(reason.en).toContain('subscription');
   });
 
-  it.each([
-    ['upstream_unauthorized'],
-    ['upstream_rate_limited'],
-    ['upstream_timeout'],
-    ['not_configured'],
-  ])('gives %s its own wording in both languages', async (code) => {
-    const reason = await reasonFromResponse(failure({ error: code }), FALLBACK);
-    expect(reason).not.toEqual(FALLBACK);
-    expect(reason.en.trim()).not.toBe('');
-    expect(reason.he.trim()).not.toBe('');
-  });
+  it.each([['upstream_unauthorized'], ['upstream_rate_limited'], ['upstream_timeout'], ['not_configured']])(
+    'gives %s its own wording in both languages',
+    async (code) => {
+      const reason = await reasonFromResponse(failure({ error: code }), FALLBACK);
+      expect(reason).not.toEqual(FALLBACK);
+      expect(reason.en.trim()).not.toBe('');
+      expect(reason.he.trim()).not.toBe('');
+    },
+  );
 
   // Never invent a diagnosis from a body we did not understand: the generic
   // wording is the honest answer when the specific one is unknown.
