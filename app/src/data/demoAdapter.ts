@@ -2,11 +2,19 @@
  * DEMO DATA ADAPTER — every number here is demonstration data carried over
  * from the design prototype.
  *
- * ONE EXCEPTION: `satellitePositions()` is LIVE. It delegates to
- * data/recoveryDetector.ts, which calls the real Recovery Detector API. That
- * method never returns demo data — not on failure, not on an empty result.
- * Everything else on this adapter is still demonstration data; swap in a real
- * DataService implementation to take the rest live (see service.ts).
+ * TWO EXCEPTIONS, both reading the daily mirror in data/recoveryDetector.ts
+ * and neither ever returning demo data — not on failure, not on an empty
+ * result:
+ *   1. `satelliteSignals()` — the engine's BUY candidates.
+ *   2. Every price this adapter hands out. `symbols()` and `symbol()` attach
+ *      the mirror's real last close as `SymbolInfo.quote`; a ticker the
+ *      ranking does not cover, or a snapshot that cannot be read, gets
+ *      `quote: null` and renders as "—". The prototype's frozen prices
+ *      survive only under `SymbolInfo.demo`, which no screen renders as
+ *      *the* price.
+ * The rest — day change, volume, market cap, P/E, RSI, portfolios, holdings,
+ * news, the chart series — is still demonstration data; swap in a real
+ * DataService implementation to take it live (see service.ts).
  *
  * Failure-mode switch (for demos and UI verification of the demo-backed
  * surfaces only):
@@ -17,7 +25,7 @@
  */
 
 import type { DataService } from './service';
-import { fetchSatelliteSignals } from './recoveryDetector';
+import { fetchQuotes, fetchSatelliteSignals } from './recoveryDetector';
 import {
   ok,
   unavailable,
@@ -26,6 +34,7 @@ import {
   type Loadable,
   type NewsItem,
   type PortfolioSummary,
+  type Quote,
   type SymbolInfo,
 } from './types';
 
@@ -65,21 +74,30 @@ export const DEMO_FLAGS = {
   },
 };
 
+/**
+ * The static half of a symbol — identity, sector, the beginner-mode copy and
+ * the demo stats. The real half (`quote`) is attached at read time from the
+ * mirror, so there is no price literal anywhere in this file for a failed
+ * read to fall back to. That is the same discipline the deleted demo
+ * satellite array got, for the same reason.
+ */
+type SymbolRow = Omit<SymbolInfo, 'quote'>;
+
 // One row per record, read as a table. Prettier would explode each row into
 // a dozen lines and the shape of the data would be lost, so this literal is
 // left formatted by hand on purpose.
 // prettier-ignore
-const SYMS: SymbolInfo[] = [
-  { ticker: 'NVDA', name: 'NVIDIA', price: 182.44, changePct: 2.31, volume: '148.2M', marketCap: '4.45T', pe: 52.1, rsi: 61, sector: 'Technology', plain: { en: 'Chips that power AI data centres', he: 'שבבים שמריצים מרכזי נתונים של AI' }, why: { en: 'Data-centre revenue guide above consensus', he: 'תחזית הכנסות ממרכזי נתונים מעל הקונצנזוס' } },
-  { ticker: 'AAPL', name: 'Apple', price: 226.79, changePct: 0.42, volume: '41.6M', marketCap: '3.36T', pe: 34.8, rsi: 55, sector: 'Technology', plain: { en: 'iPhone, Mac and services', he: 'אייפון, מק ושירותים' }, why: { en: 'Analyst raised target on iPhone 17 cycle', he: 'אנליסט העלה מחיר יעד לקראת אייפון 17' } },
-  { ticker: 'MSFT', name: 'Microsoft', price: 508.12, changePct: -0.67, volume: '18.9M', marketCap: '3.78T', pe: 36.2, rsi: 48, sector: 'Technology', plain: { en: 'Windows, Office and Azure cloud', he: 'ווינדוס, אופיס וענן Azure' }, why: { en: 'Azure capacity spending questioned', he: 'סימני שאלה על הוצאות התרחבות ב-Azure' } },
-  { ticker: 'AMD', name: 'Advanced Micro', price: 171.35, changePct: 4.86, volume: '62.4M', marketCap: '277B', pe: 88.4, rsi: 72, sector: 'Technology', plain: { en: 'Rival chipmaker to NVIDIA', he: 'יצרנית שבבים מתחרה ל-NVIDIA' }, why: { en: 'New MI400 accelerator design win', he: 'זכייה בעיצוב למאיץ MI400 החדש' } },
-  { ticker: 'TSLA', name: 'Tesla', price: 334.62, changePct: -3.18, volume: '96.1M', marketCap: '1.08T', pe: 197.5, rsi: 38, sector: 'Consumer', plain: { en: 'Electric cars and energy storage', he: 'מכוניות חשמליות ואגירת אנרגיה' }, why: { en: 'European deliveries fell again in July', he: 'המסירות באירופה ירדו שוב ביולי' } },
-  { ticker: 'JPM', name: 'JPMorgan Chase', price: 291.04, changePct: 0.88, volume: '9.2M', marketCap: '812B', pe: 14.6, rsi: 58, sector: 'Financials', plain: { en: 'The largest US bank', he: 'הבנק הגדול בארה״ב' }, why: { en: 'Net interest income outlook lifted', he: 'תחזית הכנסות מריבית עלתה' } },
-  { ticker: 'XOM', name: 'Exxon Mobil', price: 112.47, changePct: -1.24, volume: '15.7M', marketCap: '486B', pe: 14.1, rsi: 44, sector: 'Energy', plain: { en: 'Oil and natural gas', he: 'נפט וגז טבעי' }, why: { en: 'Crude slipped on demand data', he: 'הנפט ירד על נתוני ביקוש' } },
-  { ticker: 'LLY', name: 'Eli Lilly', price: 742.18, changePct: 1.96, volume: '3.4M', marketCap: '705B', pe: 61.9, rsi: 63, sector: 'Healthcare', plain: { en: 'Weight-loss and diabetes drugs', he: 'תרופות להרזיה וסוכרת' }, why: { en: 'Phase 3 readout for oral GLP-1', he: 'תוצאות שלב 3 ל-GLP-1 בכמוסה' } },
-  { ticker: 'TEVA', name: 'Teva Pharmaceutical', price: 18.42, changePct: 1.21, volume: '12.4M', marketCap: '21B', pe: 9.8, rsi: 58, sector: 'Healthcare', plain: { en: 'Generic medicines maker', he: 'יצרנית תרופות גנריות' }, why: { en: 'Generics pricing outlook improved', he: 'תחזית מחירי הגנריקה השתפרה' } },
-  { ticker: 'MDA', name: 'MDA Space', price: 29.14, changePct: -1.42, volume: '2.1M', marketCap: '3.6B', pe: 31.2, rsi: 47, sector: 'Industrials', plain: { en: 'Satellites and space robotics', he: 'לוויינים ורובוטיקה לחלל' }, why: { en: 'Contract award timing slipped', he: 'לוחות הזמנים לזכייה בחוזה נדחו' } },
+const SYMS: SymbolRow[] = [
+  { ticker: 'NVDA', name: 'NVIDIA', sector: 'Technology', demo: { price: 182.44, changePct: 2.31, volume: '148.2M', marketCap: '4.45T', pe: 52.1, rsi: 61 }, plain: { en: 'Chips that power AI data centres', he: 'שבבים שמריצים מרכזי נתונים של AI' }, why: { en: 'Data-centre revenue guide above consensus', he: 'תחזית הכנסות ממרכזי נתונים מעל הקונצנזוס' } },
+  { ticker: 'AAPL', name: 'Apple', sector: 'Technology', demo: { price: 226.79, changePct: 0.42, volume: '41.6M', marketCap: '3.36T', pe: 34.8, rsi: 55 }, plain: { en: 'iPhone, Mac and services', he: 'אייפון, מק ושירותים' }, why: { en: 'Analyst raised target on iPhone 17 cycle', he: 'אנליסט העלה מחיר יעד לקראת אייפון 17' } },
+  { ticker: 'MSFT', name: 'Microsoft', sector: 'Technology', demo: { price: 508.12, changePct: -0.67, volume: '18.9M', marketCap: '3.78T', pe: 36.2, rsi: 48 }, plain: { en: 'Windows, Office and Azure cloud', he: 'ווינדוס, אופיס וענן Azure' }, why: { en: 'Azure capacity spending questioned', he: 'סימני שאלה על הוצאות התרחבות ב-Azure' } },
+  { ticker: 'AMD', name: 'Advanced Micro', sector: 'Technology', demo: { price: 171.35, changePct: 4.86, volume: '62.4M', marketCap: '277B', pe: 88.4, rsi: 72 }, plain: { en: 'Rival chipmaker to NVIDIA', he: 'יצרנית שבבים מתחרה ל-NVIDIA' }, why: { en: 'New MI400 accelerator design win', he: 'זכייה בעיצוב למאיץ MI400 החדש' } },
+  { ticker: 'TSLA', name: 'Tesla', sector: 'Consumer', demo: { price: 334.62, changePct: -3.18, volume: '96.1M', marketCap: '1.08T', pe: 197.5, rsi: 38 }, plain: { en: 'Electric cars and energy storage', he: 'מכוניות חשמליות ואגירת אנרגיה' }, why: { en: 'European deliveries fell again in July', he: 'המסירות באירופה ירדו שוב ביולי' } },
+  { ticker: 'JPM', name: 'JPMorgan Chase', sector: 'Financials', demo: { price: 291.04, changePct: 0.88, volume: '9.2M', marketCap: '812B', pe: 14.6, rsi: 58 }, plain: { en: 'The largest US bank', he: 'הבנק הגדול בארה״ב' }, why: { en: 'Net interest income outlook lifted', he: 'תחזית הכנסות מריבית עלתה' } },
+  { ticker: 'XOM', name: 'Exxon Mobil', sector: 'Energy', demo: { price: 112.47, changePct: -1.24, volume: '15.7M', marketCap: '486B', pe: 14.1, rsi: 44 }, plain: { en: 'Oil and natural gas', he: 'נפט וגז טבעי' }, why: { en: 'Crude slipped on demand data', he: 'הנפט ירד על נתוני ביקוש' } },
+  { ticker: 'LLY', name: 'Eli Lilly', sector: 'Healthcare', demo: { price: 742.18, changePct: 1.96, volume: '3.4M', marketCap: '705B', pe: 61.9, rsi: 63 }, plain: { en: 'Weight-loss and diabetes drugs', he: 'תרופות להרזיה וסוכרת' }, why: { en: 'Phase 3 readout for oral GLP-1', he: 'תוצאות שלב 3 ל-GLP-1 בכמוסה' } },
+  { ticker: 'TEVA', name: 'Teva Pharmaceutical', sector: 'Healthcare', demo: { price: 18.42, changePct: 1.21, volume: '12.4M', marketCap: '21B', pe: 9.8, rsi: 58 }, plain: { en: 'Generic medicines maker', he: 'יצרנית תרופות גנריות' }, why: { en: 'Generics pricing outlook improved', he: 'תחזית מחירי הגנריקה השתפרה' } },
+  { ticker: 'MDA', name: 'MDA Space', sector: 'Industrials', demo: { price: 29.14, changePct: -1.42, volume: '2.1M', marketCap: '3.6B', pe: 31.2, rsi: 47 }, plain: { en: 'Satellites and space robotics', he: 'לוויינים ורובוטיקה לחלל' }, why: { en: 'Contract award timing slipped', he: 'לוחות הזמנים לזכייה בחוזה נדחו' } },
 ];
 
 /* NOTE: the demo satellite-positions array that used to live here (MRNA/ALB/
@@ -192,6 +210,19 @@ async function respond<T>(data: T): Promise<Loadable<T>> {
   return ok(data);
 }
 
+/**
+ * Attach the mirror's real numbers to a static symbol row.
+ *
+ * Null `quote` covers both honest misses at once — the snapshot could not be
+ * read, or it was read fine and simply does not rank this ticker. Neither is
+ * back-filled from `row.demo.price`: a fabricated price that looks live is
+ * the exact failure this split exists to prevent, and the two cases read the
+ * same on screen ("—") because in both the app genuinely does not know.
+ */
+function withQuote(row: SymbolRow, quotes: Loadable<Record<string, Quote>>): SymbolInfo {
+  return { ...row, quote: quotes.status === 'ok' ? (quotes.data[row.ticker] ?? null) : null };
+}
+
 /** Deterministic seeded pseudo-random walk — same math as the prototype charts. */
 function rng(seed: number) {
   let s = seed;
@@ -204,15 +235,27 @@ function rng(seed: number) {
 export const demoService: DataService & { isDemo: true } = {
   isDemo: true,
 
+  /**
+   * The symbol list, with REAL prices attached.
+   *
+   * The mirror read runs alongside the demo latency rather than after it, so
+   * attaching real prices costs nothing on top of the delay the demo already
+   * simulated. A failed or stale snapshot leaves every `quote` null — the
+   * list of symbols is still perfectly good, and a watchlist that renders
+   * its rows with "—" for the price tells the reader more than a screen-wide
+   * "unavailable" would.
+   */
   async symbols() {
-    return respond(SYMS);
+    const [, quotes] = await Promise.all([wait(), fetchQuotes()]);
+    if (DEMO_FLAGS.unavailable) return unavailable();
+    return ok(SYMS.map((row) => withQuote(row, quotes)));
   },
 
   async symbol(ticker: string) {
-    await wait();
+    const [, quotes] = await Promise.all([wait(), fetchQuotes()]);
     if (DEMO_FLAGS.unavailable) return unavailable();
     const s = SYMS.find((x) => x.ticker === ticker);
-    return s ? ok(s) : unavailable();
+    return s ? ok(withQuote(s, quotes)) : unavailable();
   },
 
   /**
@@ -237,7 +280,16 @@ export const demoService: DataService & { isDemo: true } = {
     if (DEMO_FLAGS.unavailable) return unavailable();
     const holdings: Holding[] = HOLDING_SHAPE.map(([ticker, shares, plPct]) => {
       const sym = SYMS.find((x) => x.ticker === ticker)!;
-      return { ticker, shares, avgCost: sym.price * 0.72, value: shares * sym.price, plPct };
+      // Demo prices on purpose: the share counts and accounts above are
+      // demo too, so valuing them at real prices would produce a portfolio
+      // that is neither. Holdings go real when transactions do.
+      return {
+        ticker,
+        shares,
+        avgCost: sym.demo.price * 0.72,
+        value: shares * sym.demo.price,
+        plPct,
+      };
     });
     // Institutions expose totals only, never holdings (product rule).
     return ok(

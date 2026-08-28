@@ -404,9 +404,12 @@ export const STRINGS = {
   // exists to not do.
   // Sample prices are still what most screens render. Saying so in place is
   // the difference between a prototype and a screen that misleads.
+  // Rewritten when prices went live: it used to call prices sample data, and
+  // leaving that would have been the same failure in the other direction —
+  // telling a reader to distrust the one number on the screen that is real.
   'demo.pricesNote': p(
-    'Prices, charts and portfolio figures on this screen are sample data, not live market data.',
-    'מחירים, גרפים ונתוני תיק במסך הזה הם נתוני דוגמה, לא נתוני שוק אמיתיים.',
+    'Prices are real, from a daily market snapshot. Day change, volume, charts and portfolio figures on this screen are still sample data.',
+    'המחירים אמיתיים, מתוך תמונת מצב יומית של השוק. שינוי יומי, מחזור, גרפים ונתוני תיק במסך הזה הם עדיין נתוני דוגמה.',
   ),
   'demo.showcase': p(
     'Illustrative data — this is how these screens look on a paid data plan that includes reported results.',

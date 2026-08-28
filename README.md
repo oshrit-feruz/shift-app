@@ -93,7 +93,39 @@ row into a dozen lines and lose the shape of the data.
 the `DataService` interface (`service.ts`) carrying the prototype's numbers. A
 real backend drops in by implementing that interface; no UI changes needed.
 
-**One surface carries real engine data:** the Satellite card.
+**Prices are not among them any more.** `SymbolInfo` is split by provenance:
+`quote` (price, 52-week high, drawdown) is real, read from the daily mirror;
+`demo` (day change, volume, market cap, P/E, RSI) is still the prototype's.
+The split is the point — a call site writes `x.demo.changePct`, which says
+what the number is at the moment it is rendered, where a flat `x.changePct`
+sitting next to a real price would not. There is no price literal left
+outside `demo`, so a failed mirror read has nothing to fall back to: `quote`
+is null and every price on screen renders `—` through `moneyOrDash`. The
+prototype price survives only as the basis for the still-demo figures derived
+from it (the stock page's OHLC strip, after-hours line and dollar day-change)
+and for valuing the demo portfolio, and never as *the* price.
+
+Day change is the notable absence from `quote`: **the ranking has no
+day-change field**, so it cannot be made real from this source and is not
+borrowed from anywhere either. It stays demo until an intraday quote source
+exists — which is why the standing on-screen note now names both halves
+("prices are real … day change, volume, charts and portfolio figures are
+still sample data") instead of calling the whole screen sample data, which
+would have been the same failure in the other direction.
+
+**Where the prices come from, and why it cost nothing.** The mirrored ranking
+already carries `price` and `high_52w` for ~100 names and is refreshed daily
+by the job that feeds the Satellite card. `fetchQuotes()` reads that same
+snapshot through the same `readMirror` helper, so real prices arrived with no
+new API key, no new quota, no browser-visible network call beyond the one the
+app already made — which is why prices went real before anything else on the
+list did. A ticker the ranking does not cover is simply absent from the map
+and renders `—`; that is deliberately indistinguishable on screen from an
+unreadable snapshot, because in both cases the app genuinely does not know
+the price. The freshness gate is shared too: a snapshot too old for the
+Satellite card is too old to price a watchlist with.
+
+**Two surfaces carry real engine data.** The second is the Satellite card:
 `satelliteSignals()` delegates to `app/src/data/recoveryDetector.ts`, which
 reads the Recovery Detector screener's BUY signals. Field names are mapped
 defensively (`ticker|symbol`, `price|current_price|last`, `drawdown_pct|
@@ -211,7 +243,7 @@ filings:
 
 | Tab | Source | Notes |
 | --- | --- | --- |
-| סקירה / Overview | demo adapter + real holdings + the mirrored ranking | chart, your position, key stats, analyst ratings, and the engine's own view |
+| סקירה / Overview | demo adapter + real holdings + the mirrored ranking | real price and 52-week high; chart, day change, key stats and analyst ratings still demo |
 | דוחות / Reports | `/api/stock/{ticker}/fundamentals` (live, un-mirrored) | branches purely on the engine's `status` |
 | חדשות / News | `/api/news` (this repo's Vercel function) | excerpts only, never a full article body |
 
@@ -223,10 +255,11 @@ nothing failed and there is nothing to retry. Day-change percent is **not**
 in the ranking payload, so it is not shown there rather than being borrowed
 from demo data.
 
-Both mirror readers share one `readMirror` helper so transport, freshness and
-honesty handling cannot drift between them — one serving a snapshot the other
-rejects is exactly the class of bug the mirror's verification exists to
-prevent.
+All three mirror readers — the Satellite card's BUY list, a single stock's
+ranking row, and the quote map behind every price in the app — share one
+`readMirror` helper so transport, freshness and honesty handling cannot drift
+between them. One serving a snapshot the other rejects is exactly the class of
+bug the mirror's verification exists to prevent.
 
 **RTL note:** localized Hebrew dates are *not* wrapped in `<Num>`. `<Num>`
 forces LTR isolation, which is right for numerals and wrong for Hebrew text —
@@ -246,6 +279,7 @@ Both were caught by looking at the rendered screen, not by a passing test.
 | Stock page · דוחות (filed revenue) | engine `/api/stock/{ticker}/fundamentals` | — |
 | Stock page · רבעונים שדווחו | `/api/earnings?ticker=&from=&to=` — 12 quarters | 1 Alpha Vantage call |
 | Satellite card | the daily mirror in this repo | none |
+| Every price on screen (`SymbolInfo.quote`) | the same daily mirror | none |
 
 The general feed is why the browsable news screen is cheap: EODHD's `s`
 parameter takes **one** symbol at a time and a per-ticker call costs double,

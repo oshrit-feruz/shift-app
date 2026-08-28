@@ -19,11 +19,35 @@ import { useLoadable } from '../data/useLoadable';
 import { fetchYourPositions } from '../lib/holdings';
 import { fetchTickerEarnings } from '../data/earnings';
 import { DemoBanner } from '../components/DemoBanner';
-import { money, pct, signalColor } from '../lib/format';
+import { money, moneyOrDash, pct, signalColor } from '../lib/format';
 import { ReportsTab, EarningsHistory } from './stock/ReportsTab';
 import { NewsTab } from './stock/NewsTab';
 import { EngineCard } from './stock/EngineCard';
 import type { ScreenProps } from '../App';
+import type { SymbolInfo } from '../data/types';
+
+/**
+ * The price the still-demo decorations on this screen are computed from: the
+ * open/high/low strip, the after-hours line, the day-change figure in
+ * dollars, the derived rows in the key-stats grid.
+ *
+ * Those figures are demo whichever price they start from — the percentage
+ * driving them is demo — so they are derived from the price actually on
+ * screen, which keeps the panel internally consistent instead of showing a
+ * real $144.76 above a change computed off the prototype's $182.44.
+ *
+ * It returns null rather than falling back to `x.demo.price`, and everything
+ * built on it dashes out or disappears when it does. Caught by looking at the
+ * rendered screen: XOM is not in the ranking, so its headline price was "—"
+ * while the line underneath it still read "after hours $112.92" — a concrete
+ * price on a page that had just said it had none. A number the reader cannot
+ * reconcile with the one above it is worse than no number. The prototype
+ * price is now rendered nowhere on this screen.
+ */
+const basisPrice = (x: SymbolInfo): number | null => x.quote?.price ?? null;
+
+/** A derived demo figure, or the dash owed when there is no price to derive it from. */
+const derived = (px: number | null, f: (p: number) => string): string => (px === null ? '—' : f(px));
 
 const TIMEFRAMES = ['1D', '1W', '1M', '3M', '1Y'];
 
@@ -66,11 +90,13 @@ export function StockScreen({ openAlert }: ScreenProps) {
   const closes = demoService.series(`${s.ticker}-candles`, 46, 0.5, 3.4).slice(4);
   const begSeries = demoService.series(`${s.ticker}-line`, 64, 0.55, 2.6);
 
-  // The sample price table covers a handful of tickers. Any other symbol —
-  // and the earnings calendar opens plenty of them — has no quote, but its
-  // filings, news and ranking are live and per-ticker. Gating the whole
-  // screen on the quote turned "we have no sample price for CRWD" into a
+  // The app's symbol table covers a handful of tickers. Any other symbol —
+  // and the earnings calendar opens plenty of them — has no row here at all,
+  // but its filings, news and ranking are live and per-ticker. Gating the
+  // whole screen on that row turned "CRWD is not in our symbol list" into a
   // dead page, which is a worse answer than the one the data supports.
+  // Distinct from a row that exists with `quote: null` — that ticker is
+  // known, its price simply is not, and the full screen renders with "—".
   if (sym.state.status === 'unavailable') {
     return <LiveOnlyStock ticker={s.ticker} />;
   }
@@ -97,15 +123,20 @@ export function StockScreen({ openAlert }: ScreenProps) {
           <div>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 9 }}>
               <Num size={27} style={{ fontFamily: 'var(--font-heading)', lineHeight: 1 }}>
-                {money(x.price)}
+                {moneyOrDash(x.quote?.price)}
               </Num>
-              <Num size={14} style={{ color: signalColor(x.changePct) }}>
-                {`${(x.changePct >= 0 ? '+' : '') + ((x.price * x.changePct) / 100).toFixed(2)} · ${pct(x.changePct)}`}
+              <Num size={14} style={{ color: signalColor(x.demo.changePct) }}>
+                {`${derived(basisPrice(x), (px) => (x.demo.changePct >= 0 ? '+' : '') + ((px * x.demo.changePct) / 100).toFixed(2))} · ${pct(x.demo.changePct)}`}
               </Num>
             </div>
-            <div className="text-muted" style={{ fontSize: 13, marginTop: 3 }}>
-              {t('stock.afterHrs')} <Num>{money(x.price * 1.004)}</Num>
-            </div>
+            {/* Dropped rather than dashed: "after hours —" is a line that
+                says nothing, where the OHLC strip's dashes at least keep the
+                labelled shape of a row the reader is scanning. */}
+            {basisPrice(x) !== null && (
+              <div className="text-muted" style={{ fontSize: 13, marginTop: 3 }}>
+                {t('stock.afterHrs')} <Num>{money(basisPrice(x)! * 1.004)}</Num>
+              </div>
+            )}
           </div>
 
           <div style={{ display: 'flex', gap: 7 }}>
@@ -180,14 +211,14 @@ export function StockScreen({ openAlert }: ScreenProps) {
                     ))}
                   </div>
                   <Num size={12} block style={{ color: 'var(--muted)' }}>
-                    {`O ${(x.price - 1.9).toFixed(2)} H ${(x.price + 2.4).toFixed(2)} L ${(x.price - 3.1).toFixed(2)} C ${x.price.toFixed(2)}`}
+                    {`O ${derived(basisPrice(x), (px) => (px - 1.9).toFixed(2))} H ${derived(basisPrice(x), (px) => (px + 2.4).toFixed(2))} L ${derived(basisPrice(x), (px) => (px - 3.1).toFixed(2))} C ${derived(basisPrice(x), (px) => px.toFixed(2))}`}
                   </Num>
                   <CandleChart
                     closes={closes}
                     showMA={ind.ma}
                     showRSI={ind.rsi}
                     showMACD={ind.macd}
-                    rsiNow={x.rsi}
+                    rsiNow={x.demo.rsi}
                   />
                 </Card>
               )}
@@ -232,22 +263,24 @@ export function StockScreen({ openAlert }: ScreenProps) {
               <Card padding={12} gap={7}>
                 <CardTitle>{beg ? t('stock.basics') : t('stock.keyStats')}</CardTitle>
                 {beg ? (
-                  BEG_STATS(x.price, x.marketCap, x.volume, x.pe).map((row, i) => (
-                    <div key={i} style={{ padding: '7px 0', borderTop: '1px solid var(--color-divider)' }}>
-                      <div
-                        style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 14 }}
-                      >
-                        <span>{row.k}</span>
-                        <Num>{row.v}</Num>
+                  BEG_STATS(x.quote?.price ?? null, x.demo.marketCap, x.demo.volume, x.demo.pe).map(
+                    (row, i) => (
+                      <div key={i} style={{ padding: '7px 0', borderTop: '1px solid var(--color-divider)' }}>
+                        <div
+                          style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 14 }}
+                        >
+                          <span>{row.k}</span>
+                          <Num>{row.v}</Num>
+                        </div>
+                        <div className="text-muted" style={{ fontSize: 12.5, marginTop: 2 }}>
+                          {row.help}
+                        </div>
                       </div>
-                      <div className="text-muted" style={{ fontSize: 12.5, marginTop: 2 }}>
-                        {row.help}
-                      </div>
-                    </div>
-                  ))
+                    ),
+                  )
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
-                    {ADV_STATS(x.price, x.marketCap, x.volume, x.pe, x.rsi).map(([k, v], i) => (
+                    {ADV_STATS(x).map(([k, v], i) => (
                       <div
                         key={i}
                         style={{
@@ -316,35 +349,43 @@ export function StockScreen({ openAlert }: ScreenProps) {
   );
 }
 
-const BEG_STATS = (price: number, mc: string, vol: string, pe: number) => [
-  { k: 'Price', v: money(price), help: 'What one share costs right now' },
+const BEG_STATS = (price: number | null, mc: string, vol: string, pe: number) => [
+  // The one real figure on this card; the rest are still demo stats, which is
+  // what <DemoDataNote /> at the top of the screen says.
+  { k: 'Price', v: moneyOrDash(price), help: 'What one share costs right now' },
   { k: 'Company size', v: mc, help: 'Every share added together — market cap' },
   { k: 'Traded today', v: `${vol} shares`, help: 'How busy the stock is; high means lots of interest' },
   { k: 'Price vs earnings', v: `${pe.toFixed(1)}×`, help: 'Years of current profit to pay for the share' },
 ];
 
-const ADV_STATS = (
-  price: number,
-  mc: string,
-  vol: string,
-  pe: number,
-  rsi: number,
-): Array<[string, string]> => [
-  ['Open', (price - 1.9).toFixed(2)],
-  ['Prev close', (price * 0.99).toFixed(2)],
-  ['Day range', `${(price - 3.1).toFixed(2)}–${(price + 2.4).toFixed(2)}`],
-  ['52w range', '86.62–184.48'],
-  ['Volume', vol],
-  ['Avg vol', '162.4M'],
-  ['Mkt cap', mc],
-  ['P/E', pe.toFixed(1)],
-  ['Fwd P/E', (pe * 0.62).toFixed(1)],
-  ['EPS (ttm)', (price / pe).toFixed(2)],
-  ['Beta', '2.14'],
-  ['Div yield', '0.02%'],
-  ['Short float', '1.1%'],
-  ['RSI(14)', String(rsi)],
-];
+/**
+ * Takes the whole symbol rather than loose numbers so the real figures and
+ * the demo ones cannot be mixed up on the way in: `x.quote` is read for the
+ * two rows that are real, `x.demo` for the rest.
+ */
+const ADV_STATS = (x: SymbolInfo): Array<[string, string]> => {
+  const { marketCap: mc, volume: vol, pe, rsi } = x.demo;
+  const price = basisPrice(x);
+  return [
+    ['Open', derived(price, (p) => (p - 1.9).toFixed(2))],
+    ['Prev close', derived(price, (p) => (p * 0.99).toFixed(2))],
+    ['Day range', derived(price, (p) => `${(p - 3.1).toFixed(2)}–${(p + 2.4).toFixed(2)}`)],
+    // Real, from the mirror. The 52-week *low* is not in the payload, so the
+    // row reports the high alone rather than pairing a real number with an
+    // invented one to keep the old "range" shape.
+    ['52w high', moneyOrDash(x.quote?.high52w)],
+    ['Volume', vol],
+    ['Avg vol', '162.4M'],
+    ['Mkt cap', mc],
+    ['P/E', pe.toFixed(1)],
+    ['Fwd P/E', (pe * 0.62).toFixed(1)],
+    ['EPS (ttm)', derived(price, (p) => (p / pe).toFixed(2))],
+    ['Beta', '2.14'],
+    ['Div yield', '0.02%'],
+    ['Short float', '1.1%'],
+    ['RSI(14)', String(rsi)],
+  ];
+};
 
 /**
  * When this company next reports, from the live earnings source.

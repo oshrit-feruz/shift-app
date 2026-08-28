@@ -11,6 +11,19 @@ export function money(v: number, fractionDigits = 2): string {
   );
 }
 
+/**
+ * A price we have, or the em-dash we owe the reader when we do not.
+ *
+ * Real prices come from a mirror that ranks ~100 names, so "no price for this
+ * ticker" is an ordinary answer rather than a failure — and the one thing it
+ * must never become is a plausible-looking number. Every render of
+ * `SymbolInfo.quote.price` goes through here so that rule is applied in one
+ * place instead of being remembered at eight call sites.
+ */
+export function moneyOrDash(v: number | null | undefined, fractionDigits = 2): string {
+  return v === null || v === undefined ? '—' : money(v, fractionDigits);
+}
+
 /** Signed percentage with 2 decimals: +0.86% / −1.24% */
 export function pct(v: number, fractionDigits = 2): string {
   return (v >= 0 ? '+' : '') + v.toFixed(fractionDigits) + '%';

@@ -10,7 +10,7 @@ import { useDispatch } from '../state/appState';
 import { useT } from '../i18n/useT';
 import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
-import { money, pct, signalColor } from '../lib/format';
+import { moneyOrDash, pct, signalColor } from '../lib/format';
 
 /**
  * Full-screen ticker search. Opens over the current screen rather than
@@ -116,9 +116,9 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
                     subtitle={`${x.name} · ${x.sector}`}
                     right={
                       <RowValues
-                        main={money(x.price)}
-                        sub={pct(x.changePct)}
-                        subColor={signalColor(x.changePct)}
+                        main={moneyOrDash(x.quote?.price)}
+                        sub={pct(x.demo.changePct)}
+                        subColor={signalColor(x.demo.changePct)}
                       />
                     }
                     minHeight={52}

@@ -1,19 +1,66 @@
 /** Domain types shared by the data service and the UI. */
 
-export interface SymbolInfo {
-  ticker: string;
-  name: string;
+/**
+ * Real market numbers for one ticker, read from the daily mirror
+ * (data/recoveryDetector.ts). Every field is nullable for the same reason
+ * SatelliteSignal's are: the mirror ranks 100 names and the app can open any
+ * symbol, so "we do not have this number" is a normal answer that renders as
+ * "—" rather than being guessed or back-filled.
+ */
+export interface Quote {
+  /** Last close the engine saw. */
+  price: number | null;
+  /** 52-week high the drawdown is measured against. */
+  high52w: number | null;
+  /** How far below the 52-week high, in percent (positive = below). */
+  drawdownPct: number | null;
+}
+
+/**
+ * The market stats that are still demo figures, carried from the design
+ * prototype.
+ *
+ * They live behind their own key so no call site can render an invented
+ * number while believing it is real: `x.demo.changePct` says what it is at
+ * the point of use, where a flat `x.changePct` sitting beside a real price
+ * would not. Screens that show these carry <DemoDataNote /> as well.
+ *
+ * Day change is the notable absence from Quote: the mirrored ranking has no
+ * day-change field, so it cannot be made real from this source and is not
+ * borrowed from anywhere either — it stays here until an intraday quote
+ * source exists.
+ */
+export interface SymbolDemoStats {
+  /** Prototype price. Kept only as the basis for the other demo figures and
+   *  for the demo portfolio's valuation — never rendered as *the* price,
+   *  which comes from `SymbolInfo.quote`. */
   price: number;
   changePct: number; // day change, signed
   volume: string;
   marketCap: string;
   pe: number;
   rsi: number;
+}
+
+/**
+ * One tradable symbol: static description plus its numbers, split by
+ * provenance — `quote` is real, `demo` is not.
+ */
+export interface SymbolInfo {
+  ticker: string;
+  name: string;
   sector: string;
   /** Beginner-mode plain-language description (per language). */
   plain: { en: string; he: string };
   /** Beginner-mode "why it moved" line (per language). */
   why: { en: string; he: string };
+  /**
+   * REAL, from the daily mirror. Null when the mirror does not cover this
+   * ticker or could not be read — the UI renders "—", never a demo price.
+   */
+  quote: Quote | null;
+  /** DEMO. See SymbolDemoStats. */
+  demo: SymbolDemoStats;
 }
 
 /**

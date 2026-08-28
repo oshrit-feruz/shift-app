@@ -12,7 +12,7 @@ import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
-import { money, pct, signalColor } from '../lib/format';
+import { moneyOrDash, pct, signalColor } from '../lib/format';
 import type { StringKey } from '../i18n/strings';
 import type { ScreenProps } from '../App';
 
@@ -80,10 +80,10 @@ export function MoversScreen(_: ScreenProps) {
             .slice()
             .sort((a, b) =>
               tab === 'Losers'
-                ? a.changePct - b.changePct
+                ? a.demo.changePct - b.demo.changePct
                 : tab === 'Most active'
-                  ? parseFloat(b.volume) - parseFloat(a.volume)
-                  : b.changePct - a.changePct,
+                  ? parseFloat(b.demo.volume) - parseFloat(a.demo.volume)
+                  : b.demo.changePct - a.demo.changePct,
             );
           const filtered = sector === 'All' ? pool : pool.filter((x) => x.sector === sector);
 
@@ -116,16 +116,16 @@ export function MoversScreen(_: ScreenProps) {
                       </span>
                       <Num
                         size={17}
-                        style={{ fontFamily: 'var(--font-heading)', color: signalColor(x.changePct) }}
+                        style={{ fontFamily: 'var(--font-heading)', color: signalColor(x.demo.changePct) }}
                       >
-                        {pct(x.changePct)}
+                        {pct(x.demo.changePct)}
                       </Num>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <span style={{ fontSize: 13, opacity: 0.76, flex: 1 }}>{x.why[language]}</span>
                       <Sparkline
-                        values={demoService.series(`spark-${x.ticker}-${i}`, 26, x.changePct / 6, 2)}
-                        color={signalColor(x.changePct)}
+                        values={demoService.series(`spark-${x.ticker}-${i}`, 26, x.demo.changePct / 6, 2)}
+                        color={signalColor(x.demo.changePct)}
                       />
                     </div>
                   </Card>
@@ -157,13 +157,13 @@ export function MoversScreen(_: ScreenProps) {
                         {x.ticker}
                       </Td>
                       <Td>
-                        <Num>{money(x.price)}</Num>
+                        <Num>{moneyOrDash(x.quote?.price)}</Num>
                       </Td>
-                      <Td color={signalColor(x.changePct)}>
-                        <Num>{pct(x.changePct)}</Num>
+                      <Td color={signalColor(x.demo.changePct)}>
+                        <Num>{pct(x.demo.changePct)}</Num>
                       </Td>
                       <Td muted>
-                        <Num>{x.volume}</Num>
+                        <Num>{x.demo.volume}</Num>
                       </Td>
                       <Td color="var(--color-accent-300)">
                         <Num>{(1.1 + (x.ticker.length % 4) * 0.4).toFixed(1)}×</Num>
