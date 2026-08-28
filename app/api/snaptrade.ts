@@ -143,9 +143,22 @@ export function createHandler(timeoutMs: number) {
         .filter((a): a is NonNullable<ReturnType<typeof mapAccount>> => a !== null)
         .slice(0, MAX_ACCOUNTS);
 
+      // Rows arrived but not one of them could be mapped — every account was
+      // missing the id we address it by. That is a shape we do not
+      // understand, NOT an account-less user, and reporting it as the latter
+      // would send someone hunting for a brokerage connection that is
+      // actually already there. The two must not look alike.
+      if (rawAccounts.length > 0 && base.length === 0) {
+        console.error(`${ROUTE}: /accounts returned ${rawAccounts.length} row(s), none with a usable id`);
+        return res
+          .status(502)
+          .json({ error: 'bad_response', message: `The ${PROVIDER} provider returned an unexpected shape.` });
+      }
+
       // No brokerage linked yet. An honest, explicit empty answer — the demo
       // screen renders "no account connected", never a placeholder holding.
       if (base.length === 0) {
+        console.warn(`${ROUTE}: SnapTrade reported no connected accounts for this Personal key`);
         res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=30');
         return res.status(200).json({ accounts: [] });
       }

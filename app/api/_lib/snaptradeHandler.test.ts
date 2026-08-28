@@ -87,6 +87,16 @@ describe('/api/snaptrade handler', () => {
     expect(JSON.stringify(res._body)).not.toMatch(/CONSUMER_KEY/);
   });
 
+  it('distinguishes unparseable account rows from a user with no accounts', async () => {
+    // Both used to answer {"accounts":[]}, which sent a reader looking for a
+    // brokerage connection that was in fact already there.
+    globalThis.fetch = vi.fn(async () => jsonResponse([{ name: 'no id here' }])) as unknown as typeof fetch;
+    const res = makeRes();
+    await handler({ method: 'GET', query: {} }, res);
+    expect(res._status).toBe(502);
+    expect((res._body as { error: string }).error).toBe('bad_response');
+  });
+
   it('returns an honest empty list when no brokerage is connected yet', async () => {
     globalThis.fetch = vi.fn(async () => jsonResponse([])) as unknown as typeof fetch;
     const res = makeRes();
