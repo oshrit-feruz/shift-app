@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { DemoDataNote } from '../components/DemoDataNote';
 import { Card } from '../components/Card';
 import { Num } from '../components/Num';
 import { Chip, ChipRail } from '../components/Chip';
@@ -41,6 +42,7 @@ export function MoversScreen(_: ScreenProps) {
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+      <DemoDataNote />
       <div style={{ display: 'flex', gap: 5 }}>
         {TABS.map(([k, key]) => (
           <Chip key={k} active={tab === k} onClick={() => setTab(k)}>

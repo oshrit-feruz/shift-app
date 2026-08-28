@@ -16,6 +16,7 @@ export interface UpstreamArticle {
   source?: unknown;
   publisher?: unknown;
   provider?: unknown;
+  symbols?: unknown;
 }
 
 export interface NewsArticle {
@@ -24,9 +25,29 @@ export interface NewsArticle {
   publishedAt: string;
   summary: string;
   url: string;
+  /**
+   * Tickers EODHD tagged this article with, bare and uppercased (exchange
+   * suffixes stripped: "AAPL.US" -> "AAPL").
+   *
+   * Only meaningful for the general market feed, where an article is not
+   * scoped to a ticker the caller already knows — the UI shows the first one
+   * as the story's subject. Empty is normal and not an error: plenty of real
+   * market news is about a sector, an index or a rate decision rather than
+   * one company, and inventing a ticker for those would be a fabrication.
+   */
+  symbols: string[];
 }
 
 const SUMMARY_MAX_CHARS = 280;
+
+/**
+ * How much of an upstream article body is examined at all.
+ *
+ * Comfortably more than two sentences ever need, and small enough that the
+ * quadratic-worst-case cleanup below cannot become a denial-of-service
+ * vector on a public endpoint. See summarize().
+ */
+const WORKING_MAX_CHARS = 4_000;
 
 /** First candidate that is a non-empty string, trimmed — EODHD's field names vary by row, so callers pass several in priority order. */
 function firstString(...values: unknown[]): string | null {
@@ -45,23 +66,127 @@ function firstString(...values: unknown[]): string | null {
  */
 export function summarize(content: string | null): string {
   if (!content) return '';
-  const text = content
-    .replace(/<[^>]+>/g, '')
-    .replace(/\s+/g, ' ')
-    .replace(/\s+([.,!?;:])/g, '$1')
-    .trim();
+
+  // ONE LINEAR PASS, no regex.
+  //
+  // This used to be four chained regex replaces. Each was quadratic on a run
+  // of one repeated character — measured on the old code, 80KB of "<" took
+  // ~7s in the tag strip and ~9.7s in the sentence split, against this
+  // function's own 10s budget. The content is an upstream article body, so
+  // its size and shape are not ours to trust, and one oversized row could
+  // have consumed a whole request.
+  //
+  // A single scan does the same work in time proportional to the input, with
+  // no backtracking behaviour to reason about. The WORKING_MAX_CHARS bound
+  // stays as a second line of defence: this function can only ever return
+  // two sentences capped at SUMMARY_MAX_CHARS, so nothing past that prefix
+  // could have reached the output anyway.
+  const src = content.slice(0, WORKING_MAX_CHARS);
+
+  let text = '';
+  let pendingSpace = false;
+  // A while loop rather than a for: skipping a whole tag advances the cursor
+  // by more than one, and reassigning a for-loop's counter inside its body is
+  // the kind of control flow that reads as a mistake even when it is not.
+  let i = 0;
+  while (i < src.length) {
+    const ch = src[i];
+    // Strip markup — but only where "<" actually begins a tag. A bare "<" is
+    // ordinary text in financial copy ("guidance is < 5%"), and treating it
+    // as markup silently swallows the rest of the sentence.
+    if (ch === '<' && looksLikeTag(src, i)) {
+      // Past the closing bracket in one step. looksLikeTag guarantees one
+      // exists, so indexOf cannot return -1 here.
+      i = src.indexOf('>', i + 1) + 1;
+      continue;
+    }
+    // Collapse any run of whitespace to a single space, emitted lazily so a
+    // trailing run never reaches the output.
+    if (isSpace(ch)) {
+      pendingSpace = text !== '';
+      i += 1;
+      continue;
+    }
+    // Drop the space before punctuation rather than emitting it.
+    if (pendingSpace && !isTightPunctuation(ch)) text += ' ';
+    pendingSpace = false;
+    text += ch;
+    i += 1;
+  }
   if (!text) return '';
-  const sentences = text.match(/[^.!?]+[.!?]+/g) ?? [text];
-  let out = sentences
-    .slice(0, 2)
-    .map((s) => s.trim())
-    .join(' ');
+
+  // First one or two sentences: a run of non-terminators followed by a run of
+  // terminators, matching what the old expression accepted.
+  let out = takeSentences(text, 2);
   if (out.length > SUMMARY_MAX_CHARS) {
-    // Reserve one character for the ellipsis so the result never exceeds
-    // SUMMARY_MAX_CHARS overall.
-    out = out.slice(0, SUMMARY_MAX_CHARS - 1).replace(/\s+\S*$/, '').trim() + '…';
+    const cut = out.slice(0, SUMMARY_MAX_CHARS - 1);
+    // Back up to the last space so the excerpt does not end mid-word.
+    const lastSpace = cut.lastIndexOf(' ');
+    out = (lastSpace > 0 ? cut.slice(0, lastSpace) : cut).trim() + '…';
   }
   return out;
+}
+
+/**
+ * Does the "<" at `i` begin an HTML tag?
+ *
+ * Two conditions, and both are needed:
+ * - the next character is a letter, "/" or "!" — so "< 5%" and "<= 3" stay
+ *   text, since no tag name starts with a space or an equals sign;
+ * - a ">" closes it before any further "<" — so "margins < 30% and volumes >
+ *   2m" is not read as one long tag just because a ">" appears later in the
+ *   sentence, which is the trap a plain indexOf falls into.
+ */
+function looksLikeTag(src: string, i: number): boolean {
+  const next = src[i + 1];
+  if (next === undefined) return false;
+  const isName = (next >= 'a' && next <= 'z') || (next >= 'A' && next <= 'Z') || next === '/' || next === '!';
+  if (!isName) return false;
+  const close = src.indexOf('>', i + 1);
+  if (close === -1) return false;
+  const nextOpen = src.indexOf('<', i + 1);
+  return nextOpen === -1 || nextOpen > close;
+}
+
+/** Whitespace, without a regex so the scan above stays allocation-free. */
+function isSpace(ch: string): boolean {
+  return ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r' || ch === '\f' || ch === '\v';
+}
+
+/** Punctuation that should not be preceded by a space. */
+function isTightPunctuation(ch: string): boolean {
+  return ch === '.' || ch === ',' || ch === '!' || ch === '?' || ch === ';' || ch === ':';
+}
+
+/** A sentence terminator. */
+function isTerminator(ch: string): boolean {
+  return ch === '.' || ch === '!' || ch === '?';
+}
+
+/**
+ * The first `count` sentences of already-cleaned text, joined by a space.
+ *
+ * A sentence is a run of non-terminator characters followed by a run of
+ * terminators — the same shape the previous regex matched, which means text
+ * with no terminator at all yields the whole string rather than nothing.
+ */
+function takeSentences(text: string, count: number): string {
+  const parts: string[] = [];
+  let start = 0;
+  let i = 0;
+  while (i < text.length && parts.length < count) {
+    if (!isTerminator(text[i])) {
+      i += 1;
+      continue;
+    }
+    // Consume the whole run of terminators ("?!", "...").
+    while (i < text.length && isTerminator(text[i])) i += 1;
+    parts.push(text.slice(start, i).trim());
+    start = i;
+  }
+  // No terminator anywhere: the old expression fell back to the full text.
+  if (parts.length === 0) return text.trim();
+  return parts.join(' ');
 }
 
 /**
@@ -107,7 +232,34 @@ export function mapArticle(raw: unknown): NewsArticle | null {
   if (!headline || !url || !isHttpUrl(url)) return null;
   const publishedAt = firstString(a.date, a.published_at, a.pubDate) ?? '';
   const summary = summarize(firstString(a.content));
-  return { headline, source: deriveSource(a, url), publishedAt, summary, url };
+  return {
+    headline,
+    source: deriveSource(a, url),
+    publishedAt,
+    summary,
+    url,
+    symbols: mapSymbols(a.symbols),
+  };
+}
+
+/**
+ * EODHD tags each article with an array like ["AAPL.US", "MSFT.US"]. The app
+ * addresses stocks by bare ticker, so the exchange suffix is stripped here
+ * rather than at three separate call sites. Anything that is not a usable
+ * string is dropped rather than coerced — a malformed entry must not become
+ * a ticker the UI then tries to navigate to.
+ */
+export function mapSymbols(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const v of raw) {
+    if (typeof v !== 'string') continue;
+    const bare = v.trim().split('.')[0].toUpperCase();
+    // Same allow-list as an inbound ticker: whatever ends up here can be
+    // rendered as a chip and used to open a stock page.
+    if (bare && /^[A-Z0-9-]{1,15}$/.test(bare) && !out.includes(bare)) out.push(bare);
+  }
+  return out;
 }
 
 /** EODHD requires an exchange suffix; default to US equities unless the caller already specified one (e.g. "VOD.LSE"). */

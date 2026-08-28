@@ -36,6 +36,90 @@ export interface SatelliteSignal {
   signal: 'BUY' | 'WATCH' | 'SKIP' | null;
 }
 
+/**
+ * Fundamental highlights for one ticker, straight from SEC EDGAR via the
+ * engine's /api/stock/{ticker}/fundamentals route.
+ *
+ * The engine's contract is an honest-status one: 'ok' carries real filed
+ * figures with the filing that reported them, and anything missing or
+ * unparsable comes back 'unavailable' with a reason — never an estimated or
+ * fabricated number. That maps onto this app's Loadable directly, so the
+ * screen branches on the engine's own status rather than second-guessing it.
+ *
+ * `filed` and `form` are not decoration: the engine documents this figure as
+ * display-only and explicitly NOT point-in-time (it is the newest filing on
+ * record, with no reporting lag applied). Showing which filing a number came
+ * from is what keeps that honest, so the UI must never render `revenue`
+ * without it.
+ */
+export interface Fundamentals {
+  ticker: string;
+  /** Most recent annual revenue on file, in whole currency units. */
+  revenue: number | null;
+  /** Period end the revenue figure covers, as the engine's raw YYYY-MM-DD. */
+  periodEnd: string | null;
+  /** Year-over-year change in revenue, in percent (signed). */
+  yoyPct: number | null;
+  /**
+   * Date the source filing was filed with the SEC, raw YYYY-MM-DD, and the
+   * form it came from. Non-null on purpose: a revenue figure with no filing
+   * behind it is not a "filed result" and must not be presented as one, so
+   * the parser rejects such a payload outright (→ unavailable) rather than
+   * letting a number reach the screen with its provenance shrugged off as
+   * "—". This is the type-level enforcement of the rule above.
+   */
+  filed: string;
+  /** SEC form type the figure came from, e.g. '10-K'. */
+  form: string;
+  /** Provenance string from the engine, e.g. 'SEC EDGAR companyfacts'. */
+  source: string | null;
+}
+
+/**
+ * One real headline from the /api/news Vercel function.
+ *
+ * `summary` is a 1-2 sentence excerpt, never the full article body — the
+ * function enforces that server-side for copyright reasons, and the UI must
+ * not try to render more than this carries. `url` is the external article.
+ */
+export interface StockNewsArticle {
+  headline: string;
+  source: string;
+  /** Raw ISO timestamp from the provider. */
+  publishedAt: string;
+  summary: string;
+  url: string;
+  /**
+   * Tickers the provider tagged the article with. Only populated on the
+   * general market feed, where the story's subject is not already known from
+   * the request. Empty is normal — a rate decision or a sector piece is
+   * about no single company, and inventing a ticker for it would be a
+   * fabrication.
+   */
+  symbols: string[];
+}
+
+/**
+ * One company's scheduled or reported quarter, from the earnings calendar.
+ *
+ * `actual` and `surprisePct` are null for a quarter that has not been
+ * reported yet — the normal state for anything on the upcoming calendar, and
+ * not a defect. `estimate` is null when a company has no published consensus.
+ * All three render as "—" rather than being filled in.
+ */
+export interface EarningsRow {
+  ticker: string;
+  /** Date results were announced, raw YYYY-MM-DD. */
+  reportDate: string;
+  /** Fiscal period the results cover, raw YYYY-MM-DD, or null. */
+  periodEnd: string | null;
+  /** Before market open / after market close, or null when unstated. */
+  timing: 'BMO' | 'AMC' | null;
+  actual: number | null;
+  estimate: number | null;
+  surprisePct: number | null;
+}
+
 export interface Holding {
   ticker: string;
   shares: number;

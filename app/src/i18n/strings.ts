@@ -80,12 +80,14 @@ export const STRINGS = {
     'תנועות גדולות ביום אחד באות בעקבות חדשות. אפשר להקיש כדי לקרוא למה.',
   ),
   'home.allMovers': p('All market movers →', 'כל מובילי השוק →'),
-  'home.earnWeek': p('Earnings this week', 'דוחות השבוע'),
+  'home.earnWeek': p('Earnings ahead', 'דוחות בשבוע הקרוב'),
   'home.earnHelp': p(
     'A quarterly report card. Prices often swing the day it lands.',
     'תעודת ציונים רבעונית. המחיר בדרך כלל זז ביום הפרסום.',
   ),
   'home.afterClose': p('After close', 'אחרי הנעילה'),
+  'home.beforeOpen': p('Before open', 'לפני הפתיחה'),
+  'home.allEarnings': p('All earnings', 'כל הדוחות'),
 
   // ── Setup banner / resume ─────────────────────────────────────────────
   'setup.banner': p('Complete your setup', 'השלימי את ההגדרה'),
@@ -328,7 +330,96 @@ export const STRINGS = {
   'stock.rateS': p('Sell 3', 'מכירה 3'),
   'stock.newsBeg': p('Why people are talking about it', 'למה מדברים עליה'),
   'stock.newsAdv': p('News feed', 'פיד חדשות'),
+  // Stock detail sub-tabs and the two live-data tabs behind them.
+  'stock.tabOverview': p('Overview', 'סקירה'),
+  'stock.tabReports': p('Reports', 'דוחות'),
+  'stock.tabNews': p('News', 'חדשות'),
+  'stock.reportsTitle': p('Latest filed results', 'תוצאות מהדוח האחרון'),
+  'stock.revenue': p('Annual revenue', 'הכנסות שנתיות'),
+  'stock.yoy': p('vs. previous year', 'לעומת השנה הקודמת'),
+  'stock.periodEnd': p('Period ending', 'תקופה שהסתיימה'),
+  'stock.filedOn': p('Filed', 'הוגש'),
+  'stock.reportsNote': p(
+    'Figures as filed with the SEC. Shown for reference — this is the newest filing on record, not a point-in-time view.',
+    'נתונים כפי שהוגשו ל-SEC. מוצגים לעיון — זהו הדוח העדכני ביותר הרשום, ולא תמונת מצב לתאריך מסוים.',
+  ),
+  'stock.newsEmpty': p(
+    'No recent articles for this stock.',
+    'אין כתבות אחרונות על מניה זו.',
+  ),
+  'stock.newsRead': p('Read the full article', 'לכתבה המלאה'),
+  'stock.newsExcerptNote': p(
+    'Excerpts only — the full article opens at its source.',
+    'תקצירים בלבד — הכתבה המלאה נפתחת באתר המקור.',
+  ),
+  'stock.engineTitle': p('Recovery Detector view', 'מבט Recovery Detector'),
+  'stock.drawdown': p('Below 52-week high', 'מתחת לשיא 52 שבועות'),
+  'stock.high52w': p('52-week high', 'שיא 52 שבועות'),
+  'stock.score': p('Composite score', 'ציון משוקלל'),
+  'stock.notRanked': p(
+    'This stock is not in the current Recovery Detector ranking, so there are no engine figures for it today.',
+    'מניה זו אינה מופיעה בדירוג הנוכחי של Recovery Detector, ולכן אין עבורה נתוני מנוע היום.',
+  ),
+  'stock.history': p('Reported quarters', 'רבעונים שדווחו'),
+  'stock.historyEmpty': p('No reported quarters on record.', 'אין רבעונים מדווחים ברשומות.'),
+  'stock.upcoming': p('Scheduled', 'מתוכנן'),
+  'stock.epsActual': p('EPS', 'רווח למניה'),
+  'stock.epsEst': p('est.', 'צפי'),
+  'stock.beat': p('beat', 'מעל הצפי'),
+  'stock.miss': p('miss', 'מתחת לצפי'),
+  'stock.inline': p('in line', 'בדיוק כצפי'),
+  'news.feedEmpty': p('No market news right now.', 'אין חדשות שוק כרגע.'),
+  'news.watchlistEmpty': p(
+    'No recent news for the stocks you follow.',
+    'אין חדשות אחרונות על המניות שאת עוקבת אחריהן.',
+  ),
+  'news.watchlistNone': p(
+    'Your watchlist is empty, so there is nothing to pull news for.',
+    'הווטצ׳ליסט שלך ריק, אז אין עבור מה למשוך חדשות.',
+  ),
+  'news.openSource': p('Open at the source', 'לפתוח במקור'),
+  'earn.truncated': p(
+    'Showing {shown} of {total} reports in the week ahead.',
+    'מוצגים {shown} מתוך {total} דוחות בשבוע הקרוב.',
+  ),
+  'earn.noneInShown': p(
+    'None of the reports shown match — but the week ahead is only partly loaded, so there may be others.',
+    'אף אחד מהדוחות המוצגים לא תואם — אבל השבוע הקרוב נטען רק חלקית, ייתכן שיש נוספים.',
+  ),
+  'earn.weekEmpty': p('No companies report in the week ahead.', 'אין חברות שמדווחות בשבוע הקרוב.'),
+  // The market-wide feed lists only reports that have not happened yet, so a
+  // reader who sees a company they know reported on Monday must not conclude
+  // the app thinks it is still pending. Said plainly, once, above the week.
+  // Showcase mode is a deliberate illustration, and the reader is told so
+  // wherever it renders — an unlabelled demo is exactly the thing this app
+  // exists to not do.
+  // Sample prices are still what most screens render. Saying so in place is
+  // the difference between a prototype and a screen that misleads.
+  'demo.pricesNote': p(
+    'Prices, charts and portfolio figures on this screen are sample data, not live market data.',
+    'מחירים, גרפים ונתוני תיק במסך הזה הם נתוני דוגמה, לא נתוני שוק אמיתיים.',
+  ),
+  'demo.showcase': p(
+    'Illustrative data — this is how these screens look on a paid data plan that includes reported results.',
+    'נתוני הדגמה — כך המסכים נראים עם מנוי נתונים בתשלום שכולל גם תוצאות שדווחו.',
+  ),
+  'set.showcaseRow': p('Demo: full earnings data', 'הדגמה: נתוני דוחות מלאים'),
+  'set.showcaseHelp': p(
+    'Fills the calendar and each stock’s history with illustrative figures, to show what a paid data plan adds. Clearly marked wherever it shows, and never used when live data fails.',
+    'ממלא את היומן ואת ההיסטוריה של כל מניה בנתוני הדגמה, כדי להראות מה מנוי בתשלום מוסיף. מסומן בבירור בכל מקום שהוא מופיע, ולעולם לא משמש כשנתונים חיים נכשלים.',
+  ),
+  'earn.scheduledOnly': p(
+    'The week ahead: reports still to come. Results already published appear on each stock’s own page.',
+    'השבוע הקרוב: דוחות שעוד צפויים. תוצאות שכבר פורסמו מופיעות בדף של כל מניה.',
+  ),
   'stock.nextEarn': p('Next earnings', 'הדוח הבא'),
+  // Reached by opening a company from the earnings calendar: the sample
+  // price table only covers a handful of tickers, but filings and news are
+  // live for any symbol, so the page is worth showing rather than blanking.
+  'stock.noQuote': p(
+    'No sample price data for this symbol — the reports and news below are live.',
+    'אין נתוני מחיר לדוגמה לסמל הזה — הדוחות והחדשות למטה הם נתונים חיים.',
+  ),
   'stock.nov': p('Nov', 'נוב׳'),
   'stock.chartHelp': p(
     "Up about {pct} over three months. The line is each day's closing price — where the stock finished the day.",
@@ -485,7 +576,7 @@ export const STRINGS = {
   'earn.revEst': p('Rev est', 'צפי הכנסות'),
   'earn.mktCap': p('Mkt cap', 'שווי שוק'),
   'earn.lastSurprise': p('Last surprise', 'הפתעה אחרונה'),
-  'earn.weekOf': p('{n} companies report this week', '{n} חברות מדווחות השבוע'),
+  'earn.weekOf': p('{n} companies report in the week ahead', '{n} חברות מדווחות בשבוע הקרוב'),
   'earn.noneMatch': p('No reports match this filter', 'אין דוחות שתואמים לסינון הזה'),
 
 
