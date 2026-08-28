@@ -160,3 +160,42 @@ export const unavailable = <T,>(reason?: { en: string; he: string }): Loadable<T
   reason,
 });
 export const ok = <T,>(data: T): Loadable<T> => ({ status: 'ok', data });
+
+/**
+ * One real brokerage position as /api/snaptrade reports it. Every number is
+ * nullable for the same reason SatelliteSignal's are: this comes from a live
+ * brokerage via SnapTrade, whose coverage of any given field varies by broker,
+ * and an absent number renders as "—" rather than being guessed or zeroed.
+ */
+export interface ConnectedPosition {
+  ticker: string;
+  description: string | null;
+  units: number | null;
+  price: number | null;
+  marketValue: number | null;
+  avgCost: number | null;
+  openPnl: number | null;
+  currency: string | null;
+}
+
+export interface ConnectedBalance {
+  currency: string | null;
+  cash: number | null;
+  buyingPower: number | null;
+}
+
+/**
+ * One real, read-only brokerage account pulled through the founder-demo
+ * SnapTrade Personal integration. The account number arrives already masked —
+ * the full number never leaves the server.
+ */
+export interface ConnectedAccount {
+  id: string;
+  name: string | null;
+  numberMasked: string | null;
+  institution: string | null;
+  currency: string | null;
+  totalValue: number | null;
+  balances: ConnectedBalance[];
+  positions: ConnectedPosition[];
+}

@@ -29,22 +29,50 @@ import {
   type SymbolInfo,
 } from './types';
 
+export type DemoFlag = 'unavailable' | 'liveAccount';
+
+/** Subscribers re-rendered when a flag flips — see useDemoFlag(). */
+const flagListeners = new Set<() => void>();
+
 export const DEMO_FLAGS = {
-  key: { unavailable: 'shift.demo.unavailable' },
+  key: {
+    unavailable: 'shift.demo.unavailable',
+    /**
+     * Founder-demo switch: replace the demo adapter's accounts and holdings
+     * with the one real brokerage account read through SnapTrade Personal
+     * (see data/snaptradeAccount.ts). Off by default, and off means the app
+     * behaves exactly as it did before this flag existed — every surface it
+     * touches falls straight back to the demo adapter.
+     */
+    liveAccount: 'shift.demo.liveAccount',
+  },
   get unavailable(): boolean {
+    return this.read('unavailable');
+  },
+  get liveAccount(): boolean {
+    return this.read('liveAccount');
+  },
+  read(key: DemoFlag): boolean {
     try {
-      return localStorage.getItem(this.key.unavailable) === '1';
+      return localStorage.getItem(this.key[key]) === '1';
     } catch {
       return false;
     }
   },
-  set(key: 'unavailable', on: boolean) {
+  set(key: DemoFlag, on: boolean) {
     try {
       if (on) localStorage.setItem(this.key[key], '1');
       else localStorage.removeItem(this.key[key]);
     } catch {
       /* no storage — flags simply don't persist */
     }
+    // Notified even when persistence failed: the flag is still in effect for
+    // this session, so the screens reading it must re-render either way.
+    for (const listener of flagListeners) listener();
+  },
+  subscribe(listener: () => void): () => void {
+    flagListeners.add(listener);
+    return () => flagListeners.delete(listener);
   },
 };
 

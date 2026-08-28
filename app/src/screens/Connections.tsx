@@ -6,8 +6,15 @@ import { Num } from '../components/Num';
 import { LogoTile } from '../components/TickerTile';
 import { InstitutionRows } from './advisory/InstitutionRows';
 import { NewPortfolioSheet } from '../sheets/NewPortfolioSheet';
+import { DataState, EmptyState } from '../components/DataState';
+import { SkeletonList } from '../components/Skeleton';
+import { useDemoFlag } from '../data/useDemoFlag';
+import { useLoadable } from '../data/useLoadable';
+import { fetchConnectedAccounts } from '../data/snaptradeAccount';
+import { useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
+import { money } from '../lib/format';
 import type { ScreenProps } from '../App';
 
 const LINKED = [
@@ -19,6 +26,7 @@ const LINKED = [
 export function ConnectionsScreen(_: ScreenProps) {
   const { language } = useTheme();
   const t = useT();
+  const live = useDemoFlag('liveAccount');
   const [newPfOpen, setNewPfOpen] = useState(false);
 
   return (
@@ -30,6 +38,11 @@ export function ConnectionsScreen(_: ScreenProps) {
         </p>
       </Card>
 
+      {/* With the founder-demo switch on, the three demo brokers below give
+          way to the one real account read through SnapTrade. */}
+      {live ? (
+        <LiveLinkedAccounts />
+      ) : (
       <Card padding="4px 0" gap={0}>
         {LINKED.map((c, i) => (
           <div
@@ -60,6 +73,7 @@ export function ConnectionsScreen(_: ScreenProps) {
           </div>
         ))}
       </Card>
+      )}
 
       <Card padding="4px 0" gap={0}>
         <CardTitle>
@@ -97,5 +111,89 @@ export function ConnectionsScreen(_: ScreenProps) {
       </Card>
       <NewPortfolioSheet open={newPfOpen} onClose={() => setNewPfOpen(false)} />
     </div>
+  );
+}
+
+/**
+ * The real connected account in the linked-accounts list, in place of the
+ * demo brokers.
+ *
+ * The row carries the same "real data" framing as the dedicated demo screen
+ * and links to it, so a total shown here can always be traced to the
+ * per-field view that marks what the brokerage did not report. Loading,
+ * unavailable and "nothing connected yet" are all rendered honestly — a
+ * failure here never falls back to the demo rows above.
+ */
+function LiveLinkedAccounts() {
+  const t = useT();
+  const dispatch = useDispatch();
+  const accounts = useLoadable(() => fetchConnectedAccounts(), []);
+
+  return (
+    <Card padding="4px 0" gap={0}>
+      <div style={{ padding: '10px 13px 2px' }}>
+        <DataState
+          state={accounts.state}
+          onRetry={accounts.retry}
+          skeleton={<SkeletonList count={1} leading minHeight={52} />}
+        >
+          {(list) =>
+            list.length === 0 ? (
+              <EmptyState>{t('live.none')}</EmptyState>
+            ) : (
+              <>
+                {list.map((account) => (
+                  <button
+                    key={account.id}
+                    type="button"
+                    onClick={() => dispatch({ type: 'go', screen: 'snaptrade' })}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      width: '100%',
+                      padding: '9px 0',
+                      border: 0,
+                      background: 'transparent',
+                      color: 'inherit',
+                      font: 'inherit',
+                      cursor: 'pointer',
+                      textAlign: 'start',
+                    }}
+                  >
+                    <LogoTile src={null} label={(account.institution ?? 'A').slice(0, 2).toUpperCase()} />
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ display: 'block', fontSize: 14 }}>
+                        {account.institution ?? account.name ?? account.id}{' '}
+                        {account.numberMasked && (
+                          <span className="text-muted" style={{ fontSize: 13 }}>
+                            <Num>{account.numberMasked}</Num>
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-muted" style={{ display: 'block', fontSize: 12.5 }}>
+                        {t('live.title')}
+                      </span>
+                    </span>
+                    <span style={{ textAlign: 'end', display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-end' }}>
+                      {account.totalValue === null ? (
+                        <span className="text-muted" style={{ fontSize: 14 }}>
+                          —
+                        </span>
+                      ) : (
+                        <Num size={14}>{money(account.totalValue)}</Num>
+                      )}
+                      <Tag variant="accent" fontSize={11}>
+                        {t('live.badge')}
+                      </Tag>
+                    </span>
+                  </button>
+                ))}
+              </>
+            )
+          }
+        </DataState>
+      </div>
+    </Card>
   );
 }

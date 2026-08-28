@@ -16,6 +16,7 @@ import { NewsScreen } from './screens/News';
 import { MoreScreen } from './screens/More';
 import { SettingsScreen } from './screens/Settings';
 import { ConnectionsScreen } from './screens/Connections';
+import { ConnectedAccountScreen } from './screens/ConnectedAccount';
 import { AdvisoryChat } from './screens/advisory/Chat';
 import { AdvisoryDisclosure } from './screens/advisory/Disclosure';
 import { AdvisoryRecommendation } from './screens/advisory/Recommendation';
@@ -44,6 +45,7 @@ const SCREENS: Record<Screen, (p: ScreenProps) => JSX.Element> = {
   more: MoreScreen,
   settings: SettingsScreen,
   connections: ConnectionsScreen,
+  snaptrade: ConnectedAccountScreen,
   advChat: AdvisoryChat,
   advDisc: AdvisoryDisclosure,
   advDash: AdvisoryRecommendation,

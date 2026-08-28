@@ -13,6 +13,7 @@ export type Screen =
   | 'more'
   | 'settings'
   | 'connections'
+  | 'snaptrade'
   | 'advChat'
   | 'advDisc'
   | 'advDash'

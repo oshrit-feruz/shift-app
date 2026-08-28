@@ -4,6 +4,7 @@ import { Tag } from '../components/Tag';
 import { useDispatch, type Screen } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
+import { useDemoFlag } from '../data/useDemoFlag';
 import type { StringKey } from '../i18n/strings';
 import type { ScreenProps } from '../App';
 
@@ -17,11 +18,26 @@ const LINKS: Array<{ screen: Screen; icon: IconName; label: StringKey; help: Str
   { screen: 'settings', icon: 'settings', label: 'more.settings', help: 'more.settingsHelp' },
 ];
 
+/**
+ * The founder-demo connected-account screen. Kept out of LINKS because it is
+ * listed only while the Settings switch is on — with the switch off the app
+ * shows no trace of it, which is what makes the before/after comparison a
+ * real comparison.
+ */
+const LIVE_LINK: (typeof LINKS)[number] = {
+  screen: 'snaptrade',
+  icon: 'grid',
+  label: 'more.snaptrade',
+  help: 'more.snaptradeHelp',
+};
+
 export function MoreScreen(_: ScreenProps) {
   const dispatch = useDispatch();
   const { mode, setMode } = useTheme();
   const t = useT();
   const beg = mode === 'beginner';
+  const live = useDemoFlag('liveAccount');
+  const links = live ? [...LINKS, LIVE_LINK] : LINKS;
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -49,7 +65,7 @@ export function MoreScreen(_: ScreenProps) {
       </Card>
 
       <Card padding="6px 0" gap={0}>
-        {LINKS.map((r) => (
+        {links.map((r) => (
           <button
             key={r.screen}
             type="button"

@@ -637,6 +637,62 @@ export const STRINGS = {
   ),
   'data.retry': p('Retry', 'לנסות שוב'),
   'data.demo': p('Demo data', 'נתוני הדגמה'),
+
+  // ── Connected account (founder demo, SnapTrade Personal) ──────────────
+  // A demo-only, single-account, read-only integration. Every string here is
+  // written to make that scope unmistakable — nothing may read as a feature
+  // an end user can use today.
+  'title.snaptrade': p('Connected account', 'חשבון מקושר'),
+  'kicker.snaptrade': p('Demo · read-only', 'הדגמה · קריאה בלבד'),
+  'live.title': p('Connected account (demo)', 'חשבון מקושר (הדגמה)'),
+  'live.badge': p('Real data', 'נתונים אמיתיים'),
+  'live.intro': p(
+    'One real brokerage account, read live and read-only through SnapTrade. This is a founder demo on SnapTrade\'s free Personal tier — a single account, not account linking for users.',
+    'חשבון ברוקר אמיתי אחד, נקרא בזמן אמת ובקריאה בלבד דרך SnapTrade. זו הדגמה של המייסדת בשכבת Personal החינמית של SnapTrade — חשבון בודד, לא חיבור חשבונות למשתמשות.',
+  ),
+  'live.notForUsers': p(
+    'Not available to users. Multi-user account linking would need SnapTrade\'s Commercial tier with KYC and billing — a separate decision that has not been made.',
+    'לא זמין למשתמשות. חיבור חשבונות לריבוי משתמשות ידרוש את שכבת Commercial של SnapTrade עם KYC וחיוב — החלטה נפרדת שטרם התקבלה.',
+  ),
+  'live.readOnly': p(
+    'Read-only: balances and positions only. No trading endpoint is ever called.',
+    'קריאה בלבד: יתרות ופוזיציות בלבד. לא מתבצעת שום קריאה לממשק מסחר.',
+  ),
+  'live.none': p('No brokerage account connected yet.', 'עדיין לא מקושר חשבון ברוקר.'),
+  'live.noneHelp': p(
+    'Connect one in SnapTrade\'s own Connection Portal and it will appear here. Nothing is shown until a real account is linked.',
+    'אפשר לקשר חשבון בפורטל החיבורים של SnapTrade והוא יופיע כאן. עד שיקושר חשבון אמיתי לא יוצג דבר.',
+  ),
+  'live.balances': p('Balances', 'יתרות'),
+  'live.positions': p('Positions', 'פוזיציות'),
+  'live.noPositions': p('This account holds no positions.', 'בחשבון הזה אין פוזיציות.'),
+  'live.cash': p('Cash', 'מזומן'),
+  'live.buyingPower': p('Buying power', 'כוח קנייה'),
+  'live.total': p('Total value', 'שווי כולל'),
+  'live.units': p('Units', 'יחידות'),
+  'live.price': p('Price', 'מחיר'),
+  'live.value': p('Value', 'שווי'),
+  'live.avgCost': p('Avg cost', 'עלות ממוצעת'),
+  'live.openPnl': p('Open P&L', 'רווח/הפסד פתוח'),
+  'live.unknownFields': p(
+    'A dash means the brokerage did not report that field. Nothing here is estimated or filled in.',
+    'מקף פירושו שהברוקר לא דיווח על השדה הזה. שום נתון כאן אינו משוער או מושלם מעצמנו.',
+  ),
+  'live.noHistory': p(
+    'No performance history: this is a live read of the account\'s current state, and the brokerage reports no day change or priced history through this integration.',
+    'אין היסטוריית ביצועים: זו קריאה חיה של מצב החשבון כרגע, והברוקר אינו מדווח שינוי יומי או היסטוריה מתומחרת דרך החיבור הזה.',
+  ),
+  'live.noAllocation': p(
+    'The brokerage did not price these positions, so no allocation can be shown.',
+    'הברוקר לא תמחר את הפוזיציות, ולכן לא ניתן להציג פילוח.',
+  ),
+  'live.setting': p('Demo: real connected account', 'הדגמה: חשבון מקושר אמיתי'),
+  'live.settingHelp': p(
+    'Off shows the app exactly as it is today, with demo accounts. On replaces them with the one real brokerage account read through SnapTrade. Founder demo only.',
+    'כבוי מציג את האפליקציה בדיוק כפי שהיא היום, עם חשבונות הדגמה. דלוק מחליף אותם בחשבון הברוקר האמיתי היחיד שנקרא דרך SnapTrade. להדגמת המייסדת בלבד.',
+  ),
+  'more.snaptrade': p('Connected account (demo)', 'חשבון מקושר (הדגמה)'),
+  'more.snaptradeHelp': p('One real account, read-only', 'חשבון אמיתי אחד, קריאה בלבד'),
 } as const;
 
 export type StringKey = keyof typeof STRINGS;

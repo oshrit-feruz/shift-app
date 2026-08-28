@@ -14,6 +14,8 @@ import { useAppState, useDispatch, setupProgress } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { demoService } from '../data/demoAdapter';
+import { appService } from '../data/appService';
+import { useDemoFlag } from '../data/useDemoFlag';
 import { useLoadable } from '../data/useLoadable';
 import { money, pct, signalColor } from '../lib/format';
 import type { ScreenProps } from '../App';
@@ -25,7 +27,10 @@ export function HomeScreen(_: ScreenProps) {
   const t = useT();
   const beg = mode === 'beginner';
   const symbols = useLoadable(() => demoService.symbols(), []);
-  const portfolios = useLoadable(() => demoService.portfolios(), []);
+  // Re-fetched when the founder-demo live-account switch flips, so the
+  // headline total follows the same source as the Portfolio tab.
+  const live = useDemoFlag('liveAccount');
+  const portfolios = useLoadable(() => appService.portfolios(), [live]);
   const setup = setupProgress(s);
   const pfSeries = demoService.series('home-pf', 60, 0.42, 2.2);
 
@@ -52,7 +57,12 @@ export function HomeScreen(_: ScreenProps) {
           }
         >
           {(pfs) => {
-            const main = pfs.find((x) => x.id === 'blink');
+            // The first linked account, not a hardcoded id: with the demo
+            // switch off that is still Blink (the demo adapter lists it
+            // first), and with it on it is the real connected account, so
+            // the hero follows whichever source is in effect instead of
+            // falling to the "no portfolio" state.
+            const main = pfs.find((x) => x.kind === 'linked');
             if (!main) {
               return (
                 <Card padding={18} gap={8} style={{ textAlign: 'center', alignItems: 'center' }}>
@@ -75,15 +85,28 @@ export function HomeScreen(_: ScreenProps) {
                 <div style={{ fontFamily: 'var(--font-heading)', fontSize: 42, lineHeight: 1.05, fontWeight: 700 }}>
                   <Num>{money(main.total)}</Num>
                 </div>
-                <div style={{ color: signalColor(main.dayPct), fontSize: 15, fontWeight: 600 }}>
-                  <Num weight={600}>{`${main.dayPct >= 0 ? '+' : '−'}${money(Math.abs((main.total * main.dayPct) / 100))} · ${pct(main.dayPct)}`}</Num>
-                </div>
-                <div style={{ marginTop: 10 }}>
-                  <AreaChart values={pfSeries} height={76} />
-                </div>
-                <p style={{ fontSize: 14, lineHeight: 1.5, margin: '10px 0 0', opacity: 0.85, fontWeight: 500 }}>
-                  {t('home.pfBlurb')}
-                </p>
+                {/* The day change and the chart are the demo adapter's
+                    seeded series. Over a real connected account they would be
+                    invented performance under a real total, so with the
+                    live-account switch on they give way to a statement of
+                    what is actually known. */}
+                {live ? (
+                  <p className="text-muted" style={{ fontSize: 13, lineHeight: 1.5, margin: '8px 0 0' }}>
+                    {t('live.noHistory')}
+                  </p>
+                ) : (
+                  <>
+                    <div style={{ color: signalColor(main.dayPct), fontSize: 15, fontWeight: 600 }}>
+                      <Num weight={600}>{`${main.dayPct >= 0 ? '+' : '−'}${money(Math.abs((main.total * main.dayPct) / 100))} · ${pct(main.dayPct)}`}</Num>
+                    </div>
+                    <div style={{ marginTop: 10 }}>
+                      <AreaChart values={pfSeries} height={76} />
+                    </div>
+                    <p style={{ fontSize: 14, lineHeight: 1.5, margin: '10px 0 0', opacity: 0.85, fontWeight: 500 }}>
+                      {t('home.pfBlurb')}
+                    </p>
+                  </>
+                )}
               </Card>
             );
           }}

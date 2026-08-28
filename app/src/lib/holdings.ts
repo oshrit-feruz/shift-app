@@ -1,4 +1,4 @@
-import { demoService } from '../data/demoAdapter';
+import { appService } from '../data/appService';
 import { ok, unavailable, type Loadable } from '../data/types';
 import type { Holding, PortfolioSummary } from '../data/types';
 import type { ManualPortfolio, ManualTransaction } from '../state/appState';
@@ -102,7 +102,7 @@ export interface TickerPosition {
  * definition regardless of what the demo numbers happen to show.
  *
  * The user's own manual portfolios are included alongside the service-reported
- * ones. They have no service holdings — demoService.holdings() returns an
+ * ones. They have no service holdings — appService.holdings() returns an
  * empty list for an id it doesn't know — so their positions come entirely from
  * the manual transaction log, exactly as the Portfolio tab builds them. Leaving
  * them out would mean a ticker you logged yourself showed up on the Portfolio
@@ -118,14 +118,14 @@ export async function fetchYourPositions(
   manualTransactions: Record<string, ManualTransaction[]>,
   manualPortfolios: ManualPortfolio[] = [],
 ): Promise<Loadable<TickerPosition[]>> {
-  const pfs = await demoService.portfolios();
+  const pfs = await appService.portfolios();
   if (pfs.status !== 'ok') return pfs;
 
   // Built from the same list the Portfolio tab renders, so the index recorded
   // below addresses the same row the tab would select.
   const all = portfolioList(pfs.data, manualPortfolios);
   const eligible = all.filter((pf) => pf.kind !== 'aggregate');
-  const settled = await Promise.all(eligible.map((pf) => demoService.holdings(pf.id)));
+  const settled = await Promise.all(eligible.map((pf) => appService.holdings(pf.id)));
   if (settled.some((r) => r.status !== 'ok')) return unavailable();
 
   const results: TickerPosition[] = [];

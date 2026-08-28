@@ -15,6 +15,8 @@ import { useAppState, useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { demoService } from '../data/demoAdapter';
+import { appService } from '../data/appService';
+import { useDemoFlag } from '../data/useDemoFlag';
 import { useLoadable } from '../data/useLoadable';
 import { money, pct, signalColor } from '../lib/format';
 import { TxSheet } from '../sheets/TxSheet';
@@ -36,7 +38,12 @@ export function PortfolioScreen(_: ScreenProps) {
   const { mode, language } = useTheme();
   const t = useT();
   const beg = mode === 'beginner';
-  const portfolios = useLoadable(() => demoService.portfolios(), []);
+  // With the founder-demo switch on, these accounts are the one REAL
+  // brokerage account read through SnapTrade; with it off they are the demo
+  // adapter's, exactly as before. The flag is read reactively so flipping it
+  // in Settings re-renders this screen rather than waiting for a remount.
+  const live = useDemoFlag('liveAccount');
+  const portfolios = useLoadable(() => appService.portfolios(), [live]);
   const [txOpen, setTxOpen] = useState(false);
   const [newPfOpen, setNewPfOpen] = useState(false);
 
@@ -75,7 +82,7 @@ export function PortfolioScreen(_: ScreenProps) {
           const aggTotal = inAgg.reduce((a, x) => a + x.total, 0);
           const series = demoService.series(`pf-${pf.id}`, 70, pf.dayPct >= 0 ? 0.5 : 0.16, 2.4);
           const bench = demoService.series('bench-spy', 70, 0.22, 1.4);
-          const holdings = <Holdings pfId={pf.id} />;
+          const holdings = <Holdings pfId={pf.id} live={live} />;
 
           return (
             <>
@@ -216,32 +223,58 @@ export function PortfolioScreen(_: ScreenProps) {
                   <Num size={27} style={{ fontFamily: 'var(--font-heading)', lineHeight: 1.1 }}>
                     {money(isAgg ? aggTotal : pf.total)}
                   </Num>
-                  <span style={{ fontSize: 13, color: signalColor(pf.dayPct), paddingBottom: 3 }}>
-                    <Num>{pct(pf.dayPct)}</Num> {t('pf.today')}
-                  </span>
+                  {/* The day change and the performance chart come from the
+                      demo adapter's seeded series. Over a real connected
+                      account they would be fabricated performance sitting
+                      under a real total — the one thing this app's data
+                      contract forbids — so with the live-account switch on
+                      they are replaced by a statement of what is actually
+                      known. */}
+                  {!live && (
+                    <span style={{ fontSize: 13, color: signalColor(pf.dayPct), paddingBottom: 3 }}>
+                      <Num>{pct(pf.dayPct)}</Num> {t('pf.today')}
+                    </span>
+                  )}
                 </div>
-                <AreaChart values={series} height={110} pad={8} benchmark={bench} />
-                <div className="text-muted" style={{ display: 'flex', gap: 14, fontSize: 12.5 }}>
-                  <span>
-                    <span style={{ color: 'var(--acc-lite)' }}>—</span> {isAgg ? t('pf.allAccounts') : pf.name}
-                  </span>
-                  <span>{t('pf.benchmark')}</span>
-                </div>
+                {live ? (
+                  <p className="text-muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.5 }}>
+                    {t('live.noHistory')}
+                  </p>
+                ) : (
+                  <>
+                    <AreaChart values={series} height={110} pad={8} benchmark={bench} />
+                    <div className="text-muted" style={{ display: 'flex', gap: 14, fontSize: 12.5 }}>
+                      <span>
+                        <span style={{ color: 'var(--acc-lite)' }}>—</span> {isAgg ? t('pf.allAccounts') : pf.name}
+                      </span>
+                      <span>{t('pf.benchmark')}</span>
+                    </div>
+                  </>
+                )}
               </Card>
 
               <Card padding={14} gap={10}>
                 <CardTitle>{t('pf.allocation')}</CardTitle>
-                <DonutChart
-                  slices={[
-                    { label: 'NVDA', pct: 28, colorVar: ALLOC_COLORS[0] },
-                    { label: 'AMD', pct: 19, colorVar: ALLOC_COLORS[1] },
-                    { label: 'MSFT', pct: 15, colorVar: ALLOC_COLORS[2] },
-                    { label: 'AAPL', pct: 13, colorVar: 'var(--acc-pale)' },
-                    { label: 'LLY', pct: 11, colorVar: 'var(--muted)' },
-                    { label: language === 'he' ? 'מזומן' : 'Cash', pct: 14, colorVar: 'var(--line)' },
-                  ]}
-                />
-                {beg && (
+                {/* The slices below are the design prototype's fixed demo
+                    weights. With a real account connected they are computed
+                    from that account's actual position values instead — an
+                    invented allocation over real holdings would misstate the
+                    concentration this card exists to show. */}
+                {live ? (
+                  <LiveAllocation pfId={pf.id} />
+                ) : (
+                  <DonutChart
+                    slices={[
+                      { label: 'NVDA', pct: 28, colorVar: ALLOC_COLORS[0] },
+                      { label: 'AMD', pct: 19, colorVar: ALLOC_COLORS[1] },
+                      { label: 'MSFT', pct: 15, colorVar: ALLOC_COLORS[2] },
+                      { label: 'AAPL', pct: 13, colorVar: 'var(--acc-pale)' },
+                      { label: 'LLY', pct: 11, colorVar: 'var(--muted)' },
+                      { label: language === 'he' ? 'מזומן' : 'Cash', pct: 14, colorVar: 'var(--line)' },
+                    ]}
+                  />
+                )}
+                {beg && !live && (
                   <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
                     {t('pf.concentration')}
                   </p>
@@ -269,10 +302,10 @@ export function PortfolioScreen(_: ScreenProps) {
  * portfolio's manual buy/sell log applied on top, so a position the user
  * entered by hand reads the same as a synced one.
  */
-function Holdings({ pfId }: { pfId: string }) {
+function Holdings({ pfId, live }: { pfId: string; live: boolean }) {
   const s = useAppState();
   const dispatch = useDispatch();
-  const holdings = useLoadable(() => demoService.holdings(pfId), [pfId]);
+  const holdings = useLoadable(() => appService.holdings(pfId), [pfId, live]);
   const transactions = s.manualTransactions[pfId] ?? [];
 
   return (
@@ -299,6 +332,43 @@ function Holdings({ pfId }: { pfId: string }) {
             ))}
           </>
         );
+      }}
+    </DataState>
+  );
+}
+
+/**
+ * Allocation computed from a real connected account's actual position values.
+ *
+ * Only positions the brokerage priced can be weighted, so anything unpriced is
+ * excluded and said so plainly rather than being folded in at an assumed
+ * value. If nothing is priced there is no allocation to draw, and the card
+ * says that instead of rendering an empty ring that reads as "no holdings".
+ */
+function LiveAllocation({ pfId }: { pfId: string }) {
+  const t = useT();
+  const holdings = useLoadable(() => appService.holdings(pfId), [pfId]);
+
+  return (
+    <DataState
+      state={holdings.state}
+      onRetry={holdings.retry}
+      skeleton={<Skeleton height={132} radius="var(--radius-md)" />}
+    >
+      {(rows) => {
+        const priced = rows.filter((r) => r.value > 0);
+        const total = priced.reduce((sum, r) => sum + r.value, 0);
+        if (total === 0) return <EmptyState>{t('live.noAllocation')}</EmptyState>;
+        const palette = [...ALLOC_COLORS, 'var(--acc-pale)', 'var(--muted)', 'var(--line)'];
+        const slices = [...priced]
+          .sort((a, b) => b.value - a.value)
+          .slice(0, palette.length)
+          .map((r, i) => ({
+            label: r.ticker,
+            pct: (r.value / total) * 100,
+            colorVar: palette[i],
+          }));
+        return <DonutChart slices={slices} />;
       }}
     </DataState>
   );

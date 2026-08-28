@@ -157,6 +157,105 @@ request/response pair to test. The `api/` directory has its own
 `tsconfig.json` (`npm run typecheck:api`) since it's excluded from the main
 app's `src`-scoped one and isn't bundled into the client build.
 
+## Connected account — founder demo only (SnapTrade Personal)
+
+**A third live surface, and the only one that is deliberately not a product
+feature.** `app/api/snaptrade.ts` reads **one real brokerage account**,
+read-only, through [SnapTrade's](https://docs.snaptrade.com) free **Personal**
+tier, so the "connect your real portfolio" concept can be shown with actual
+data instead of a mockup.
+
+**This is not the architecture for real end users, and must not be mistaken
+for one.** SnapTrade Personal issues a single free `clientId`/`consumerKey`
+pair for one person's own account. It has no notion of multiple users: the
+Personal key *is* the identity, which is exactly why requests omit `userId`
+and `userSecret` (a Personal user has no `userSecret` to send — see
+[Personal vs Commercial](https://docs.snaptrade.com/docs/personal-vs-commercial)).
+Letting real users link their own accounts would require SnapTrade's
+**Commercial** tier — per-user registration, `userSecret` storage, connection
+lifecycle and reconnection handling, webhooks, KYC and billing. That is a
+separate product and compliance decision that **has not been made**. Nothing
+in this integration scales to it, and nothing here should be read as a
+prototype of it.
+
+**Read-only, structurally.** The function can reach exactly three upstream
+paths, all `GET`, listed in one `READ_ONLY_PATHS` constant: `/accounts`,
+`/accounts/{id}/balances`, `/accounts/{id}/positions`. Account ids come from
+SnapTrade's own response, never from the caller, so no request to
+`/api/snaptrade` can steer it at another path. SnapTrade's trading endpoints
+appear nowhere in the codebase, and a unit test asserts that no upstream path
+ever matches a trading route.
+
+**Off by default.** Settings → Data & display carries the
+`הדגמה: חשבון מקושר אמיתי` switch (`DEMO_FLAGS.liveAccount`). With it **off**,
+the app is exactly what it was before this integration existed — the demo
+adapter backs every account, and the connected-account screen is not listed
+anywhere. With it **on**, `app/src/data/appService.ts` swaps the demo
+adapter's `portfolios()` and `holdings()` for the real account, so the Home
+hero, the Portfolio tab and the Connections list all show it, and the
+dedicated `חשבון מקושר (הדגמה)` screen appears under "עוד". The switch exists
+so the before/after can be shown side by side in one session; it is read
+through `useDemoFlag()` so flipping it re-renders immediately rather than on
+the next mount. Nothing else — Core-Satellite, Satellite recommendations,
+news, fundamentals — changes in either position.
+
+**Where invented numbers were removed rather than shown over real ones.** Two
+demo-derived visuals cannot honestly sit above a real account, so with the
+switch on they are replaced by a statement of what is known, not redrawn:
+
+| Surface | With the switch on |
+| --- | --- |
+| Home hero + Portfolio day change and performance chart | Replaced by an explicit "no performance history" note — those come from a seeded pseudo-random walk, and SnapTrade reports no day change or priced history here |
+| Portfolio allocation donut | Computed from the account's **real** position values; positions the brokerage did not price are excluded, and if none are priced the card says so |
+| Any unreported field | Renders `—`. `null` is never coerced to `0`, and a total is never summed from partially-priced positions — if the total cannot be determined the account reports `unavailable` with that reason |
+
+Same honesty contract as the screener mirror and `/api/news`: any failure —
+network, timeout, non-2xx, unparseable or unexpected-shape body — surfaces as
+the honest "unavailable" state **with a specific reason** ("SnapTrade rejected
+the demo credentials", "SnapTrade did not answer in time"), and never falls
+back to the demo adapter's numbers. **Zero connected accounts is a success,
+not an error**: before a brokerage is linked the call legitimately returns
+`ok([])` and the screen says "עדיין לא מקושר חשבון ברוקר" — it never invents a
+holding to fill the space.
+
+### One-time setup
+
+**Required environment variables** — `SNAPTRADE_PERSONAL_CLIENT_ID` and
+`SNAPTRADE_PERSONAL_CONSUMER_KEY`, added in the Vercel dashboard under
+**Project → Settings → Environment Variables**, scoped to Production, Preview
+and Development so PR previews and local `vercel dev` work too. Both are read
+only server-side (`process.env.…`) and neither may ever be given a `VITE_`
+prefix, which would bundle the secret into the client build. The consumer key
+is used only as an HMAC key and never appears in a URL or a response body.
+
+Then, once deployed:
+
+1. Create the free Personal account at [snaptrade.com](https://snaptrade.com)
+   and copy the `clientId` and `consumerKey` from its dashboard.
+2. Add both to Vercel as above and redeploy (environment variables are read at
+   invocation, but a redeploy is the reliable way to pick them up everywhere).
+3. In **SnapTrade's own dashboard**, open the hosted **Connection Portal** and
+   link the brokerage account. The app deliberately cannot do this: it issues
+   no non-`GET` SnapTrade call, so it can read connections but never create
+   one.
+4. In the app: Settings → Data & display → turn on `הדגמה: חשבון מקושר אמיתי`,
+   then open **עוד → חשבון מקושר (הדגמה)**.
+
+**The endpoint is public and unauthenticated**, exactly like `/api/news`.
+Anyone who knows the deployment URL can `GET /api/snaptrade` and see this
+account's holdings and balances. The account number is masked to its last four
+digits server-side before it is ever sent, and no other identifying field is
+returned, but the positions and totals themselves are real. That is an
+accepted, deliberate trade-off for a founder demo on a demo deployment — it is
+**not** acceptable for anything carrying real users, and is a second reason
+this integration cannot simply be promoted to production.
+
+Request signing lives in `app/api/_lib/snaptrade.ts` (unit-tested in
+`snaptrade.test.ts`, handler behaviour in `snaptradeHandler.test.ts`), split
+from the handler for the same reason `_lib/news.ts` is: the canonical-JSON
+signature rule and the defensive upstream field mapping are testable without a
+request/response pair or a mocked `fetch`.
+
 ## ⚠ Needs product sign-off before production
 
 - **Core fund names** (VOO / IEFA / LQD / VMFXX / EEM in
