@@ -103,7 +103,25 @@ describe('/api/snaptrade handler', () => {
     const res = makeRes();
     await handler({ method: 'GET', query: {} }, res);
     expect(res._status).toBe(200);
-    expect(res._body).toMatchObject({ accounts: [] });
+    // connections: 0 is the diagnostic — SnapTrade sees no connection at all
+    // for this key, which is a different fault from a connection whose
+    // accounts have not synced yet.
+    expect(res._body).toMatchObject({ accounts: [], source: 'realtime', connections: 0 });
+  });
+
+  it('distinguishes a connection with no accounts yet from no connection at all', async () => {
+    globalThis.fetch = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
+      const url = String(input);
+      if (url.includes('/authorizations?')) return jsonResponse([{ id: 'conn-1' }]);
+      return jsonResponse([]);
+    }) as unknown as typeof fetch;
+
+    const res = makeRes();
+    await handler({ method: 'GET', query: {} }, res);
+    expect(res._status).toBe(200);
+    // The connection is visible, so the credentials are fine and the
+    // brokerage sync is what has not landed.
+    expect(res._body).toMatchObject({ accounts: [], connections: 1 });
   });
 
   it('falls back to the per-connection route when the daily cache is still empty', async () => {

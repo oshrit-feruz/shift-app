@@ -141,7 +141,7 @@ function mapAccountList(raw: unknown, label: string): MappedAccount[] {
 async function realtimeAccounts(
   creds: { clientId: string; consumerKey: string },
   timeoutMs: number,
-): Promise<MappedAccount[]> {
+): Promise<{ accounts: MappedAccount[]; connections: number }> {
   const rawConnections = await snapTradeGet(READ_ONLY_PATHS.connections(), creds, timeoutMs);
   if (!Array.isArray(rawConnections)) throw badResponse('/authorizations did not return an array');
 
@@ -149,7 +149,7 @@ async function realtimeAccounts(
     .map((c) => (typeof c === 'object' && c !== null ? (c as { id?: unknown }).id : null))
     .filter((id): id is string => typeof id === 'string' && id !== '')
     .slice(0, MAX_ACCOUNTS);
-  if (ids.length === 0) return [];
+  if (ids.length === 0) return { accounts: [], connections: rawConnections.length };
 
   const perConnection = await Promise.all(
     ids.map(async (id) =>
@@ -159,7 +159,7 @@ async function realtimeAccounts(
       ),
     ),
   );
-  return perConnection.flat().slice(0, MAX_ACCOUNTS);
+  return { accounts: perConnection.flat().slice(0, MAX_ACCOUNTS), connections: ids.length };
 }
 
 /**
@@ -216,17 +216,30 @@ export function createHandler(timeoutMs: number) {
       // The daily cache has nothing. That is expected for a brokerage linked
       // today, so ask the connections directly before concluding the user has
       // no account.
+      let connections: number | null = null;
       if (base.length === 0) {
-        base = await realtimeAccounts(creds, timeoutMs);
+        const realtime = await realtimeAccounts(creds, timeoutMs);
+        base = realtime.accounts;
+        connections = realtime.connections;
         source = 'realtime';
       }
 
       // Nothing from either route. An honest, explicit empty answer — the demo
       // screen renders "no account connected", never a placeholder holding.
       if (base.length === 0) {
-        console.warn(`${ROUTE}: neither the daily cache nor any connection reported an account`);
+        // An empty answer has two very different causes, and they were
+        // indistinguishable from the response: SnapTrade may see no
+        // CONNECTION for this key at all (the key resolves to a different
+        // user than the one that linked the brokerage), or it may see the
+        // connection but no accounts under it yet (the brokerage sync has
+        // not landed). `connections` separates them — zero points at the
+        // credentials, non-zero at the sync. Counts only; nothing here
+        // identifies an account.
+        console.warn(
+          `${ROUTE}: no accounts. /authorizations reported ${connections} connection(s) for this key`,
+        );
         res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=30');
-        return res.status(200).json({ accounts: [], source });
+        return res.status(200).json({ accounts: [], source, connections });
       }
 
       const accounts: ConnectedAccount[] = await Promise.all(
