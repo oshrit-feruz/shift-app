@@ -104,12 +104,43 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       method: 'DELETE',
       headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
     });
+    // Already gone — e.g. a retry of a delete whose response was lost — is a
+    // success: the account not existing is exactly what was asked for.
+    if (del.status === 404) return res.status(200).json({ deleted: true });
     if (!del.ok) {
       return res.status(502).json({ error: 'delete_failed', message: 'The account was not deleted.' });
     }
   } catch {
-    return res.status(502).json({ error: 'upstream_unreachable', message: 'The account was not deleted.' });
+    // The timeout can fire AFTER Supabase received the DELETE, so the
+    // deletion may have completed without us seeing the response. On this
+    // endpoint a wrong answer in either direction is serious, so ask before
+    // claiming anything.
+    return reconcileAfterLostDelete(res, url, serviceKey, userId);
   }
 
   return res.status(200).json({ deleted: true });
+}
+
+/**
+ * The DELETE's outcome was lost (abort / network). Establish the account's
+ * actual state before answering: gone → the deletion happened and is
+ * reported as the success it is; still there → an honest "not deleted";
+ * unknowable → say exactly that rather than guessing either way.
+ */
+async function reconcileAfterLostDelete(res: ApiResponse, url: string, serviceKey: string, userId: string) {
+  try {
+    const check = await fetchJsonWithTimeout(`${url}/auth/v1/admin/users/${userId}`, {
+      headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
+    });
+    if (check.status === 404) return res.status(200).json({ deleted: true });
+    if (check.ok) {
+      return res.status(502).json({ error: 'delete_failed', message: 'The account was not deleted.' });
+    }
+  } catch {
+    // Fall through to the honest "unknown" below.
+  }
+  return res.status(502).json({
+    error: 'delete_unconfirmed',
+    message: 'Could not confirm whether the account was deleted. Please try again.',
+  });
 }
