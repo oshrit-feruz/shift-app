@@ -46,9 +46,9 @@ export function HomeScreen(_: ScreenProps) {
           onRetry={portfolios.retry}
           skeleton={
             <Card padding={15} gap={0}>
-              {/* Mirrors the loaded hero: 13px label, 42px/1.05 total,
+              {/* Mirrors the loaded hero: 18px label, 42px/1.05 total,
                   15px change line, chart block, two 14px blurb lines. */}
-              <SkeletonLine width={96} fontSize={13} bar={11} />
+              <SkeletonLine width={96} fontSize={18} bar={11} />
               <SkeletonLine
                 width="66%"
                 fontSize={42}
