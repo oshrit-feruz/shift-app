@@ -733,6 +733,36 @@ export const STRINGS = {
   ),
   'data.retry': p('Retry', 'לנסות שוב'),
   'data.demo': p('Demo data', 'נתוני הדגמה'),
+
+  // ── Auth ──────────────────────────────────────────────────────────────
+  'auth.kicker': p('Sign in', 'התחברות'),
+  'auth.title': p('Welcome to Shift', 'ברוכים הבאים ל-Shift'),
+  'auth.sub': p(
+    'Sign in to keep your progress and settings on every device.',
+    'התחברות שומרת את ההתקדמות וההגדרות שלך בכל מכשיר.',
+  ),
+  'auth.google': p('Continue with Google', 'המשך עם Google'),
+  'auth.apple': p('Continue with Apple', 'המשך עם Apple'),
+  'auth.appleSoon': p(
+    'Apple sign-in isn’t available yet — coming soon.',
+    'התחברות עם Apple עדיין לא זמינה — בקרוב.',
+  ),
+  'auth.redirecting': p('Redirecting…', 'מעביר…'),
+  'auth.errorTitle': p('Sign-in didn’t work', 'ההתחברות לא הצליחה'),
+  'auth.retry': p('Try again', 'לנסות שוב'),
+  'set.signOut': p('Sign out', 'התנתקות'),
+  'set.signedInAs': p('Signed in as {email}', 'מחובר/ת כ-{email}'),
+  'set.providerGoogle': p('via Google', 'דרך Google'),
+  'set.providerApple': p('via Apple', 'דרך Apple'),
+  'set.deleteTitle': p('Delete account', 'מחיקת חשבון'),
+  'set.deleteWarn': p(
+    'This permanently deletes your account and everything stored with it — your risk profile, onboarding progress, watchlist and alerts. It cannot be undone, and signing in again creates a fresh account.',
+    'הפעולה מוחקת לצמיתות את החשבון שלך ואת כל מה שנשמר איתו — פרופיל הסיכון, ההתקדמות בהקמה, הווטצ׳ליסט וההתראות. אי אפשר לבטל אותה, והתחברות מחדש תיצור חשבון חדש.',
+  ),
+  'set.deleteConfirm': p('Delete permanently', 'למחוק לצמיתות'),
+  'set.deleteCancel': p('Cancel', 'ביטול'),
+  'set.deleting': p('Deleting…', 'מוחק…'),
+  'set.deleteFailedTitle': p('The account was not deleted', 'החשבון לא נמחק'),
 } as const;
 
 export type StringKey = keyof typeof STRINGS;
