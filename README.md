@@ -93,7 +93,102 @@ row into a dozen lines and lose the shape of the data.
 the `DataService` interface (`service.ts`) carrying the prototype's numbers. A
 real backend drops in by implementing that interface; no UI changes needed.
 
-**One surface carries real engine data:** the Satellite card.
+**Prices are not among them any more.** `SymbolInfo` is split by provenance:
+`quote` (price, 52-week high, drawdown) is real, read from the daily mirror;
+`demo` (day change, volume, market cap, P/E, RSI) is still the prototype's.
+The split is the point — a call site writes `x.demo.changePct`, which says
+what the number is at the moment it is rendered, where a flat `x.changePct`
+sitting next to a real price would not. There is no price literal left
+outside `demo`, so a failed mirror read has nothing to fall back to: `quote`
+is null and every price on screen renders `—` through `moneyOrDash`. The
+prototype price survives only as the basis for the still-demo figures derived
+from it (the stock page's OHLC strip, after-hours line and dollar day-change)
+and for valuing the demo portfolio, and never as *the* price.
+
+Day change is the notable absence from `quote`: **the ranking has no
+day-change field**, so it cannot be made real from this source and is not
+borrowed from anywhere either. It stays demo until an intraday quote source
+exists — which is why the standing on-screen note now names both halves
+("prices are real … day change, volume, charts and portfolio figures are
+still sample data") instead of calling the whole screen sample data, which
+would have been the same failure in the other direction.
+
+**Where the prices come from, and why it cost nothing.** The mirrored ranking
+already carries `price` and `high_52w` for ~100 names and is refreshed daily
+by the job that feeds the Satellite card. `fetchQuotes()` reads that same
+snapshot through the same `readMirror` helper, so real prices arrived with no
+new API key, no new quota, no browser-visible network call beyond the one the
+app already made — which is why prices went real before anything else on the
+list did. A ticker the ranking does not cover is simply absent from the map
+and renders `—`; that is deliberately indistinguishable on screen from an
+unreadable snapshot, because in both cases the app genuinely does not know
+the price. The freshness gate is shared too: a snapshot too old for the
+Satellite card is too old to price a watchlist with.
+
+**The charts are real too, from a second mirror.** Everything the stock
+page's chart and the movers' sparklines draw is a published trading session:
+`app/src/data/priceHistory.ts` reads `app/public/data/series/<TICKER>.json`,
+written daily by `.github/workflows/mirror-prices.yml` via
+`scripts/mirror-prices.mjs`. What that replaced was a seeded pseudo-random
+walk — and not only the line. The candle bodies were derived from the close
+series (open was *yesterday's* close, the wicks a fixed ±1.6), the volume pane
+was `8 + ((i * 37) % 26)`, a sawtooth that repeated every 26 candles for every
+stock in the app, and "RSI" was `50 + (close - ma12) * 3.6`, which is not RSI
+by any definition: unbounded, with no notion of gains against losses, and
+scaled by the stock's own price, so the 30 and 70 lines drawn across its pane
+were decoration. MA, RSI(14) and MACD(12,26,9) are now the actual indicators
+on the actual closes, and they start where their window fills rather than
+averaging whatever happens to sit at the left edge under a label claiming
+fifty sessions.
+
+**Why a separate mirror, and why a script.** Alpha Vantage's free key allows
+tens of requests a day and must stay server-side, so the browser can never
+call it — one visitor walking a few stock pages would spend the day's
+allowance for everyone. Daily bars also change once a day by definition. The
+screener mirror answers the same problem with a dozen `jq` assertions in YAML,
+which is as far as that approach stretches; this job has to map a nested
+payload into a sorted series, tolerate a symbol the provider does not cover
+while *stopping* on a spent quota, and leave the previous good file untouched
+in both cases. That is program logic, so it lives in a script with tests
+(`app/src/data/mirrorPrices.test.ts`) that assert what the publisher writes is
+what the reader accepts, rather than in a workflow runner.
+
+Its publishing contract, and the honest states that follow from it:
+
+| Mirror content | App shows |
+| --- | --- |
+| a fresh file for the ticker | the real sessions, and the key-stats rows a bar can answer |
+| no file for the ticker | "no price history is published for this symbol yet" — a fact, not a failure, and not a retry prompt |
+| a file whose newest session is over `MAX_SERIES_AGE_DAYS` old | "unavailable" with the age, never the stale sessions |
+| unreadable, or any row in it unreadable | "unavailable" — the whole file, because a chart is read as a whole and a series with sessions silently dropped is a picture of price action that never happened |
+
+`MAX_SERIES_AGE_DAYS` is 7 where the screener's gate is 4, deliberately.
+`as_of` is the last *trading* session, so a Friday close read on the Tuesday
+after a Monday holiday is already four days old with nothing wrong. The
+asymmetry is also about what the number is for: a stale "last price" is
+presented as today's and misleads directly, while a year of real sessions
+missing its last few is still an honest year of history.
+
+**What this deliberately does not cover: 1D.** The timeframe row offers 1W,
+1M, 3M and 1Y and no 1D, because a daily series is one point per session — a
+day is a single dot, and a 1D tab could only be filled by inventing the
+intraday path. That needs an intraday feed, not a narrower slice of this one.
+`MDA` is the standing example of the other gap: it trades in Toronto, the
+provider has no US tape for it, and the publisher skips it rather than failing
+the other nine tickers' refresh.
+
+**One inconsistency worth knowing about.** The headline price comes from the
+screener mirror and the chart's last close from this one, so on a given day
+they can be a session apart. Both are real, and the OHLC strip is stamped with
+the session it describes for exactly that reason. What is no longer possible
+is the key-stats grid disagreeing with the chart above it: Open, Prev close,
+Day range, Volume, Avg vol and RSI(14) are read from the same bars the chart
+draws. They used to be `price - 1.9`, `price * 0.99`, `price - 3.1` to
+`price + 2.4` and a frozen `162.4M` that was the same figure for every stock,
+which put an "Open 231.85" directly beneath a chart strip reading "O 232.80"
+for the same session.
+
+**Two surfaces carry real engine data.** The second is the Satellite card:
 `satelliteSignals()` delegates to `app/src/data/recoveryDetector.ts`, which
 reads the Recovery Detector screener's BUY signals. Field names are mapped
 defensively (`ticker|symbol`, `price|current_price|last`, `drawdown_pct|
@@ -211,7 +306,7 @@ filings:
 
 | Tab | Source | Notes |
 | --- | --- | --- |
-| סקירה / Overview | demo adapter + real holdings + the mirrored ranking | chart, your position, key stats, analyst ratings, and the engine's own view |
+| סקירה / Overview | demo adapter + real holdings + both mirrors | real price, 52-week high, chart, and the key-stats rows a daily bar answers (open, prev close, day range, volume, avg vol, RSI); day change, market cap, P/E and analyst ratings still demo |
 | דוחות / Reports | `/api/stock/{ticker}/fundamentals` (live, un-mirrored) | branches purely on the engine's `status` |
 | חדשות / News | `/api/news` (this repo's Vercel function) | excerpts only, never a full article body |
 
@@ -223,10 +318,11 @@ nothing failed and there is nothing to retry. Day-change percent is **not**
 in the ranking payload, so it is not shown there rather than being borrowed
 from demo data.
 
-Both mirror readers share one `readMirror` helper so transport, freshness and
-honesty handling cannot drift between them — one serving a snapshot the other
-rejects is exactly the class of bug the mirror's verification exists to
-prevent.
+All three mirror readers — the Satellite card's BUY list, a single stock's
+ranking row, and the quote map behind every price in the app — share one
+`readMirror` helper so transport, freshness and honesty handling cannot drift
+between them. One serving a snapshot the other rejects is exactly the class of
+bug the mirror's verification exists to prevent.
 
 **RTL note:** localized Hebrew dates are *not* wrapped in `<Num>`. `<Num>`
 forces LTR isolation, which is right for numerals and wrong for Hebrew text —
@@ -246,6 +342,8 @@ Both were caught by looking at the rendered screen, not by a passing test.
 | Stock page · דוחות (filed revenue) | engine `/api/stock/{ticker}/fundamentals` | — |
 | Stock page · רבעונים שדווחו | `/api/earnings?ticker=&from=&to=` — 12 quarters | 1 Alpha Vantage call |
 | Satellite card | the daily mirror in this repo | none |
+| Every price on screen (`SymbolInfo.quote`) | the same daily mirror | none |
+| Stock page · chart, and the movers' sparklines | the daily price-history mirror in this repo | none |
 
 The general feed is why the browsable news screen is cheap: EODHD's `s`
 parameter takes **one** symbol at a time and a per-ticker call costs double,
@@ -324,7 +422,7 @@ Preview, and Development so PR previews and local `vercel dev` also work:
 | Variable | Used by |
 | --- | --- |
 | `EODHD_API_KEY` | `/api/news` — the news feed |
-| `ALPHAVANTAGE_API_KEY` | `/api/earnings` — the calendar and per-stock history |
+| `ALPHAVANTAGE_API_KEY` | `/api/earnings` — the calendar and per-stock history; also a **GitHub Actions secret**, where `mirror-prices.yml` spends one call per covered ticker per day. If it is the same key, the earnings route lives on what is left of the daily allowance. |
 
 Both are read only server-side and neither may be given a `VITE_` prefix,
 which would bundle it into the client build.

@@ -19,7 +19,7 @@ import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
 import { fetchWeekEarnings } from '../data/earnings';
 import { DemoBanner } from '../components/DemoBanner';
-import { money, pct, signalColor } from '../lib/format';
+import { money, moneyOrDash, pct, signalColor } from '../lib/format';
 import { ROW_BUTTON_STYLE } from '../lib/rowButton';
 import type { ScreenProps } from '../App';
 
@@ -312,12 +312,12 @@ export function HomeScreen(_: ScreenProps) {
                   key={x.ticker}
                   leading={beg ? <TickerTile ticker={x.ticker} /> : undefined}
                   title={x.ticker}
-                  subtitle={beg ? x.plain[language] : `${x.marketCap} · P/E ${x.pe.toFixed(1)}`}
+                  subtitle={beg ? x.plain[language] : `${x.demo.marketCap} · P/E ${x.demo.pe.toFixed(1)}`}
                   right={
                     <RowValues
-                      main={money(x.price)}
-                      sub={pct(x.changePct)}
-                      subColor={signalColor(x.changePct)}
+                      main={moneyOrDash(x.quote?.price)}
+                      sub={pct(x.demo.changePct)}
+                      subColor={signalColor(x.demo.changePct)}
                     />
                   }
                   onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}
@@ -351,7 +351,7 @@ export function HomeScreen(_: ScreenProps) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {syms
                 .slice()
-                .sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct))
+                .sort((a, b) => Math.abs(b.demo.changePct) - Math.abs(a.demo.changePct))
                 .slice(0, beg ? 3 : 5)
                 .map((x) => (
                   <button
@@ -386,10 +386,10 @@ export function HomeScreen(_: ScreenProps) {
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {beg ? x.why[language] : `${money(x.price)} · vol ${x.volume}`}
+                      {beg ? x.why[language] : `${moneyOrDash(x.quote?.price)} · vol ${x.demo.volume}`}
                     </span>
-                    <Num size={15} style={{ color: signalColor(x.changePct) }}>
-                      {pct(x.changePct)}
+                    <Num size={15} style={{ color: signalColor(x.demo.changePct) }}>
+                      {pct(x.demo.changePct)}
                     </Num>
                   </button>
                 ))}

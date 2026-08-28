@@ -6,7 +6,7 @@ import { Num } from '../components/Num';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
-import { money } from '../lib/format';
+import { moneyOrDash } from '../lib/format';
 import { useDispatch, type AlertKind } from '../state/appState';
 import type { SymbolInfo } from '../data/types';
 
@@ -61,7 +61,7 @@ export function AlertSheet({
       open={open}
       onClose={onClose}
       title={t('watch.newAlert')}
-      meta={symbol ? <Num>{`${symbol.ticker} · ${money(symbol.price)}`}</Num> : undefined}
+      meta={symbol ? <Num>{`${symbol.ticker} · ${moneyOrDash(symbol.quote?.price)}`}</Num> : undefined}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {types.map((a) => (
