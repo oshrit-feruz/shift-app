@@ -16,17 +16,36 @@ import { createHmac } from 'node:crypto';
 export const SNAPTRADE_BASE = 'https://api.snaptrade.com/api/v1';
 
 /**
- * Canonical JSON as SnapTrade's signing spec defines it: object keys sorted
- * alphabetically at every level, no insignificant whitespace, UTF-8.
+ * Orders two object keys by UTF-16 code unit — the ordering a canonical form
+ * requires, and the one the default `.sort()` already gives for strings.
+ *
+ * Written out rather than left implicit because the alternative is actively
+ * wrong here. `String.localeCompare` is locale-sensitive: it sorts
+ * ["B","a","Z","é","e"] as [a, B, e, é, Z] where code units give
+ * [B, Z, a, e, é]. Either ordering is "alphabetical" to a reader, but only one
+ * of them is the ordering SnapTrade's server reproduces when it recomputes the
+ * signature — so swapping this for localeCompare would change the canonical
+ * JSON, change the HMAC, and 401 every request. It would also make the result
+ * depend on the server's locale, which is the opposite of canonical.
+ */
+function byCodeUnit(a: string, b: string): number {
+  if (a < b) return -1;
+  return a > b ? 1 : 0;
+}
+
+/**
+ * Canonical JSON as SnapTrade's signing spec defines it: object keys sorted at
+ * every level, no insignificant whitespace, UTF-8.
  *
  * Arrays keep their order — order is meaningful in an array and sorting one
- * would change the value, not just its spelling. Only object keys are sorted.
+ * would change the value, not just its spelling. Only object keys are sorted,
+ * and by code unit (see byCodeUnit).
  */
 export function canonicalJson(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
   const entries = Object.keys(value as Record<string, unknown>)
-    .sort()
+    .sort(byCodeUnit)
     .map((k) => `${JSON.stringify(k)}:${canonicalJson((value as Record<string, unknown>)[k])}`);
   return `{${entries.join(',')}}`;
 }

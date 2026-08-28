@@ -23,6 +23,22 @@ describe('canonicalJson', () => {
   it('serialises null', () => {
     expect(canonicalJson(null)).toBe('null');
   });
+
+  it('orders keys by code unit, NOT by locale', () => {
+    // The guard on the signature. localeCompare sorts these as a, B, e, é, Z;
+    // code units give B, Z, a, e, é. Only the second is what SnapTrade's
+    // server reproduces when it recomputes the HMAC, so "fixing" the sort to
+    // be locale-aware would 401 every request. This test fails if anyone does.
+    expect(canonicalJson({ B: 1, a: 2, Z: 3, 'é': 4, e: 5 })).toBe(
+      '{"B":1,"Z":3,"a":2,"e":5,"é":4}',
+    );
+  });
+
+  it('is independent of key insertion order', () => {
+    expect(canonicalJson({ query: 1, content: 2, path: 3 })).toBe(
+      canonicalJson({ path: 3, query: 1, content: 2 }),
+    );
+  });
 });
 
 describe('computeSignature', () => {
