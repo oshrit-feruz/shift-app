@@ -103,6 +103,17 @@ const CALENDAR_CACHE_TTL_MS = 6 * 60 * 60_000;
 const calendarCache = new Map<string, { rows: EarningsRow[]; fetchedAt: number }>();
 
 /**
+ * Plain string comparison, not localeCompare: reportDate is YYYY-MM-DD,
+ * which already sorts lexicographically, and this runs over thousands of
+ * rows on the widest windows.
+ */
+function byReportDate(a: EarningsRow, b: EarningsRow): number {
+  if (a.reportDate < b.reportDate) return -1;
+  if (a.reportDate > b.reportDate) return 1;
+  return 0;
+}
+
+/**
  * Parse the market-wide calendar from CSV response body.
  * Returns null if the body is not a recognizable CSV format, which the caller reports as unreadable rather than treating as an empty week.
  */
@@ -266,8 +277,7 @@ export function createHandler(timeoutMs: number, useCalendarCache = false) {
         return res.status(502).json(failure);
       }
 
-      mapped =
-        ticker === null ? readCalendar(result.body) : readHistory(result.body, ticker.toUpperCase());
+      mapped = ticker === null ? readCalendar(result.body) : readHistory(result.body, ticker.toUpperCase());
       if (mapped === null) {
         console.error('/api/earnings: upstream response had an unexpected shape');
         return res
@@ -281,11 +291,7 @@ export function createHandler(timeoutMs: number, useCalendarCache = false) {
       }
     }
 
-    // Plain comparison, not localeCompare: reportDate is YYYY-MM-DD, which
-    // already sorts lexicographically, and this runs over thousands of rows.
-    const all: EarningsRow[] = withinRange(mapped, from as string, to as string).sort((a, b) =>
-      a.reportDate < b.reportDate ? -1 : a.reportDate > b.reportDate ? 1 : 0,
-    );
+    const all: EarningsRow[] = withinRange(mapped, from as string, to as string).sort(byReportDate);
     const earnings = all.slice(0, MAX_ROWS);
     const truncated = all.length > earnings.length;
 
