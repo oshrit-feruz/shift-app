@@ -231,6 +231,20 @@ describe('publishedAtMs', () => {
     },
   );
 
+  // validTimestamp deliberately accepts a leap second because providers emit
+  // them — but Date.parse answers NaN for one, so the article we went out of
+  // our way to keep would have sorted to the bottom as undated.
+  it('dates a leap second as the instant before the next minute', () => {
+    const leap = publishedAtMs('2016-12-31T23:59:60Z');
+    expect(leap).not.toBe(UNDATED);
+    expect(leap).toBe(publishedAtMs('2016-12-31T23:59:59Z') + 1000);
+    expect(leap).toBeLessThan(publishedAtMs('2017-01-01T00:00:01Z'));
+  });
+
+  it('handles a leap second carrying an offset', () => {
+    expect(publishedAtMs('2016-12-31T23:59:60+02:00')).toBe(publishedAtMs('2016-12-31T23:59:59+02:00') + 1000);
+  });
+
   it('stays a usable comparator when both sides are undated', () => {
     expect(publishedAtMs(undefined) - publishedAtMs(undefined)).toBe(0);
   });

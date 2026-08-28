@@ -7,10 +7,22 @@ describe('readApiError', () => {
   it.each([
     ['the daily quota', { Information: 'We have detected your API key... 25 requests per day' }, 'rate_limited'],
     ['the per-minute throttle', { Note: 'Our standard API rate limit is 5 calls per minute' }, 'rate_limited'],
-    ['a premium-only endpoint', { Information: 'This is a premium endpoint.' }, 'rate_limited'],
+    ['a premium-only endpoint', { Information: 'Thank you for using Alpha Vantage! This is a premium endpoint. You may subscribe to any of the premium plans...' }, 'plan_required'],
     ['a rejected call', { 'Error Message': 'Invalid API call.' }, 'rejected'],
   ])('classifies %s', (_label, body, kind) => {
     expect(readApiError(body)?.kind).toBe(kind);
+  });
+
+  // The trap: the quota notice also invites you to "subscribe to any of the
+  // premium plans", so matching the word "premium" reported every spent
+  // quota as a subscription problem. One waits until tomorrow; the other
+  // never resolves itself.
+  it('does not read the quota notice as a plan requirement, though it says "premium"', () => {
+    const quota = {
+      Information:
+        'Thank you for using Alpha Vantage! Our standard API rate limit is 25 requests per day. Please subscribe to any of the premium plans to instantly remove all daily rate limits.',
+    };
+    expect(readApiError(quota)?.kind).toBe('rate_limited');
   });
 
   it.each([

@@ -11,12 +11,33 @@ import { type ApiRequest, type ApiResponse } from './_lib/http.js';
 
 const ALPHAVANTAGE_URL = 'https://www.alphavantage.co/query';
 /**
- * How far ahead the market-wide calendar looks. The feed offers 3, 6 and 12
- * months for the same single request, and the response is filtered to the
- * caller's window anyway, so the shortest horizon that always covers a
- * requested week is the one that keeps the payload smallest.
+ * The market-wide calendar's horizons, shortest first.
+ *
+ * Upstream offers exactly these three for the same single request, and the
+ * response is filtered to the caller's window afterwards — so the right
+ * choice is the shortest one that still REACHES the requested `to` date. A
+ * fixed 3-month horizon looked harmless while the app only ever asked for a
+ * week, but this route accepts windows up to MAX_RANGE_DAYS: a request
+ * ending five months out would have come back 200 with an empty list, which
+ * says "nobody reports then" about a period never fetched.
  */
-const CALENDAR_HORIZON = '3month';
+const CALENDAR_HORIZONS: Array<{ days: number; value: string }> = [
+  { days: 90, value: '3month' },
+  { days: 180, value: '6month' },
+  { days: 365, value: '12month' },
+];
+
+/**
+ * The shortest horizon covering `to`, or null when it is beyond all of them.
+ *
+ * A `to` in the past needs no coverage: the feed is forward-looking, so an
+ * empty answer for a past window is a real answer.
+ */
+export function horizonFor(to: string, now: Date = new Date()): string | null {
+  const days = (Date.parse(`${to}T00:00:00Z`) - Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())) / 86_400_000;
+  if (days <= 0) return CALENDAR_HORIZONS[0].value;
+  return CALENDAR_HORIZONS.find((h) => days <= h.days)?.value ?? null;
+}
 /**
  * Upstream budget, wider than the news route's: a market-wide week is
  * thousands of rows in one uncompressed JSON body, and the platform limit in
@@ -36,6 +57,20 @@ const DEFAULT_UPSTREAM_TIMEOUT_MS = 20_000;
  * the UI says so too.
  */
 const MAX_ROWS = 400;
+
+/**
+ * What each provider notice becomes on the wire, matching the classification
+ * the rest of the app already uses for HTTP statuses: a plan problem reads as
+ * forbidden (it will not fix itself), a spent quota as rate-limited (it will).
+ */
+const NOTICE_FAILURES: Record<'rate_limited' | 'plan_required' | 'rejected', { error: string; message: string }> = {
+  rate_limited: { error: 'upstream_rate_limited', message: "The earnings provider's request quota has been reached." },
+  plan_required: {
+    error: 'upstream_forbidden',
+    message: "The earnings provider refused the request — this API key's plan may not include this data.",
+  },
+  rejected: { error: 'upstream_error', message: 'The earnings provider refused the request.' },
+};
 
 /** Parse text that should be JSON, without throwing. Null when it is not. */
 function safeJson(text: string): unknown {
@@ -158,8 +193,18 @@ export function createHandler(timeoutMs: number) {
       upstreamUrl.searchParams.set('function', 'EARNINGS');
       upstreamUrl.searchParams.set('symbol', ticker.toUpperCase());
     } else {
+      const horizon = horizonFor(to as string);
+      if (horizon === null) {
+        // Refused rather than answered with an empty list: upstream cannot
+        // see that far, and "no reports" would be a claim about a period we
+        // never asked for.
+        return res.status(400).json({
+          error: 'invalid_range',
+          message: 'The market-wide calendar reaches at most twelve months ahead.',
+        });
+      }
       upstreamUrl.searchParams.set('function', 'EARNINGS_CALENDAR');
-      upstreamUrl.searchParams.set('horizon', CALENDAR_HORIZON);
+      upstreamUrl.searchParams.set('horizon', horizon);
     }
 
     // The calendar answers CSV; the per-company history answers JSON.
@@ -181,10 +226,7 @@ export function createHandler(timeoutMs: number) {
     const notice = readApiError(typeof result.body === 'string' ? safeJson(result.body) : result.body);
     if (notice !== null) {
       console.error(`/api/earnings: provider notice (${notice.kind}): ${notice.detail}`);
-      const failure =
-        notice.kind === 'rate_limited'
-          ? { error: 'upstream_rate_limited', message: "The earnings provider's request quota has been reached." }
-          : { error: 'upstream_error', message: 'The earnings provider refused the request.' };
+      const failure = NOTICE_FAILURES[notice.kind];
       return res.status(502).json(failure);
     }
 

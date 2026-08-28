@@ -374,8 +374,11 @@ function EarningsAhead() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <CardTitle>{t('home.earnWeek')}</CardTitle>
                 {/* The real count, not a fixed number: the badge used to say
-                    "3" whatever the week held. */}
-                <Tag variant="neutral">{String(page.rows.length)}</Tag>
+                    "3" whatever the week held. On a truncated response the
+                    rows in hand are fewer than the reports that exist, and
+                    the count is a claim about the week, not about what fitted
+                    in the payload. */}
+                <Tag variant="neutral">{String(page.truncated ? page.totalAvailable : page.rows.length)}</Tag>
               </div>
               <DemoBanner />
               {next.length === 0 ? (

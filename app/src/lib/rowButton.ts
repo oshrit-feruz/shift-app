@@ -17,8 +17,10 @@ export const ROW_BUTTON_STYLE: CSSProperties = {
   alignItems: 'center',
   gap: 10,
   width: '100%',
-  borderInline: 'none',
-  borderBottom: 'none',
+  // The whole native border, not three sides of it: a consumer that sets no
+  // borderTop of its own would otherwise keep the browser's button outline.
+  // Consumers spread this first, so their own borderTop still wins.
+  border: 0,
   background: 'transparent',
   color: 'inherit',
   font: 'inherit',

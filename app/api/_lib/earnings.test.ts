@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { parseIsoDate, toNumber, validateRange, MAX_RANGE_DAYS } from './earnings.js';
-import { createHandler } from '../earnings.js';
+import { createHandler, horizonFor } from '../earnings.js';
 import { itMeetsTheFailureContract, makeRes } from './failureContract.js';
 
 /** Shaped like Alpha Vantage's EARNINGS_CALENDAR CSV — the market-wide feed. */
@@ -167,6 +167,47 @@ describe('earnings handler', () => {
     expect(res._body).toMatchObject({ error: 'bad_response' });
   });
 
+  // A fixed 3-month horizon looked harmless while the app only asked for a
+  // week, but this route accepts windows up to MAX_RANGE_DAYS — and a request
+  // ending five months out came back 200 with an empty list, saying "nobody
+  // reports then" about a period never fetched.
+  it('asks for a horizon that reaches the requested end date', async () => {
+    let seen = '';
+    globalThis.fetch = vi.fn().mockImplementation((url: URL) => {
+      seen = String(url);
+      return Promise.resolve(new Response(calendarCsv(), { status: 200 }));
+    }) as unknown as typeof fetch;
+
+    const today = new Date();
+    const iso = (days: number) => new Date(today.getTime() + days * 86_400_000).toISOString().slice(0, 10);
+    for (const [days, horizon] of [[7, '3month'], [120, '6month'], [300, '12month']] as const) {
+      await handler({ method: 'GET', query: { from: iso(0), to: iso(days) } }, makeRes());
+      expect(seen, `${days} days`).toContain(`horizon=${horizon}`);
+    }
+  });
+
+  it('refuses a window beyond every horizon rather than answering it empty', async () => {
+    const spy = vi.fn();
+    globalThis.fetch = spy as unknown as typeof fetch;
+    const today = new Date();
+    const iso = (days: number) => new Date(today.getTime() + days * 86_400_000).toISOString().slice(0, 10);
+    const res = makeRes();
+    await handler({ method: 'GET', query: { from: iso(0), to: iso(400) } }, res);
+    expect(res._status).toBe(400);
+    expect(res._body).toMatchObject({ error: 'invalid_range' });
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('reports a premium-only endpoint as a plan problem, not a spent quota', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ Information: 'This is a premium endpoint. You may subscribe to any of the premium plans.' }), { status: 200 }),
+    ) as unknown as typeof fetch;
+    const res = makeRes();
+    await handler({ method: 'GET', query: GOOD }, res);
+    expect(res._status).toBe(502);
+    expect(res._body).toMatchObject({ error: 'upstream_forbidden' });
+  });
+
   it('scopes to one ticker when asked, and to the whole market when not', async () => {
     let seen = '';
     globalThis.fetch = vi.fn().mockImplementation((url: URL) => {
@@ -290,5 +331,29 @@ describe('earnings handler', () => {
     expect(res._status).toBe(500);
     expect(res._body).toMatchObject({ error: 'not_configured' });
     expect(spy).not.toHaveBeenCalled();
+  });
+});
+
+describe('horizonFor', () => {
+  const NOW = new Date('2026-08-28T09:00:00Z');
+
+  it.each([
+    ['2026-08-28', '3month'],
+    ['2026-11-26', '3month'],
+    ['2026-11-27', '6month'],
+    ['2027-02-24', '6month'],
+    ['2027-08-28', '12month'],
+  ])('covers %s with %s', (to, horizon) => {
+    expect(horizonFor(to, NOW)).toBe(horizon);
+  });
+
+  it('has no horizon beyond twelve months', () => {
+    expect(horizonFor('2027-10-01', NOW)).toBeNull();
+  });
+
+  // The feed only carries reports that have not happened yet, so an empty
+  // answer for a past window is a real answer, not a coverage gap.
+  it('needs no coverage for a window already past', () => {
+    expect(horizonFor('2026-01-01', NOW)).toBe('3month');
   });
 });

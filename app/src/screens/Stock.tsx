@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DemoDataNote } from '../components/DemoDataNote';
 import { Card, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
@@ -50,6 +50,10 @@ export function StockScreen({ openAlert }: ScreenProps) {
   const t = useT();
   const beg = mode === 'beginner';
   const [tab, setTab] = useState<StockTab>('overview');
+  // openStock can change the ticker while this screen stays mounted (stock ->
+  // stock, from search or a news chip), and the sub-tab is about the stock
+  // you were looking at, not the one you just opened.
+  useEffect(() => setTab('overview'), [s.ticker]);
   const [tf, setTf] = useState('3M');
   const [ind, setInd] = useState({ ma: true, rsi: true, macd: false });
   const sym = useLoadable(() => demoService.symbol(s.ticker), [s.ticker]);

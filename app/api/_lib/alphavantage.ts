@@ -25,9 +25,15 @@
 
 import { parseIsoDate, toNumber, type EarningsRow } from './earnings.js';
 
-/** Free keys are capped per day, so a spent quota is an expected state, not an exotic one. */
+/**
+ * What the provider's own notice actually means.
+ *
+ * `rate_limited` fixes itself tomorrow; `plan_required` never does without a
+ * subscription; `rejected` is a bad request. Free keys are capped per day, so
+ * a spent quota is an expected state here, not an exotic one.
+ */
 export interface ProviderNotice {
-  kind: 'rate_limited' | 'rejected';
+  kind: 'rate_limited' | 'plan_required' | 'rejected';
   detail: string;
 }
 
@@ -46,10 +52,17 @@ export function readApiError(body: unknown): ProviderNotice | null {
   const err = typeof b['Error Message'] === 'string' ? (b['Error Message'] as string) : null;
   const text = note ?? info ?? err;
   if (text === null) return null;
+  // An endpoint outside the plan is checked FIRST and matched on its own
+  // sentence, because the word "premium" also appears in the quota notice
+  // ("...subscribe to any of the premium plans to remove all limits"). Read
+  // loosely, every spent quota would report as a subscription problem — and
+  // the two need opposite advice: one waits until tomorrow, the other never
+  // resolves itself.
+  if (/this is a premium endpoint/i.test(text)) return { kind: 'plan_required', detail: text };
   // Their quota copy varies ("higher API call volume", "rate limit", "25
   // requests per day"), so match the words that persist across the wordings
   // rather than any single sentence.
-  const limited = /rate limit|call (?:volume|frequency)|per day|premium/i.test(text);
+  const limited = /rate limit|call (?:volume|frequency)|per day/i.test(text);
   return { kind: limited ? 'rate_limited' : 'rejected', detail: text };
 }
 
