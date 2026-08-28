@@ -67,7 +67,13 @@ export function useRemoteSync() {
   // Settings button and an expired session) so the next account on this
   // device never inherits the previous user's slice.
   useEffect(() => {
-    if (prevUserId.current && !userId) {
+    // Any identity change — sign-out OR a direct switch to another account —
+    // drops the previous user's slice and the upload bookkeeping. The switch
+    // case matters as much as sign-out: without it, A's pending write could
+    // still fire under B, and A's lastUploaded snapshot could suppress B's
+    // first upload (a failed one would then never retry, because B's bags
+    // are different objects from A's).
+    if (prevUserId.current && prevUserId.current !== userId) {
       writer.cancel();
       hydratedFor.current = null;
       lastUploaded.current = null;

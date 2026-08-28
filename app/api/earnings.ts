@@ -317,7 +317,12 @@ export function createHandler(timeoutMs: number, useCalendarCache = false) {
         if (!pending) {
           pending = fetchAndMap(upstreamUrl, timeoutMs, ticker);
           calendarInFlight.set(horizon as string, pending);
-          void pending.finally(() => calendarInFlight.delete(horizon as string));
+          // Two-sided .then, not .finally: .finally would return a DERIVED
+          // promise that re-throws pending's rejection with nobody attached
+          // to it — an unhandled rejection even though the awaiter below
+          // handles pending itself.
+          const cleanup = () => calendarInFlight.delete(horizon as string);
+          void pending.then(cleanup, cleanup);
         }
         outcome = await pending;
       } else {
