@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { DemoDataNote } from '../components/DemoDataNote';
 import { Card, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
@@ -23,6 +23,7 @@ import { DemoBanner } from '../components/DemoBanner';
 import { compactCount, money, moneyOrDash, pct, signalColor } from '../lib/format';
 import { ReportsTab, EarningsHistory } from './stock/ReportsTab';
 import { NewsTab } from './stock/NewsTab';
+import { TabPanel } from '../components/TabPanel';
 import { EngineCard } from './stock/EngineCard';
 import type { ScreenProps } from '../App';
 import type { Bar, SymbolInfo } from '../data/types';
@@ -93,11 +94,19 @@ export function StockScreen({ openAlert }: ScreenProps) {
   const { mode } = useTheme();
   const t = useT();
   const beg = mode === 'beginner';
-  const [tab, setTab] = useState<StockTab>('overview');
-  // openStock can change the ticker while this screen stays mounted (stock ->
-  // stock, from search or a news chip), and the sub-tab is about the stock
-  // you were looking at, not the one you just opened.
-  useEffect(() => setTab('overview'), [s.ticker]);
+  // The sub-tab is scoped to its ticker AT RENDER TIME, not reset in an
+  // effect: openStock can change the ticker while this screen stays mounted
+  // (stock -> stock, from search or a news chip), and an effect-based reset
+  // runs after commit — one render would still mount the old sub-tab's panel
+  // for the NEW ticker and fire its data work before the reset landed.
+  // Deriving the tab from a {ticker, tab} pair makes the very first render of
+  // a new ticker land on 'overview' with no wasted fetch.
+  const [tabFor, setTabFor] = useState<{ ticker: string; tab: StockTab }>({
+    ticker: s.ticker,
+    tab: 'overview',
+  });
+  const tab = tabFor.ticker === s.ticker ? tabFor.tab : 'overview';
+  const setTab = (next: StockTab) => setTabFor({ ticker: s.ticker, tab: next });
   const [tf, setTf] = useState<Timeframe>('3M');
   const [ind, setInd] = useState({ ma: true, rsi: true, macd: false });
   const sym = useLoadable(() => demoService.symbol(s.ticker), [s.ticker]);
@@ -205,203 +214,199 @@ export function StockScreen({ openAlert }: ScreenProps) {
             onChange={setTab}
           />
 
-          {tab === 'overview' && (
-            <>
-              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                {TIMEFRAMES.map((f) => (
-                  <Chip key={f.key} active={tf === f.key} onClick={() => setTf(f.key)}>
-                    <Num>{f.key}</Num>
-                  </Chip>
-                ))}
-              </div>
+          <TabPanel key={`ov-${s.ticker}`} active={tab === 'overview'}>
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+              {TIMEFRAMES.map((f) => (
+                <Chip key={f.key} active={tf === f.key} onClick={() => setTf(f.key)}>
+                  <Num>{f.key}</Num>
+                </Chip>
+              ))}
+            </div>
 
-              {/* The chart is the one panel on this screen that is entirely
+            {/* The chart is the one panel on this screen that is entirely
                   real, so it gets its own honest states rather than borrowing
                   the row's: loading while the mirror is read, "unavailable"
                   with the reason when it cannot be, and a plain sentence when
                   the mirror simply publishes nothing for this symbol. None of
                   those draws a line. */}
-              <DataState
-                state={history.state}
-                onRetry={history.retry}
-                skeleton={<SkeletonCard height={beg ? 188 : 240} lines={2} />}
-              >
-                {(bars) => {
-                  const window = bars?.slice(-sessionsFor(tf)) ?? [];
-                  // A window with one bar in it has no line to draw and no
-                  // change to quote, so it is treated as no chart rather than
-                  // rendered as a dot.
-                  if (window.length < 2) {
-                    return (
-                      <Card padding={12} gap={0}>
-                        <p className="text-muted" style={{ fontSize: 13, margin: 0, textAlign: 'center' }}>
-                          {t('stock.noSeries')}
-                        </p>
-                      </Card>
-                    );
-                  }
-                  const closes = window.map((b) => b.close);
-                  const last = window[window.length - 1];
-                  const windowPct = ((last.close - closes[0]) / closes[0]) * 100;
-
-                  return beg ? (
+            <DataState
+              state={history.state}
+              onRetry={history.retry}
+              skeleton={<SkeletonCard height={beg ? 188 : 240} lines={2} />}
+            >
+              {(bars) => {
+                const window = bars?.slice(-sessionsFor(tf)) ?? [];
+                // A window with one bar in it has no line to draw and no
+                // change to quote, so it is treated as no chart rather than
+                // rendered as a dot.
+                if (window.length < 2) {
+                  return (
                     <Card padding={12} gap={0}>
-                      <AreaChart values={closes} height={150} pad={8} />
-                      <p style={{ fontSize: 13, lineHeight: 1.5, margin: '10px 0 0', opacity: 0.85 }}>
-                        {t('stock.chartHelp', { pct: pct(windowPct) })}
+                      <p className="text-muted" style={{ fontSize: 13, margin: 0, textAlign: 'center' }}>
+                        {t('stock.noSeries')}
                       </p>
                     </Card>
-                  ) : (
-                    <Card padding={8} gap={2}>
-                      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', paddingBottom: 4 }}>
-                        {(
-                          [
-                            ['ma', 'MA 20/50'],
-                            ['rsi', 'RSI'],
-                            ['macd', 'MACD'],
-                          ] as const
-                        ).map(([k, label]) => (
-                          <Chip key={k} active={ind[k]} onClick={() => setInd({ ...ind, [k]: !ind[k] })}>
-                            {label}
-                          </Chip>
-                        ))}
-                      </div>
-                      {/* The last session actually drawn, not four numbers
+                  );
+                }
+                const closes = window.map((b) => b.close);
+                const last = window[window.length - 1];
+                const windowPct = ((last.close - closes[0]) / closes[0]) * 100;
+
+                return beg ? (
+                  <Card padding={12} gap={0}>
+                    <AreaChart values={closes} height={150} pad={8} />
+                    <p style={{ fontSize: 13, lineHeight: 1.5, margin: '10px 0 0', opacity: 0.85 }}>
+                      {t('stock.chartHelp', { pct: pct(windowPct) })}
+                    </p>
+                  </Card>
+                ) : (
+                  <Card padding={8} gap={2}>
+                    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', paddingBottom: 4 }}>
+                      {(
+                        [
+                          ['ma', 'MA 20/50'],
+                          ['rsi', 'RSI'],
+                          ['macd', 'MACD'],
+                        ] as const
+                      ).map(([k, label]) => (
+                        <Chip key={k} active={ind[k]} onClick={() => setInd({ ...ind, [k]: !ind[k] })}>
+                          {label}
+                        </Chip>
+                      ))}
+                    </div>
+                    {/* The last session actually drawn, not four numbers
                           spun off the headline price. This strip used to read
                           O = price - 1.9, H = price + 2.4 and so on, which
                           described no day that ever traded. */}
-                      <Num size={12} block style={{ color: 'var(--muted)' }}>
-                        {`${last.date} · O ${last.open.toFixed(2)} H ${last.high.toFixed(2)} L ${last.low.toFixed(2)} C ${last.close.toFixed(2)}`}
-                      </Num>
-                      <CandleChart bars={window} showMA={ind.ma} showRSI={ind.rsi} showMACD={ind.macd} />
-                    </Card>
-                  );
-                }}
-              </DataState>
+                    <Num size={12} block style={{ color: 'var(--muted)' }}>
+                      {`${last.date} · O ${last.open.toFixed(2)} H ${last.high.toFixed(2)} L ${last.low.toFixed(2)} C ${last.close.toFixed(2)}`}
+                    </Num>
+                    <CandleChart bars={window} showMA={ind.ma} showRSI={ind.rsi} showMACD={ind.macd} />
+                  </Card>
+                );
+              }}
+            </DataState>
 
-              <DataState
-                state={positions.state}
-                onRetry={positions.retry}
-                skeleton={<SkeletonList count={1} leading={false} minHeight={46} />}
-              >
-                {(rows) =>
-                  rows.length === 0 ? null : (
-                    <Card padding="12px 13px 4px" gap={7}>
-                      <CardTitle>{t('stock.yourHoldings')}</CardTitle>
-                      {rows.map(({ portfolio, holding, index }) => (
-                        <ListRow
-                          key={portfolio.id}
-                          title={portfolio.kind === 'manual' ? portfolio.name : `${portfolio.broker}`}
-                          subtitle={<Num>{`${holding.shares} sh · avg ${money(holding.avgCost)}`}</Num>}
-                          right={
-                            <RowValues
-                              main={money(holding.value, 0)}
-                              sub={pct(holding.plPct)}
-                              subColor={signalColor(holding.plPct)}
-                            />
-                          }
-                          minHeight={46}
-                          // Select this row's account first: the Portfolio tab
-                          // renders whichever portfolio pfIndex points at, so
-                          // navigating without setting it opens whichever account
-                          // was last looked at rather than the one just tapped.
-                          onClick={() => {
-                            dispatch({ type: 'pfIndex', index });
-                            dispatch({ type: 'go', screen: 'pf' });
-                          }}
-                        />
-                      ))}
-                    </Card>
-                  )
-                }
-              </DataState>
-
-              <Card padding={12} gap={7}>
-                <CardTitle>{beg ? t('stock.basics') : t('stock.keyStats')}</CardTitle>
-                {beg ? (
-                  BEG_STATS(
-                    x.quote?.price ?? null,
-                    x.demo.marketCap,
-                    seriesBars?.at(-1)?.volume ?? null,
-                    x.demo.pe,
-                  ).map((row, i) => (
-                    <div key={i} style={{ padding: '7px 0', borderTop: '1px solid var(--color-divider)' }}>
-                      <div
-                        style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 14 }}
-                      >
-                        <span>{row.k}</span>
-                        <Num>{row.v}</Num>
-                      </div>
-                      <div className="text-muted" style={{ fontSize: 12.5, marginTop: 2 }}>
-                        {row.help}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
-                    {ADV_STATS(x, seriesBars).map(([k, v], i) => (
-                      <div
-                        key={i}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          gap: 8,
-                          fontSize: 12.5,
-                          padding: '2px 0',
+            <DataState
+              state={positions.state}
+              onRetry={positions.retry}
+              skeleton={<SkeletonList count={1} leading={false} minHeight={46} />}
+            >
+              {(rows) =>
+                rows.length === 0 ? null : (
+                  <Card padding="12px 13px 4px" gap={7}>
+                    <CardTitle>{t('stock.yourHoldings')}</CardTitle>
+                    {rows.map(({ portfolio, holding, index }) => (
+                      <ListRow
+                        key={portfolio.id}
+                        title={portfolio.kind === 'manual' ? portfolio.name : `${portfolio.broker}`}
+                        subtitle={<Num>{`${holding.shares} sh · avg ${money(holding.avgCost)}`}</Num>}
+                        right={
+                          <RowValues
+                            main={money(holding.value, 0)}
+                            sub={pct(holding.plPct)}
+                            subColor={signalColor(holding.plPct)}
+                          />
+                        }
+                        minHeight={46}
+                        // Select this row's account first: the Portfolio tab
+                        // renders whichever portfolio pfIndex points at, so
+                        // navigating without setting it opens whichever account
+                        // was last looked at rather than the one just tapped.
+                        onClick={() => {
+                          dispatch({ type: 'pfIndex', index });
+                          dispatch({ type: 'go', screen: 'pf' });
                         }}
-                      >
-                        <span className="text-muted">{k}</span>
-                        <Num>{v}</Num>
-                      </div>
+                      />
                     ))}
-                  </div>
-                )}
-              </Card>
+                  </Card>
+                )
+              }
+            </DataState>
 
-              {/* Shown in both modes: the ratings bar and counts are already
+            <Card padding={12} gap={7}>
+              <CardTitle>{beg ? t('stock.basics') : t('stock.keyStats')}</CardTitle>
+              {beg ? (
+                BEG_STATS(
+                  x.quote?.price ?? null,
+                  x.demo.marketCap,
+                  seriesBars?.at(-1)?.volume ?? null,
+                  x.demo.pe,
+                ).map((row, i) => (
+                  <div key={i} style={{ padding: '7px 0', borderTop: '1px solid var(--color-divider)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 14 }}>
+                      <span>{row.k}</span>
+                      <Num>{row.v}</Num>
+                    </div>
+                    <div className="text-muted" style={{ fontSize: 12.5, marginTop: 2 }}>
+                      {row.help}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+                  {ADV_STATS(x, seriesBars).map(([k, v], i) => (
+                    <div
+                      key={i}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        gap: 8,
+                        fontSize: 12.5,
+                        padding: '2px 0',
+                      }}
+                    >
+                      <span className="text-muted">{k}</span>
+                      <Num>{v}</Num>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            {/* Shown in both modes: the ratings bar and counts are already
               plain-language, so there was no beginner-specific reason to
               hide analyst sentiment from that mode. */}
-              <Card padding={12} gap={7}>
-                <CardTitle>{t('stock.analyst')}</CardTitle>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                  <span style={{ fontSize: 18, fontFamily: 'var(--font-heading)' }}>
-                    {t('stock.consensus')}
-                  </span>
-                  <span className="text-muted" style={{ fontSize: 12.5 }}>
-                    {t('stock.analystMeta')}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', height: 6, borderRadius: 4, overflow: 'hidden', gap: 1 }}>
-                  <div style={{ flex: 31, background: 'var(--up)' }} />
-                  <div style={{ flex: 11, background: 'var(--acc-mid)' }} />
-                  <div style={{ flex: 8, background: 'var(--muted-2)' }} />
-                  <div style={{ flex: 3, background: 'var(--down)' }} />
-                </div>
-                <div className="text-muted" style={{ display: 'flex', gap: 9, fontSize: 12.5 }}>
-                  <span>{t('stock.rateSb')}</span>
-                  <span>{t('stock.rateB')}</span>
-                  <span>{t('stock.rateH')}</span>
-                  <span>{t('stock.rateS')}</span>
-                </div>
-              </Card>
+            <Card padding={12} gap={7}>
+              <CardTitle>{t('stock.analyst')}</CardTitle>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                <span style={{ fontSize: 18, fontFamily: 'var(--font-heading)' }}>
+                  {t('stock.consensus')}
+                </span>
+                <span className="text-muted" style={{ fontSize: 12.5 }}>
+                  {t('stock.analystMeta')}
+                </span>
+              </div>
+              <div style={{ display: 'flex', height: 6, borderRadius: 4, overflow: 'hidden', gap: 1 }}>
+                <div style={{ flex: 31, background: 'var(--up)' }} />
+                <div style={{ flex: 11, background: 'var(--acc-mid)' }} />
+                <div style={{ flex: 8, background: 'var(--muted-2)' }} />
+                <div style={{ flex: 3, background: 'var(--down)' }} />
+              </div>
+              <div className="text-muted" style={{ display: 'flex', gap: 9, fontSize: 12.5 }}>
+                <span>{t('stock.rateSb')}</span>
+                <span>{t('stock.rateB')}</span>
+                <span>{t('stock.rateH')}</span>
+                <span>{t('stock.rateS')}</span>
+              </div>
+            </Card>
 
-              <NextEarnings ticker={s.ticker} />
+            <NextEarnings ticker={s.ticker} />
 
-              {/* The engine's own view, from the mirrored daily ranking. Kept as
+            {/* The engine's own view, from the mirrored daily ranking. Kept as
               its own card rather than folded into the header because most
               tickers are not in a 100-name ranking, and "not covered" is a
               real answer that needs room to say so. */}
-              <EngineCard ticker={s.ticker} />
-            </>
-          )}
+            <EngineCard ticker={s.ticker} />
+          </TabPanel>
 
-          {tab === 'reports' && (
-            <>
-              <ReportsTab ticker={s.ticker} />
-              <EarningsHistory ticker={s.ticker} />
-            </>
-          )}
-          {tab === 'news' && <NewsTab ticker={s.ticker} />}
+          <TabPanel key={`re-${s.ticker}`} active={tab === 'reports'}>
+            <ReportsTab ticker={s.ticker} />
+            <EarningsHistory ticker={s.ticker} />
+          </TabPanel>
+          <TabPanel key={`ne-${s.ticker}`} active={tab === 'news'}>
+            <NewsTab ticker={s.ticker} />
+          </TabPanel>
         </div>
       )}
     </DataState>
@@ -590,14 +595,14 @@ function LiveOnlyStock({ ticker }: { ticker: string }) {
         onChange={setTab}
       />
 
-      {tab === 'reports' && (
-        <>
-          <NextEarnings ticker={ticker} />
-          <ReportsTab ticker={ticker} />
-          <EarningsHistory ticker={ticker} />
-        </>
-      )}
-      {tab === 'news' && <NewsTab ticker={ticker} />}
+      <TabPanel key={`re-${ticker}`} active={tab === 'reports'}>
+        <NextEarnings ticker={ticker} />
+        <ReportsTab ticker={ticker} />
+        <EarningsHistory ticker={ticker} />
+      </TabPanel>
+      <TabPanel key={`ne-${ticker}`} active={tab === 'news'}>
+        <NewsTab ticker={ticker} />
+      </TabPanel>
     </div>
   );
 }

@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { demoService } from './demoAdapter';
+import { clearLoadableCache } from './loadableCache';
 
 /**
  * The seam this file guards is the one the whole "prices are real now" change
@@ -11,6 +12,12 @@ import { demoService } from './demoAdapter';
 
 const NOW = new Date();
 const today = NOW.toISOString().slice(0, 10);
+
+// The mirror read is shared through the module-level cache, and these tests
+// drive it by stubbing the global fetch — so without a reset the first case's
+// snapshot would be served to every case after it, and a test asserting on a
+// dead or stale mirror would quietly pass against the healthy one.
+beforeEach(clearLoadableCache);
 
 function mirror(rows: unknown[]): typeof fetch {
   return (async () =>

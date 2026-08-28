@@ -43,6 +43,7 @@
  *   week must look like a failure, not like a quiet market.
  */
 
+import { cachedLoadable } from './loadableCache';
 import { ok, unavailable, type Loadable, type Quote, type SatelliteSignal } from './types';
 
 /**
@@ -264,6 +265,65 @@ async function readMirror<T>(
   fetchImpl: typeof fetch = fetch,
   now: Date = new Date(),
 ): Promise<Loadable<T>> {
+  // The snapshot changes once a day, but several screens read it (the
+  // Satellite card, every stock page's ranking row, the first-purchase flow).
+  // Cache the transport+parse for the default fetch so one download serves
+  // them all; the shape and freshness checks below still run per call. An
+  // injected test fetchImpl bypasses the cache to keep tests isolated.
+  const bodyRes =
+    fetchImpl === fetch
+      ? await cachedLoadable('screener-mirror', MIRROR_CACHE_MS, () => fetchMirrorBody(fetch))
+      : await fetchMirrorBody(fetchImpl);
+  if (bodyRes.status !== 'ok') {
+    // 'unavailable' carries no payload, so its type is caller-agnostic.
+    return bodyRes as Loadable<T>;
+  }
+  const body = bodyRes.data;
+
+  const extracted = extract(body);
+  // Unrecognised shape → unavailable, never a fabricated empty result.
+  if (extracted === null) return unavailable();
+
+  // Age is checked only after the shape is known good, so a malformed file
+  // is reported as malformed rather than as stale.
+  const age = snapshotAgeDays(
+    (body as Record<string, unknown>).computed_on ?? (body as Record<string, unknown>).as_of,
+    now,
+  );
+  if (age === null) {
+    return unavailable({
+      en: 'Market data is missing its date, so it cannot be trusted.',
+      he: 'לנתוני השוק חסר תאריך, ולכן אי אפשר להסתמך עליהם.',
+    });
+  }
+  if (age > MAX_SNAPSHOT_AGE_DAYS) {
+    return unavailable({
+      en: `Market data is ${age} days old, so it is no longer current.`,
+      he: `נתוני השוק בני ${age} ימים, ולכן אינם עדכניים.`,
+    });
+  }
+  if (age < -MAX_FUTURE_SKEW_DAYS) {
+    return unavailable({
+      en: 'Market data is dated in the future, so it cannot be trusted.',
+      he: 'נתוני השוק מתוארכים לעתיד, ולכן אי אפשר להסתמך עליהם.',
+    });
+  }
+
+  return ok(extracted);
+}
+
+/**
+ * How long a downloaded snapshot body is reused. The file is republished
+ * once a day, so five minutes of reuse is invisible in freshness terms while
+ * collapsing the per-screen re-downloads into one.
+ */
+const MIRROR_CACHE_MS = 5 * 60_000;
+
+/**
+ * Transport + JSON parse for the mirror, with none of the trust checks.
+ * Never throws.
+ */
+async function fetchMirrorBody(fetchImpl: typeof fetch): Promise<Loadable<unknown>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
@@ -281,38 +341,7 @@ async function readMirror<T>(
       });
     }
     if (!res.ok) return unavailable();
-
-    const body: unknown = await res.json();
-    const extracted = extract(body);
-    // Unrecognised shape → unavailable, never a fabricated empty result.
-    if (extracted === null) return unavailable();
-
-    // Age is checked only after the shape is known good, so a malformed file
-    // is reported as malformed rather than as stale.
-    const age = snapshotAgeDays(
-      (body as Record<string, unknown>).computed_on ?? (body as Record<string, unknown>).as_of,
-      now,
-    );
-    if (age === null) {
-      return unavailable({
-        en: 'Market data is missing its date, so it cannot be trusted.',
-        he: 'לנתוני השוק חסר תאריך, ולכן אי אפשר להסתמך עליהם.',
-      });
-    }
-    if (age > MAX_SNAPSHOT_AGE_DAYS) {
-      return unavailable({
-        en: `Market data is ${age} days old, so it is no longer current.`,
-        he: `נתוני השוק בני ${age} ימים, ולכן אינם עדכניים.`,
-      });
-    }
-    if (age < -MAX_FUTURE_SKEW_DAYS) {
-      return unavailable({
-        en: 'Market data is dated in the future, so it cannot be trusted.',
-        he: 'נתוני השוק מתוארכים לעתיד, ולכן אי אפשר להסתמך עליהם.',
-      });
-    }
-
-    return ok(extracted);
+    return ok<unknown>(await res.json());
   } catch {
     // Network failure, abort/timeout, invalid JSON — all honestly
     // 'unavailable'. Deliberately no demo fallback.

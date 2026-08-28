@@ -22,7 +22,9 @@ afterEach(() => {
 });
 
 /** Happy-path upstream: /auth/v1/user identifies the caller, DELETE succeeds. */
-function mockUpstream(opts: { whoOk?: boolean; deleteOk?: boolean; id?: unknown } = {}) {
+function mockUpstream(
+  opts: { whoOk?: boolean; deleteOk?: boolean; deleteStatus?: number; id?: unknown } = {},
+) {
   const calls: Array<{ url: string; method: string }> = [];
   globalThis.fetch = vi.fn().mockImplementation((input: string, init?: { method?: string }) => {
     const url = String(input);
@@ -34,7 +36,8 @@ function mockUpstream(opts: { whoOk?: boolean; deleteOk?: boolean; id?: unknown 
         }),
       );
     }
-    return Promise.resolve(new Response('', { status: opts.deleteOk === false ? 500 : 200 }));
+    const status = opts.deleteStatus ?? (opts.deleteOk === false ? 500 : 200);
+    return Promise.resolve(new Response('', { status }));
   }) as unknown as typeof fetch;
   return calls;
 }
@@ -121,5 +124,55 @@ describe('delete-account handler', () => {
     const res = makeRes();
     await handler(authed, res);
     expect(res._status).toBe(502);
+  });
+
+  it('treats an already-deleted user (404) as success', async () => {
+    mockUpstream({ deleteStatus: 404 });
+    const res = makeRes();
+    await handler(authed, res);
+    expect(res._status).toBe(200);
+    expect(res._body).toEqual({ deleted: true });
+  });
+
+  // The DELETE's outcome can be lost (abort after Supabase received it).
+  // The handler must reconcile the account's real state before answering —
+  // a confident wrong answer in either direction is the failure mode here.
+  describe('lost DELETE response', () => {
+    /** who → ok, DELETE → rejects, reconcile GET → per `reconcile`. */
+    function mockLostDelete(reconcile: { status?: number; throws?: boolean }) {
+      globalThis.fetch = vi.fn().mockImplementation((input: string, init?: { method?: string }) => {
+        const url = String(input);
+        if (url.endsWith('/auth/v1/user')) {
+          return Promise.resolve(new Response(JSON.stringify({ id: VERIFIED_ID }), { status: 200 }));
+        }
+        if (init?.method === 'DELETE') return Promise.reject(new Error('aborted'));
+        if (reconcile.throws) return Promise.reject(new Error('network'));
+        return Promise.resolve(new Response('{}', { status: reconcile.status ?? 200 }));
+      }) as unknown as typeof fetch;
+    }
+
+    it('reports success when reconciliation finds the user gone', async () => {
+      mockLostDelete({ status: 404 });
+      const res = makeRes();
+      await handler(authed, res);
+      expect(res._status).toBe(200);
+      expect(res._body).toEqual({ deleted: true });
+    });
+
+    it('reports delete_failed when the user still exists', async () => {
+      mockLostDelete({ status: 200 });
+      const res = makeRes();
+      await handler(authed, res);
+      expect(res._status).toBe(502);
+      expect(res._body).toMatchObject({ error: 'delete_failed' });
+    });
+
+    it('says the outcome is unknown when reconciliation also fails', async () => {
+      mockLostDelete({ throws: true });
+      const res = makeRes();
+      await handler(authed, res);
+      expect(res._status).toBe(502);
+      expect(res._body).toMatchObject({ error: 'delete_unconfirmed' });
+    });
   });
 });

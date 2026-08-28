@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Card, CardTitle, Divider } from '../components/Card';
 import { DemoDataNote } from '../components/DemoDataNote';
 import { Button } from '../components/Button';
@@ -31,7 +32,8 @@ export function HomeScreen(_: ScreenProps) {
   const symbols = useLoadable(() => demoService.symbols(), []);
   const portfolios = useLoadable(() => demoService.portfolios(), []);
   const setup = setupProgress(s);
-  const pfSeries = demoService.series('home-pf', 60, 0.42, 2.2);
+  // Deterministic for a given key, so compute the walk once, not per render.
+  const pfSeries = useMemo(() => demoService.series('home-pf', 60, 0.42, 2.2), []);
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

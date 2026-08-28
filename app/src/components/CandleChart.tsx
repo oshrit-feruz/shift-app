@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import {
   candlesFromBars,
   macdSeries,
@@ -40,29 +41,48 @@ export function CandleChart({
   showRSI: boolean;
   showMACD: boolean;
 }) {
-  const closes = bars.map((b) => b.close);
-  const scale = priceScale(bars, H - 4);
-  const cs = candlesFromBars(bars, W, scale);
   const step = W / bars.length;
+  const barW = Math.max(1, Math.min(step * 0.7, 12));
   const at = (i: number) => i * step + step / 2;
-
-  /** Map an indicator series onto the price pane, keeping its gaps. */
-  const overPrice = (vals: Array<number | null>): Array<Pt | null> =>
-    vals.map((v, i) => (v === null ? null : ([at(i), scale.yFor(v)] as Pt)));
-
-  const vols = volumeBars(bars, W, VOL_H - 2);
-
-  const rsiVals = rsi(closes);
-  const rsiNow = [...rsiVals].reverse().find((v) => v !== null) ?? null;
-  // RSI is defined on a fixed 0..100 scale, so the pane is scaled to that and
+  // RSI is defined on a fixed 0..100 scale, so its pane is scaled to that and
   // not to the values present — otherwise the 30 and 70 guide lines would sit
   // wherever the window happened to range, which is what made them decorative
-  // before. `pad` keeps a reading of exactly 0 or 100 inside the pane.
+  // before. The padding keeps a reading of exactly 0 or 100 inside the pane.
   const rsiY = (v: number) => PANE_H - 6 - (v / 100) * (PANE_H - 12);
-
-  const { macd, signal } = macdSeries(closes);
-  const mMax = Math.max(...[...macd, ...signal].map((v) => (v === null ? 0 : Math.abs(v))), 1e-6);
   const mZero = PANE_H / 2;
+
+  // Every derived series depends only on `bars`; a parent re-render (a
+  // timeframe chip, an indicator toggle) must not redo the O(n·window) math.
+  const { cs, vols, ma20, ma50, rsiPath, rsiNow, macd, signal, mMax } = useMemo(() => {
+    const closes = bars.map((b) => b.close);
+    const scale = priceScale(bars, H - 4);
+    const rsiVals = rsi(closes);
+    const macdOut = macdSeries(closes);
+
+    /** Map an indicator series onto the price pane, keeping its gaps. */
+    const overPrice = (vals: Array<number | null>): Array<Pt | null> =>
+      vals.map((v, i) => (v === null ? null : ([at(i), scale.yFor(v)] as Pt)));
+
+    return {
+      cs: candlesFromBars(bars, W, scale),
+      vols: volumeBars(bars, W, VOL_H - 2),
+      ma20: sparseLinePath(overPrice(sma(closes, 20))),
+      ma50: sparseLinePath(overPrice(sma(closes, 50))),
+      rsiPath: sparseLinePath(rsiVals.map((v, i) => (v === null ? null : ([at(i), rsiY(v)] as Pt)))),
+      rsiNow: [...rsiVals].reverse().find((v) => v !== null) ?? null,
+      macd: macdOut.macd,
+      signal: macdOut.signal,
+      // Both lines share one scale; 1e-6 only guards the divide for a window
+      // in which MACD is flat at zero.
+      mMax: Math.max(
+        ...[...macdOut.macd, ...macdOut.signal].map((v) => (v === null ? 0 : Math.abs(v))),
+        1e-6,
+      ),
+    };
+    // step/at/rsiY are all derived from bars.length; bars is the real input.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bars]);
+
   const mY = (v: number) => mZero - (v / mMax) * (PANE_H / 2 - 8);
   const mLine = (vals: Array<number | null>) =>
     sparseLinePath(vals.map((v, i) => (v === null ? null : ([at(i), mY(v)] as Pt))));
@@ -93,19 +113,8 @@ export function CandleChart({
         ))}
         {showMA && (
           <g>
-            <path
-              d={sparseLinePath(overPrice(sma(closes, 20)))}
-              fill="none"
-              stroke="var(--acc-lite)"
-              strokeWidth="1.1"
-            />
-            <path
-              d={sparseLinePath(overPrice(sma(closes, 50)))}
-              fill="none"
-              stroke="var(--acc-dim)"
-              strokeWidth="1.1"
-              strokeDasharray="4 3"
-            />
+            <path d={ma20} fill="none" stroke="var(--acc-lite)" strokeWidth="1.1" />
+            <path d={ma50} fill="none" stroke="var(--acc-dim)" strokeWidth="1.1" strokeDasharray="4 3" />
           </g>
         )}
       </svg>
@@ -139,12 +148,7 @@ export function CandleChart({
         >
           <line x1="0" y1={rsiY(70)} x2={W} y2={rsiY(70)} stroke="var(--line)" strokeDasharray="3 3" />
           <line x1="0" y1={rsiY(30)} x2={W} y2={rsiY(30)} stroke="var(--line)" strokeDasharray="3 3" />
-          <path
-            d={sparseLinePath(rsiVals.map((v, i) => (v === null ? null : ([at(i), rsiY(v)] as Pt))))}
-            fill="none"
-            stroke="var(--acc-pale)"
-            strokeWidth="1.2"
-          />
+          <path d={rsiPath} fill="none" stroke="var(--acc-pale)" strokeWidth="1.2" />
           <text x="3" y="10" fill="var(--muted)" fontSize="8">
             {/* Dashed rather than rounded-to-something when the window is too
                 short to have a reading — a label is not the place to invent one. */}
@@ -166,9 +170,9 @@ export function CandleChart({
             return (
               <rect
                 key={i}
-                x={at(i) - Math.max(1, Math.min(step * 0.7, 12)) / 2}
+                x={at(i) - barW / 2}
                 y={v >= 0 ? mZero - h : mZero}
-                width={Math.max(1, Math.min(step * 0.7, 12))}
+                width={barW}
                 height={Math.max(0.5, h)}
                 fill={v >= 0 ? 'var(--up)' : 'var(--down)'}
                 opacity=".65"

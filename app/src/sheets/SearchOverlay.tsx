@@ -20,12 +20,18 @@ import { moneyOrDash, pct, signalColor } from '../lib/format';
  * overlay is never an empty box on open.
  */
 export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { mounted, closing } = useDismissAnimation(open, 170);
+  // The body (and its symbols fetch) exists only while the overlay is
+  // actually shown — the always-mounted wrapper must not fetch on app boot.
+  if (!mounted) return null;
+  return <SearchOverlayBody closing={closing} onClose={onClose} />;
+}
+
+function SearchOverlayBody({ closing, onClose }: { closing: boolean; onClose: () => void }) {
   const dispatch = useDispatch();
   const t = useT();
   const [q, setQ] = useState('');
   const symbols = useLoadable(() => demoService.symbols(), []);
-  const { mounted, closing } = useDismissAnimation(open, 170);
-  if (!mounted) return null;
   const query = q.trim().toLowerCase();
 
   return (

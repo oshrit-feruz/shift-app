@@ -1,4 +1,12 @@
-import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  type ReactNode,
+} from 'react';
 import type { Answer } from '../lib/advisory';
 
 export type Screen =
@@ -237,10 +245,19 @@ const DispatchCtx = createContext<(a: Action) => void>(() => {});
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, hydrate);
+  // Written only when a persisted key actually changed: most dispatches are
+  // navigation, which is not persisted, and a synchronous stringify+write of
+  // the whole slice on every tab tap is main-thread work for nothing. The
+  // reducer spreads a new state object but keeps untouched values by
+  // reference, so a per-key identity check is a faithful "did it change".
+  const lastPersisted = useRef<Partial<AppState> | null>(null);
   useEffect(() => {
+    const prev = lastPersisted.current;
+    if (prev !== null && PERSISTED.every((k) => state[k] === prev[k])) return;
     try {
-      const out: Record<string, unknown> = {};
-      for (const k of PERSISTED) out[k] = state[k];
+      const out: Partial<AppState> = {};
+      for (const k of PERSISTED) (out as Record<string, unknown>)[k] = state[k];
+      lastPersisted.current = out;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(out));
     } catch {
       /* persistence is best-effort */

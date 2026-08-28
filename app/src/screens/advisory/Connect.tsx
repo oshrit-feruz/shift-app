@@ -23,7 +23,7 @@ const BROKERS = [
   {
     key: 'ibkr' as const,
     name: 'Interactive Brokers',
-    logo: '/assets/broker-ibkr.png',
+    logo: '/assets/broker-ibkr.webp',
     help: {
       en: 'The widest market access, lowest fees at larger amounts.',
       he: 'הגישה הרחבה ביותר לשווקים, והעמלות הנמוכות בסכומים גדולים.',

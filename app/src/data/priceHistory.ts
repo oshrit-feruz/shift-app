@@ -31,6 +31,7 @@
  * - Nothing is interpolated. A gap in the sessions is drawn as the gap it is.
  */
 
+import { cachedLoadable } from './loadableCache';
 import { ok, unavailable, type Bar, type Loadable } from './types';
 import covered from './coveredTickers.json';
 
@@ -60,6 +61,16 @@ export const MAX_SERIES_AGE_DAYS = 7;
 
 /** As in the screener mirror: a day of slack for a viewer's clock, no more. */
 const MAX_FUTURE_SKEW_DAYS = 1;
+
+/**
+ * How long a read is shared before the file is fetched again.
+ *
+ * The movers screen renders one sparkline per row and the stock page reads
+ * the same ticker again on arrival, so without this a single visit is a
+ * download per row and every re-mount repeats them. The published file only
+ * changes once a day, so a few minutes of sharing costs nothing in freshness.
+ */
+const SERIES_CACHE_MS = 5 * 60_000;
 
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
@@ -142,6 +153,22 @@ export async function fetchDailySeries(
   ticker: string,
   fetchImpl: typeof fetch = fetch,
   now: Date = new Date(),
+): Promise<Loadable<Bar[] | null>> {
+  // Only the default fetch is cached; an injected test fetchImpl goes straight
+  // through, so tests keep their isolation without touching cache state. The
+  // key carries the ticker because each one has its own file.
+  return fetchImpl === fetch
+    ? cachedLoadable(`series:${ticker.trim().toUpperCase()}`, SERIES_CACHE_MS, () =>
+        readSeries(ticker, fetch, now),
+      )
+    : readSeries(ticker, fetchImpl, now);
+}
+
+/** The uncached read. Never throws. */
+async function readSeries(
+  ticker: string,
+  fetchImpl: typeof fetch,
+  now: Date,
 ): Promise<Loadable<Bar[] | null>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);

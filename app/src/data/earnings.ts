@@ -18,6 +18,7 @@
  */
 
 import { DEMO_FLAGS } from './demoAdapter';
+import { cachedLoadable } from './loadableCache';
 import { reasonFromResponse } from './providerReason';
 import { showcaseHistory, showcaseWeek } from './showcase';
 import { ok, unavailable, type EarningsRow, type Loadable } from './types';
@@ -147,6 +148,24 @@ export function mapRow(raw: unknown): EarningsRow | null {
   };
 }
 
+/**
+ * How long a successful page is reused before the endpoint is asked again.
+ * Matches the calendar's server-side cache order of magnitude — earnings rows
+ * change on the scale of days, so ten minutes of client reuse costs nothing
+ * in freshness and saves a round trip on every tab switch.
+ */
+const CACHE_TTL_MS = 10 * 60_000;
+
+/**
+ * Cache wrapper around `read`. Only the default transport is cached —
+ * an injected test fetchImpl always goes straight through, so tests stay
+ * isolated from module-level cache state.
+ */
+function readCached(url: string, fetchImpl: typeof fetch): Promise<Loadable<EarningsPage>> {
+  if (fetchImpl !== fetch) return read(url, fetchImpl);
+  return cachedLoadable(`earnings:${url}`, CACHE_TTL_MS, () => read(url, fetch));
+}
+
 /** Shared transport and honesty handling. Never throws. */
 async function read(url: string, fetchImpl: typeof fetch): Promise<Loadable<EarningsPage>> {
   const controller = new AbortController();
@@ -193,7 +212,7 @@ export async function fetchWeekEarnings(
   // live failure below still reports itself as a failure.
   if (DEMO_FLAGS.showcase) return ok(showcaseWeek(now));
   const { from, to } = weekAheadWindow(now);
-  return read(`${EARNINGS_URL}?from=${from}&to=${to}`, fetchImpl);
+  return readCached(`${EARNINGS_URL}?from=${from}&to=${to}`, fetchImpl);
 }
 
 /**
@@ -211,5 +230,8 @@ export async function fetchTickerEarnings(
   if (DEMO_FLAGS.showcase) return ok(showcaseHistory(clean, now));
   const from = isoDay(new Date(now.getTime() - HISTORY_QUARTERS * DAYS_PER_QUARTER * 86_400_000));
   const to = isoDay(new Date(now.getTime() + LOOKAHEAD_DAYS * 86_400_000));
-  return read(`${EARNINGS_URL}?ticker=${encodeURIComponent(clean)}&from=${from}&to=${to}`, fetchImpl);
+  return readCached(
+    `${EARNINGS_URL}?ticker=${encodeURIComponent(clean)}&from=${from}&to=${to}`,
+    fetchImpl,
+  );
 }

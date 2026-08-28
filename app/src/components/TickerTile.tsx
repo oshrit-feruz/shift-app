@@ -20,9 +20,9 @@ const LOGOS: Record<string, string> = {
   V: '/assets/sym-v.svg',
   MA: '/assets/sym-ma.svg',
   NFLX: '/assets/sym-nflx.svg',
-  TEVA: '/assets/sym-teva.png',
-  MDA: '/assets/sym-mda.png',
-  AMD: '/assets/sym-amd.png',
+  TEVA: '/assets/sym-teva.webp',
+  MDA: '/assets/sym-mda.webp',
+  AMD: '/assets/sym-amd.webp',
 };
 
 export function TickerTile({ ticker, size = 34 }: { ticker: string; size?: number }) {
@@ -38,17 +38,18 @@ export function TickerTile({ ticker, size = 34 }: { ticker: string; size?: numbe
     fontWeight: 600,
   };
   if (url) {
+    // A real <img>, not background-image: it gets viewport-lazy loading and
+    // async decode, which CSS backgrounds have no equivalent for.
     return (
-      <span
-        style={{
-          ...base,
-          backgroundColor: '#fff',
-          backgroundImage: `url(${url})`,
-          backgroundSize: '74%',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-        }}
-      />
+      <span style={{ ...base, backgroundColor: '#fff', overflow: 'hidden' }}>
+        <img
+          src={url}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          style={{ width: '74%', height: '74%', objectFit: 'contain' }}
+        />
+      </span>
     );
   }
   return (
@@ -91,6 +92,7 @@ export function LogoTile({
       </span>
     );
   }
+  // Same <img> treatment as TickerTile: lazy + async decode.
   return (
     <span
       style={{
@@ -99,11 +101,18 @@ export function LogoTile({
         flex: 'none',
         borderRadius: 7,
         backgroundColor: '#fff',
-        backgroundImage: `url(${src})`,
-        backgroundSize: 'contain',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
+        overflow: 'hidden',
+        display: 'grid',
+        placeItems: 'center',
       }}
-    />
+    >
+      <img
+        src={src}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+      />
+    </span>
   );
 }

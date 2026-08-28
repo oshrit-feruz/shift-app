@@ -10,6 +10,14 @@ export default defineConfig({
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         ds: fileURLToPath(new URL('./ds.html', import.meta.url)),
       },
+      output: {
+        // Long-lived vendor code in its own chunks, so shipping an app
+        // change doesn't invalidate the cached copy of React or Supabase.
+        manualChunks: {
+          react: ['react', 'react-dom'],
+          supabase: ['@supabase/supabase-js'],
+        },
+      },
     },
   },
 });
