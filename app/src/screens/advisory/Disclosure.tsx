@@ -23,7 +23,15 @@ export function AdvisoryDisclosure(_: ScreenProps) {
       </Card>
       <Card padding="4px 0" gap={0}>
         {POINTS.map((k, i) => (
-          <div key={k} style={{ display: 'flex', gap: 10, padding: '11px 13px', borderTop: '1px solid var(--color-divider)' }}>
+          <div
+            key={k}
+            style={{
+              display: 'flex',
+              gap: 10,
+              padding: '11px 13px',
+              borderTop: '1px solid var(--color-divider)',
+            }}
+          >
             <span
               style={{
                 width: 20,
@@ -47,7 +55,11 @@ export function AdvisoryDisclosure(_: ScreenProps) {
         {t('disc.cta')}
       </Button>
       <div style={{ display: 'flex', justifyContent: 'center', gap: 14 }}>
-        <Button variant="ghost" fontSize={13} onClick={() => dispatch({ type: 'advGoto', screen: 'advChat' })}>
+        <Button
+          variant="ghost"
+          fontSize={13}
+          onClick={() => dispatch({ type: 'advGoto', screen: 'advChat' })}
+        >
           {t('adv.back')}
         </Button>
         <Button variant="ghost" fontSize={13} onClick={() => dispatch({ type: 'go', screen: 'home' })}>

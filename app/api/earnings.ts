@@ -1,11 +1,6 @@
 import { isValidTicker } from './_lib/news.js';
 import { parseIsoDate, validateRange, type EarningsRow } from './_lib/earnings.js';
-import {
-  mapHistoryRow,
-  parseCalendarCsv,
-  readApiError,
-  withinRange,
-} from './_lib/alphavantage.js';
+import { mapHistoryRow, parseCalendarCsv, readApiError, withinRange } from './_lib/alphavantage.js';
 import { failureBody, fetchUpstreamJson } from './_lib/upstream.js';
 import { type ApiRequest, type ApiResponse } from './_lib/http.js';
 
@@ -34,7 +29,9 @@ const CALENDAR_HORIZONS: Array<{ days: number; value: string }> = [
  * empty answer for a past window is a real answer.
  */
 export function horizonFor(to: string, now: Date = new Date()): string | null {
-  const days = (Date.parse(`${to}T00:00:00Z`) - Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())) / 86_400_000;
+  const days =
+    (Date.parse(`${to}T00:00:00Z`) - Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())) /
+    86_400_000;
   if (days <= 0) return CALENDAR_HORIZONS[0].value;
   return CALENDAR_HORIZONS.find((h) => days <= h.days)?.value ?? null;
 }
@@ -63,8 +60,14 @@ const MAX_ROWS = 400;
  * the rest of the app already uses for HTTP statuses: a plan problem reads as
  * forbidden (it will not fix itself), a spent quota as rate-limited (it will).
  */
-const NOTICE_FAILURES: Record<'rate_limited' | 'plan_required' | 'rejected', { error: string; message: string }> = {
-  rate_limited: { error: 'upstream_rate_limited', message: "The earnings provider's request quota has been reached." },
+const NOTICE_FAILURES: Record<
+  'rate_limited' | 'plan_required' | 'rejected',
+  { error: string; message: string }
+> = {
+  rate_limited: {
+    error: 'upstream_rate_limited',
+    message: "The earnings provider's request quota has been reached.",
+  },
   plan_required: {
     error: 'upstream_forbidden',
     message: "The earnings provider refused the request — this API key's plan may not include this data.",
@@ -72,7 +75,7 @@ const NOTICE_FAILURES: Record<'rate_limited' | 'plan_required' | 'rejected', { e
   rejected: { error: 'upstream_error', message: 'The earnings provider refused the request.' },
 };
 
-/** Parse text that should be JSON, without throwing. Null when it is not. */
+/** Safely parse a string as JSON. Returns null if the string is not valid JSON instead of throwing. */
 function safeJson(text: string): unknown {
   try {
     return JSON.parse(text);
@@ -82,16 +85,16 @@ function safeJson(text: string): unknown {
 }
 
 /**
- * The market-wide calendar, from the CSV body. Null means "not a shape we
- * understand", which the caller reports rather than treating as a quiet week.
+ * Parse the market-wide calendar from CSV response body.
+ * Returns null if the body is not a recognizable CSV format, which the caller reports as unreadable rather than treating as an empty week.
  */
 function readCalendar(body: unknown): EarningsRow[] | null {
   return typeof body === 'string' ? parseCalendarCsv(body) : null;
 }
 
 /**
- * One company's reported quarters, from EARNINGS' quarterlyEarnings array.
- * A body without that array is unreadable, not an empty history.
+ * Extract a company's reported quarters from the EARNINGS response's quarterlyEarnings array.
+ * Returns null if the array is missing (unreadable response), not an empty array (which would mean no history).
  */
 function readHistory(body: unknown, ticker: string): EarningsRow[] | null {
   if (typeof body !== 'object' || body === null) return null;
@@ -158,7 +161,9 @@ export function createHandler(timeoutMs: number) {
     const rawTicker = one(req.query.ticker);
     const ticker = rawTicker === undefined || rawTicker === '' ? null : rawTicker;
     if (ticker !== null && !isValidTicker(ticker)) {
-      return res.status(400).json({ error: 'invalid_ticker', message: 'Ticker contains unsupported characters.' });
+      return res
+        .status(400)
+        .json({ error: 'invalid_ticker', message: 'Ticker contains unsupported characters.' });
     }
 
     // Dates are required and validated before any upstream call: a bad range
@@ -173,15 +178,18 @@ export function createHandler(timeoutMs: number) {
         .json({ error: 'invalid_range', message: 'Query params "from" and "to" must be YYYY-MM-DD dates.' });
     }
     if (rangeError === 'bad_range') {
-      return res
-        .status(400)
-        .json({ error: 'invalid_range', message: 'The date range is inverted or wider than this endpoint allows.' });
+      return res.status(400).json({
+        error: 'invalid_range',
+        message: 'The date range is inverted or wider than this endpoint allows.',
+      });
     }
 
     const apiKey = process.env.ALPHAVANTAGE_API_KEY;
     if (!apiKey) {
       console.error('/api/earnings: ALPHAVANTAGE_API_KEY is not set');
-      return res.status(500).json({ error: 'not_configured', message: 'Earnings service is not configured.' });
+      return res
+        .status(500)
+        .json({ error: 'not_configured', message: 'Earnings service is not configured.' });
     }
 
     // Two upstream questions, two functions. Neither takes a date range —
@@ -230,7 +238,8 @@ export function createHandler(timeoutMs: number) {
       return res.status(502).json(failure);
     }
 
-    const mapped = ticker === null ? readCalendar(result.body) : readHistory(result.body, ticker.toUpperCase());
+    const mapped =
+      ticker === null ? readCalendar(result.body) : readHistory(result.body, ticker.toUpperCase());
     if (mapped === null) {
       console.error('/api/earnings: upstream response had an unexpected shape');
       return res

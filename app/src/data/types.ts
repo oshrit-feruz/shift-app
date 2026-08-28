@@ -238,9 +238,14 @@ export type Loadable<T> =
   | { status: 'unavailable'; reason?: { en: string; he: string } }
   | { status: 'ok'; data: T };
 
-export const loading = <T,>(): Loadable<T> => ({ status: 'loading' });
-export const unavailable = <T,>(reason?: { en: string; he: string }): Loadable<T> => ({
+/** Create a loading state for a Loadable. */
+export const loading = <T>(): Loadable<T> => ({ status: 'loading' });
+
+/** Create an unavailable state for a Loadable, optionally with a bilingual reason explaining why. */
+export const unavailable = <T>(reason?: { en: string; he: string }): Loadable<T> => ({
   status: 'unavailable',
   reason,
 });
-export const ok = <T,>(data: T): Loadable<T> => ({ status: 'ok', data });
+
+/** Create a successful state for a Loadable with the given data. */
+export const ok = <T>(data: T): Loadable<T> => ({ status: 'ok', data });

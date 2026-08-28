@@ -1,15 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { User } from '@supabase/supabase-js';
-import {
-  EMPTY_PROFILE,
-  isValidDisplayName,
-  localeToLanguage,
-  mergeProfile,
-  readProfile,
-} from './profile';
+import { EMPTY_PROFILE, isValidDisplayName, localeToLanguage, mergeProfile, readProfile } from './profile';
 
 const user = (email: unknown, meta: Record<string, unknown>) =>
-  ({ email, user_metadata: meta } as unknown as User);
+  ({ email, user_metadata: meta }) as unknown as User;
 
 describe('readProfile', () => {
   it('reads a typical Google identity', () => {
@@ -64,9 +58,9 @@ describe('readProfile', () => {
   });
 
   it('falls back to the first word when no given_name is sent', () => {
-    expect(readProfile(user('a@b.com', { full_name: '  Ada   Byron Lovelace ' }).valueOf() as User).firstName).toBe(
-      'Ada',
-    );
+    expect(
+      readProfile(user('a@b.com', { full_name: '  Ada   Byron Lovelace ' }).valueOf() as User).firstName,
+    ).toBe('Ada');
   });
 
   it('never invents a name from the email address', () => {

@@ -34,7 +34,7 @@ export const STOCK_NEWS_URL = '/api/news';
  */
 const TIMEOUT_MS = 25_000;
 
-/** Trimmed non-empty string, or null. */
+/** Extract a trimmed non-empty string from a value, or return null if it's not a usable string. */
 function str(v: unknown): string | null {
   return typeof v === 'string' && v.trim() !== '' ? v.trim() : null;
 }
@@ -180,12 +180,8 @@ export async function fetchMarketNews(
   return readNews(STOCK_NEWS_URL, fetchImpl);
 }
 
-/** Shared transport and honesty handling for both feeds. Never throws. */
-async function readNews(
-  url: string,
-  fetchImpl: typeof fetch,
-): Promise<Loadable<StockNewsArticle[]>> {
-
+/** Fetch news articles from a URL, handling transport errors and provider failures. Shared by both per-ticker and market-wide feeds. Never throws. */
+async function readNews(url: string, fetchImpl: typeof fetch): Promise<Loadable<StockNewsArticle[]>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {

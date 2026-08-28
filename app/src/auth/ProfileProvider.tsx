@@ -102,9 +102,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         locale: identity.locale,
       })
       .eq('id', userId)
-      .then(() =>
-        client.from('profiles').select('display_name, avatar_path').eq('id', userId).maybeSingle(),
-      )
+      .then(() => client.from('profiles').select('display_name, avatar_path').eq('id', userId).maybeSingle())
       .then(({ data, error }) => {
         if (cancelled) return;
         if (error) {

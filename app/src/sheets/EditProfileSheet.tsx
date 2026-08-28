@@ -32,7 +32,10 @@ export function EditProfileSheet({ open, onClose }: { open: boolean; onClose: ()
   const nameChanged = name.trim() !== (profile.fullName ?? '').trim();
   const nameValid = name.trim() === '' || isValidDisplayName(name);
 
-  const run = async (kind: 'name' | 'photo', action: () => Promise<{ ok: boolean; reason?: { en: string; he: string } }>) => {
+  const run = async (
+    kind: 'name' | 'photo',
+    action: () => Promise<{ ok: boolean; reason?: { en: string; he: string } }>,
+  ) => {
     setBusy(kind);
     setError(null);
     setSaved(false);
@@ -125,9 +128,7 @@ export function EditProfileSheet({ open, onClose }: { open: boolean; onClose: ()
           placeholder={t('set.namePlaceholder')}
           onChange={(e) => setName(e.target.value)}
         />
-        {!nameValid && (
-          <span style={{ fontSize: 12, color: 'var(--down)' }}>{t('set.nameInvalid')}</span>
-        )}
+        {!nameValid && <span style={{ fontSize: 12, color: 'var(--down)' }}>{t('set.nameInvalid')}</span>}
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <Button
@@ -155,7 +156,15 @@ export function EditProfileSheet({ open, onClose }: { open: boolean; onClose: ()
       </div>
 
       {/* Email — shown, not editable, and says why. */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, borderTop: '1px solid var(--color-divider)', paddingTop: 10 }}>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 3,
+          borderTop: '1px solid var(--color-divider)',
+          paddingTop: 10,
+        }}
+      >
         <span style={{ fontSize: 13.5 }}>{profile.email}</span>
         <span className="text-muted" style={{ fontSize: 12, lineHeight: 1.5 }}>
           {t('set.emailFixed')}

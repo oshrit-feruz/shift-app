@@ -35,7 +35,7 @@ import { RECOVERY_DETECTOR_ORIGIN } from './recoveryDetector';
  */
 const TIMEOUT_MS = 60_000;
 
-/** Accepts a number or numeric string; anything else (or non-finite) → null. */
+/** Parse a value as a finite number, accepting numbers or numeric strings. Returns null for anything else or non-finite values. */
 function num(v: unknown): number | null {
   if (typeof v === 'number') return Number.isFinite(v) ? v : null;
   if (typeof v === 'string' && v.trim() !== '') {
@@ -45,16 +45,14 @@ function num(v: unknown): number | null {
   return null;
 }
 
-/** Trimmed non-empty string, or null. */
+/** Extract a trimmed non-empty string from a value, or return null if it's not a usable string. */
 function str(v: unknown): string | null {
   return typeof v === 'string' && v.trim() !== '' ? v.trim() : null;
 }
 
-/** Narrow an unknown to a plain object (not null, not an array). */
+/** Narrow an unknown value to a plain object (not null, not an array), or return null. */
 function obj(v: unknown): Record<string, unknown> | null {
-  return v !== null && typeof v === 'object' && !Array.isArray(v)
-    ? (v as Record<string, unknown>)
-    : null;
+  return v !== null && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
 }
 
 /**

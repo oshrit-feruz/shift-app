@@ -231,17 +231,23 @@ export const STRINGS = {
     'Entry when the price is 40–60% below its 52-week high',
     'כניסה כשהמחיר נמוך ב-40%–60% מהשיא של 52 שבועות',
   ),
-  'rec.satRule3': p('Held for a fixed 180 days, then closed by rule', 'החזקה קבועה של 180 יום, ואז סגירה לפי הכלל'),
+  'rec.satRule3': p(
+    'Held for a fixed 180 days, then closed by rule',
+    'החזקה קבועה של 180 יום, ואז סגירה לפי הכלל',
+  ),
   'rec.satRule4': p(
     'The same rules for every client — nothing is customised per person',
     'אותם כללים לכל לקוח — אין התאמה אישית',
   ),
   'rec.satRule5': p('Capped at 15% of the portfolio', 'מוגבל ל-15% מהתיק'),
-  'rec.satOpenPositions': p('Recovery Detector — open positions right now', 'Recovery Detector — פוזיציות פתוחות כרגע'),
+  'rec.satOpenPositions': p(
+    'Recovery Detector — open positions right now',
+    'Recovery Detector — פוזיציות פתוחות כרגע',
+  ),
   'rec.satPositions': p("Today's candidates", 'המועמדות של היום'),
   'rec.livePrices': p('Live prices', 'מחירים חיים'),
   'rec.satInfoOnly': p(
-    "Information only — your profile has no satellite sleeve, so these are not part of your recommendation.",
+    'Information only — your profile has no satellite sleeve, so these are not part of your recommendation.',
     'מידע בלבד — בפרופיל שלך אין רכיב Satellite, ולכן אלה לא חלק מההמלצה שלך.',
   ),
   'rec.noPositions': p('No candidates today', 'אין מועמדות היום'),
@@ -349,10 +355,7 @@ export const STRINGS = {
     'Figures as filed with the SEC. Shown for reference — this is the newest filing on record, not a point-in-time view.',
     'נתונים כפי שהוגשו ל-SEC. מוצגים לעיון — זהו הדוח העדכני ביותר הרשום, ולא תמונת מצב לתאריך מסוים.',
   ),
-  'stock.newsEmpty': p(
-    'No recent articles for this stock.',
-    'אין כתבות אחרונות על מניה זו.',
-  ),
+  'stock.newsEmpty': p('No recent articles for this stock.', 'אין כתבות אחרונות על מניה זו.'),
   'stock.newsRead': p('Read the full article', 'לכתבה המלאה'),
   'stock.newsExcerptNote': p(
     'Excerpts only — the full article opens at its source.',
@@ -548,7 +551,10 @@ export const STRINGS = {
   'search.recent': p('Recent', 'אחרונים'),
   'search.matches': p('{n} matches', '{n} תוצאות'),
   'search.noMatch': p('No match for', 'אין תוצאה עבור'),
-  'search.noMatchHelp': p('Try a ticker like NVDA, or a company name.', 'נסי סימבול כמו NVDA, או שם של חברה.'),
+  'search.noMatchHelp': p(
+    'Try a ticker like NVDA, or a company name.',
+    'נסי סימבול כמו NVDA, או שם של חברה.',
+  ),
 
   // ── Movers ────────────────────────────────────────────────────────────
   'movers.gainers': p('Gainers', 'עולות'),
@@ -584,7 +590,6 @@ export const STRINGS = {
   'earn.lastSurprise': p('Last surprise', 'הפתעה אחרונה'),
   'earn.weekOf': p('{n} companies report in the week ahead', '{n} חברות מדווחות בשבוע הקרוב'),
   'earn.noneMatch': p('No reports match this filter', 'אין דוחות שתואמים לסינון הזה'),
-
 
   // ── Compare ───────────────────────────────────────────────────────────
   'cmp.indexed': p('Indexed to 100 at the start of the window', 'מנורמל ל-100 בתחילת התקופה'),

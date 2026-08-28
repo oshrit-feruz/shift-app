@@ -73,7 +73,10 @@ export function TabBar({ current, onGo }: { current: Screen; onGo: (s: Screen) =
     // actually landed in the DOM, whereas a rAF can fire before it and
     // re-measure the stale layout.
     const dirWatch = new MutationObserver(measure);
-    dirWatch.observe(document.documentElement, { attributes: true, attributeFilter: ['dir'] });
+    dirWatch.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['dir'],
+    });
     // Labels can reflow on rotation or a text-size change; re-measure rather
     // than trusting a value computed for a different layout.
     window.addEventListener('resize', measure);
@@ -112,11 +115,11 @@ export function TabBar({ current, onGo }: { current: Screen; onGo: (s: Screen) =
           aria-hidden
           style={{
             position: 'absolute',
-            left: indicator.left,
-            top: indicator.top,
-            width: indicator.width,
-            height: indicator.height,
-            borderRadius: 999,
+            left: indicator.left - 10,
+            top: indicator.top - 2,
+            width: indicator.width + 20,
+            height: indicator.height + 4,
+            borderRadius: 99,
             background: 'var(--color-accent-900)',
             transition: 'left .32s cubic-bezier(.34, 1.1, .4, 1), width .32s cubic-bezier(.34, 1.1, .4, 1)',
             pointerEvents: 'none',
@@ -162,7 +165,13 @@ export function TabBar({ current, onGo }: { current: Screen; onGo: (s: Screen) =
               }}
             >
               <Icon name={t.icon} size={22} strokeWidth={1.7} />
-              <span style={{ fontSize: 10.5, lineHeight: 1, fontWeight: active ? 600 : 400 }}>
+              <span
+                style={{
+                  fontSize: 10.5,
+                  lineHeight: 1,
+                  fontWeight: active ? 600 : 400,
+                }}
+              >
                 {translate(t.label)}
               </span>
             </span>

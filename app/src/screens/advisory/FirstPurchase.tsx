@@ -71,7 +71,14 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
           ))}
           {profile.satellitePct > 0 && (
             <div
-              style={{ display: 'flex', gap: 8, fontSize: 13.5, alignItems: 'center', paddingTop: 6, borderTop: '1px solid var(--color-divider)' }}
+              style={{
+                display: 'flex',
+                gap: 8,
+                fontSize: 13.5,
+                alignItems: 'center',
+                paddingTop: 6,
+                borderTop: '1px solid var(--color-divider)',
+              }}
             >
               <Tag variant="accent" fontSize={12}>
                 Recovery Detector
@@ -109,11 +116,7 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
             {!hasAnyTradeDeepLink() && ` ${t('buy.noDeepLink')}`}
           </p>
         )}
-        <DataState
-          state={sat.state}
-          onRetry={sat.retry}
-          skeleton={<SkeletonList count={3} minHeight={52} />}
-        >
+        <DataState state={sat.state} onRetry={sat.retry} skeleton={<SkeletonList count={3} minHeight={52} />}>
           {(signals) =>
             signals.length === 0 ? (
               <EmptyState>{t('rec.noPositions')}</EmptyState>
@@ -150,7 +153,12 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
       <Button block minHeight={46} onClick={() => dispatch({ type: 'advGoto', screen: 'home', stage: 5 })}>
         {t('buy.finish')}
       </Button>
-      <Button variant="ghost" alignSelf="center" fontSize={13} onClick={() => dispatch({ type: 'go', screen: 'home' })}>
+      <Button
+        variant="ghost"
+        alignSelf="center"
+        fontSize={13}
+        onClick={() => dispatch({ type: 'go', screen: 'home' })}
+      >
         {t('adv.later')}
       </Button>
     </div>

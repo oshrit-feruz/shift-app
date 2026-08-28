@@ -42,9 +42,9 @@ export function HomeScreen(_: ScreenProps) {
           onRetry={portfolios.retry}
           skeleton={
             <Card padding={15} gap={0}>
-              {/* Mirrors the loaded hero: 13px label, 42px/1.05 total,
+              {/* Mirrors the loaded hero: 18px label, 42px/1.05 total,
                   15px change line, chart block, two 14px blurb lines. */}
-              <SkeletonLine width={96} fontSize={13} bar={11} />
+              <SkeletonLine width={96} fontSize={18} bar={11} />
               <SkeletonLine width="66%" fontSize={42} lineHeight={1.05} bar={34} />
               <SkeletonLine width={172} fontSize={15} bar={13} />
               {/* 83, not the chart's 76: the AreaChart's inline SVG adds a
@@ -61,12 +61,20 @@ export function HomeScreen(_: ScreenProps) {
             if (!main) {
               return (
                 <Card padding={18} gap={8} style={{ textAlign: 'center', alignItems: 'center' }}>
-                  <span style={{ fontFamily: 'var(--font-heading)', fontSize: 18 }}>{t('home.noPfTitle')}</span>
+                  <span style={{ fontFamily: 'var(--font-heading)', fontSize: 18 }}>
+                    {t('home.noPfTitle')}
+                  </span>
                   <p className="text-muted" style={{ fontSize: 14, margin: 0, lineHeight: 1.5 }}>
                     {t('home.noPfHelp')}
                   </p>
                   <Button
-                    onClick={() => dispatch({ type: 'advGoto', screen: 'advConnect', solo: true })}
+                    onClick={() =>
+                      dispatch({
+                        type: 'advGoto',
+                        screen: 'advConnect',
+                        solo: true,
+                      })
+                    }
                     style={{ marginTop: 6 }}
                   >
                     {t('rec.chooseBroker')}
@@ -76,17 +84,40 @@ export function HomeScreen(_: ScreenProps) {
             }
             return (
               <Card padding={15} gap={0}>
-                <div style={{ fontSize: 13, opacity: 0.75, fontWeight: 700 }}>{t('home.pfToday')}</div>
-                <div style={{ fontFamily: 'var(--font-heading)', fontSize: 42, lineHeight: 1.05, fontWeight: 700 }}>
+                <div style={{ fontSize: 18, opacity: 0.75, fontWeight: 600 }}>{t('home.pfToday')}</div>
+                <div
+                  style={{
+                    fontFamily: 'var(--font-heading)',
+                    fontSize: 42,
+                    lineHeight: 1.05,
+                    fontWeight: 700,
+                  }}
+                >
                   <Num>{money(main.total)}</Num>
                 </div>
-                <div style={{ color: signalColor(main.dayPct), fontSize: 15, fontWeight: 600 }}>
-                  <Num weight={600}>{`${main.dayPct >= 0 ? '+' : '−'}${money(Math.abs((main.total * main.dayPct) / 100))} · ${pct(main.dayPct)}`}</Num>
+                <div
+                  style={{
+                    color: signalColor(main.dayPct),
+                    fontSize: 15,
+                    fontWeight: 600,
+                  }}
+                >
+                  <Num
+                    weight={600}
+                  >{`${main.dayPct >= 0 ? '+' : '−'}${money(Math.abs((main.total * main.dayPct) / 100))} · ${pct(main.dayPct)}`}</Num>
                 </div>
                 <div style={{ marginTop: 10 }}>
                   <AreaChart values={pfSeries} height={76} />
                 </div>
-                <p style={{ fontSize: 14, lineHeight: 1.5, margin: '10px 0 0', opacity: 0.85, fontWeight: 500 }}>
+                <p
+                  style={{
+                    fontSize: 14,
+                    lineHeight: 1.5,
+                    margin: '10px 0 0',
+                    opacity: 0.85,
+                    fontWeight: 500,
+                  }}
+                >
                   {t('home.pfBlurb')}
                 </p>
               </Card>
@@ -101,7 +132,11 @@ export function HomeScreen(_: ScreenProps) {
           gap={6}
           highlight
           onClick={() =>
-            dispatch({ type: 'advGoto', screen: setup.resumeScreen, solo: false })
+            dispatch({
+              type: 'advGoto',
+              screen: setup.resumeScreen,
+              solo: false,
+            })
           }
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -140,7 +175,13 @@ export function HomeScreen(_: ScreenProps) {
         <Divider />
         <button
           type="button"
-          onClick={() => dispatch({ type: 'advGoto', screen: setup.resumeScreen, solo: false })}
+          onClick={() =>
+            dispatch({
+              type: 'advGoto',
+              screen: setup.resumeScreen,
+              solo: false,
+            })
+          }
           style={{
             display: 'flex',
             flexDirection: 'column',
@@ -155,7 +196,14 @@ export function HomeScreen(_: ScreenProps) {
             minHeight: 44,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              width: '100%',
+            }}
+          >
             <span
               style={{
                 width: 26,
@@ -171,7 +219,14 @@ export function HomeScreen(_: ScreenProps) {
             >
               <Icon name="list" size={14} />
             </span>
-            <span style={{ fontSize: 15, fontWeight: 600, flex: 1, color: 'var(--color-accent-300)' }}>
+            <span
+              style={{
+                fontSize: 15,
+                fontWeight: 600,
+                flex: 1,
+                color: 'var(--color-accent-300)',
+              }}
+            >
               {t('home.trackAdvisor')}
             </span>
             <Tag variant="accent">{t('adv.tag')}</Tag>
@@ -183,13 +238,7 @@ export function HomeScreen(_: ScreenProps) {
       </Card>
 
       {beg && (
-        <Card
-          padding={13}
-          highlight
-          row
-          gap={11}
-          onClick={() => dispatch({ type: 'go', screen: 'learn' })}
-        >
+        <Card padding={13} highlight row gap={11} onClick={() => dispatch({ type: 'go', screen: 'learn' })}>
           <span
             style={{
               width: 30,
@@ -206,12 +255,12 @@ export function HomeScreen(_: ScreenProps) {
             ◉
           </span>
           <span style={{ flex: 1 }}>
-            <span style={{ display: 'block', fontSize: 13.5 }}>{t('home.startHere')}</span>
-            <span className="text-muted" style={{ display: 'block', fontSize: 12.5, marginTop: 2 }}>
+            <span style={{ display: 'block', fontSize: 16.5 }}>{t('home.startHere')}</span>
+            <span className="text-muted" style={{ display: 'block', fontSize: 14.5, marginTop: 2 }}>
               {t('home.startHereSub')}
             </span>
           </span>
-          <span style={{ opacity: 0.5, fontSize: 15 }}>›</span>
+          <span style={{ opacity: 0.5, fontSize: 16 }}>›</span>
         </Card>
       )}
 
@@ -219,11 +268,23 @@ export function HomeScreen(_: ScreenProps) {
         <MetricStrip
           metrics={[
             { label: language === 'he' ? 'שווי' : 'Value', value: '$48,214' },
-            { label: language === 'he' ? 'יומי' : 'Day', value: '+0.86%', color: 'var(--up)' },
-            { label: language === 'he' ? 'רווח פתוח' : 'Open P/L', value: '+$11.5k', color: 'var(--up)' },
+            {
+              label: language === 'he' ? 'יומי' : 'Day',
+              value: '+0.86%',
+              color: 'var(--up)',
+            },
+            {
+              label: language === 'he' ? 'רווח פתוח' : 'Open P/L',
+              value: '+$11.5k',
+              color: 'var(--up)',
+            },
             { label: 'Beta', value: '1.34' },
             { label: language === 'he' ? 'מזומן' : 'Cash', value: '14%' },
-            { label: language === 'he' ? 'סיכון' : 'Risk', value: language === 'he' ? 'גבוה' : 'High', color: 'var(--color-accent-300)' },
+            {
+              label: language === 'he' ? 'סיכון' : 'Risk',
+              value: language === 'he' ? 'גבוה' : 'High',
+              color: 'var(--color-accent-300)',
+            },
           ]}
         />
       )}
@@ -251,7 +312,11 @@ export function HomeScreen(_: ScreenProps) {
                   title={x.ticker}
                   subtitle={beg ? x.plain[language] : `${x.marketCap} · P/E ${x.pe.toFixed(1)}`}
                   right={
-                    <RowValues main={money(x.price)} sub={pct(x.changePct)} subColor={signalColor(x.changePct)} />
+                    <RowValues
+                      main={money(x.price)}
+                      sub={pct(x.changePct)}
+                      subColor={signalColor(x.changePct)}
+                    />
                   }
                   onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}
                 />
@@ -265,7 +330,7 @@ export function HomeScreen(_: ScreenProps) {
       <Card padding={13} gap={8}>
         <CardTitle>{beg ? t('home.moversBeg') : t('home.moversAdv')}</CardTitle>
         {beg && (
-          <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
+          <p className="text-muted" style={{ fontSize: 14, margin: 0 }}>
             {t('home.moversHelp')}
           </p>
         )}
@@ -312,7 +377,7 @@ export function HomeScreen(_: ScreenProps) {
                     <span
                       style={{
                         flex: 1,
-                        fontSize: 13,
+                        fontSize: 15,
                         opacity: 0.8,
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
@@ -321,7 +386,7 @@ export function HomeScreen(_: ScreenProps) {
                     >
                       {beg ? x.why[language] : `${money(x.price)} · vol ${x.volume}`}
                     </span>
-                    <Num size={13.5} style={{ color: signalColor(x.changePct) }}>
+                    <Num size={15} style={{ color: signalColor(x.changePct) }}>
                       {pct(x.changePct)}
                     </Num>
                   </button>
@@ -329,7 +394,12 @@ export function HomeScreen(_: ScreenProps) {
             </div>
           )}
         </DataState>
-        <Button variant="ghost" fontSize={13} alignSelf="flex-start" onClick={() => dispatch({ type: 'go', screen: 'movers' })}>
+        <Button
+          variant="ghost"
+          fontSize={13}
+          alignSelf="flex-start"
+          onClick={() => dispatch({ type: 'go', screen: 'movers' })}
+        >
           {t('home.allMovers')}
         </Button>
       </Card>
@@ -362,11 +432,7 @@ function EarningsAhead() {
 
   return (
     <Card padding={13} gap={7}>
-      <DataState
-        state={cal.state}
-        onRetry={cal.retry}
-        skeleton={<SkeletonList count={3} />}
-      >
+      <DataState state={cal.state} onRetry={cal.retry} skeleton={<SkeletonList count={3} />}>
         {(page) => {
           const next = page.rows.slice(0, HOME_EARNINGS_SHOWN);
           return (
@@ -391,7 +457,11 @@ function EarningsAhead() {
                     key={`${e.ticker}-${e.reportDate}`}
                     type="button"
                     onClick={() => dispatch({ type: 'openStock', ticker: e.ticker })}
-                    style={{ ...ROW_BUTTON_STYLE, padding: '7px 0', borderTop: '1px solid var(--color-divider)' }}
+                    style={{
+                      ...ROW_BUTTON_STYLE,
+                      padding: '7px 0',
+                      borderTop: '1px solid var(--color-divider)',
+                    }}
                   >
                     <div
                       style={{
@@ -404,14 +474,37 @@ function EarningsAhead() {
                         borderRadius: 8,
                       }}
                     >
-                      <div style={{ fontSize: 12.5, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--acc-lite)', fontWeight: 500 }}>
+                      <div
+                        style={{
+                          fontSize: 12.5,
+                          letterSpacing: '.06em',
+                          textTransform: 'uppercase',
+                          color: 'var(--acc-lite)',
+                          fontWeight: 500,
+                        }}
+                      >
                         {monthLabel(e.reportDate, language)}
                       </div>
-                      <Num size={16} weight={500} style={{ fontFamily: 'var(--font-heading)', color: 'var(--acc-mid)' }}>
+                      <Num
+                        size={16}
+                        weight={500}
+                        style={{
+                          fontFamily: 'var(--font-heading)',
+                          color: 'var(--acc-mid)',
+                        }}
+                      >
                         {e.reportDate.slice(8)}
                       </Num>
                     </div>
-                    <div style={{ flex: 1, fontSize: 14, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <div
+                      style={{
+                        flex: 1,
+                        fontSize: 14,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 3,
+                      }}
+                    >
                       <span>{e.ticker}</span>
                       {e.estimate !== null && (
                         <span className="text-muted" style={{ fontSize: 12.5 }}>
@@ -434,7 +527,12 @@ function EarningsAhead() {
                   </button>
                 ))
               )}
-              <Button variant="ghost" fontSize={13} alignSelf="flex-start" onClick={() => dispatch({ type: 'go', screen: 'earnings' })}>
+              <Button
+                variant="ghost"
+                fontSize={13}
+                alignSelf="flex-start"
+                onClick={() => dispatch({ type: 'go', screen: 'earnings' })}
+              >
                 {t('home.allEarnings')}
               </Button>
             </>

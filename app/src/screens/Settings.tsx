@@ -68,7 +68,12 @@ export function SettingsScreen(_: ScreenProps) {
                   <span style={{ fontSize: 15, fontWeight: 600 }}>{profile.fullName}</span>
                   <span
                     className="text-muted"
-                    style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                    style={{
+                      fontSize: 13,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
                   >
                     {profile.email ?? user.id}
                   </span>
@@ -174,7 +179,15 @@ export function SettingsScreen(_: ScreenProps) {
         <div className="text-muted" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
           {t('thresh.help')}
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 9, borderTop: '1px solid var(--color-divider)', paddingTop: 9 }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 9,
+            borderTop: '1px solid var(--color-divider)',
+            paddingTop: 9,
+          }}
+        >
           <div className="field">
             <label style={{ fontSize: 13 }}>{t('thresh.up')}</label>
             <input
@@ -205,16 +218,35 @@ export function SettingsScreen(_: ScreenProps) {
         </CardTitle>
         {(
           [
-            ['push', { en: 'Push notifications', he: 'התראות פוש' }, { en: 'Price, news and earnings alerts', he: 'מחיר, חדשות ודוחות' }],
+            [
+              'push',
+              { en: 'Push notifications', he: 'התראות פוש' },
+              { en: 'Price, news and earnings alerts', he: 'מחיר, חדשות ודוחות' },
+            ],
             ['email', { en: 'Email', he: 'אימייל' }, emailHelp],
             ['sms', { en: 'SMS', he: 'מסרון' }, { en: 'Price thresholds only', he: 'רק רף מחיר' }],
-            ['digest', { en: 'Morning digest', he: 'תקציר בוקר' }, { en: 'One message at 08:00', he: 'הודעה אחת ב-08:00' }],
-            ['movers', { en: 'Unusual movers', he: 'תנועות חריגות' }, { en: 'Watchlist moves over 5%', he: 'תנועה מעל 5% בווטצ׳ליסט' }],
+            [
+              'digest',
+              { en: 'Morning digest', he: 'תקציר בוקר' },
+              { en: 'One message at 08:00', he: 'הודעה אחת ב-08:00' },
+            ],
+            [
+              'movers',
+              { en: 'Unusual movers', he: 'תנועות חריגות' },
+              { en: 'Watchlist moves over 5%', he: 'תנועה מעל 5% בווטצ׳ליסט' },
+            ],
           ] as const
         ).map(([k, label, help]) => (
           <div
             key={k}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 44, padding: '8px 12px', borderTop: '1px solid var(--color-divider)' }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              minHeight: 44,
+              padding: '8px 12px',
+              borderTop: '1px solid var(--color-divider)',
+            }}
           >
             <span style={{ flex: 1 }}>
               <span style={{ display: 'block', fontSize: 14 }}>{label[language]}</span>
@@ -284,12 +316,7 @@ export function SettingsScreen(_: ScreenProps) {
 
       {/* Opens the confirmation sheet; nothing is deleted from this click. */}
       {user && (
-        <Button
-          variant="danger"
-          alignSelf="flex-start"
-          fontSize={13}
-          onClick={() => setDeleteOpen(true)}
-        >
+        <Button variant="danger" alignSelf="flex-start" fontSize={13} onClick={() => setDeleteOpen(true)}>
           {t('set.deleteAcct')}
         </Button>
       )}
@@ -330,7 +357,9 @@ function SettingsLink({
         textAlign: 'start',
       }}
     >
-      <span style={{ flex: 1, fontSize: 14, color: accent ? 'var(--color-accent-200)' : undefined }}>{label}</span>
+      <span style={{ flex: 1, fontSize: 14, color: accent ? 'var(--color-accent-200)' : undefined }}>
+        {label}
+      </span>
       {meta != null && (
         <span className="text-muted" style={{ fontSize: 13 }}>
           {meta}
@@ -353,7 +382,16 @@ function DemoFlagRow({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 44, padding: '8px 12px', borderTop: '1px solid var(--color-divider)' }}>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        minHeight: 44,
+        padding: '8px 12px',
+        borderTop: '1px solid var(--color-divider)',
+      }}
+    >
       <span style={{ flex: 1 }}>
         <span style={{ display: 'block', fontSize: 14 }}>{label}</span>
         <span className="text-muted" style={{ display: 'block', fontSize: 12.5 }}>

@@ -7,14 +7,70 @@ import { useT } from '../../i18n/useT';
 import type { ScreenProps } from '../../App';
 
 const PAGES = [
-  { chip: { en: 'Share', he: 'מנייה' }, title: { en: 'A share is a slice of a company', he: 'מנייה היא פרוסה מחברה' }, body: { en: 'Own one share and you own a very small piece of a real business. If the business does better over the years, the piece is usually worth more.', he: 'מי שמחזיק מנייה אחת מחזיק חלק קטנטן בעסק אמיתי. אם העסק מרוויח יותר עם השנים, החלק הזה בדרך כלל שווה יותר.' } },
-  { chip: { en: 'Swings', he: 'תנודות' }, title: { en: 'Daily moves say almost nothing', he: 'תנודות יומיות כמעט לא אומרות כלום' }, body: { en: 'Green and red days are noise. What matters is the direction across months and years, and that line is much calmer.', he: 'ימים אדומים וירוקים הם רעש. מה שחשוב זה הכיוון על פני חודשים ושנים, והקו הזה הרבה יותר רגוע.' } },
-  { chip: { en: 'Spread', he: 'פיזור' }, title: { en: 'Never put it all in one place', he: 'לא לשים הכול במקום אחד' }, body: { en: 'If everything you own does the same thing, one bad quarter hits all of it. Several unrelated companies means no single mistake decides your result.', he: 'אם כל מה שאת מחזיקה עושה את אותו דבר, רבעון גרוע אחד פוגע בהכול. כמה חברות שאינן קשורות זו לזו — וטעות אחת לא קובעת את התוצאה.' } },
-  { chip: { en: 'Time', he: 'זמן' }, title: { en: 'Time does most of the work', he: 'הזמן עושה את רוב העבודה' }, body: { en: 'Gains earn their own gains. Slow at first, then fast — which is why money you might need next year should not be here.', he: 'רווחים מייצרים רווחים משל עצמם. לאט בהתחלה, ואז מהר — ולכן כסף שאולי תצטרכי בשנה הקרובה לא אמור להיות פה.' } },
-  { chip: { en: 'Mistakes', he: 'טעויות' }, title: { en: 'Being wrong is part of it', he: 'לטעות זה חלק מהעניין' }, body: { en: 'Everyone is wrong sometimes. The trick is keeping each position small enough that it never really hurts.', he: 'כולם טועים לפעמים. הטריק הוא להשאיר כל פוזיציה קטנה מספיק כדי שהטעות לא תכאב באמת.' } },
-  { chip: { en: 'ETF', he: 'קרן סל' }, title: { en: 'An ETF buys the whole basket', he: 'קרן סל קונה את כל הסל' }, body: { en: 'A קרן סל / ETF is one thing you buy that holds hundreds of companies at once. One purchase, instantly spread out — which is why most people start here rather than picking single names.', he: 'קרן סל (ETF) היא דבר אחד שקונים והוא מחזיק מאות חברות בבת אחת. קנייה אחת, פיזור מיידי — ולכן רוב האנשים מתחילים כאן ולא בבחירת מניות בודדות.' } },
-  { chip: { en: 'Safety', he: 'ביטחון' }, title: { en: 'What "safe" actually means', he: 'מה זה באמת "בטוח"' }, body: { en: 'Not a promise of no losses. It means money you need soon stays in cash, the bulk sits in broad ETFs, and single stocks are the small slice on top.', he: 'זו לא הבטחה שלא תהיה הפסד. זה אומר שכסף שתצטרכי בקרוב נשאר במזומן, עיקר הכסף יושב בקרנות סל רחבות, ומניות בודדות הן הפרוסה הקטנה שמעל.' } },
-  { chip: { en: 'Glossary', he: 'מילון' }, title: { en: 'Words you will keep seeing', he: 'מילים שתראי שוב ושוב' }, body: { en: 'Short definitions for the words the app uses everywhere.', he: 'הגדרות קצרות למילים שהאפליקציה משתמשת בהן בכל מקום.' } },
+  {
+    chip: { en: 'Share', he: 'מנייה' },
+    title: { en: 'A share is a slice of a company', he: 'מנייה היא פרוסה מחברה' },
+    body: {
+      en: 'Own one share and you own a very small piece of a real business. If the business does better over the years, the piece is usually worth more.',
+      he: 'מי שמחזיק מנייה אחת מחזיק חלק קטנטן בעסק אמיתי. אם העסק מרוויח יותר עם השנים, החלק הזה בדרך כלל שווה יותר.',
+    },
+  },
+  {
+    chip: { en: 'Swings', he: 'תנודות' },
+    title: { en: 'Daily moves say almost nothing', he: 'תנודות יומיות כמעט לא אומרות כלום' },
+    body: {
+      en: 'Green and red days are noise. What matters is the direction across months and years, and that line is much calmer.',
+      he: 'ימים אדומים וירוקים הם רעש. מה שחשוב זה הכיוון על פני חודשים ושנים, והקו הזה הרבה יותר רגוע.',
+    },
+  },
+  {
+    chip: { en: 'Spread', he: 'פיזור' },
+    title: { en: 'Never put it all in one place', he: 'לא לשים הכול במקום אחד' },
+    body: {
+      en: 'If everything you own does the same thing, one bad quarter hits all of it. Several unrelated companies means no single mistake decides your result.',
+      he: 'אם כל מה שאת מחזיקה עושה את אותו דבר, רבעון גרוע אחד פוגע בהכול. כמה חברות שאינן קשורות זו לזו — וטעות אחת לא קובעת את התוצאה.',
+    },
+  },
+  {
+    chip: { en: 'Time', he: 'זמן' },
+    title: { en: 'Time does most of the work', he: 'הזמן עושה את רוב העבודה' },
+    body: {
+      en: 'Gains earn their own gains. Slow at first, then fast — which is why money you might need next year should not be here.',
+      he: 'רווחים מייצרים רווחים משל עצמם. לאט בהתחלה, ואז מהר — ולכן כסף שאולי תצטרכי בשנה הקרובה לא אמור להיות פה.',
+    },
+  },
+  {
+    chip: { en: 'Mistakes', he: 'טעויות' },
+    title: { en: 'Being wrong is part of it', he: 'לטעות זה חלק מהעניין' },
+    body: {
+      en: 'Everyone is wrong sometimes. The trick is keeping each position small enough that it never really hurts.',
+      he: 'כולם טועים לפעמים. הטריק הוא להשאיר כל פוזיציה קטנה מספיק כדי שהטעות לא תכאב באמת.',
+    },
+  },
+  {
+    chip: { en: 'ETF', he: 'קרן סל' },
+    title: { en: 'An ETF buys the whole basket', he: 'קרן סל קונה את כל הסל' },
+    body: {
+      en: 'A קרן סל / ETF is one thing you buy that holds hundreds of companies at once. One purchase, instantly spread out — which is why most people start here rather than picking single names.',
+      he: 'קרן סל (ETF) היא דבר אחד שקונים והוא מחזיק מאות חברות בבת אחת. קנייה אחת, פיזור מיידי — ולכן רוב האנשים מתחילים כאן ולא בבחירת מניות בודדות.',
+    },
+  },
+  {
+    chip: { en: 'Safety', he: 'ביטחון' },
+    title: { en: 'What "safe" actually means', he: 'מה זה באמת "בטוח"' },
+    body: {
+      en: 'Not a promise of no losses. It means money you need soon stays in cash, the bulk sits in broad ETFs, and single stocks are the small slice on top.',
+      he: 'זו לא הבטחה שלא תהיה הפסד. זה אומר שכסף שתצטרכי בקרוב נשאר במזומן, עיקר הכסף יושב בקרנות סל רחבות, ומניות בודדות הן הפרוסה הקטנה שמעל.',
+    },
+  },
+  {
+    chip: { en: 'Glossary', he: 'מילון' },
+    title: { en: 'Words you will keep seeing', he: 'מילים שתראי שוב ושוב' },
+    body: {
+      en: 'Short definitions for the words the app uses everywhere.',
+      he: 'הגדרות קצרות למילים שהאפליקציה משתמשת בהן בכל מקום.',
+    },
+  },
 ];
 
 const GLOSSARY = {
@@ -49,7 +105,10 @@ export function LearnScreen(_: ScreenProps) {
   const isGlossary = idx === PAGES.length - 1;
 
   return (
-    <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 4 }}>
+    <div
+      className="anim-fade-up"
+      style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 4 }}
+    >
       {/* The same glass as every other pane, via .card rather than a copy of
           the material inline — which also means light mode stops painting
           muted dark text onto this surface, which stays dark by design. */}
@@ -93,8 +152,14 @@ export function LearnScreen(_: ScreenProps) {
       )}
 
       <div>
-        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 22, lineHeight: 1.25, whiteSpace: 'normal' }}>{page.title[language]}</div>
-        <p style={{ fontSize: 14.5, lineHeight: 1.55, margin: '9px 0 0', opacity: 0.85 }}>{page.body[language]}</p>
+        <div
+          style={{ fontFamily: 'var(--font-heading)', fontSize: 22, lineHeight: 1.25, whiteSpace: 'normal' }}
+        >
+          {page.title[language]}
+        </div>
+        <p style={{ fontSize: 14.5, lineHeight: 1.55, margin: '9px 0 0', opacity: 0.85 }}>
+          {page.body[language]}
+        </p>
       </div>
 
       <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
@@ -106,7 +171,9 @@ export function LearnScreen(_: ScreenProps) {
         <Button
           minHeight={44}
           style={{ flex: 1 }}
-          onClick={() => (idx >= PAGES.length - 1 ? dispatch({ type: 'go', screen: 'steps' }) : setIdx(idx + 1))}
+          onClick={() =>
+            idx >= PAGES.length - 1 ? dispatch({ type: 'go', screen: 'steps' }) : setIdx(idx + 1)
+          }
         >
           {idx === PAGES.length - 1 ? t('learn.showMe') : t('learn.next')}
         </Button>
@@ -131,21 +198,51 @@ function TopicArt({ idx }: { idx: number }) {
     case 0:
       return (
         <svg viewBox="0 0 300 150" style={common} aria-hidden="true">
-          <circle cx="120" cy="75" r="58" fill="var(--color-accent-900)" stroke="var(--color-accent)" strokeWidth="1.5" />
-          <path d="M120 75 L120 17 A58 58 0 0 1 170 46 Z" fill="var(--color-accent)" transform="translate(9 -7)" />
+          <circle
+            cx="120"
+            cy="75"
+            r="58"
+            fill="var(--color-accent-900)"
+            stroke="var(--color-accent)"
+            strokeWidth="1.5"
+          />
+          <path
+            d="M120 75 L120 17 A58 58 0 0 1 170 46 Z"
+            fill="var(--color-accent)"
+            transform="translate(9 -7)"
+          />
         </svg>
       );
     case 1:
       return (
         <svg viewBox="0 0 300 150" style={common} aria-hidden="true">
-          <path d="M12 108 L34 92 L52 118 L74 84 L96 104 L118 70 L140 96 L162 62 L184 82 L206 50 L228 68 L250 38 L272 52" fill="none" stroke="var(--muted)" strokeWidth="1.6" />
-          <path d="M12 112 L272 44" fill="none" stroke="var(--color-accent)" strokeWidth="3" strokeLinecap="round" />
+          <path
+            d="M12 108 L34 92 L52 118 L74 84 L96 104 L118 70 L140 96 L162 62 L184 82 L206 50 L228 68 L250 38 L272 52"
+            fill="none"
+            stroke="var(--muted)"
+            strokeWidth="1.6"
+          />
+          <path
+            d="M12 112 L272 44"
+            fill="none"
+            stroke="var(--color-accent)"
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
         </svg>
       );
     case 2:
       return (
         <svg viewBox="0 0 300 150" style={common} aria-hidden="true">
-          <circle cx="70" cy="75" r="42" fill="var(--down)" opacity=".28" stroke="var(--down)" strokeWidth="1.5" />
+          <circle
+            cx="70"
+            cy="75"
+            r="42"
+            fill="var(--down)"
+            opacity=".28"
+            stroke="var(--down)"
+            strokeWidth="1.5"
+          />
           <circle cx="180" cy="46" r="17" fill="var(--color-accent-900)" stroke="var(--color-accent)" />
           <circle cx="222" cy="46" r="17" fill="var(--color-accent-900)" stroke="var(--color-accent)" />
           <circle cx="180" cy="88" r="17" fill="var(--down)" opacity=".3" stroke="var(--down)" />
@@ -164,17 +261,52 @@ function TopicArt({ idx }: { idx: number }) {
     case 4:
       return (
         <svg viewBox="0 0 300 150" style={common} aria-hidden="true">
-          <rect x="20" y="40" width="118" height="70" rx="8" fill="var(--color-accent-900)" stroke="var(--color-accent)" strokeWidth="1.5" />
-          <rect x="162" y="40" width="118" height="70" rx="8" fill="none" stroke="var(--down)" strokeWidth="1.5" strokeDasharray="5 4" />
+          <rect
+            x="20"
+            y="40"
+            width="118"
+            height="70"
+            rx="8"
+            fill="var(--color-accent-900)"
+            stroke="var(--color-accent)"
+            strokeWidth="1.5"
+          />
+          <rect
+            x="162"
+            y="40"
+            width="118"
+            height="70"
+            rx="8"
+            fill="none"
+            stroke="var(--down)"
+            strokeWidth="1.5"
+            strokeDasharray="5 4"
+          />
         </svg>
       );
     case 5:
       return (
         <svg viewBox="0 0 300 150" style={common} aria-hidden="true">
-          <rect x="14" y="30" width="112" height="94" rx="12" fill="none" stroke="var(--color-accent)" strokeWidth="1.5" />
+          <rect
+            x="14"
+            y="30"
+            width="112"
+            height="94"
+            rx="12"
+            fill="none"
+            stroke="var(--color-accent)"
+            strokeWidth="1.5"
+          />
           {[56, 82, 106].map((cy, r) =>
             [42, 70, 98].map((cx, c) => (
-              <circle key={`${r}${c}`} cx={cx} cy={cy} r="9" fill={(r + c) % 2 ? 'var(--acc-lite)' : 'var(--color-accent)'} opacity={0.5 + ((r + c) % 4) * 0.12} />
+              <circle
+                key={`${r}${c}`}
+                cx={cx}
+                cy={cy}
+                r="9"
+                fill={(r + c) % 2 ? 'var(--acc-lite)' : 'var(--color-accent)'}
+                opacity={0.5 + ((r + c) % 4) * 0.12}
+              />
             )),
           )}
           <path d="M136 77 L166 77" stroke="var(--muted)" strokeWidth="1.5" />

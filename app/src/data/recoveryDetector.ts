@@ -98,7 +98,7 @@ export function toNumber(v: unknown): number | null {
   return null;
 }
 
-/** First non-empty string among the candidate keys. */
+/** Return the first non-empty string value found among the given keys in the row, or null if none exist. */
 function pickString(row: Record<string, unknown>, keys: string[]): string | null {
   for (const k of keys) {
     const v = row[k];
@@ -107,7 +107,7 @@ function pickString(row: Record<string, unknown>, keys: string[]): string | null
   return null;
 }
 
-/** First parseable number among the candidate keys. */
+/** Return the first parseable finite number found among the given keys in the row, or null if none exist. */
 function pickNumber(row: Record<string, unknown>, keys: string[]): number | null {
   for (const k of keys) {
     if (k in row) {
@@ -133,8 +133,7 @@ export function mapSignal(raw: unknown): SatelliteSignal | null {
 
   // An unrecognised verdict is reported as-is rather than coerced to BUY.
   const rawSignal = pickString(row, ['signal']);
-  const signal =
-    rawSignal === 'BUY' || rawSignal === 'WATCH' || rawSignal === 'SKIP' ? rawSignal : null;
+  const signal = rawSignal === 'BUY' || rawSignal === 'WATCH' || rawSignal === 'SKIP' ? rawSignal : null;
 
   return {
     ticker: ticker.toUpperCase(),
@@ -167,9 +166,7 @@ export function extractBuySignals(body: unknown): SatelliteSignal[] | null {
 
   const ranking = obj.full_ranking;
   if (Array.isArray(ranking)) {
-    return ranking
-      .map(mapSignal)
-      .filter((s): s is SatelliteSignal => s !== null && s.signal === 'BUY');
+    return ranking.map(mapSignal).filter((s): s is SatelliteSignal => s !== null && s.signal === 'BUY');
   }
 
   return null;
@@ -201,11 +198,7 @@ export function snapshotAgeDays(computedOn: unknown, now: Date = new Date()): nu
   // fresh. Round-tripping the parsed fields is what makes the age check
   // trustworthy rather than bypassable.
   const back = new Date(stamped);
-  if (
-    back.getUTCFullYear() !== year ||
-    back.getUTCMonth() !== month - 1 ||
-    back.getUTCDate() !== day
-  ) {
+  if (back.getUTCFullYear() !== year || back.getUTCMonth() !== month - 1 || back.getUTCDate() !== day) {
     return null;
   }
 

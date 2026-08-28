@@ -1,11 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { loading, ok, unavailable, type Loadable } from '../data/types';
@@ -92,9 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Loadable<Session | null>>(
     supabase ? loading() : unavailable(NOT_CONFIGURED),
   );
-  const [signInError, setSignInError] = useState<{ en: string; he: string } | null>(
-    consumeCallbackError,
-  );
+  const [signInError, setSignInError] = useState<{ en: string; he: string } | null>(consumeCallbackError);
 
   useEffect(() => {
     if (!supabase) return;

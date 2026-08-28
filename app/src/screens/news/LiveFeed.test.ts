@@ -2,7 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { fetchWatchlistNews } from './LiveFeed';
 
 const art = (url: string, at: string) => ({
-  headline: `H ${url}`, source: 'Reuters', publishedAt: at, summary: 's', url, symbols: [],
+  headline: `H ${url}`,
+  source: 'Reuters',
+  publishedAt: at,
+  summary: 's',
+  url,
+  symbols: [],
 });
 const res = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
@@ -35,7 +40,9 @@ describe('fetchWatchlistNews', () => {
     // user could have read.
     const r = await fetchWatchlistNews(['NVDA', 'BAD'], async (url) => {
       const tk = new URL(String(url), 'https://x.test').searchParams.get('ticker');
-      return tk === 'BAD' ? res({ error: 'x' }, 502) : res({ articles: [art('https://e/a', '2026-08-27T10:00:00Z')] });
+      return tk === 'BAD'
+        ? res({ error: 'x' }, 502)
+        : res({ articles: [art('https://e/a', '2026-08-27T10:00:00Z')] });
     });
     expect(r.status).toBe('ok');
     expect(r.status === 'ok' && r.data).toHaveLength(1);
@@ -55,7 +62,10 @@ describe('fetchWatchlistNews', () => {
 
   it('returns an empty feed for an empty watchlist without any request', async () => {
     let called = 0;
-    const r = await fetchWatchlistNews([], async () => { called += 1; return res({ articles: [] }); });
+    const r = await fetchWatchlistNews([], async () => {
+      called += 1;
+      return res({ articles: [] });
+    });
     expect(r.status).toBe('ok');
     expect(called).toBe(0);
   });
@@ -75,7 +85,13 @@ describe('feed ordering across timezones', () => {
   // newest-first while showing the older story on top.
   it('orders merged articles by instant, not by timestamp text', async () => {
     const article = (url: string, publishedAt: string) => ({
-      id: url, headline: url, url, source: 'X', publishedAt, summary: '', symbols: [],
+      id: url,
+      headline: url,
+      url,
+      source: 'X',
+      publishedAt,
+      summary: '',
+      symbols: [],
     });
     const fetchImpl = (async (input: RequestInfo | URL) => {
       const url = String(input);

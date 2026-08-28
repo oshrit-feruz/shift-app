@@ -83,7 +83,12 @@ export function PortfolioScreen(_: ScreenProps) {
             <>
               <ChipRail>
                 {list.map((x, i) => (
-                  <Chip key={x.id} big active={i === Math.min(s.pfIndex, list.length - 1)} onClick={() => dispatch({ type: 'pfIndex', index: i })}>
+                  <Chip
+                    key={x.id}
+                    big
+                    active={i === Math.min(s.pfIndex, list.length - 1)}
+                    onClick={() => dispatch({ type: 'pfIndex', index: i })}
+                  >
                     <span
                       style={{
                         width: 6,
@@ -112,7 +117,11 @@ export function PortfolioScreen(_: ScreenProps) {
                     ＋ {t('pf.addTx')}
                   </Button>
                 )}
-                <Button variant="secondary" style={{ fontSize: 13, minHeight: 36 }} onClick={() => setNewPfOpen(true)}>
+                <Button
+                  variant="secondary"
+                  style={{ fontSize: 13, minHeight: 36 }}
+                  onClick={() => setNewPfOpen(true)}
+                >
                   ＋ {t('pf.portfolio')}
                 </Button>
               </div>
@@ -123,13 +132,22 @@ export function PortfolioScreen(_: ScreenProps) {
                 {isAgg && (
                   <span style={{ display: 'flex', flex: 'none', marginInlineEnd: 8 }}>
                     {linked.map((l) => (
-                      <span key={l.id} style={{ marginInlineEnd: -8, borderRadius: 7, boxShadow: '0 0 0 2px var(--color-surface)' }}>
+                      <span
+                        key={l.id}
+                        style={{
+                          marginInlineEnd: -8,
+                          borderRadius: 7,
+                          boxShadow: '0 0 0 2px var(--color-surface)',
+                        }}
+                      >
                         <LogoTile src={l.logo} size={26} />
                       </span>
                     ))}
                   </span>
                 )}
-                {isManual && <LogoTile src={null} dashed label={pf.name.slice(0, 2).toUpperCase()} size={28} />}
+                {isManual && (
+                  <LogoTile src={null} dashed label={pf.name.slice(0, 2).toUpperCase()} size={28} />
+                )}
                 <span style={{ flex: 1, minWidth: 0, marginInlineStart: 10 }}>
                   <span style={{ display: 'block', fontSize: 14 }}>
                     {isAgg ? t('pf.allLinked') : isManual ? pf.name : `${pf.broker} ${pf.acct}`}
@@ -142,7 +160,11 @@ export function PortfolioScreen(_: ScreenProps) {
                         : t('pf.synced', { when: pf.syncedAgo?.[language] ?? '' })}
                   </span>
                 </span>
-                <Button variant="ghost" fontSize={12.5} onClick={() => dispatch({ type: 'go', screen: 'connections' })}>
+                <Button
+                  variant="ghost"
+                  fontSize={12.5}
+                  onClick={() => dispatch({ type: 'go', screen: 'connections' })}
+                >
                   {isAgg || pf.kind === 'linked' ? t('pf.manage') : t('pf.link')}
                 </Button>
               </Card>
@@ -202,7 +224,11 @@ export function PortfolioScreen(_: ScreenProps) {
                           </span>
                         </span>
                         <span style={{ textAlign: 'end', whiteSpace: 'nowrap' }}>
-                          <RowValues main={money(x.total)} sub={pct(x.dayPct)} subColor={signalColor(x.dayPct)} />
+                          <RowValues
+                            main={money(x.total)}
+                            sub={pct(x.dayPct)}
+                            subColor={signalColor(x.dayPct)}
+                          />
                         </span>
                       </button>
                     );
@@ -225,7 +251,8 @@ export function PortfolioScreen(_: ScreenProps) {
                 <AreaChart values={series} height={110} pad={8} benchmark={bench} />
                 <div className="text-muted" style={{ display: 'flex', gap: 14, fontSize: 12.5 }}>
                   <span>
-                    <span style={{ color: 'var(--acc-lite)' }}>—</span> {isAgg ? t('pf.allAccounts') : pf.name}
+                    <span style={{ color: 'var(--acc-lite)' }}>—</span>{' '}
+                    {isAgg ? t('pf.allAccounts') : pf.name}
                   </span>
                   <span>{t('pf.benchmark')}</span>
                 </div>
@@ -294,7 +321,9 @@ function Holdings({ pfId }: { pfId: string }) {
                 key={h.ticker}
                 title={h.ticker}
                 subtitle={<Num>{`${h.shares} sh · avg ${money(h.avgCost)}`}</Num>}
-                right={<RowValues main={money(h.value, 0)} sub={pct(h.plPct)} subColor={signalColor(h.plPct)} />}
+                right={
+                  <RowValues main={money(h.value, 0)} sub={pct(h.plPct)} subColor={signalColor(h.plPct)} />
+                }
                 minHeight={46}
                 onClick={() => dispatch({ type: 'openStock', ticker: h.ticker })}
               />

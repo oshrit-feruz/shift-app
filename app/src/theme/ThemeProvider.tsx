@@ -70,10 +70,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.setAttribute('dir', language === 'he' ? 'rtl' : 'ltr');
     root.setAttribute('lang', language);
     try {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ theme, signal, language, mode, languageExplicit }),
-      );
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ theme, signal, language, mode, languageExplicit }));
     } catch {
       /* storage unavailable — appearance simply won't persist */
     }

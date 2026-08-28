@@ -16,7 +16,15 @@ export function AppHeader({
   onNotifications: () => void;
 }) {
   return (
-    <div style={{ flex: 'none', padding: 'calc(14px + env(safe-area-inset-top)) 16px 8px', display: 'flex', alignItems: 'center', gap: 10 }}>
+    <div
+      style={{
+        flex: 'none',
+        padding: 'calc(14px + env(safe-area-inset-top)) 16px 8px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+      }}
+    >
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span
@@ -73,7 +81,14 @@ export function AppHeader({
             )}
           </HeaderIconButton>
         </div>
-        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 22, lineHeight: 1.2, letterSpacing: '-.01em' }}>
+        <div
+          style={{
+            fontFamily: 'var(--font-heading)',
+            fontSize: 28,
+            lineHeight: 1.2,
+            letterSpacing: '-.01em',
+          }}
+        >
           {title}
         </div>
       </div>
@@ -97,15 +112,16 @@ function HeaderIconButton({
       onClick={onClick}
       style={{
         position: 'relative',
-        width: 34,
-        height: 34,
+        width: 48,
+        height: 48,
         display: 'grid',
         placeItems: 'center',
         border: '1px solid var(--color-divider)',
         borderRadius: 'var(--radius-sm)',
-        background: 'var(--sunk)',
-        color: 'inherit',
+        background: 'var(--color-surface)',
+        color: 'var(--color-text)',
         cursor: 'pointer',
+        transition: 'background .2s ease, color .2s ease',
       }}
     >
       {children}

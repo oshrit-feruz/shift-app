@@ -31,11 +31,34 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
   return (
     <div
       className={closing ? 'anim-fade-out' : 'anim-fade-up'}
-      style={{ position: 'absolute', inset: 0, zIndex: 90, background: 'var(--color-bg)', display: 'flex', flexDirection: 'column' }}
+      style={{
+        position: 'absolute',
+        inset: 0,
+        zIndex: 90,
+        background: 'var(--color-bg)',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
     >
-      <div style={{ flex: 'none', padding: 'calc(14px + env(safe-area-inset-top)) 16px 10px', display: 'flex', alignItems: 'center', gap: 9 }}>
+      <div
+        style={{
+          flex: 'none',
+          padding: 'calc(14px + env(safe-area-inset-top)) 16px 10px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 9,
+        }}
+      >
         <label style={{ position: 'relative', flex: 1 }}>
-          <span style={{ position: 'absolute', insetInlineStart: 10, top: 11, opacity: 0.5, pointerEvents: 'none' }}>
+          <span
+            style={{
+              position: 'absolute',
+              insetInlineStart: 10,
+              top: 11,
+              opacity: 0.5,
+              pointerEvents: 'none',
+            }}
+          >
             <Icon name="search" size={15} strokeWidth={2} />
           </span>
           <input
@@ -68,11 +91,21 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
         >
           {(syms) => {
             const hits = query
-              ? syms.filter((x) => x.ticker.toLowerCase().includes(query) || x.name.toLowerCase().includes(query))
+              ? syms.filter(
+                  (x) => x.ticker.toLowerCase().includes(query) || x.name.toLowerCase().includes(query),
+                )
               : syms.slice(0, 5);
             return (
               <>
-                <div className="text-muted" style={{ fontSize: 12.5, letterSpacing: '.09em', textTransform: 'uppercase', padding: '6px 0' }}>
+                <div
+                  className="text-muted"
+                  style={{
+                    fontSize: 12.5,
+                    letterSpacing: '.09em',
+                    textTransform: 'uppercase',
+                    padding: '6px 0',
+                  }}
+                >
                   {query ? t('search.matches', { n: hits.length }) : t('search.recent')}
                 </div>
                 {hits.map((x) => (
@@ -81,7 +114,13 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
                     leading={<TickerTile ticker={x.ticker} size={26} />}
                     title={x.ticker}
                     subtitle={`${x.name} · ${x.sector}`}
-                    right={<RowValues main={money(x.price)} sub={pct(x.changePct)} subColor={signalColor(x.changePct)} />}
+                    right={
+                      <RowValues
+                        main={money(x.price)}
+                        sub={pct(x.changePct)}
+                        subColor={signalColor(x.changePct)}
+                      />
+                    }
                     minHeight={52}
                     onClick={() => {
                       dispatch({ type: 'openStock', ticker: x.ticker });

@@ -11,24 +11,52 @@ import type { ScreenProps } from '../../App';
 
 const OPEN = {
   en: [
-    ['Where will the account live?', 'You open an investment account with a broker — a company licensed to hold your shares. Three routes, and none of them is wrong.'],
-    ['What you need in hand', 'Opening takes about fifteen minutes online once you have these four. Tick them off as you find them.'],
-    ['Which kind of account', 'Brokers offer a plain account and, in most countries, at least one with a tax benefit attached.'],
-    ['Move some money in', 'Start with an amount you would not miss. You can always add later, and the first transfer is mostly about proving the pipes work.'],
-    ['Your first purchase', 'This is the part people overthink. For a first buy, broad usually beats clever.'],
+    [
+      'Where will the account live?',
+      'You open an investment account with a broker — a company licensed to hold your shares. Three routes, and none of them is wrong.',
+    ],
+    [
+      'What you need in hand',
+      'Opening takes about fifteen minutes online once you have these four. Tick them off as you find them.',
+    ],
+    [
+      'Which kind of account',
+      'Brokers offer a plain account and, in most countries, at least one with a tax benefit attached.',
+    ],
+    [
+      'Move some money in',
+      'Start with an amount you would not miss. You can always add later, and the first transfer is mostly about proving the pipes work.',
+    ],
+    [
+      'Your first purchase',
+      'This is the part people overthink. For a first buy, broad usually beats clever.',
+    ],
   ],
   he: [
-    ['איפה החשבון ייפתח?', 'חשבון השקעות נפתח אצל ברוקר — חברה עם רישיון להחזיק את הניירות שלך. שלושה מסלולים, ואף אחד מהם לא שגוי.'],
-    ['מה צריך להכין', 'הפתיחה עצמה לוקחת כרבע שעה אונליין, אחרי שארבעת הדברים האלה מוכנים. סמני כל אחד כשהוא בידיים.'],
+    [
+      'איפה החשבון ייפתח?',
+      'חשבון השקעות נפתח אצל ברוקר — חברה עם רישיון להחזיק את הניירות שלך. שלושה מסלולים, ואף אחד מהם לא שגוי.',
+    ],
+    [
+      'מה צריך להכין',
+      'הפתיחה עצמה לוקחת כרבע שעה אונליין, אחרי שארבעת הדברים האלה מוכנים. סמני כל אחד כשהוא בידיים.',
+    ],
     ['איזה סוג חשבון', 'לכל ברוקר יש חשבון רגיל, ובדרך כלל גם חשבון אחד לפחות עם הטבת מס.'],
-    ['להעביר כסף פנימה', 'התחילי בסכום שלא יחסר לך. אפשר להוסיף בכל רגע, וההעברה הראשונה בעיקר מוכיחה שהצינור עובד.'],
+    [
+      'להעביר כסף פנימה',
+      'התחילי בסכום שלא יחסר לך. אפשר להוסיף בכל רגע, וההעברה הראשונה בעיקר מוכיחה שהצינור עובד.',
+    ],
     ['הקנייה הראשונה', 'זה החלק שאנשים מסבכים. לקנייה ראשונה, רחב עדיף על מתוחכם.'],
   ],
 } as const;
 
 const KINDS = {
   en: [
-    ['bank', 'Through your bank', 'Simplest, usually the highest fees. Fine if you value one login for everything.'],
+    [
+      'bank',
+      'Through your bank',
+      'Simplest, usually the highest fees. Fine if you value one login for everything.',
+    ],
     ['global', 'A global broker', 'Cheapest for buying shares and ETFs abroad. More forms to fill in once.'],
     ['app', 'An investing app', 'Quickest to open, smallest selection. Check what it charges when you sell.'],
   ],
@@ -57,21 +85,41 @@ const DOCS = {
 const ACCTS = {
   en: [
     ['plain', 'A regular investment account', 'No limits, no lock-in. You pay tax on gains when you sell.'],
-    ['tax', 'A tax-advantaged account', 'Lower or deferred tax, in exchange for rules about when you can take the money out. Worth asking your broker which ones you qualify for.'],
+    [
+      'tax',
+      'A tax-advantaged account',
+      'Lower or deferred tax, in exchange for rules about when you can take the money out. Worth asking your broker which ones you qualify for.',
+    ],
   ],
   he: [
     ['plain', 'חשבון השקעות רגיל', 'בלי הגבלות ובלי נעילה. מס על הרווח משולם בעת המכירה.'],
-    ['tax', 'חשבון עם הטבת מס', 'מס נמוך או נדחה, בתמורה לכללים לגבי מתי אפשר להוציא את הכסף. שווה לשאול את הברוקר לאיזה חשבון את זכאית.'],
+    [
+      'tax',
+      'חשבון עם הטבת מס',
+      'מס נמוך או נדחה, בתמורה לכללים לגבי מתי אפשר להוציא את הכסף. שווה לשאול את הברוקר לאיזה חשבון את זכאית.',
+    ],
   ],
 } as const;
 
 const BUYS = {
   en: [
-    ['etf', 'A broad ETF', 'One purchase, hundreds of companies. The usual first buy, and the one that needs no opinion about any single business.'],
-    ['stock', 'A single company', 'Fine in small size once you understand that one bad quarter is all of it.'],
+    [
+      'etf',
+      'A broad ETF',
+      'One purchase, hundreds of companies. The usual first buy, and the one that needs no opinion about any single business.',
+    ],
+    [
+      'stock',
+      'A single company',
+      'Fine in small size once you understand that one bad quarter is all of it.',
+    ],
   ],
   he: [
-    ['etf', 'קרן סל רחבה', 'קנייה אחת, מאות חברות. הקנייה הראשונה המקובלת, וזו שלא דורשת דעה על אף עסק מסוים.'],
+    [
+      'etf',
+      'קרן סל רחבה',
+      'קנייה אחת, מאות חברות. הקנייה הראשונה המקובלת, וזו שלא דורשת דעה על אף עסק מסוים.',
+    ],
     ['stock', 'חברה בודדת', 'בסדר גמור בסכום קטן, ברגע שברור שרבעון גרוע אחד הוא כל ההשקעה.'],
   ],
 } as const;
@@ -105,10 +153,23 @@ export function OpenAccountScreen(_: ScreenProps) {
   });
 
   return (
-    <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 4 }}>
+    <div
+      className="anim-fade-up"
+      style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 4 }}
+    >
       <SegmentDots total={5} current={step} />
       <div>
-        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 22, lineHeight: 1.25, marginTop: 5, whiteSpace: 'normal' }}>{title}</div>
+        <div
+          style={{
+            fontFamily: 'var(--font-heading)',
+            fontSize: 22,
+            lineHeight: 1.25,
+            marginTop: 5,
+            whiteSpace: 'normal',
+          }}
+        >
+          {title}
+        </div>
         <p style={{ fontSize: 14, lineHeight: 1.55, margin: '8px 0 0', opacity: 0.85 }}>{body}</p>
       </div>
 
@@ -135,7 +196,12 @@ export function OpenAccountScreen(_: ScreenProps) {
           {DOCS[language].map(([k, name, note]) => {
             const on = !!docs[k];
             return (
-              <button key={k} type="button" style={{ ...pickStyle(on), display: 'flex', alignItems: 'center', gap: 10 }} onClick={() => setDocs({ ...docs, [k]: !on })}>
+              <button
+                key={k}
+                type="button"
+                style={{ ...pickStyle(on), display: 'flex', alignItems: 'center', gap: 10 }}
+                onClick={() => setDocs({ ...docs, [k]: !on })}
+              >
                 <span
                   style={{
                     width: 22,
@@ -172,7 +238,10 @@ export function OpenAccountScreen(_: ScreenProps) {
           {ACCTS[language].map(([k, name, note]) => (
             <button key={k} type="button" style={pickStyle(acct === k)} onClick={() => setAcct(k)}>
               <span style={{ display: 'block', fontSize: 14 }}>{name}</span>
-              <span className="text-muted" style={{ display: 'block', fontSize: 13, marginTop: 3, lineHeight: 1.45 }}>
+              <span
+                className="text-muted"
+                style={{ display: 'block', fontSize: 13, marginTop: 3, lineHeight: 1.45 }}
+              >
                 {note}
               </span>
             </button>
@@ -223,7 +292,10 @@ export function OpenAccountScreen(_: ScreenProps) {
                 <RadioDot on={firstBuy === k} />
                 <span style={{ flex: 1 }}>
                   <span style={{ display: 'block', fontSize: 14 }}>{name}</span>
-                  <span className="text-muted" style={{ display: 'block', fontSize: 13, marginTop: 2, lineHeight: 1.45 }}>
+                  <span
+                    className="text-muted"
+                    style={{ display: 'block', fontSize: 13, marginTop: 2, lineHeight: 1.45 }}
+                  >
                     {note}
                   </span>
                 </span>
@@ -263,7 +335,12 @@ export function OpenAccountScreen(_: ScreenProps) {
           {step === 4 ? t('open.ready') : t('learn.next')}
         </Button>
       </div>
-      <Button variant="ghost" alignSelf="center" fontSize={13} onClick={() => dispatch({ type: 'go', screen: 'learn' })}>
+      <Button
+        variant="ghost"
+        alignSelf="center"
+        fontSize={13}
+        onClick={() => dispatch({ type: 'go', screen: 'learn' })}
+      >
         {t('open.backToGuide')}
       </Button>
     </div>
