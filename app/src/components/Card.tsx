@@ -71,7 +71,7 @@ export function Card({
   );
 }
 
-export function CardTitle({ children, size = 22 }: { children: ReactNode; size?: number }) {
+export function CardTitle({ children, size = 19 }: { children: ReactNode; size?: number }) {
   return (
     <div className="card-title" style={{ fontSize: size }}>
       {children}

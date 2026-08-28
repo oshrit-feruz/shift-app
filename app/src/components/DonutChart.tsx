@@ -31,7 +31,7 @@ export function DonutChart({ slices }: { slices: AllocationSlice[] }) {
       </svg>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
         {arcs.map((a, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 18.5 }}>
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 15.5 }}>
             <span style={{ width: 8, height: 8, borderRadius: 2, background: a.colorVar, flex: 'none' }} />
             <span style={{ flex: 1 }}>{a.label}</span>
             <Num style={{ color: 'var(--muted)' }}>{a.pct}%</Num>

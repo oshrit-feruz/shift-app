@@ -75,12 +75,12 @@ function SearchOverlayBody({ closing, onClose }: { closing: boolean; onClose: ()
             placeholder={t('search.placeholder')}
             // 16px, not smaller: this field autoFocuses on open, and any
             // input under 16px makes iOS Safari zoom the page in on focus.
-            style={{ paddingInlineStart: 32, height: 38, minHeight: 38, fontSize: 22 }}
+            style={{ paddingInlineStart: 32, height: 38, minHeight: 38, fontSize: 19 }}
           />
         </label>
         <Button
           variant="ghost"
-          fontSize={19}
+          fontSize={16}
           onClick={() => {
             setQ('');
             onClose();
@@ -106,7 +106,7 @@ function SearchOverlayBody({ closing, onClose }: { closing: boolean; onClose: ()
                 <div
                   className="text-muted"
                   style={{
-                    fontSize: 18.5,
+                    fontSize: 15.5,
                     letterSpacing: '.09em',
                     textTransform: 'uppercase',
                     padding: '6px 0',
@@ -137,10 +137,10 @@ function SearchOverlayBody({ closing, onClose }: { closing: boolean; onClose: ()
                 ))}
                 {query && hits.length === 0 && (
                   <div style={{ padding: '34px 8px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 20 }}>
+                    <div style={{ fontSize: 17 }}>
                       {t('search.noMatch')} “{q}”
                     </div>
-                    <div className="text-muted" style={{ fontSize: 19, marginTop: 4 }}>
+                    <div className="text-muted" style={{ fontSize: 16, marginTop: 4 }}>
                       {t('search.noMatchHelp')}
                     </div>
                   </div>

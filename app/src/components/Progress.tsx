@@ -62,7 +62,7 @@ export function ProgressTrack({ pct, label }: { pct: number; label?: string }) {
         />
       </span>
       {label != null && (
-        <Num size={18.5} style={{ color: 'var(--muted)' }}>
+        <Num size={15.5} style={{ color: 'var(--muted)' }}>
           {label}
         </Num>
       )}

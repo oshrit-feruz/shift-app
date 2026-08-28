@@ -18,7 +18,7 @@ export function DetailRow({ label, value }: { label: string; value: ReactNode })
         display: 'flex',
         justifyContent: 'space-between',
         gap: 10,
-        fontSize: 18.5,
+        fontSize: 15.5,
         padding: '5px 0',
         borderTop: '1px solid var(--color-divider)',
       }}

@@ -77,10 +77,10 @@ export function WatchlistScreen({ openAlert }: ScreenProps) {
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <DemoDataNote />
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span className="text-muted" style={{ fontSize: 19, flex: 1 }}>
+        <span className="text-muted" style={{ fontSize: 16, flex: 1 }}>
           {t('watch.sub')}
         </span>
-        <Button fontSize={19} minHeight={36} onClick={openAlert}>
+        <Button fontSize={16} minHeight={36} onClick={openAlert}>
           ＋ {t('watch.newAlert')}
         </Button>
       </div>
@@ -101,7 +101,7 @@ export function WatchlistScreen({ openAlert }: ScreenProps) {
                   divider={i > 0}
                   minHeight={52}
                   leading={<Skeleton width={26} height={26} radius="var(--radius-sm)" />}
-                  title={<SkeletonLine width="38%" fontSize={21} />}
+                  title={<SkeletonLine width="38%" fontSize={18} />}
                   subtitle={
                     <span style={{ display: 'flex', gap: 4, marginTop: 3 }}>
                       {(ROW_ALERTS[ticker] ?? []).map((_, j) => (
@@ -111,8 +111,8 @@ export function WatchlistScreen({ openAlert }: ScreenProps) {
                   }
                   right={
                     <>
-                      <SkeletonLine width={56} fontSize={20} />
-                      <SkeletonLine width={38} fontSize={18.5} bar={9} />
+                      <SkeletonLine width={56} fontSize={17} />
+                      <SkeletonLine width={38} fontSize={15.5} bar={9} />
                     </>
                   }
                   trailing={<Skeleton width={34} height={34} radius="var(--radius-sm)" />}
@@ -133,7 +133,7 @@ export function WatchlistScreen({ openAlert }: ScreenProps) {
                     subtitle={
                       <span style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
                         {(ROW_ALERTS[x.ticker] ?? []).map((al, i) => (
-                          <Tag key={i} variant="accent" fontSize={17}>
+                          <Tag key={i} variant="accent" fontSize={14}>
                             {al === 'earn' ? earnLabel : al === 'news' ? newsLabel : al}
                           </Tag>
                         ))}
@@ -161,7 +161,7 @@ export function WatchlistScreen({ openAlert }: ScreenProps) {
                           border: '1px solid var(--color-divider)',
                           background: 'transparent',
                           color: 'var(--color-accent)',
-                          fontSize: 21,
+                          fontSize: 18,
                           cursor: 'pointer',
                         }}
                         aria-label={t('watch.newAlert')}
@@ -195,24 +195,24 @@ export function WatchlistScreen({ openAlert }: ScreenProps) {
                 color: 'var(--color-accent-300)',
                 display: 'grid',
                 placeItems: 'center',
-                fontSize: 18,
+                fontSize: 15,
               }}
             >
               {a.glyph}
             </span>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 20 }}>{a.title}</div>
-              <div className="text-muted" style={{ fontSize: 18.5 }}>
+              <div style={{ fontSize: 17 }}>{a.title}</div>
+              <div className="text-muted" style={{ fontSize: 15.5 }}>
                 {a.detail}
               </div>
             </div>
-            <Button variant="ghost" fontSize={18.5} style={{ opacity: 0.7, padding: 0 }}>
+            <Button variant="ghost" fontSize={15.5} style={{ opacity: 0.7, padding: 0 }}>
               {t('watch.remove')}
             </Button>
           </div>
         ))}
         {beg && (
-          <p className="text-muted" style={{ fontSize: 18.5, margin: '4px 0 0' }}>
+          <p className="text-muted" style={{ fontSize: 15.5, margin: '4px 0 0' }}>
             {t('watch.alertNudge')}
           </p>
         )}

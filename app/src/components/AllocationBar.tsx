@@ -23,10 +23,10 @@ export function AllocationBar({
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <div style={{ display: 'flex', gap: 8, fontSize: 20, alignItems: 'baseline' }}>
+      <div style={{ display: 'flex', gap: 8, fontSize: 17, alignItems: 'baseline' }}>
         <span style={{ flex: 1 }}>{name}</span>
         {amount != null && (
-          <Num size={19} style={{ color: 'var(--muted)' }}>
+          <Num size={16} style={{ color: 'var(--muted)' }}>
             {amount}
           </Num>
         )}
@@ -34,7 +34,7 @@ export function AllocationBar({
       </div>
       {(fund != null || action != null) && (
         <span style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
-          {fund != null && <span style={{ flex: 1, fontSize: 18.5, color: 'var(--muted)' }}>{fund}</span>}
+          {fund != null && <span style={{ flex: 1, fontSize: 15.5, color: 'var(--muted)' }}>{fund}</span>}
           {action}
         </span>
       )}

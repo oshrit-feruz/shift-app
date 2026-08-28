@@ -96,18 +96,18 @@ export function AlertSheet({
                 color: 'var(--color-accent-300)',
                 display: 'grid',
                 placeItems: 'center',
-                fontSize: 19,
+                fontSize: 16,
               }}
             >
               {a.glyph}
             </span>
             <span style={{ flex: 1 }}>
-              <span style={{ display: 'block', fontSize: 19.5 }}>{a.title}</span>
-              <span className="text-muted" style={{ display: 'block', fontSize: 18.5 }}>
+              <span style={{ display: 'block', fontSize: 16.5 }}>{a.title}</span>
+              <span className="text-muted" style={{ display: 'block', fontSize: 15.5 }}>
                 {a.help}
               </span>
             </span>
-            <span style={{ color: 'var(--color-accent)', fontSize: 20 }}>{kind === a.k ? '✓' : ''}</span>
+            <span style={{ color: 'var(--color-accent)', fontSize: 17 }}>{kind === a.k ? '✓' : ''}</span>
           </button>
         ))}
       </div>
@@ -123,12 +123,12 @@ export function AlertSheet({
               ]}
               value={cond}
               onChange={setCond}
-              fontSize={19}
+              fontSize={16}
             />
           </div>
           <Field label={t('alert.price')} value={value} onChange={(e) => setValue(e.target.value)} />
           {beg && (
-            <p className="text-muted" style={{ fontSize: 18.5, margin: 0 }}>
+            <p className="text-muted" style={{ fontSize: 15.5, margin: 0 }}>
               {t('alert.priceHint')}
             </p>
           )}
@@ -139,7 +139,7 @@ export function AlertSheet({
           <Field label={t('alert.mentions')} value={keywords} onChange={(e) => setKeywords(e.target.value)} />
           <div className="field">
             <label>{t('alert.sources')}</label>
-            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 19 }}>
+            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 16 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <input
                   type="checkbox"
@@ -171,14 +171,14 @@ export function AlertSheet({
             ]}
             value={remind}
             onChange={setRemind}
-            fontSize={18.5}
+            fontSize={15.5}
           />
         </div>
       )}
 
       <div className="field">
         <label>{t('alert.notifyBy')}</label>
-        <div style={{ display: 'flex', gap: 14, fontSize: 19 }}>
+        <div style={{ display: 'flex', gap: 14, fontSize: 16 }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <input
               type="checkbox"
