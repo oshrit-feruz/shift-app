@@ -20,30 +20,55 @@ import type { Loadable } from './types';
 interface Entry {
   promise: Promise<Loadable<unknown>>;
   at: number;
+  /** This entry's own TTL, kept so the sweep below can judge it. */
+  ttlMs: number;
+  /** In-flight entries are never swept; only settled ones can expire. */
+  settled: boolean;
 }
 
 const entries = new Map<string, Entry>();
+
+/**
+ * Drop settled entries whose TTL has passed. Ran opportunistically on every
+ * lookup: expired keys that are re-requested get overwritten anyway, but a
+ * long session opening many unique keys (one per ticker) would otherwise
+ * retain every stale payload for its lifetime. In-flight work is exempt so a
+ * slow fetch is never discarded mid-air.
+ */
+function sweep(): void {
+  const now = Date.now();
+  for (const [key, entry] of entries) {
+    if (entry.settled && now - entry.at >= entry.ttlMs) entries.delete(key);
+  }
+}
 
 export function cachedLoadable<T>(
   key: string,
   ttlMs: number,
   fetcher: () => Promise<Loadable<T>>,
 ): Promise<Loadable<T>> {
+  sweep();
   const hit = entries.get(key);
   if (hit && Date.now() - hit.at < ttlMs) {
     return hit.promise as Promise<Loadable<T>>;
   }
+  // The callbacks below run only after this whole block: promises settle
+  // asynchronously, so referencing `entry` inside them is safe.
+  let entry: Entry;
   const promise = fetcher().then(
     (result) => {
-      if (result.status !== 'ok' && entries.get(key)?.promise === promise) entries.delete(key);
+      entry.settled = true;
+      if (result.status !== 'ok' && entries.get(key) === entry) entries.delete(key);
       return result;
     },
     (err: unknown) => {
-      if (entries.get(key)?.promise === promise) entries.delete(key);
+      entry.settled = true;
+      if (entries.get(key) === entry) entries.delete(key);
       throw err;
     },
   );
-  entries.set(key, { promise, at: Date.now() });
+  entry = { promise, at: Date.now(), ttlMs, settled: false };
+  entries.set(key, entry);
   return promise;
 }
 

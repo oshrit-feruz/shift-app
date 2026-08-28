@@ -35,20 +35,17 @@ import { AlertSheet } from './sheets/AlertSheet';
 import { useT as useTranslate } from './i18n/useT';
 import { Button } from './components/Button';
 import { SHELL_ID } from './components/Sheet';
+import { SkeletonCard } from './components/Skeleton';
 
 // Screens outside the core tab set load on demand: the advisory flow,
 // onboarding and settings are behind explicit navigation, so their code
 // stays out of the initial bundle. Each maps its named export onto the
 // default shape React.lazy expects.
-const SettingsScreen = lazy(() =>
-  import('./screens/Settings').then((m) => ({ default: m.SettingsScreen })),
-);
+const SettingsScreen = lazy(() => import('./screens/Settings').then((m) => ({ default: m.SettingsScreen })));
 const ConnectionsScreen = lazy(() =>
   import('./screens/Connections').then((m) => ({ default: m.ConnectionsScreen })),
 );
-const AdvisoryChat = lazy(() =>
-  import('./screens/advisory/Chat').then((m) => ({ default: m.AdvisoryChat })),
-);
+const AdvisoryChat = lazy(() => import('./screens/advisory/Chat').then((m) => ({ default: m.AdvisoryChat })));
 const AdvisoryDisclosure = lazy(() =>
   import('./screens/advisory/Disclosure').then((m) => ({ default: m.AdvisoryDisclosure })),
 );
@@ -262,10 +259,10 @@ function AppShell() {
             padding: '6px 16px calc(90px + env(safe-area-inset-bottom))',
           }}
         >
-          {/* Fallback is empty on purpose: a lazy chunk resolves in a frame
-              or two on a warm cache, and the shell (header, tab bar,
-              background) is already painted around it. */}
-          <Suspense fallback={null}>
+          {/* A compact skeleton, not null: on a warm cache the chunk resolves
+              in a frame or two, but on a slow network a lazy screen would
+              otherwise be an empty hole between header and tab bar. */}
+          <Suspense fallback={<ScreenFallback />}>
             <MemoScreen View={ScreenView} openAlert={openAlert} />
           </Suspense>
         </div>
@@ -276,6 +273,17 @@ function AppShell() {
         <AlertSheet open={alertOpen} onClose={() => setAlertOpen(false)} symbol={currentSymbol ?? null} />
         {!s.firstRunSeen && <FirstRunOverlay />}
       </div>
+    </div>
+  );
+}
+
+/** What the scroll area shows while a lazy screen's chunk downloads. */
+function ScreenFallback() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <SkeletonCard height={132} lines={2} />
+      <SkeletonCard height={188} lines={3} />
+      <SkeletonCard height={150} lines={2} />
     </div>
   );
 }

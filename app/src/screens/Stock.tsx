@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { DemoDataNote } from '../components/DemoDataNote';
 import { Card, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
@@ -50,11 +50,19 @@ export function StockScreen({ openAlert }: ScreenProps) {
   const { mode } = useTheme();
   const t = useT();
   const beg = mode === 'beginner';
-  const [tab, setTab] = useState<StockTab>('overview');
-  // openStock can change the ticker while this screen stays mounted (stock ->
-  // stock, from search or a news chip), and the sub-tab is about the stock
-  // you were looking at, not the one you just opened.
-  useEffect(() => setTab('overview'), [s.ticker]);
+  // The sub-tab is scoped to its ticker AT RENDER TIME, not reset in an
+  // effect: openStock can change the ticker while this screen stays mounted
+  // (stock -> stock, from search or a news chip), and an effect-based reset
+  // runs after commit — one render would still mount the old sub-tab's panel
+  // for the NEW ticker and fire its data work before the reset landed.
+  // Deriving the tab from a {ticker, tab} pair makes the very first render of
+  // a new ticker land on 'overview' with no wasted fetch.
+  const [tabFor, setTabFor] = useState<{ ticker: string; tab: StockTab }>({
+    ticker: s.ticker,
+    tab: 'overview',
+  });
+  const tab = tabFor.ticker === s.ticker ? tabFor.tab : 'overview';
+  const setTab = (next: StockTab) => setTabFor({ ticker: s.ticker, tab: next });
   const [tf, setTf] = useState('3M');
   const [ind, setInd] = useState({ ma: true, rsi: true, macd: false });
   const sym = useLoadable(() => demoService.symbol(s.ticker), [s.ticker]);
@@ -434,7 +442,13 @@ function LiveOnlyStock({ ticker }: { ticker: string }) {
   const t = useT();
   const dispatch = useDispatch();
   const s = useAppState();
-  const [tab, setTab] = useState<'reports' | 'news'>('reports');
+  // Ticker-scoped for the same reason as StockScreen's sub-tab above.
+  const [tabFor, setTabFor] = useState<{ ticker: string; tab: 'reports' | 'news' }>({
+    ticker,
+    tab: 'reports',
+  });
+  const tab = tabFor.ticker === ticker ? tabFor.tab : 'reports';
+  const setTab = (next: 'reports' | 'news') => setTabFor({ ticker, tab: next });
   const inWl = s.watchlist.includes(ticker);
 
   return (

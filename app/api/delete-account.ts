@@ -30,12 +30,28 @@ import { readBearerToken, type ApiRequest, type ApiResponse } from './_lib/http.
  */
 const UPSTREAM_TIMEOUT_MS = 10_000;
 
-/** fetch with an AbortController timeout. Throws on timeout like any abort. */
-async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+/**
+ * fetch + body read under one AbortController timeout. Throws on timeout like
+ * any abort. The timer stays armed through the body read on purpose: fetch()
+ * resolves at response HEADERS, and a body that then stalls would otherwise
+ * hang past the budget (the same subtlety _lib/upstream.ts handles).
+ * `body` is null when the response carries no parseable JSON.
+ */
+async function fetchJsonWithTimeout(
+  url: string,
+  init: RequestInit,
+): Promise<{ ok: boolean; status: number; body: unknown }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
   try {
-    return await fetch(url, { ...init, signal: controller.signal });
+    const res = await fetch(url, { ...init, signal: controller.signal });
+    let body: unknown = null;
+    try {
+      body = await res.json();
+    } catch {
+      // Non-JSON or empty body — the status code still tells the story.
+    }
+    return { ok: res.ok, status: res.status, body };
   } finally {
     clearTimeout(timer);
   }
@@ -69,24 +85,22 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   // Step 1 — establish WHO is calling, from the token itself.
   let userId: string;
   try {
-    const who = await fetchWithTimeout(`${url}/auth/v1/user`, {
+    const who = await fetchJsonWithTimeout(`${url}/auth/v1/user`, {
       headers: { apikey: serviceKey, Authorization: `Bearer ${token}` },
     });
-    if (!who.ok) {
+    const id =
+      who.body !== null && typeof who.body === 'object' ? (who.body as { id?: unknown }).id : undefined;
+    if (!who.ok || typeof id !== 'string' || !id) {
       return res.status(401).json({ error: 'unauthorized', message: 'Invalid or expired session.' });
     }
-    const body = (await who.json()) as { id?: unknown };
-    if (typeof body.id !== 'string' || !body.id) {
-      return res.status(401).json({ error: 'unauthorized', message: 'Invalid or expired session.' });
-    }
-    userId = body.id;
+    userId = id;
   } catch {
     return res.status(502).json({ error: 'upstream_unreachable', message: 'Could not verify the session.' });
   }
 
   // Step 2 — delete that user, and only that user.
   try {
-    const del = await fetchWithTimeout(`${url}/auth/v1/admin/users/${userId}`, {
+    const del = await fetchJsonWithTimeout(`${url}/auth/v1/admin/users/${userId}`, {
       method: 'DELETE',
       headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
     });
