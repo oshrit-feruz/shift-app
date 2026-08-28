@@ -9,6 +9,7 @@ import {
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { loading, ok, unavailable, type Loadable } from '../data/types';
+import { readProfile, type UserProfile } from './profile';
 
 /**
  * Auth state for the whole app, following the honest-status contract:
@@ -29,6 +30,13 @@ import { loading, ok, unavailable, type Loadable } from '../data/types';
  */
 interface AuthState {
   session: Loadable<Session | null>;
+  /**
+   * The signed-in user's identity from the OAuth provider, or all-null when
+   * signed out. Derived from the session rather than fetched: the claims
+   * already travel in the token, so reading them costs no round trip and
+   * cannot lag behind the session it belongs to.
+   */
+  profile: UserProfile;
   /** Human-readable reason the last sign-in attempt failed, or null. */
   signInError: { en: string; he: string } | null;
   signInWithGoogle: () => Promise<void>;
@@ -115,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     return {
       session,
+      profile: readProfile(session.status === 'ok' ? session.data?.user : null),
       signInError,
       signInWithGoogle: () => signInWith('google'),
       signInWithApple: () => signInWith('apple'),

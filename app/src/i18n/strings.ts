@@ -16,7 +16,13 @@ export const STRINGS = {
   'nav.more': p('More', 'עוד'),
   'nav.back': p('Back', 'חזרה'),
 
-  'title.home': p('Good morning, Noa', 'בוקר טוב, נועה'),
+  // Greeted by the name the provider gave us. `title.homeAnon` is not a
+  // fallback for a slow load but for a real case: a provider that sends no
+  // display name at all (Apple, after the first authorisation). Greeting
+  // someone by a name guessed from their email address would be worse than
+  // not naming them.
+  'title.home': p('Good morning, {name}', 'בוקר טוב, {name}'),
+  'title.homeAnon': p('Good morning', 'בוקר טוב'),
   'kicker.home': p('Overview', 'סקירה'),
   'title.pf': p('Portfolios', 'תיקים'),
   'kicker.pf': p('Four accounts', 'ארבעה חשבונות'),
