@@ -785,6 +785,17 @@ export const STRINGS = {
   'live.freshRealtime': p('Read from the brokerage just now', 'נקרא מהברוקר ממש עכשיו'),
   'live.freshDaily': p("SnapTrade's daily snapshot", 'תמונת המצב היומית של SnapTrade'),
   'live.asOf': p('Brokerage data fetched {when}', 'נתוני הברוקר נקראו {when}'),
+  'live.connectedNoAccounts': p(
+    'Connected to {broker}, but the brokerage is reporting no accounts.',
+    'מקושר ל-{broker}, אך הברוקר אינו מדווח על אף חשבון.',
+  ),
+  'live.connectedNoAccountsHelp': p(
+    'The connection is live and this is the brokerage\'s current answer, not a sync still running. It usually means the account is not fully open or funded yet, or that data sharing has not been granted for it at the broker.',
+    'החיבור פעיל וזו התשובה הנוכחית של הברוקר, לא סנכרון שעדיין רץ. בדרך כלל זה אומר שהחשבון עדיין לא נפתח או הופקד במלואו, או ששיתוף הנתונים עבורו טרם אושר אצל הברוקר.',
+  ),
+  'live.connState': p('Connection: {state}', 'החיבור: {state}'),
+  'live.connActive': p('active', 'פעיל'),
+  'live.connDisabled': p('disabled', 'מושבת'),
   'more.snaptrade': p('Connected account (demo)', 'חשבון מקושר (הדגמה)'),
   'more.snaptradeHelp': p('One real account, read-only', 'חשבון אמיתי אחד, קריאה בלבד'),
 } as const;

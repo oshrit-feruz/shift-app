@@ -6,7 +6,7 @@ import { DataState, EmptyState } from '../components/DataState';
 import { SkeletonCard } from '../components/Skeleton';
 import { useLoadable } from '../data/useLoadable';
 import { fetchConnectedAccounts } from '../data/snaptradeAccount';
-import type { ConnectedAccount, ConnectedPosition } from '../data/types';
+import type { ConnectedAccount, ConnectedConnection, ConnectedPosition } from '../data/types';
 import { useT } from '../i18n/useT';
 import { useTheme } from '../theme/ThemeProvider';
 import { money, pct, signalColor } from '../lib/format';
@@ -74,21 +74,28 @@ export function ConnectedAccountScreen(_: ScreenProps) {
           </>
         }
       >
-        {(list) =>
-          // Zero accounts is a true answer, not a failure: nothing has been
-          // linked in SnapTrade's portal yet. It gets its own honest state
-          // rather than the "unavailable" one, which would wrongly suggest
-          // something broke.
-          list.length === 0 ? (
-            <Card padding={16} gap={6}>
-              <span style={{ fontSize: 14 }}>{t('live.none')}</span>
-              <span className="text-muted" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
-                {t('live.noneHelp')}
-              </span>
-            </Card>
+        {({ accounts, connections }) =>
+          // Zero accounts is a true answer, not a failure — but there are two
+          // of them, and they used to look identical. No connection at all
+          // means nothing has been linked in SnapTrade's portal. A live
+          // connection reporting no accounts is the brokerage's own current
+          // answer, and saying "nothing connected" there would be false.
+          accounts.length === 0 ? (
+            connections.length === 0 ? (
+              <Card padding={16} gap={6}>
+                <span style={{ fontSize: 14 }}>{t('live.none')}</span>
+                <span className="text-muted" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
+                  {t('live.noneHelp')}
+                </span>
+              </Card>
+            ) : (
+              connections.map((connection) => (
+                <ConnectionCard key={connection.id} connection={connection} />
+              ))
+            )
           ) : (
             <>
-              {list.map((account) => (
+              {accounts.map((account) => (
                 <AccountCard key={account.id} account={account} />
               ))}
               <p className="text-muted" style={{ fontSize: 12, margin: 0, lineHeight: 1.5, padding: '0 2px' }}>
@@ -99,6 +106,40 @@ export function ConnectedAccountScreen(_: ScreenProps) {
         }
       </DataState>
     </div>
+  );
+}
+
+/**
+ * A live connection that is reporting no accounts.
+ *
+ * Deliberately not the "nothing connected yet" card: the brokerage IS
+ * connected, and this states what it actually said, so nobody goes looking
+ * for a connection that already exists.
+ */
+function ConnectionCard({ connection }: { connection: ConnectedConnection }) {
+  const t = useT();
+  const broker = connection.brokerage ?? connection.id;
+  const state =
+    connection.disabled === null
+      ? null
+      : connection.disabled
+        ? t('live.connDisabled')
+        : t('live.connActive');
+
+  return (
+    <Card padding={16} gap={7}>
+      <span style={{ fontSize: 14 }}>{t('live.connectedNoAccounts', { broker })}</span>
+      <span className="text-muted" style={{ fontSize: 12.5, lineHeight: 1.55 }}>
+        {t('live.connectedNoAccountsHelp')}
+      </span>
+      {state && (
+        <span className="text-muted" style={{ fontSize: 12 }}>
+          {t('live.connState', { state })}
+          {connection.type ? ` · ${connection.type}` : ''}
+          {connection.dataFreshnessMode ? ` · ${connection.dataFreshnessMode}` : ''}
+        </span>
+      )}
+    </Card>
   );
 }
 

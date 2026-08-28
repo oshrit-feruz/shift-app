@@ -106,22 +106,56 @@ describe('/api/snaptrade handler', () => {
     // connections: 0 is the diagnostic — SnapTrade sees no connection at all
     // for this key, which is a different fault from a connection whose
     // accounts have not synced yet.
-    expect(res._body).toMatchObject({ accounts: [], source: 'realtime', connections: 0 });
+    expect(res._body).toMatchObject({ accounts: [], source: 'realtime', connections: [] });
   });
 
-  it('distinguishes a connection with no accounts yet from no connection at all', async () => {
+  it('names the brokerage when a live connection reports no accounts', async () => {
+    // The state the real IBKR connection is in: SnapTrade sees it, and the
+    // brokerage returns an empty account list. Reporting that as "nothing
+    // connected" sent us looking for a connection that already existed.
     globalThis.fetch = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
       const url = String(input);
-      if (url.includes('/authorizations?')) return jsonResponse([{ id: 'conn-1' }]);
+      if (url.includes('/authorizations?')) {
+        return jsonResponse([
+          {
+            id: 'conn-1',
+            brokerage: { name: 'Interactive Brokers', display_name: 'Interactive Brokers' },
+            disabled: false,
+            type: 'read',
+            data_freshness_mode: 'realtime',
+          },
+        ]);
+      }
       return jsonResponse([]);
     }) as unknown as typeof fetch;
 
     const res = makeRes();
     await handler({ method: 'GET', query: {} }, res);
     expect(res._status).toBe(200);
-    // The connection is visible, so the credentials are fine and the
-    // brokerage sync is what has not landed.
-    expect(res._body).toMatchObject({ accounts: [], connections: 1 });
+    const body = res._body as { accounts: unknown[]; connections: Array<Record<string, unknown>> };
+    expect(body.accounts).toEqual([]);
+    expect(body.connections).toEqual([
+      {
+        id: 'conn-1',
+        brokerage: 'Interactive Brokers',
+        disabled: false,
+        type: 'read',
+        dataFreshnessMode: 'realtime',
+        accountCount: 0,
+      },
+    ]);
+  });
+
+  it('drops a connection row with no id — it cannot be queried for accounts', async () => {
+    globalThis.fetch = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
+      const url = String(input);
+      if (url.includes('/authorizations?')) return jsonResponse([{ brokerage: { name: 'Ghost' } }]);
+      return jsonResponse([]);
+    }) as unknown as typeof fetch;
+
+    const res = makeRes();
+    await handler({ method: 'GET', query: {} }, res);
+    expect(res._body).toMatchObject({ accounts: [], connections: [] });
   });
 
   it('falls back to the per-connection route when the daily cache is still empty', async () => {

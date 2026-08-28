@@ -137,12 +137,12 @@ function LiveLinkedAccounts() {
           onRetry={accounts.retry}
           skeleton={<SkeletonList count={1} leading minHeight={52} />}
         >
-          {(list) =>
-            list.length === 0 ? (
+          {({ accounts }) =>
+            accounts.length === 0 ? (
               <EmptyState>{t('live.none')}</EmptyState>
             ) : (
               <>
-                {list.map((account) => (
+                {accounts.map((account) => (
                   <button
                     key={account.id}
                     type="button"

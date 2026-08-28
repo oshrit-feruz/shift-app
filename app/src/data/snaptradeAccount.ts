@@ -32,7 +32,14 @@
  *   brokerage did not report is shown as unknown, never back-filled.
  */
 
-import { ok, unavailable, type ConnectedAccount, type Loadable } from './types';
+import {
+  ok,
+  unavailable,
+  type ConnectedAccount,
+  type ConnectedAccountsResult,
+  type ConnectedConnection,
+  type Loadable,
+} from './types';
 
 /** The server-side proxy that holds the SnapTrade Personal credentials. */
 export const SNAPTRADE_ENDPOINT = '/api/snaptrade';
@@ -155,12 +162,32 @@ function parseAccount(raw: unknown): ConnectedAccount | null {
 }
 
 /**
+ * Re-validates a connection row. Same reason parseAccount() exists: this file
+ * is the last thing between the response and the screen, and a field that
+ * silently arrived as undefined would render as a confident blank.
+ */
+function parseConnection(raw: unknown): ConnectedConnection | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const c = raw as Record<string, unknown>;
+  const id = str(c.id);
+  if (!id) return null;
+  return {
+    id,
+    brokerage: str(c.brokerage),
+    disabled: typeof c.disabled === 'boolean' ? c.disabled : null,
+    type: str(c.type),
+    dataFreshnessMode: str(c.dataFreshnessMode),
+    accountCount: num(c.accountCount) ?? 0,
+  };
+}
+
+/**
  * `fetchImpl` is injectable so every honest-state branch can be unit-tested
  * without a network, exactly as fetchSatelliteSignals() does it.
  */
 export async function fetchConnectedAccounts(
   fetchImpl: typeof fetch = fetch,
-): Promise<Loadable<ConnectedAccount[]>> {
+): Promise<Loadable<ConnectedAccountsResult>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
@@ -185,12 +212,16 @@ export async function fetchConnectedAccounts(
     const rawAccounts = (body as { accounts?: unknown })?.accounts;
     if (!Array.isArray(rawAccounts)) return unavailable(REASONS.badShape);
 
-    const accounts = rawAccounts
-      .map(parseAccount)
-      .filter((a): a is ConnectedAccount => a !== null);
-    // An empty list is a real answer — no brokerage linked yet — and is
-    // returned as ok([]) so the screen shows the honest empty state.
-    return ok(accounts);
+    const accounts = rawAccounts.map(parseAccount).filter((a): a is ConnectedAccount => a !== null);
+    const rawConnections = (body as { connections?: unknown })?.connections;
+    const connections = (Array.isArray(rawConnections) ? rawConnections : [])
+      .map(parseConnection)
+      .filter((c): c is ConnectedConnection => c !== null);
+    // An empty account list is a real answer, and `connections` says which
+    // kind: none at all means no brokerage is linked; one or more means a
+    // live connection whose brokerage reported no accounts. The screen
+    // renders those as two different states, because they are.
+    return ok({ accounts, connections });
   } catch (err) {
     return unavailable(
       err instanceof DOMException && err.name === 'AbortError' ? REASONS.timeout : REASONS.unreachable,

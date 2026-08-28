@@ -28,6 +28,7 @@ import {
   ok,
   unavailable,
   type ConnectedAccount,
+  type ConnectedAccountsResult,
   type Holding,
   type Loadable,
   type PortfolioSummary,
@@ -47,9 +48,9 @@ const AGGREGATE_ID = 'agg';
  * account's current state, not a minute-old one.
  */
 const CACHE_MS = 20_000;
-let cache: { at: number; promise: Promise<Loadable<ConnectedAccount[]>> } | null = null;
+let cache: { at: number; promise: Promise<Loadable<ConnectedAccountsResult>> } | null = null;
 
-function connectedAccounts(): Promise<Loadable<ConnectedAccount[]>> {
+function connectedAccounts(): Promise<Loadable<ConnectedAccountsResult>> {
   const now = Date.now();
   if (cache && now - cache.at < CACHE_MS) return cache.promise;
   const promise = fetchConnectedAccounts().then((result) => {
@@ -141,12 +142,14 @@ function toHolding(position: ConnectedAccount['positions'][number]): Holding {
 async function livePortfolios(): Promise<Loadable<PortfolioSummary[]>> {
   const result = await connectedAccounts();
   if (result.status !== 'ok') return result;
-  // No brokerage linked yet: a real, honest empty list. The screens render
-  // their genuine empty state rather than an error or a placeholder account.
-  if (result.data.length === 0) return ok([]);
+  // No account to show: a real, honest empty list. The screens render their
+  // genuine empty state rather than an error or a placeholder account. Which
+  // KIND of empty this is — nothing connected, or a connection reporting
+  // nothing — is the connected-account demo screen's job to explain.
+  if (result.data.accounts.length === 0) return ok([]);
 
   const rows: PortfolioSummary[] = [];
-  for (const account of result.data) {
+  for (const account of result.data.accounts) {
     const total = accountTotal(account);
     if (total === null) return unavailable(NO_TOTAL);
     rows.push(toPortfolioSummary(account, total));
@@ -170,7 +173,9 @@ async function liveHoldings(portfolioId: string): Promise<Loadable<Holding[]>> {
   const result = await connectedAccounts();
   if (result.status !== 'ok') return result;
   const accounts =
-    portfolioId === AGGREGATE_ID ? result.data : result.data.filter((a) => a.id === portfolioId);
+    portfolioId === AGGREGATE_ID
+      ? result.data.accounts
+      : result.data.accounts.filter((a) => a.id === portfolioId);
   // An id this source does not know (a manual portfolio, say) gets an empty
   // list, exactly as the demo adapter does — its holdings come from elsewhere.
   return ok(accounts.flatMap((a) => a.positions.map(toHolding)));

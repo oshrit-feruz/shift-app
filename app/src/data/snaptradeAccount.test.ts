@@ -38,8 +38,8 @@ describe('freshness and source', () => {
     const r = await fetchConnectedAccounts(async () => res({ accounts: [ACCOUNT] }));
     expect(r.status).toBe('ok');
     if (r.status !== 'ok') return;
-    expect(r.data[0].asOf).toBe('2026-08-28T14:30:00Z');
-    expect(r.data[0].source).toBe('realtime');
+    expect(r.data.accounts[0].asOf).toBe('2026-08-28T14:30:00Z');
+    expect(r.data.accounts[0].source).toBe('realtime');
   });
 
   it('defaults to the weaker daily claim when the source is absent or unrecognised', async () => {
@@ -48,8 +48,8 @@ describe('freshness and source', () => {
     );
     expect(r.status).toBe('ok');
     if (r.status !== 'ok') return;
-    expect(r.data[0].source).toBe('daily');
-    expect(r.data[0].asOf).toBeNull();
+    expect(r.data.accounts[0].source).toBe('daily');
+    expect(r.data.accounts[0].asOf).toBeNull();
   });
 });
 
@@ -58,12 +58,44 @@ describe('fetchConnectedAccounts', () => {
     const r = await fetchConnectedAccounts(async () => res({ accounts: [ACCOUNT] }));
     expect(r.status).toBe('ok');
     if (r.status !== 'ok') return;
-    expect(r.data).toEqual([ACCOUNT]);
+    expect(r.data.accounts).toEqual([ACCOUNT]);
   });
 
-  it('treats zero connected accounts as a real ok([]), not an error', async () => {
+  it('treats zero connected accounts as a real ok, not an error', async () => {
     const r = await fetchConnectedAccounts(async () => res({ accounts: [] }));
-    expect(r).toEqual({ status: 'ok', data: [] });
+    expect(r).toEqual({ status: 'ok', data: { accounts: [], connections: [] } });
+  });
+
+  it('carries a live connection that reported no accounts, so it is not read as "nothing connected"', async () => {
+    const r = await fetchConnectedAccounts(async () =>
+      res({
+        accounts: [],
+        connections: [
+          {
+            id: 'conn-1',
+            brokerage: 'Interactive Brokers',
+            disabled: false,
+            type: 'read',
+            dataFreshnessMode: 'realtime',
+            accountCount: 0,
+          },
+        ],
+      }),
+    );
+    expect(r.status).toBe('ok');
+    if (r.status !== 'ok') return;
+    expect(r.data.accounts).toEqual([]);
+    expect(r.data.connections).toHaveLength(1);
+    expect(r.data.connections[0]).toMatchObject({ brokerage: 'Interactive Brokers', disabled: false });
+  });
+
+  it('drops a connection row with no id rather than half-rendering it', async () => {
+    const r = await fetchConnectedAccounts(async () =>
+      res({ accounts: [], connections: [{ brokerage: 'Ghost' }] }),
+    );
+    expect(r.status).toBe('ok');
+    if (r.status !== 'ok') return;
+    expect(r.data.connections).toEqual([]);
   });
 
   it('reports a missing-credentials fault with its own specific reason', async () => {
@@ -115,7 +147,7 @@ describe('fetchConnectedAccounts', () => {
     );
     expect(r.status).toBe('ok');
     if (r.status !== 'ok') return;
-    expect(r.data[0].positions.map((p) => p.ticker)).toEqual(['AAPL']);
+    expect(r.data.accounts[0].positions.map((p) => p.ticker)).toEqual(['AAPL']);
   });
 
   it('keeps an unreported number as null rather than coercing it to zero', async () => {
@@ -124,12 +156,12 @@ describe('fetchConnectedAccounts', () => {
     );
     expect(r.status).toBe('ok');
     if (r.status !== 'ok') return;
-    expect(r.data[0].totalValue).toBeNull();
-    expect(r.data[0].positions[0]).toMatchObject({ ticker: 'NVDA', units: null, price: null, marketValue: null });
+    expect(r.data.accounts[0].totalValue).toBeNull();
+    expect(r.data.accounts[0].positions[0]).toMatchObject({ ticker: 'NVDA', units: null, price: null, marketValue: null });
   });
 
   it('drops an account with no id — it could not be addressed or trusted', async () => {
     const r = await fetchConnectedAccounts(async () => res({ accounts: [{ name: 'ghost' }] }));
-    expect(r).toEqual({ status: 'ok', data: [] });
+    expect(r).toEqual({ status: 'ok', data: { accounts: [], connections: [] } });
   });
 });

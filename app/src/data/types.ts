@@ -294,3 +294,28 @@ export interface ConnectedAccount {
    */
   source: 'daily' | 'realtime';
 }
+
+/**
+ * One SnapTrade connection, reported so a zero-account answer can say which
+ * state it is in. A live connection whose brokerage reports no accounts and
+ * no connection at all are different facts; both used to render identically.
+ */
+export interface ConnectedConnection {
+  id: string;
+  brokerage: string | null;
+  disabled: boolean | null;
+  type: string | null;
+  dataFreshnessMode: string | null;
+  accountCount: number;
+}
+
+/**
+ * What /api/snaptrade reports: the accounts it could read, plus the
+ * connections behind them. `connections` is only populated when the accounts
+ * list came back empty and the real-time route was walked — it is what the
+ * screen uses to tell "nothing connected" from "connected, reporting nothing".
+ */
+export interface ConnectedAccountsResult {
+  accounts: ConnectedAccount[];
+  connections: ConnectedConnection[];
+}

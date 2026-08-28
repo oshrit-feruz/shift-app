@@ -353,9 +353,34 @@ active in SnapTrade's dashboard. When that happens the function walks
 `/authorizations` and asks each connection directly, which is the real-time
 route. `source` in the response says which one answered, and the demo screen
 shows it along with SnapTrade's own `data_freshness.as_of`, so the freshness
-of what is on screen is stated rather than implied. SnapTrade's manual-refresh
-endpoint is deliberately **not** called: it is a `POST`, and it is billed per
-call — not something to fire from a public, unauthenticated endpoint. SnapTrade's trading endpoints
+of what is on screen is stated rather than implied.
+
+**The manual-refresh endpoint is not called, and could not help.** Besides
+being a `POST` and billed per call, the spec states it "is disabled for
+Real-time plans (Personal and Pay as you go) unless the connection is
+delayed… Real-time connections do not benefit from this feature since data is
+refreshed when calls are made." Personal is a real-time plan, so there is no
+cached account list sitting stale behind a refresh — SnapTrade queries the
+brokerage during the call.
+
+**Three empty states, not one.** That last point matters for how an empty
+answer is read. Because the connection is real-time, an empty account list on
+a live connection is *the brokerage's current answer*, not a sync still
+running, and it is a different fact from having no connection at all:
+
+| What SnapTrade reports | What the screen says |
+| --- | --- |
+| no connections | "עדיין לא מקושר חשבון ברוקר" — nothing has been linked in the portal |
+| a connection, zero accounts | names the brokerage and says it is connected but reporting no accounts, with the connection's state (active/disabled, read/trade, realtime/delayed) |
+| accounts | the real balances and positions |
+
+The middle row is the state a freshly linked Interactive Brokers connection
+sat in during development, and it is on the brokerage's side — an account not
+fully open or funded, or data sharing not granted for it at the broker.
+Reporting it as "nothing connected" sent us hunting for a connection that
+already existed, which is why the response now carries the connection list
+(states and counts only; nothing identifying). Nothing in this repo can
+resolve it — the app's job is to say precisely which state it is in. SnapTrade's trading endpoints
 appear nowhere in the codebase, and a unit test asserts that no upstream path
 ever matches a trading route.
 

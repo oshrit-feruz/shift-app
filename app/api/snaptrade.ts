@@ -4,10 +4,12 @@ import {
   computeSignature,
   mapAccount,
   mapBalance,
+  mapConnection,
   mapPosition,
   unwrapPositions,
   type ConnectedAccount,
   type ConnectedBalance,
+  type ConnectedConnection,
   type ConnectedPosition,
 } from './_lib/snaptrade.js';
 import type { ApiRequest, ApiResponse } from './_lib/http.js';
@@ -141,25 +143,32 @@ function mapAccountList(raw: unknown, label: string): MappedAccount[] {
 async function realtimeAccounts(
   creds: { clientId: string; consumerKey: string },
   timeoutMs: number,
-): Promise<{ accounts: MappedAccount[]; connections: number }> {
+): Promise<{ accounts: MappedAccount[]; connections: ConnectedConnection[] }> {
   const rawConnections = await snapTradeGet(READ_ONLY_PATHS.connections(), creds, timeoutMs);
   if (!Array.isArray(rawConnections)) throw badResponse('/authorizations did not return an array');
 
-  const ids = rawConnections
-    .map((c) => (typeof c === 'object' && c !== null ? (c as { id?: unknown }).id : null))
-    .filter((id): id is string => typeof id === 'string' && id !== '')
+  const mapped = rawConnections
+    .map(mapConnection)
+    .filter((c): c is NonNullable<ReturnType<typeof mapConnection>> => c !== null)
     .slice(0, MAX_ACCOUNTS);
-  if (ids.length === 0) return { accounts: [], connections: rawConnections.length };
+  if (mapped.length === 0) return { accounts: [], connections: [] };
 
   const perConnection = await Promise.all(
-    ids.map(async (id) =>
+    mapped.map(async (connection) =>
       mapAccountList(
-        await snapTradeGet(READ_ONLY_PATHS.connectionAccounts(id), creds, timeoutMs),
-        `/authorizations/${id}/accounts`,
+        await snapTradeGet(READ_ONLY_PATHS.connectionAccounts(connection.id), creds, timeoutMs),
+        `/authorizations/${connection.id}/accounts`,
       ),
     ),
   );
-  return { accounts: perConnection.flat().slice(0, MAX_ACCOUNTS), connections: ids.length };
+
+  return {
+    accounts: perConnection.flat().slice(0, MAX_ACCOUNTS),
+    // Each connection carries what it actually reported, so a zero-account
+    // answer can name the brokerage and its state instead of looking like
+    // nothing was ever connected.
+    connections: mapped.map((c, i) => ({ ...c, accountCount: perConnection[i].length })),
+  };
 }
 
 /**
@@ -216,7 +225,7 @@ export function createHandler(timeoutMs: number) {
       // The daily cache has nothing. That is expected for a brokerage linked
       // today, so ask the connections directly before concluding the user has
       // no account.
-      let connections: number | null = null;
+      let connections: ConnectedConnection[] = [];
       if (base.length === 0) {
         const realtime = await realtimeAccounts(creds, timeoutMs);
         base = realtime.accounts;
@@ -229,14 +238,16 @@ export function createHandler(timeoutMs: number) {
       if (base.length === 0) {
         // An empty answer has two very different causes, and they were
         // indistinguishable from the response: SnapTrade may see no
-        // CONNECTION for this key at all (the key resolves to a different
-        // user than the one that linked the brokerage), or it may see the
-        // connection but no accounts under it yet (the brokerage sync has
-        // not landed). `connections` separates them — zero points at the
-        // credentials, non-zero at the sync. Counts only; nothing here
-        // identifies an account.
+        // CONNECTION for this key at all, or it may see a live connection
+        // whose brokerage reports no accounts. `connections` separates them
+        // and names the brokerage, so the screen can state which. Note the
+        // second case is NOT a sync waiting to happen: Personal is a
+        // real-time plan, so SnapTrade queries the brokerage during the call
+        // and an empty list is the brokerage's current answer. States and
+        // counts only; nothing here identifies an account.
         console.warn(
-          `${ROUTE}: no accounts. /authorizations reported ${connections} connection(s) for this key`,
+          `${ROUTE}: no accounts. /authorizations reported ${connections.length} connection(s): ` +
+            connections.map((c) => `${c.brokerage ?? c.id} disabled=${c.disabled}`).join(', '),
         );
         res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=30');
         return res.status(200).json({ accounts: [], source, connections });

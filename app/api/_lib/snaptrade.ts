@@ -258,3 +258,47 @@ export function mapPosition(raw: unknown): ConnectedPosition | null {
     currency: str(p.currency, at(p, 'instrument', 'currency')),
   };
 }
+
+/**
+ * One SnapTrade connection, as `/authorizations` reports it.
+ *
+ * Carried so a zero-account answer can say WHICH state it is in. A live
+ * connection whose brokerage reports no accounts and no connection at all are
+ * different facts, and both used to render as "nothing connected yet".
+ *
+ * States and counts only — nothing here identifies an account.
+ */
+export interface ConnectedConnection {
+  id: string;
+  brokerage: string | null;
+  /** SnapTrade's own flag: a disabled connection can no longer reach the brokerage. */
+  disabled: boolean | null;
+  /** 'read' or 'trade'. Ours is read-only, and this is where that is visible. */
+  type: string | null;
+  /**
+   * 'realtime' means SnapTrade queries the brokerage during the call, so an
+   * empty account list is the brokerage's current answer rather than a stale
+   * cache waiting to refresh.
+   */
+  dataFreshnessMode: string | null;
+  /** How many accounts this connection reported. */
+  accountCount: number;
+}
+
+/**
+ * Maps one raw connection. A row with no id is dropped — it cannot be queried
+ * for accounts, so reporting it would describe something we never looked at.
+ */
+export function mapConnection(raw: unknown): Omit<ConnectedConnection, 'accountCount'> | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const c = raw as Record<string, unknown>;
+  const id = str(c.id);
+  if (!id) return null;
+  return {
+    id,
+    brokerage: str(at(c, 'brokerage', 'display_name'), at(c, 'brokerage', 'name'), c.name),
+    disabled: typeof c.disabled === 'boolean' ? c.disabled : null,
+    type: str(c.type),
+    dataFreshnessMode: str(c.data_freshness_mode),
+  };
+}
