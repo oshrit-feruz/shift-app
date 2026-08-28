@@ -241,6 +241,15 @@ describe('publishedAtMs', () => {
     expect(leap).toBeLessThan(publishedAtMs('2017-01-01T00:00:01Z'));
   });
 
+  // validTimestamp accepts "2016-12-31 23:59:60Z" as well as the T form, so a
+  // normaliser that only knew about T left the space form undated — the
+  // validator and the parser have to agree on the same grammar.
+  it('dates a space-separated leap second, the other form the validator accepts', () => {
+    const leap = publishedAtMs('2016-12-31 23:59:60Z');
+    expect(leap).not.toBe(UNDATED);
+    expect(leap).toBe(publishedAtMs('2016-12-31 23:59:59Z') + 1000);
+  });
+
   it('handles a leap second carrying an offset', () => {
     expect(publishedAtMs('2016-12-31T23:59:60+02:00')).toBe(publishedAtMs('2016-12-31T23:59:59+02:00') + 1000);
   });

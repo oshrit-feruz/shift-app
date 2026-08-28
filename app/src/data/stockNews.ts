@@ -138,7 +138,10 @@ export function publishedAtMs(iso: string | null | undefined): number {
   // them, but Date.parse answers NaN for one — so the article we deliberately
   // kept would have sorted to the bottom as undated. A leap second is the
   // instant before the next minute, so it parses as :59 plus one second.
-  const leap = /^(.*T\d{2}:\d{2}):60(.*)$/.exec(iso);
+  // The separator is [T ] here because validTimestamp accepts both, and a
+  // pattern narrower than the validator lets a value it deliberately kept
+  // fall through to Date.parse and come back NaN.
+  const leap = /^(.*[T ]\d{2}:\d{2}):60(.*)$/.exec(iso);
   const ms = leap === null ? Date.parse(iso) : Date.parse(`${leap[1]}:59${leap[2]}`) + 1_000;
   return Number.isNaN(ms) ? UNDATED : ms;
 }
