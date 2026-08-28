@@ -34,8 +34,16 @@ interface AuthState {
   signInWithGoogle: () => Promise<void>;
   signInWithApple: () => Promise<void>;
   signOut: () => Promise<void>;
+  /**
+   * Permanently deletes the signed-in account via the server route, then
+   * drops the local session. Returns an honest result the UI can render —
+   * it never reports success it did not observe.
+   */
+  deleteAccount: () => Promise<DeleteResult>;
   clearSignInError: () => void;
 }
+
+export type DeleteResult = { ok: true } | { ok: false; reason: { en: string; he: string } };
 
 const AuthCtx = createContext<AuthState | null>(null);
 
@@ -49,6 +57,11 @@ const NOT_CONFIGURED = {
 const SIGN_IN_FAILED = {
   en: 'The provider did not complete the sign-in. Nothing was changed — you can try again.',
   he: 'הספק לא השלים את ההתחברות. שום דבר לא השתנה — אפשר לנסות שוב.',
+};
+
+const DELETE_FAILED = {
+  en: 'The account was not deleted. Nothing has changed — you can try again.',
+  he: 'החשבון לא נמחק. שום דבר לא השתנה — אפשר לנסות שוב.',
 };
 
 /**
@@ -108,6 +121,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut: async () => {
         if (!supabase) return;
         await supabase.auth.signOut();
+      },
+      deleteAccount: async (): Promise<DeleteResult> => {
+        if (!supabase) return { ok: false, reason: NOT_CONFIGURED };
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) return { ok: false, reason: DELETE_FAILED };
+        let body: unknown = null;
+        try {
+          const response = await fetch('/api/delete-account', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          body = await response.json();
+        } catch {
+          // Network failure, or a non-JSON body. The latter is the normal
+          // case under a plain `vite dev`, which has no serverless routes and
+          // answers /api/* with index.html: a 200 that means nothing. Testing
+          // the payload rather than response.ok is what stops that from being
+          // read as a successful deletion.
+          return { ok: false, reason: DELETE_FAILED };
+        }
+        const deleted =
+          body != null && typeof body === 'object' && (body as { deleted?: unknown }).deleted === true;
+        if (!deleted) return { ok: false, reason: DELETE_FAILED };
+        // The account is gone; the stored session must go with it, or the app
+        // keeps rendering as though the user still exists until the token
+        // happens to expire.
+        await supabase.auth.signOut();
+        return { ok: true };
       },
       clearSignInError: () => setSignInError(null),
     };

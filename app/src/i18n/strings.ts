@@ -749,6 +749,15 @@ export const STRINGS = {
   'set.signedInAs': p('Signed in as {email}', 'מחובר/ת כ-{email}'),
   'set.providerGoogle': p('via Google', 'דרך Google'),
   'set.providerApple': p('via Apple', 'דרך Apple'),
+  'set.deleteTitle': p('Delete account', 'מחיקת חשבון'),
+  'set.deleteWarn': p(
+    'This permanently deletes your account and everything stored with it — your risk profile, onboarding progress, watchlist and alerts. It cannot be undone, and signing in again creates a fresh account.',
+    'הפעולה מוחקת לצמיתות את החשבון שלך ואת כל מה שנשמר איתו — פרופיל הסיכון, ההתקדמות בהקמה, הווטצ׳ליסט וההתראות. אי אפשר לבטל אותה, והתחברות מחדש תיצור חשבון חדש.',
+  ),
+  'set.deleteConfirm': p('Delete permanently', 'למחוק לצמיתות'),
+  'set.deleteCancel': p('Cancel', 'ביטול'),
+  'set.deleting': p('Deleting…', 'מוחק…'),
+  'set.deleteFailedTitle': p('The account was not deleted', 'החשבון לא נמחק'),
 } as const;
 
 export type StringKey = keyof typeof STRINGS;

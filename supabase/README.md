@@ -62,3 +62,24 @@ You will need, in this order:
 
 That flips the already-shipped Apple button from its disabled
 "not yet available" state to live. Nothing else to change.
+
+## 5. Account deletion
+
+Deleting a user is an admin operation that bypasses RLS, so it runs on the
+server: `app/api/delete-account.ts`. It verifies the caller's access token
+against Supabase, then deletes **that** user — the id comes from the verified
+token, never from the request, so nobody can delete anyone else. The
+`on delete cascade` in the migration removes the matching `profiles` and
+`user_state` rows in the same operation.
+
+One environment variable is required, **server-side only**:
+
+- `SUPABASE_SERVICE_ROLE_KEY` — Settings → API → `service_role` (secret).
+
+Never give it a `VITE_` prefix: that would inline it into the client bundle
+and hand every visitor a key that ignores Row-Level Security. Set it in
+Vercel → Settings → Environment Variables (Production and Preview).
+
+**Testing it locally:** a plain `npm run dev` serves the Vite dev server only
+and has no `/api/*` routes, so deletion will honestly report failure there.
+Use `vercel dev`, or test it on a deployed preview.

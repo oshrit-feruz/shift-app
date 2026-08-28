@@ -4,6 +4,7 @@ import { Toggle } from '../components/Toggle';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { useAppState, useDispatch, setupProgress } from '../state/appState';
 import { useAuth } from '../auth/AuthProvider';
+import { DeleteAccountSheet } from '../sheets/DeleteAccountSheet';
 import { useTheme, type Signal, type Theme, type Language } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { DEMO_FLAGS } from '../data/demoAdapter';
@@ -21,9 +22,35 @@ export function SettingsScreen(_: ScreenProps) {
   const provider = user?.app_metadata?.provider;
   const [flags, setFlags] = useState({ unavailable: DEMO_FLAGS.unavailable, showcase: DEMO_FLAGS.showcase });
   const [notif, setNotif] = useState({ push: true, email: true, sms: false, digest: true, movers: false });
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+      {/* Account, first: signing out is a routine action, and buried at the
+          foot of a long scroll it read as missing entirely. Deletion stays at
+          the bottom — destructive and rare, it should not sit under the
+          thumb next to the everyday control. Sign-out itself resets the app
+          state (useRemoteSync watches the session), so nothing here has to
+          remember to clear the previous user's slice. */}
+      {user && (
+        <Card padding="12px 13px" gap={9}>
+          <CardTitle size={15}>{t('set.accountSection')}</CardTitle>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ fontSize: 14 }}>
+              {t('set.signedInAs', { email: user.email ?? user.id })}
+            </span>
+            {(provider === 'google' || provider === 'apple') && (
+              <span className="text-muted" style={{ fontSize: 12.5 }}>
+                {t(provider === 'google' ? 'set.providerGoogle' : 'set.providerApple')}
+              </span>
+            )}
+          </div>
+          <Button variant="secondary" alignSelf="flex-start" fontSize={13} onClick={() => signOut()}>
+            {t('set.signOut')}
+          </Button>
+        </Card>
+      )}
+
       {/* Mode pill */}
       <Card padding="10px 12px" gap={6}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -208,31 +235,18 @@ export function SettingsScreen(_: ScreenProps) {
         <SettingsLink label={t('setup.tourRow')} onClick={() => dispatch({ type: 'go', screen: 'steps' })} />
       </Card>
 
-      {/* Account — who is signed in, and the way out. Sign-out itself resets
-          the app state (useRemoteSync watches the session), so nothing here
-          has to remember to clear the previous user's slice. */}
+      {/* Opens the confirmation sheet; nothing is deleted from this click. */}
       {user && (
-        <Card padding="12px 13px" gap={9}>
-          <CardTitle size={15}>{t('set.accountSection')}</CardTitle>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ fontSize: 14 }}>
-              {t('set.signedInAs', { email: user.email ?? user.id })}
-            </span>
-            {(provider === 'google' || provider === 'apple') && (
-              <span className="text-muted" style={{ fontSize: 12.5 }}>
-                {t(provider === 'google' ? 'set.providerGoogle' : 'set.providerApple')}
-              </span>
-            )}
-          </div>
-          <Button variant="danger" alignSelf="flex-start" fontSize={13} onClick={() => signOut()}>
-            {t('set.signOut')}
-          </Button>
-        </Card>
+        <Button
+          variant="danger"
+          alignSelf="flex-start"
+          fontSize={13}
+          onClick={() => setDeleteOpen(true)}
+        >
+          {t('set.deleteAcct')}
+        </Button>
       )}
-
-      <Button variant="danger" alignSelf="flex-start" fontSize={13}>
-        {t('set.deleteAcct')}
-      </Button>
+      <DeleteAccountSheet open={deleteOpen} onClose={() => setDeleteOpen(false)} />
     </div>
   );
 }
