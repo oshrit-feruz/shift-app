@@ -4,6 +4,8 @@ import { Toggle } from '../components/Toggle';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { useAppState, useDispatch, setupProgress } from '../state/appState';
 import { useAuth } from '../auth/AuthProvider';
+import { useProfile } from '../auth/ProfileProvider';
+import { EditProfileSheet } from '../sheets/EditProfileSheet';
 import { DeleteAccountSheet } from '../sheets/DeleteAccountSheet';
 import { useTheme, type Signal, type Theme, type Language } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
@@ -18,11 +20,22 @@ export function SettingsScreen(_: ScreenProps) {
   const t = useT();
   const setup = setupProgress(s);
   const { session, signOut } = useAuth();
+  // The merged view — the user's own name and picture where they set them,
+  // the provider's where they did not.
+  const { profile } = useProfile();
   const user = session.status === 'ok' ? session.data?.user : undefined;
   const provider = user?.app_metadata?.provider;
   const [flags, setFlags] = useState({ unavailable: DEMO_FLAGS.unavailable, showcase: DEMO_FLAGS.showcase });
   const [notif, setNotif] = useState({ push: true, email: true, sms: false, digest: true, movers: false });
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  // The address alerts would actually go to, rather than the prototype's
+  // invented one. Built inline as a bilingual pair to match the other rows in
+  // this list; the no-email branch is reachable only for a provider that
+  // returns none, and says so instead of naming a stand-in address.
+  const emailHelp = profile.email
+    ? { en: `Same alerts to ${profile.email}`, he: `אותן התראות ל-${profile.email}` }
+    : { en: 'Same alerts to your sign-in email', he: 'אותן התראות לאימייל שאיתו נכנסת' };
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
@@ -35,19 +48,58 @@ export function SettingsScreen(_: ScreenProps) {
       {user && (
         <Card padding="12px 13px" gap={9}>
           <CardTitle size={15}>{t('set.accountSection')}</CardTitle>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ fontSize: 14 }}>
-              {t('set.signedInAs', { email: user.email ?? user.id })}
-            </span>
-            {(provider === 'google' || provider === 'apple') && (
-              <span className="text-muted" style={{ fontSize: 12.5 }}>
-                {t(provider === 'google' ? 'set.providerGoogle' : 'set.providerApple')}
-              </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+            {profile.avatarUrl && (
+              <img
+                src={profile.avatarUrl}
+                alt=""
+                width={44}
+                height={44}
+                // Google's avatar host answers 403 when a referrer from an
+                // unregistered origin is sent, which shows up as a silently
+                // broken image on the deployed app but not in dev.
+                referrerPolicy="no-referrer"
+                style={{ borderRadius: '50%', flex: 'none', objectFit: 'cover' }}
+              />
             )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+              {profile.fullName ? (
+                <>
+                  <span style={{ fontSize: 15, fontWeight: 600 }}>{profile.fullName}</span>
+                  <span
+                    className="text-muted"
+                    style={{
+                      fontSize: 13,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {profile.email ?? user.id}
+                  </span>
+                </>
+              ) : (
+                // No display name from the provider — fall back to naming the
+                // account by its email rather than inventing one.
+                <span style={{ fontSize: 14 }}>
+                  {t('set.signedInAs', { email: profile.email ?? user.id })}
+                </span>
+              )}
+              {(provider === 'google' || provider === 'apple') && (
+                <span className="text-muted" style={{ fontSize: 12.5 }}>
+                  {t(provider === 'google' ? 'set.providerGoogle' : 'set.providerApple')}
+                </span>
+              )}
+            </div>
           </div>
-          <Button variant="secondary" alignSelf="flex-start" fontSize={13} onClick={() => signOut()}>
-            {t('set.signOut')}
-          </Button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Button variant="secondary" fontSize={13} onClick={() => setEditOpen(true)}>
+              {t('set.editProfile')}
+            </Button>
+            <Button variant="ghost" fontSize={13} onClick={() => signOut()}>
+              {t('set.signOut')}
+            </Button>
+          </div>
         </Card>
       )}
 
@@ -171,11 +223,7 @@ export function SettingsScreen(_: ScreenProps) {
               { en: 'Push notifications', he: 'התראות פוש' },
               { en: 'Price, news and earnings alerts', he: 'מחיר, חדשות ודוחות' },
             ],
-            [
-              'email',
-              { en: 'Email', he: 'אימייל' },
-              { en: 'Same alerts to noa.k@example.com', he: 'אותן התראות ל-noa.k@example.com' },
-            ],
+            ['email', { en: 'Email', he: 'אימייל' }, emailHelp],
             ['sms', { en: 'SMS', he: 'מסרון' }, { en: 'Price thresholds only', he: 'רק רף מחיר' }],
             [
               'digest',
@@ -268,15 +316,11 @@ export function SettingsScreen(_: ScreenProps) {
 
       {/* Opens the confirmation sheet; nothing is deleted from this click. */}
       {user && (
-        <Button
-          variant="danger"
-          alignSelf="flex-start"
-          fontSize={13}
-          onClick={() => setDeleteOpen(true)}
-        >
+        <Button variant="danger" alignSelf="flex-start" fontSize={13} onClick={() => setDeleteOpen(true)}>
           {t('set.deleteAcct')}
         </Button>
       )}
+      <EditProfileSheet open={editOpen} onClose={() => setEditOpen(false)} />
       <DeleteAccountSheet open={deleteOpen} onClose={() => setDeleteOpen(false)} />
     </div>
   );

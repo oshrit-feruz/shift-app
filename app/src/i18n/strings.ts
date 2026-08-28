@@ -16,7 +16,13 @@ export const STRINGS = {
   'nav.more': p('More', 'עוד'),
   'nav.back': p('Back', 'חזרה'),
 
-  'title.home': p('Good morning, Noa', 'בוקר טוב, נועה'),
+  // Greeted by the name the provider gave us. `title.homeAnon` is not a
+  // fallback for a slow load but for a real case: a provider that sends no
+  // display name at all (Apple, after the first authorisation). Greeting
+  // someone by a name guessed from their email address would be worse than
+  // not naming them.
+  'title.home': p('Good morning, {name}', 'בוקר טוב, {name}'),
+  'title.homeAnon': p('Good morning', 'בוקר טוב'),
   'kicker.home': p('Overview', 'סקירה'),
   'title.pf': p('Portfolios', 'תיקים'),
   'kicker.pf': p('Four accounts', 'ארבעה חשבונות'),
@@ -754,6 +760,23 @@ export const STRINGS = {
   'set.signedInAs': p('Signed in as {email}', 'מחובר/ת כ-{email}'),
   'set.providerGoogle': p('via Google', 'דרך Google'),
   'set.providerApple': p('via Apple', 'דרך Apple'),
+  'set.editProfile': p('Edit profile', 'עריכת פרופיל'),
+  'set.displayName': p('Display name', 'שם תצוגה'),
+  'set.namePlaceholder': p('The name shown in the app', 'השם שמוצג באפליקציה'),
+  'set.nameInvalid': p('A name of up to 60 characters', 'שם באורך עד 60 תווים'),
+  'set.changePhoto': p('Change picture', 'החלפת תמונה'),
+  'set.uploading': p('Uploading…', 'מעלה…'),
+  'set.photoHelp': p('JPEG, PNG or WebP, up to 2 MB', 'JPEG, PNG או WebP, עד 2 מגה'),
+  'set.useProviderName': p('Use my Google name', 'להשתמש בשם מ-Google'),
+  'set.useProviderPhoto': p('Use my Google picture', 'להשתמש בתמונה מ-Google'),
+  'set.save': p('Save', 'שמירה'),
+  'set.saving': p('Saving…', 'שומר…'),
+  'set.saved': p('Saved', 'נשמר'),
+  'set.saveFailedTitle': p('Not saved', 'לא נשמר'),
+  'set.emailFixed': p(
+    'The email comes from the account you signed in with and cannot be changed here.',
+    'האימייל מגיע מהחשבון שאיתו נכנסת ולא ניתן לשנות אותו כאן.',
+  ),
   'set.deleteTitle': p('Delete account', 'מחיקת חשבון'),
   'set.deleteWarn': p(
     'This permanently deletes your account and everything stored with it — your risk profile, onboarding progress, watchlist and alerts. It cannot be undone, and signing in again creates a fresh account.',

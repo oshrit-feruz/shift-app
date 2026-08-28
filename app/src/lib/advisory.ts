@@ -23,7 +23,12 @@ export interface CoreAllocation {
 }
 
 export type CoreCategory =
-  'globalGovBonds' | 'developedIndex' | 'corporateBonds' | 'cashEquivalents' | 'sp500' | 'emergingIndex';
+  | 'globalGovBonds'
+  | 'developedIndex'
+  | 'corporateBonds'
+  | 'cashEquivalents'
+  | 'sp500'
+  | 'emergingIndex';
 
 export interface Profile {
   key: ProfileKey;
