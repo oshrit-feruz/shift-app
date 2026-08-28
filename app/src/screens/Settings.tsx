@@ -1,5 +1,6 @@
 import { Card, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
+import { AppleLogo } from '../components/Icon';
 import { Toggle } from '../components/Toggle';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { useAppState, useDispatch, setupProgress } from '../state/appState';
@@ -86,7 +87,15 @@ export function SettingsScreen(_: ScreenProps) {
                 </span>
               )}
               {(provider === 'google' || provider === 'apple') && (
-                <span className="text-muted" style={{ fontSize: 12.5 }}>
+                <span
+                  className="text-muted"
+                  style={{ fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                >
+                  {provider === 'google' ? (
+                    <img src="/assets/logo-google.svg" alt="" width={12} height={12} />
+                  ) : (
+                    <AppleLogo size={12} />
+                  )}
                   {t(provider === 'google' ? 'set.providerGoogle' : 'set.providerApple')}
                 </span>
               )}

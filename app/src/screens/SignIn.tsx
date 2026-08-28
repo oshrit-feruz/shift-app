@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { BackgroundShapes } from '../components/BackgroundShapes';
 import { Button } from '../components/Button';
+import { AppleLogo } from '../components/Icon';
 import { useAuth } from '../auth/AuthProvider';
 import { isAppleEnabled } from '../lib/supabase';
 import { useT } from '../i18n/useT';
@@ -82,6 +83,23 @@ export function SignInScreen() {
             onClick={() => start('google')}
             disabled={notConfigured || busy != null}
           >
+            {busy !== 'google' && (
+              <span
+                aria-hidden="true"
+                style={{
+                  display: 'inline-flex',
+                  width: 20,
+                  height: 20,
+                  borderRadius: '50%',
+                  background: '#fff',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flex: 'none',
+                }}
+              >
+                <img src="/assets/logo-google.svg" alt="" width={13} height={13} />
+              </span>
+            )}
             {busy === 'google' ? t('auth.redirecting') : t('auth.google')}
           </Button>
 
@@ -92,6 +110,7 @@ export function SignInScreen() {
             onClick={() => start('apple')}
             disabled={notConfigured || !isAppleEnabled || busy != null}
           >
+            {busy !== 'apple' && <AppleLogo size={18} />}
             {busy === 'apple' ? t('auth.redirecting') : t('auth.apple')}
           </Button>
           {!isAppleEnabled && !notConfigured && (
