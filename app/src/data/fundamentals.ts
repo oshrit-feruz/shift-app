@@ -25,6 +25,7 @@
  * mode this contract exists to prevent.
  */
 
+import { cachedLoadable } from './loadableCache';
 import { ok, unavailable, type Fundamentals, type Loadable } from './types';
 import { RECOVERY_DETECTOR_ORIGIN } from './recoveryDetector';
 
@@ -125,7 +126,22 @@ export async function fetchFundamentals(
 ): Promise<Loadable<Fundamentals>> {
   const clean = ticker.trim().toUpperCase();
   if (!clean) return unavailable(NO_FILINGS);
+  // Filed figures change on the scale of quarters; ten minutes of client
+  // reuse spares the Render service (and its cold starts) a hit every time
+  // the same stock page is reopened. Test fetchImpl bypasses the cache.
+  if (fetchImpl === fetch) {
+    return cachedLoadable(`fundamentals:${clean}`, 10 * 60_000, () =>
+      readFundamentals(clean, fetch),
+    );
+  }
+  return readFundamentals(clean, fetchImpl);
+}
 
+/** Transport + mapping for one ticker. Never throws. */
+async function readFundamentals(
+  clean: string,
+  fetchImpl: typeof fetch,
+): Promise<Loadable<Fundamentals>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {

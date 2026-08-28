@@ -19,7 +19,7 @@ const LINKED = [
     value: '$48,214.60',
   },
   {
-    logo: '/assets/broker-ibkr.png',
+    logo: '/assets/broker-ibkr.webp',
     broker: 'Interactive Brokers',
     acct: '••7130',
     detail: { en: 'Global · margin · 4 positions', he: 'Global · מרווח · 4 פוזיציות' },

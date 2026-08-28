@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { DemoDataNote } from '../components/DemoDataNote';
 import { Card, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
@@ -22,6 +22,7 @@ import { DemoBanner } from '../components/DemoBanner';
 import { money, pct, signalColor } from '../lib/format';
 import { ReportsTab, EarningsHistory } from './stock/ReportsTab';
 import { NewsTab } from './stock/NewsTab';
+import { TabPanel } from '../components/TabPanel';
 import { EngineCard } from './stock/EngineCard';
 import type { ScreenProps } from '../App';
 
@@ -49,11 +50,19 @@ export function StockScreen({ openAlert }: ScreenProps) {
   const { mode } = useTheme();
   const t = useT();
   const beg = mode === 'beginner';
-  const [tab, setTab] = useState<StockTab>('overview');
-  // openStock can change the ticker while this screen stays mounted (stock ->
-  // stock, from search or a news chip), and the sub-tab is about the stock
-  // you were looking at, not the one you just opened.
-  useEffect(() => setTab('overview'), [s.ticker]);
+  // The sub-tab is scoped to its ticker AT RENDER TIME, not reset in an
+  // effect: openStock can change the ticker while this screen stays mounted
+  // (stock -> stock, from search or a news chip), and an effect-based reset
+  // runs after commit — one render would still mount the old sub-tab's panel
+  // for the NEW ticker and fire its data work before the reset landed.
+  // Deriving the tab from a {ticker, tab} pair makes the very first render of
+  // a new ticker land on 'overview' with no wasted fetch.
+  const [tabFor, setTabFor] = useState<{ ticker: string; tab: StockTab }>({
+    ticker: s.ticker,
+    tab: 'overview',
+  });
+  const tab = tabFor.ticker === s.ticker ? tabFor.tab : 'overview';
+  const setTab = (next: StockTab) => setTabFor({ ticker: s.ticker, tab: next });
   const [tf, setTf] = useState('3M');
   const [ind, setInd] = useState({ ma: true, rsi: true, macd: false });
   const sym = useLoadable(() => demoService.symbol(s.ticker), [s.ticker]);
@@ -63,8 +72,10 @@ export function StockScreen({ openAlert }: ScreenProps) {
     [s.ticker, s.manualTransactions, s.manualPortfolios],
   );
 
-  const closes = demoService.series(`${s.ticker}-candles`, 46, 0.5, 3.4).slice(4);
-  const begSeries = demoService.series(`${s.ticker}-line`, 64, 0.55, 2.6);
+  // Deterministic per ticker — recomputing them on every chip tap (tf/ind
+  // are unrelated state) was wasted work, so memo on the ticker alone.
+  const closes = useMemo(() => demoService.series(`${s.ticker}-candles`, 46, 0.5, 3.4).slice(4), [s.ticker]);
+  const begSeries = useMemo(() => demoService.series(`${s.ticker}-line`, 64, 0.55, 2.6), [s.ticker]);
 
   // The sample price table covers a handful of tickers. Any other symbol —
   // and the earnings calendar opens plenty of them — has no quote, but its
@@ -147,169 +158,168 @@ export function StockScreen({ openAlert }: ScreenProps) {
             onChange={setTab}
           />
 
-          {tab === 'overview' && (
-            <>
-              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                {TIMEFRAMES.map((f) => (
-                  <Chip key={f} active={tf === f} onClick={() => setTf(f)}>
-                    <Num>{f}</Num>
-                  </Chip>
-                ))}
-              </div>
+          <TabPanel key={`ov-${s.ticker}`} active={tab === 'overview'}>
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+              {TIMEFRAMES.map((f) => (
+                <Chip key={f} active={tf === f} onClick={() => setTf(f)}>
+                  <Num>{f}</Num>
+                </Chip>
+              ))}
+            </div>
 
-              {beg ? (
-                <Card padding={12} gap={0}>
-                  <AreaChart values={begSeries} height={150} pad={8} />
-                  <p style={{ fontSize: 13, lineHeight: 1.5, margin: '10px 0 0', opacity: 0.85 }}>
-                    {t('stock.chartHelp', { pct: '18%' })}
-                  </p>
-                </Card>
-              ) : (
-                <Card padding={8} gap={2}>
-                  <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', paddingBottom: 4 }}>
-                    {(
-                      [
-                        ['ma', 'MA 20/50'],
-                        ['rsi', 'RSI'],
-                        ['macd', 'MACD'],
-                      ] as const
-                    ).map(([k, label]) => (
-                      <Chip key={k} active={ind[k]} onClick={() => setInd({ ...ind, [k]: !ind[k] })}>
-                        {label}
-                      </Chip>
-                    ))}
-                  </div>
-                  <Num size={12} block style={{ color: 'var(--muted)' }}>
-                    {`O ${(x.price - 1.9).toFixed(2)} H ${(x.price + 2.4).toFixed(2)} L ${(x.price - 3.1).toFixed(2)} C ${x.price.toFixed(2)}`}
-                  </Num>
-                  <CandleChart
-                    closes={closes}
-                    showMA={ind.ma}
-                    showRSI={ind.rsi}
-                    showMACD={ind.macd}
-                    rsiNow={x.rsi}
-                  />
-                </Card>
-              )}
-
-              <DataState
-                state={positions.state}
-                onRetry={positions.retry}
-                skeleton={<SkeletonList count={1} leading={false} minHeight={46} />}
-              >
-                {(rows) =>
-                  rows.length === 0 ? null : (
-                    <Card padding="12px 13px 4px" gap={7}>
-                      <CardTitle>{t('stock.yourHoldings')}</CardTitle>
-                      {rows.map(({ portfolio, holding, index }) => (
-                        <ListRow
-                          key={portfolio.id}
-                          title={portfolio.kind === 'manual' ? portfolio.name : `${portfolio.broker}`}
-                          subtitle={<Num>{`${holding.shares} sh · avg ${money(holding.avgCost)}`}</Num>}
-                          right={
-                            <RowValues
-                              main={money(holding.value, 0)}
-                              sub={pct(holding.plPct)}
-                              subColor={signalColor(holding.plPct)}
-                            />
-                          }
-                          minHeight={46}
-                          // Select this row's account first: the Portfolio tab
-                          // renders whichever portfolio pfIndex points at, so
-                          // navigating without setting it opens whichever account
-                          // was last looked at rather than the one just tapped.
-                          onClick={() => {
-                            dispatch({ type: 'pfIndex', index });
-                            dispatch({ type: 'go', screen: 'pf' });
-                          }}
-                        />
-                      ))}
-                    </Card>
-                  )
-                }
-              </DataState>
-
-              <Card padding={12} gap={7}>
-                <CardTitle>{beg ? t('stock.basics') : t('stock.keyStats')}</CardTitle>
-                {beg ? (
-                  BEG_STATS(x.price, x.marketCap, x.volume, x.pe).map((row, i) => (
-                    <div key={i} style={{ padding: '7px 0', borderTop: '1px solid var(--color-divider)' }}>
-                      <div
-                        style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 14 }}
-                      >
-                        <span>{row.k}</span>
-                        <Num>{row.v}</Num>
-                      </div>
-                      <div className="text-muted" style={{ fontSize: 12.5, marginTop: 2 }}>
-                        {row.help}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
-                    {ADV_STATS(x.price, x.marketCap, x.volume, x.pe, x.rsi).map(([k, v], i) => (
-                      <div
-                        key={i}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          gap: 8,
-                          fontSize: 12.5,
-                          padding: '2px 0',
-                        }}
-                      >
-                        <span className="text-muted">{k}</span>
-                        <Num>{v}</Num>
-                      </div>
-                    ))}
-                  </div>
-                )}
+            {beg ? (
+              <Card padding={12} gap={0}>
+                <AreaChart values={begSeries} height={150} pad={8} />
+                <p style={{ fontSize: 13, lineHeight: 1.5, margin: '10px 0 0', opacity: 0.85 }}>
+                  {t('stock.chartHelp', { pct: '18%' })}
+                </p>
               </Card>
+            ) : (
+              <Card padding={8} gap={2}>
+                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', paddingBottom: 4 }}>
+                  {(
+                    [
+                      ['ma', 'MA 20/50'],
+                      ['rsi', 'RSI'],
+                      ['macd', 'MACD'],
+                    ] as const
+                  ).map(([k, label]) => (
+                    <Chip key={k} active={ind[k]} onClick={() => setInd({ ...ind, [k]: !ind[k] })}>
+                      {label}
+                    </Chip>
+                  ))}
+                </div>
+                <Num size={12} block style={{ color: 'var(--muted)' }}>
+                  {`O ${(x.price - 1.9).toFixed(2)} H ${(x.price + 2.4).toFixed(2)} L ${(x.price - 3.1).toFixed(2)} C ${x.price.toFixed(2)}`}
+                </Num>
+                <CandleChart
+                  closes={closes}
+                  showMA={ind.ma}
+                  showRSI={ind.rsi}
+                  showMACD={ind.macd}
+                  rsiNow={x.rsi}
+                />
+              </Card>
+            )}
 
-              {/* Shown in both modes: the ratings bar and counts are already
+            <DataState
+              state={positions.state}
+              onRetry={positions.retry}
+              skeleton={<SkeletonList count={1} leading={false} minHeight={46} />}
+            >
+              {(rows) =>
+                rows.length === 0 ? null : (
+                  <Card padding="12px 13px 4px" gap={7}>
+                    <CardTitle>{t('stock.yourHoldings')}</CardTitle>
+                    {rows.map(({ portfolio, holding, index }) => (
+                      <ListRow
+                        key={portfolio.id}
+                        title={portfolio.kind === 'manual' ? portfolio.name : `${portfolio.broker}`}
+                        subtitle={<Num>{`${holding.shares} sh · avg ${money(holding.avgCost)}`}</Num>}
+                        right={
+                          <RowValues
+                            main={money(holding.value, 0)}
+                            sub={pct(holding.plPct)}
+                            subColor={signalColor(holding.plPct)}
+                          />
+                        }
+                        minHeight={46}
+                        // Select this row's account first: the Portfolio tab
+                        // renders whichever portfolio pfIndex points at, so
+                        // navigating without setting it opens whichever account
+                        // was last looked at rather than the one just tapped.
+                        onClick={() => {
+                          dispatch({ type: 'pfIndex', index });
+                          dispatch({ type: 'go', screen: 'pf' });
+                        }}
+                      />
+                    ))}
+                  </Card>
+                )
+              }
+            </DataState>
+
+            <Card padding={12} gap={7}>
+              <CardTitle>{beg ? t('stock.basics') : t('stock.keyStats')}</CardTitle>
+              {beg ? (
+                BEG_STATS(x.price, x.marketCap, x.volume, x.pe).map((row, i) => (
+                  <div key={i} style={{ padding: '7px 0', borderTop: '1px solid var(--color-divider)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 14 }}>
+                      <span>{row.k}</span>
+                      <Num>{row.v}</Num>
+                    </div>
+                    <div className="text-muted" style={{ fontSize: 12.5, marginTop: 2 }}>
+                      {row.help}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+                  {ADV_STATS(x.price, x.marketCap, x.volume, x.pe, x.rsi).map(([k, v], i) => (
+                    <div
+                      key={i}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        gap: 8,
+                        fontSize: 12.5,
+                        padding: '2px 0',
+                      }}
+                    >
+                      <span className="text-muted">{k}</span>
+                      <Num>{v}</Num>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            {/* Shown in both modes: the ratings bar and counts are already
               plain-language, so there was no beginner-specific reason to
               hide analyst sentiment from that mode. */}
-              <Card padding={12} gap={7}>
-                <CardTitle>{t('stock.analyst')}</CardTitle>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                  <span style={{ fontSize: 18, fontFamily: 'var(--font-heading)' }}>
-                    {t('stock.consensus')}
-                  </span>
-                  <span className="text-muted" style={{ fontSize: 12.5 }}>
-                    {t('stock.analystMeta')}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', height: 6, borderRadius: 4, overflow: 'hidden', gap: 1 }}>
-                  <div style={{ flex: 31, background: 'var(--up)' }} />
-                  <div style={{ flex: 11, background: 'var(--acc-mid)' }} />
-                  <div style={{ flex: 8, background: 'var(--muted-2)' }} />
-                  <div style={{ flex: 3, background: 'var(--down)' }} />
-                </div>
-                <div className="text-muted" style={{ display: 'flex', gap: 9, fontSize: 12.5 }}>
-                  <span>{t('stock.rateSb')}</span>
-                  <span>{t('stock.rateB')}</span>
-                  <span>{t('stock.rateH')}</span>
-                  <span>{t('stock.rateS')}</span>
-                </div>
-              </Card>
+            <Card padding={12} gap={7}>
+              <CardTitle>{t('stock.analyst')}</CardTitle>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                <span style={{ fontSize: 18, fontFamily: 'var(--font-heading)' }}>
+                  {t('stock.consensus')}
+                </span>
+                <span className="text-muted" style={{ fontSize: 12.5 }}>
+                  {t('stock.analystMeta')}
+                </span>
+              </div>
+              <div style={{ display: 'flex', height: 6, borderRadius: 4, overflow: 'hidden', gap: 1 }}>
+                <div style={{ flex: 31, background: 'var(--up)' }} />
+                <div style={{ flex: 11, background: 'var(--acc-mid)' }} />
+                <div style={{ flex: 8, background: 'var(--muted-2)' }} />
+                <div style={{ flex: 3, background: 'var(--down)' }} />
+              </div>
+              <div className="text-muted" style={{ display: 'flex', gap: 9, fontSize: 12.5 }}>
+                <span>{t('stock.rateSb')}</span>
+                <span>{t('stock.rateB')}</span>
+                <span>{t('stock.rateH')}</span>
+                <span>{t('stock.rateS')}</span>
+              </div>
+            </Card>
 
-              <NextEarnings ticker={s.ticker} />
+            <NextEarnings ticker={s.ticker} />
 
-              {/* The engine's own view, from the mirrored daily ranking. Kept as
+            {/* The engine's own view, from the mirrored daily ranking. Kept as
               its own card rather than folded into the header because most
               tickers are not in a 100-name ranking, and "not covered" is a
               real answer that needs room to say so. */}
-              <EngineCard ticker={s.ticker} />
-            </>
-          )}
+            <EngineCard ticker={s.ticker} />
+          </TabPanel>
 
-          {tab === 'reports' && (
-            <>
-              <ReportsTab ticker={s.ticker} />
-              <EarningsHistory ticker={s.ticker} />
-            </>
-          )}
-          {tab === 'news' && <NewsTab ticker={s.ticker} />}
+          {/* Keyed by ticker: a stock→stock navigation resets the visited
+              flags, so tabs never opened for the new symbol stay unfetched
+              (the one-Render-call-per-tab cost rule above still holds). */}
+          <TabPanel key={`re-${s.ticker}`} active={tab === 'reports'}>
+            <ReportsTab ticker={s.ticker} />
+            <EarningsHistory ticker={s.ticker} />
+          </TabPanel>
+          <TabPanel key={`ne-${s.ticker}`} active={tab === 'news'}>
+            <NewsTab ticker={s.ticker} />
+          </TabPanel>
         </div>
       )}
     </DataState>
@@ -432,7 +442,13 @@ function LiveOnlyStock({ ticker }: { ticker: string }) {
   const t = useT();
   const dispatch = useDispatch();
   const s = useAppState();
-  const [tab, setTab] = useState<'reports' | 'news'>('reports');
+  // Ticker-scoped for the same reason as StockScreen's sub-tab above.
+  const [tabFor, setTabFor] = useState<{ ticker: string; tab: 'reports' | 'news' }>({
+    ticker,
+    tab: 'reports',
+  });
+  const tab = tabFor.ticker === ticker ? tabFor.tab : 'reports';
+  const setTab = (next: 'reports' | 'news') => setTabFor({ ticker, tab: next });
   const inWl = s.watchlist.includes(ticker);
 
   return (
@@ -470,14 +486,14 @@ function LiveOnlyStock({ ticker }: { ticker: string }) {
         onChange={setTab}
       />
 
-      {tab === 'reports' && (
-        <>
-          <NextEarnings ticker={ticker} />
-          <ReportsTab ticker={ticker} />
-          <EarningsHistory ticker={ticker} />
-        </>
-      )}
-      {tab === 'news' && <NewsTab ticker={ticker} />}
+      <TabPanel key={`re-${ticker}`} active={tab === 'reports'}>
+        <NextEarnings ticker={ticker} />
+        <ReportsTab ticker={ticker} />
+        <EarningsHistory ticker={ticker} />
+      </TabPanel>
+      <TabPanel key={`ne-${ticker}`} active={tab === 'news'}>
+        <NewsTab ticker={ticker} />
+      </TabPanel>
     </div>
   );
 }

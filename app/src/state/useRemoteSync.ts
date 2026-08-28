@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../auth/AuthProvider';
-import { useAppState, useDispatch } from './appState';
+import { PERSISTED, useAppState, useDispatch } from './appState';
 import { debounced, mergeRemote, pickPersisted } from './remoteState';
 
 /**
@@ -29,21 +29,36 @@ export function useRemoteSync() {
   // local (possibly empty) slice and defeat "server wins".
   const hydratedFor = useRef<string | null>(null);
   const prevUserId = useRef<string | null>(null);
+  // The last bag handed to the writer. Set optimistically before the upsert,
+  // so identical follow-up states don't re-arm the debounce — and cleared
+  // again when that upsert FAILS, so "retried by the next state change" stays
+  // true even when the next state happens to equal the failed one.
+  const lastUploaded = useRef<Record<string, unknown> | null>(null);
 
   const writer = useMemo(
     () =>
       debounced((uid: string, bag: Record<string, unknown>) => {
+        const failed = () => {
+          // Best-effort, like the localStorage cache — but the dedupe
+          // snapshot must not survive a failed write, or a later identical
+          // state would be skipped and the promised retry never happen.
+          if (lastUploaded.current === bag) lastUploaded.current = null;
+        };
         supabase
           ?.from('user_state')
           .upsert({ user_id: uid, state: bag, updated_at: new Date().toISOString() })
-          .then(({ error }) => {
-            if (error) {
-              // Best-effort, like the localStorage cache: the next state
-              // change retries. Logged for debuggability, never surfaced as
-              // fake success.
-              console.warn('remote sync write failed', error.message);
-            }
-          });
+          .then(
+            ({ error }) => {
+              if (error) {
+                console.warn('remote sync write failed', error.message);
+                failed();
+              }
+            },
+            (err: unknown) => {
+              console.warn('remote sync write failed', err);
+              failed();
+            },
+          );
       }, 1500),
     [],
   );
@@ -52,9 +67,16 @@ export function useRemoteSync() {
   // Settings button and an expired session) so the next account on this
   // device never inherits the previous user's slice.
   useEffect(() => {
-    if (prevUserId.current && !userId) {
+    // Any identity change — sign-out OR a direct switch to another account —
+    // drops the previous user's slice and the upload bookkeeping. The switch
+    // case matters as much as sign-out: without it, A's pending write could
+    // still fire under B, and A's lastUploaded snapshot could suppress B's
+    // first upload (a failed one would then never retry, because B's bags
+    // are different objects from A's).
+    if (prevUserId.current && prevUserId.current !== userId) {
       writer.cancel();
       hydratedFor.current = null;
+      lastUploaded.current = null;
       dispatch({ type: 'resetPersisted' });
     }
     prevUserId.current = userId;
@@ -88,10 +110,22 @@ export function useRemoteSync() {
     // sign-in boundary, and `local` is just the snapshot taken at it.
   }, [userId, dispatch, writer]);
 
-  // Mirror changes up while signed in and hydrated.
+  // Mirror changes up while signed in and hydrated. Gated on the persisted
+  // slice actually changing: most dispatches are navigation, which is not
+  // persisted, and every ungated call here reset the write debounce and
+  // eventually shipped an identical bag to Supabase.
   useEffect(() => {
     if (!userId || hydratedFor.current !== userId) return;
-    writer.call(userId, pickPersisted(state));
+    const bag = pickPersisted(state);
+    const prev = lastUploaded.current;
+    if (
+      prev !== null &&
+      PERSISTED.every((k) => (bag as Record<string, unknown>)[k] === (prev as Record<string, unknown>)[k])
+    ) {
+      return;
+    }
+    lastUploaded.current = bag;
+    writer.call(userId, bag);
   }, [state, userId, writer]);
 
   // The tab can vanish with a write still in the timer.

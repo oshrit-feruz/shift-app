@@ -95,7 +95,7 @@ const SYMS: SymbolInfo[] = [
 const PORTFOLIOS: PortfolioSummary[] = [
   { id: 'agg', kind: 'aggregate', name: 'All accounts', broker: null, logo: null, acct: '', syncedAgo: null, total: 82589.73, dayPct: 0.94, allTimePct: 26.8 },
   { id: 'blink', kind: 'linked', name: 'Blink', broker: 'Blink', logo: '/assets/broker-blink.webp', acct: '••4821', syncedAgo: { en: '4 minutes ago', he: 'לפני 4 דקות' }, total: 48214.6, dayPct: 0.86, allTimePct: 31.4 },
-  { id: 'ibkr', kind: 'linked', name: 'Interactive Brokers', broker: 'Interactive Brokers', logo: '/assets/broker-ibkr.png', acct: '••7130', syncedAgo: { en: '11 minutes ago', he: 'לפני 11 דקות' }, total: 12905.11, dayPct: 1.94, allTimePct: 58.2 },
+  { id: 'ibkr', kind: 'linked', name: 'Interactive Brokers', broker: 'Interactive Brokers', logo: '/assets/broker-ibkr.webp', acct: '••7130', syncedAgo: { en: '11 minutes ago', he: 'לפני 11 דקות' }, total: 12905.11, dayPct: 1.94, allTimePct: 58.2 },
   { id: 'colmex', kind: 'linked', name: 'Colmex Pro', broker: 'Colmex Pro', logo: '/assets/broker-colmex.webp', acct: '••2265', syncedAgo: { en: '1 hour ago', he: 'לפני שעה' }, total: 21470.02, dayPct: -0.22, allTimePct: 9.8 },
   { id: 'sandbox', kind: 'manual', name: 'Sandbox', broker: null, logo: null, acct: 'manual entry', syncedAgo: { en: 'you last edited it Aug 22', he: 'עדכנת לאחרונה ב-22 באוג׳' }, total: 9840.25, dayPct: 1.32, allTimePct: 12.9 },
 ];
@@ -180,14 +180,8 @@ const EARNINGS: EarningsEvent[] = [
   { date: 'Fri 29', when: 'BMO', ticker: 'MRVL', name: 'Marvell Technology', mktCap: '78B', epsEst: '$0.62', revEst: '$1.9B', impliedMove: '±9.8%', lastSurprise: '+3.9%' },
 ];
 
-const LATENCY_MS = 250;
-
-/** Simulate network latency by waiting for a fixed duration. */
-const wait = () => new Promise((r) => setTimeout(r, LATENCY_MS));
-
-/** Wrap demo data in a Loadable, simulating network latency and respecting the unavailable demo flag. */
+/** Wrap demo data in a Loadable, respecting the unavailable demo flag. */
 async function respond<T>(data: T): Promise<Loadable<T>> {
-  await wait();
   if (DEMO_FLAGS.unavailable) return unavailable();
   return ok(data);
 }
@@ -209,7 +203,6 @@ export const demoService: DataService & { isDemo: true } = {
   },
 
   async symbol(ticker: string) {
-    await wait();
     if (DEMO_FLAGS.unavailable) return unavailable();
     const s = SYMS.find((x) => x.ticker === ticker);
     return s ? ok(s) : unavailable();
@@ -233,7 +226,6 @@ export const demoService: DataService & { isDemo: true } = {
   },
 
   async holdings(portfolioId: string) {
-    await wait();
     if (DEMO_FLAGS.unavailable) return unavailable();
     const holdings: Holding[] = HOLDING_SHAPE.map(([ticker, shares, plPct]) => {
       const sym = SYMS.find((x) => x.ticker === ticker)!;
@@ -256,6 +248,12 @@ export const demoService: DataService & { isDemo: true } = {
   },
 
   series(key: string, n: number, drift: number, vol: number): number[] {
+    // Deterministic in its arguments, and called from render paths (chart
+    // props, per-card sparklines), so each distinct walk is computed once.
+    // Callers treat the array as read-only.
+    const memoKey = `${key}|${n}|${drift}|${vol}`;
+    const hit = seriesMemo.get(memoKey);
+    if (hit) return hit;
     const seed = [...key].reduce((a, c) => a + c.charCodeAt(0) * 13, 5);
     const r = rng(seed);
     let v = 100;
@@ -264,6 +262,9 @@ export const demoService: DataService & { isDemo: true } = {
       v += (r() - 0.47) * vol + drift;
       out.push(v);
     }
+    seriesMemo.set(memoKey, out);
     return out;
   },
 };
+
+const seriesMemo = new Map<string, number[]>();

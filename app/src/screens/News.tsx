@@ -6,6 +6,7 @@ import { useT } from '../i18n/useT';
 import type { StringKey } from '../i18n/strings';
 import { CalendarTab } from './news/CalendarTab';
 import { MarketFeed, WatchlistFeed } from './news/LiveFeed';
+import { TabPanel } from '../components/TabPanel';
 import type { ScreenProps } from '../App';
 
 const TABS: Array<[string, StringKey]> = [
@@ -54,9 +55,25 @@ export function NewsScreen(_props: ScreenProps) {
  * topic filter this app can trust to be exhaustive, and splitting a real feed
  * client-side would present a guess as a category. They read the same data
  * rather than pretending to filter it.
+ *
+ * Each feed sits in a keep-alive TabPanel: switching tabs hides it instead
+ * of unmounting it, so coming back shows the loaded feed immediately —
+ * which matters most for the watchlist feed, whose load fans out one
+ * request per watched ticker.
  */
 function TabBody({ tab, watchlist }: { tab: string; watchlist: string[] }) {
-  if (tab === 'Calendar') return <CalendarTab watchlist={watchlist} />;
-  if (tab === 'My watchlist') return <WatchlistFeed tickers={watchlist} />;
-  return <MarketFeed />;
+  const market = tab !== 'Calendar' && tab !== 'My watchlist';
+  return (
+    <>
+      <TabPanel gap={11} active={market}>
+        <MarketFeed />
+      </TabPanel>
+      <TabPanel gap={11} active={tab === 'My watchlist'}>
+        <WatchlistFeed tickers={watchlist} />
+      </TabPanel>
+      <TabPanel gap={11} active={tab === 'Calendar'}>
+        <CalendarTab watchlist={watchlist} />
+      </TabPanel>
+    </>
+  );
 }

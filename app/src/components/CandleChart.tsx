@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { candles, fit, linePath, ma, macdSeries, rsiSeries } from './charts';
 
 /** Advanced-mode candlestick chart with optional MA/volume/RSI/MACD panes —
@@ -17,13 +18,25 @@ export function CandleChart({
 }) {
   const W = 340;
   const H = 170;
-  const cs = candles(closes, W, H - 4);
   const step = W / closes.length;
-  const ma20 = linePath(ma(closes, 12).map((v, i) => [i * step + step / 2, yFor(v, closes, H - 4)]));
-  const ma50 = linePath(ma(closes, 26).map((v, i) => [i * step + step / 2, yFor(v, closes, H - 4)]));
   const bw = Math.max(2.6, step * 0.55);
-  const { macd, signal } = macdSeries(closes);
-  const mMax = Math.max(...macd.map(Math.abs), 1);
+  // All the derived series depend only on `closes`; a parent re-render (a
+  // timeframe chip, an indicator toggle) must not redo the O(n·window) math.
+  const { cs, ma20, ma50, macd, signal, mMax, rsiPath } = useMemo(() => {
+    const macdOut = macdSeries(closes);
+    const max = Math.max(...macdOut.macd.map(Math.abs), 1);
+    return {
+      cs: candles(closes, W, H - 4),
+      ma20: linePath(ma(closes, 12).map((v, i) => [i * step + step / 2, yFor(v, closes, H - 4)])),
+      ma50: linePath(ma(closes, 26).map((v, i) => [i * step + step / 2, yFor(v, closes, H - 4)])),
+      macd: macdOut.macd,
+      signal: macdOut.signal,
+      mMax: max,
+      rsiPath: linePath(fit(rsiSeries(closes), W, 52, 8)),
+    };
+    // W/H/step are constants derived from closes; closes is the real input.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [closes]);
   const mLine = (v: number[]) => linePath(v.map((x, i) => [i * step + step / 2, 30 - (x / mMax) * 18]));
 
   return (
@@ -89,12 +102,7 @@ export function CandleChart({
         >
           <line x1="0" y1="14" x2={W} y2="14" stroke="var(--line)" strokeDasharray="3 3" />
           <line x1="0" y1="40" x2={W} y2="40" stroke="var(--line)" strokeDasharray="3 3" />
-          <path
-            d={linePath(fit(rsiSeries(closes), W, 52, 8))}
-            fill="none"
-            stroke="var(--acc-pale)"
-            strokeWidth="1.2"
-          />
+          <path d={rsiPath} fill="none" stroke="var(--acc-pale)" strokeWidth="1.2" />
           <text x="3" y="10" fill="var(--muted)" fontSize="8">
             RSI(14) {rsiNow}
           </text>

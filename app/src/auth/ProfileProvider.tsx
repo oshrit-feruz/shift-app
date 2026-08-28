@@ -91,8 +91,10 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
     let cancelled = false;
     const client = supabase;
-    // Push the provider's current identity in, then read the user's own
-    // choices back out. Sequential on purpose: both touch the same row.
+    // Push the provider's current identity in and read the user's own
+    // choices back out — one round trip, not two: PostgREST returns the
+    // updated row directly, and this runs on the critical path of every
+    // sign-in.
     client
       .from('profiles')
       .update({
@@ -102,7 +104,8 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         locale: identity.locale,
       })
       .eq('id', userId)
-      .then(() => client.from('profiles').select('display_name, avatar_path').eq('id', userId).maybeSingle())
+      .select('display_name, avatar_path')
+      .maybeSingle()
       .then(({ data, error }) => {
         if (cancelled) return;
         if (error) {

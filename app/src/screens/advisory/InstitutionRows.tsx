@@ -21,10 +21,10 @@ const INSTITUTIONS: Array<{
     initial: { en: 'B', he: 'B' },
     providers: [
       { label: { en: 'Blink', he: 'Blink' }, logo: '/assets/broker-blink.webp' },
-      { label: { en: 'Interactive Brokers', he: 'Interactive Brokers' }, logo: '/assets/broker-ibkr.png' },
+      { label: { en: 'Interactive Brokers', he: 'Interactive Brokers' }, logo: '/assets/broker-ibkr.webp' },
       { label: { en: 'Colmex Pro', he: 'Colmex Pro' }, logo: '/assets/broker-colmex.webp' },
-      { label: { en: 'Meitav Trade', he: 'מיטב טרייד' }, logo: '/assets/prov-meitav.jpg' },
-      { label: { en: 'Excellence Trade', he: 'אקסלנס טרייד' }, logo: '/assets/prov-excellence.jpg' },
+      { label: { en: 'Meitav Trade', he: 'מיטב טרייד' }, logo: '/assets/prov-meitav.webp' },
+      { label: { en: 'Excellence Trade', he: 'אקסלנס טרייד' }, logo: '/assets/prov-excellence.webp' },
     ],
   },
   {
@@ -32,11 +32,11 @@ const INSTITUTIONS: Array<{
     label: 'conn.bank',
     initial: { en: '₪', he: '₪' },
     providers: [
-      { label: { en: 'Leumi', he: 'לאומי' }, logo: '/assets/prov-leumi.png' },
-      { label: { en: 'Hapoalim', he: 'הפועלים' }, logo: '/assets/prov-hapoalim.jpg' },
+      { label: { en: 'Leumi', he: 'לאומי' }, logo: '/assets/prov-leumi.webp' },
+      { label: { en: 'Hapoalim', he: 'הפועלים' }, logo: '/assets/prov-hapoalim.webp' },
       { label: { en: 'Discount', he: 'דיסקונט' }, logo: '/assets/prov-discount.svg' },
-      { label: { en: 'Mizrahi-Tefahot', he: 'מזרחי-טפחות' }, logo: '/assets/prov-mizrahi.jpg' },
-      { label: { en: 'One Zero', he: 'One Zero' }, logo: '/assets/prov-onezero.png' },
+      { label: { en: 'Mizrahi-Tefahot', he: 'מזרחי-טפחות' }, logo: '/assets/prov-mizrahi.webp' },
+      { label: { en: 'One Zero', he: 'One Zero' }, logo: '/assets/prov-onezero.webp' },
     ],
   },
   {
@@ -45,10 +45,10 @@ const INSTITUTIONS: Array<{
     initial: { en: 'P', he: 'פ' },
     providers: [
       { label: { en: 'Menora Mivtachim', he: 'מנורה מבטחים' }, logo: '/assets/prov-menora.webp' },
-      { label: { en: 'Harel', he: 'הראל' }, logo: '/assets/prov-harel.png' },
-      { label: { en: 'Migdal', he: 'מגדל' }, logo: '/assets/prov-migdal.png' },
-      { label: { en: 'The Phoenix', he: 'הפניקס' }, logo: '/assets/prov-phoenix.png' },
-      { label: { en: 'Altshuler Shaham', he: 'אלטשולר שחם' }, logo: '/assets/prov-altshuler.png' },
+      { label: { en: 'Harel', he: 'הראל' }, logo: '/assets/prov-harel.webp' },
+      { label: { en: 'Migdal', he: 'מגדל' }, logo: '/assets/prov-migdal.webp' },
+      { label: { en: 'The Phoenix', he: 'הפניקס' }, logo: '/assets/prov-phoenix.webp' },
+      { label: { en: 'Altshuler Shaham', he: 'אלטשולר שחם' }, logo: '/assets/prov-altshuler.webp' },
     ],
   },
   {
@@ -56,11 +56,11 @@ const INSTITUTIONS: Array<{
     label: 'conn.hisht',
     initial: { en: 'K', he: 'ה' },
     providers: [
-      { label: { en: 'Altshuler Shaham', he: 'אלטשולר שחם' }, logo: '/assets/prov-altshuler.png' },
-      { label: { en: 'Yelin Lapidot', he: 'ילין לפידות' }, logo: '/assets/prov-yelin.png' },
-      { label: { en: 'More', he: 'מור' }, logo: '/assets/prov-more.png' },
+      { label: { en: 'Altshuler Shaham', he: 'אלטשולר שחם' }, logo: '/assets/prov-altshuler.webp' },
+      { label: { en: 'Yelin Lapidot', he: 'ילין לפידות' }, logo: '/assets/prov-yelin.webp' },
+      { label: { en: 'More', he: 'מור' }, logo: '/assets/prov-more.webp' },
       { label: { en: 'Analyst', he: 'אנליסט' }, logo: '/assets/prov-analyst.webp' },
-      { label: { en: 'The Phoenix', he: 'הפניקס' }, logo: '/assets/prov-phoenix.png' },
+      { label: { en: 'The Phoenix', he: 'הפניקס' }, logo: '/assets/prov-phoenix.webp' },
     ],
   },
 ];
