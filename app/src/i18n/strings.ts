@@ -326,7 +326,12 @@ export const STRINGS = {
   'buy.finish': p('Done — to the dashboard', 'סיימנו — לדשבורד'),
 
   // ── Stock page ────────────────────────────────────────────────────────
-  'stock.afterHrs': p('Aug 21, 4:00 PM ET · after hrs', '21 באוג׳, 16:00 ET · אחרי המסחר'),
+  // Replaced 'stock.afterHrs', which was the fixed string
+  // "Aug 21, 4:00 PM ET · after hrs" — a date frozen into a translation, read
+  // by every visitor on every day as the moment the price above it came from.
+  // This names the last session the app actually has, and there is no
+  // after-hours figure any more because there is no after-hours source.
+  'stock.lastClose': p('Close · {date}', 'סגירה · {date}'),
   'stock.inWatchlist': p('In watchlist', 'במעקב'),
   'stock.toWatchlist': p('Watchlist', 'לווטצ׳ליסט'),
   'stock.addAlert': p('Add alert', 'הוספת התראה'),

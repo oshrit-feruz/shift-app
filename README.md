@@ -177,6 +177,16 @@ intraday path. That needs an intraday feed, not a narrower slice of this one.
 provider has no US tape for it, and the publisher skips it rather than failing
 the other nine tickers' refresh.
 
+**The line under the price was the worst of them.** It read
+"21 באוג׳, 16:00 ET · אחרי המסחר $239.75" — a date frozen into a translation
+string and an after-hours price computed as `price * 1.004`. A date is read as
+provenance, so a fixed one tells every visitor on every day that this is when
+the price above it came from, and it sat directly over a chart whose newest
+session was six days later. There is no after-hours source in this app, so
+that half is gone rather than restated; what is left is the date of the last
+published session, and the line disappears when there is no series rather than
+rendering "close · —".
+
 **One inconsistency worth knowing about.** The headline price comes from the
 screener mirror and the chart's last close from this one, so on a given day
 they can be a session apart. Both are real, and the OHLC strip is stamped with

@@ -20,7 +20,7 @@ import { useLoadable } from '../data/useLoadable';
 import { fetchYourPositions } from '../lib/holdings';
 import { fetchTickerEarnings } from '../data/earnings';
 import { DemoBanner } from '../components/DemoBanner';
-import { compactCount, money, moneyOrDash, pct, signalColor } from '../lib/format';
+import { compactCount, isoDate, money, moneyOrDash, pct, signalColor } from '../lib/format';
 import { ReportsTab, EarningsHistory } from './stock/ReportsTab';
 import { NewsTab } from './stock/NewsTab';
 import { TabPanel } from '../components/TabPanel';
@@ -91,7 +91,7 @@ type StockTab = 'overview' | 'reports' | 'news';
 export function StockScreen({ openAlert }: ScreenProps) {
   const s = useAppState();
   const dispatch = useDispatch();
-  const { mode } = useTheme();
+  const { mode, language } = useTheme();
   const t = useT();
   const beg = mode === 'beginner';
   // The sub-tab is scoped to its ticker AT RENDER TIME, not reset in an
@@ -165,12 +165,23 @@ export function StockScreen({ openAlert }: ScreenProps) {
                 {`${derived(basisPrice(x), (px) => (x.demo.changePct >= 0 ? '+' : '') + ((px * x.demo.changePct) / 100).toFixed(2))} · ${pct(x.demo.changePct)}`}
               </Num>
             </div>
-            {/* Dropped rather than dashed: "after hours —" is a line that
-                says nothing, where the OHLC strip's dashes at least keep the
-                labelled shape of a row the reader is scanning. */}
-            {basisPrice(x) !== null && (
+            {/* What this line used to be: a frozen "Aug 21, 4:00 PM ET" baked
+                into the translation string, followed by an after-hours price
+                invented as price * 1.004. Both were wrong in the way that is
+                hardest to notice — a date is read as provenance, so a fixed
+                one tells every reader on every day that this is when the
+                price is from, and it sat directly above a chart whose newest
+                session was six days later.
+
+                There is no after-hours source in this app, so that half is
+                simply gone rather than restated. What is left is the date of
+                the last session actually published, which is the honest thing
+                the app knows about when this price is from. Dropped entirely
+                when there is no series, rather than dashed: a line that reads
+                "close · —" says nothing a reader can use. */}
+            {seriesBars?.at(-1) && (
               <div className="text-muted" style={{ fontSize: 13, marginTop: 3 }}>
-                {t('stock.afterHrs')} <Num>{money(basisPrice(x)! * 1.004)}</Num>
+                {t('stock.lastClose', { date: isoDate(seriesBars.at(-1)!.date, language) })}
               </div>
             )}
           </div>
