@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Icon, type IconName } from './Icon';
 import type { Screen } from '../state/appState';
 import { useT } from '../i18n/useT';
@@ -48,6 +48,10 @@ export function TabBar({
   const barRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Array<HTMLSpanElement | null>>([]);
   const [indicator, setIndicator] = useState<Rect | null>(null);
+  // A blocked/expired avatar URL (e.g. Google's host without a registered
+  // referrer) would otherwise leave a broken-image glyph in the tab bar.
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  useEffect(() => setAvatarFailed(false), [avatarUrl]);
 
   useLayoutEffect(() => {
     const measure = () => {
@@ -174,13 +178,14 @@ export function TabBar({
                   : 'color-mix(in srgb, var(--color-text) 45%, transparent)',
               }}
             >
-              {t.screen === 'more' && avatarUrl ? (
+              {t.screen === 'more' && avatarUrl && !avatarFailed ? (
                 <img
                   src={avatarUrl}
                   alt=""
                   width={22}
                   height={22}
                   referrerPolicy="no-referrer"
+                  onError={() => setAvatarFailed(true)}
                   style={{
                     borderRadius: '50%',
                     objectFit: 'cover',

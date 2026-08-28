@@ -400,11 +400,11 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
 
 /* Boot splash mark: a slow breathing scale so the screen reads as "working"
  * rather than frozen during the (usually sub-second) session restore. */
-@keyframes markBreathe {
+@keyframes mark-breathe {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.05); }
 }
-.anim-mark-breathe { animation: markBreathe 2.2s ease-in-out infinite; }
+.anim-mark-breathe { animation: mark-breathe 2.2s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) {
   .anim-mark-breathe { animation: none; }
 }
