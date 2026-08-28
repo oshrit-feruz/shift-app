@@ -10,6 +10,7 @@ import { fetchFundamentals } from '../../data/fundamentals';
 import { fetchTickerEarnings } from '../../data/earnings';
 import { EmptyState } from '../../components/DataState';
 import { Tag } from '../../components/Tag';
+import { DemoBanner } from '../../components/DemoBanner';
 import type { EarningsRow } from '../../data/types';
 import { compactMoney, isoDate, pct, signalColor } from '../../lib/format';
 
@@ -126,6 +127,7 @@ export function EarningsHistory({ ticker }: { ticker: string }) {
         return (
           <Card padding={12} gap={8}>
             <CardTitle>{t('stock.history')}</CardTitle>
+            <DemoBanner />
             {sorted.length === 0 ? (
               <EmptyState>{t('stock.historyEmpty')}</EmptyState>
             ) : (

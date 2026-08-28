@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  EARNINGS_URL, HISTORY_QUARTERS, fetchTickerEarnings, fetchWeekEarnings, isoDay, mapRow, weekWindow,
+  EARNINGS_URL, HISTORY_QUARTERS, WINDOW_DAYS, fetchTickerEarnings, fetchWeekEarnings, isoDay, mapRow, weekAheadWindow,
 } from './earnings';
 
 const ROW = {
@@ -10,30 +10,30 @@ const ROW = {
 const res = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
-describe('weekWindow', () => {
-  it('anchors to Monday–Sunday of the containing week, in UTC', () => {
-    // 2026-08-27 is a Thursday; its week runs Mon 24 → Sun 30.
-    expect(weekWindow(new Date('2026-08-27T09:00:00Z'))).toEqual({ from: '2026-08-24', to: '2026-08-30' });
+describe('weekAheadWindow', () => {
+  // The provider's market-wide feed carries only reports that have not
+  // happened yet, so a Monday-anchored week spends most of itself in the
+  // past: by Friday it could only ever fill two of its seven days.
+  it('starts today rather than on Monday', () => {
+    expect(weekAheadWindow(new Date('2026-08-28T09:00:00Z'))).toEqual({ from: '2026-08-28', to: '2026-09-03' });
   });
 
-  it('keeps Monday as Monday on every day of the same week', () => {
-    // The grid must not slide forward each day — a calendar week is a week.
-    const days = ['24', '25', '26', '27', '28', '29', '30'];
-    for (const d of days) {
-      expect(weekWindow(new Date(`2026-08-${d}T12:00:00Z`)), d).toEqual({ from: '2026-08-24', to: '2026-08-30' });
+  it('covers exactly WINDOW_DAYS days, both ends inclusive', () => {
+    const { from, to } = weekAheadWindow(new Date('2026-08-28T09:00:00Z'));
+    const days = (Date.parse(to) - Date.parse(from)) / 86_400_000 + 1;
+    expect(days).toBe(WINDOW_DAYS);
+  });
+
+  it('crosses a month and a year boundary correctly', () => {
+    expect(weekAheadWindow(new Date('2026-12-29T12:00:00Z'))).toEqual({ from: '2026-12-29', to: '2027-01-04' });
+  });
+
+  it('ignores the time of day, in UTC', () => {
+    for (const time of ['00:00:01', '12:00:00', '23:59:59']) {
+      expect(weekAheadWindow(new Date(`2026-08-28T${time}Z`)).from, time).toBe('2026-08-28');
     }
   });
-
-  it('treats Sunday as the end of its week, not the start of the next', () => {
-    expect(weekWindow(new Date('2026-08-30T23:00:00Z')).from).toBe('2026-08-24');
-    expect(weekWindow(new Date('2026-08-31T00:30:00Z')).from).toBe('2026-08-31');
-  });
-
-  it('spans a month and a year boundary correctly', () => {
-    expect(weekWindow(new Date('2026-01-01T12:00:00Z'))).toEqual({ from: '2025-12-29', to: '2026-01-04' });
-  });
 });
-
 describe('isoDay', () => {
   it('formats in UTC and zero-pads', () => {
     expect(isoDay(new Date('2026-01-05T23:59:00Z'))).toBe('2026-01-05');
@@ -110,13 +110,13 @@ describe('truncation is reported, never silent', () => {
 describe('fetchWeekEarnings', () => {
   const NOW = new Date('2026-08-27T09:00:00Z');
 
-  it('requests this calendar week and returns the rows', async () => {
+  it('requests the week ahead and returns the rows', async () => {
     let seen = '';
     const r = await fetchWeekEarnings(async (url) => {
       seen = String(url);
       return res({ earnings: [ROW] });
     }, NOW);
-    expect(seen).toBe(`${EARNINGS_URL}?from=2026-08-24&to=2026-08-30`);
+    expect(seen).toBe(`${EARNINGS_URL}?from=2026-08-27&to=2026-09-02`);
     expect(r.status).toBe('ok');
     expect(r.status === 'ok' && r.data.rows).toHaveLength(1);
   });

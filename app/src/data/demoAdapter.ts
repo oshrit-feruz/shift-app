@@ -29,19 +29,36 @@ import {
   type SymbolInfo,
 } from './types';
 
+export type DemoFlag = 'unavailable' | 'showcase';
+
 export const DEMO_FLAGS = {
-  key: { unavailable: 'shift.demo.unavailable' },
-  get unavailable(): boolean {
+  key: { unavailable: 'shift.demo.unavailable', showcase: 'shift.demo.showcase' } as Record<DemoFlag, string>,
+  read(flag: DemoFlag): boolean {
     try {
-      return localStorage.getItem(this.key.unavailable) === '1';
+      return localStorage.getItem(this.key[flag]) === '1';
     } catch {
       return false;
     }
   },
-  set(key: 'unavailable', on: boolean) {
+  get unavailable(): boolean {
+    return this.read('unavailable');
+  },
+  /**
+   * Showcase mode: the earnings surfaces render a full illustrative week and
+   * a full quarterly history, to show what the screens look like on a paid
+   * data plan that carries reported results as well as scheduled ones.
+   *
+   * Off by default and never automatic. Everywhere it is on, the screen says
+   * so — this app's whole point is that invented figures never pass as real,
+   * and a demo the reader cannot identify is exactly that.
+   */
+  get showcase(): boolean {
+    return this.read('showcase');
+  },
+  set(flag: DemoFlag, on: boolean) {
     try {
-      if (on) localStorage.setItem(this.key[key], '1');
-      else localStorage.removeItem(this.key[key]);
+      if (on) localStorage.setItem(this.key[flag], '1');
+      else localStorage.removeItem(this.key[flag]);
     } catch {
       /* no storage — flags simply don't persist */
     }

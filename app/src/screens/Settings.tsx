@@ -15,7 +15,7 @@ export function SettingsScreen(_: ScreenProps) {
   const { mode, setMode, theme, setTheme, signal, setSignal, language, setLanguage } = useTheme();
   const t = useT();
   const setup = setupProgress(s);
-  const [flags, setFlags] = useState({ unavailable: DEMO_FLAGS.unavailable });
+  const [flags, setFlags] = useState({ unavailable: DEMO_FLAGS.unavailable, showcase: DEMO_FLAGS.showcase });
   const [notif, setNotif] = useState({ push: true, email: true, sms: false, digest: true, movers: false });
 
   return (
@@ -157,6 +157,18 @@ export function SettingsScreen(_: ScreenProps) {
         <CardTitle size={15}>
           <span style={{ display: 'block', padding: '6px 12px 1px' }}>{t('set.dataSection')}</span>
         </CardTitle>
+        {/* Showcase mode: illustrative earnings figures, to show what a paid
+            data plan renders. Labelled on every screen that shows it — see
+            components/DemoBanner. */}
+        <DemoFlagRow
+          label={t('set.showcaseRow')}
+          help={t('set.showcaseHelp')}
+          on={flags.showcase}
+          onChange={(v) => {
+            DEMO_FLAGS.set('showcase', v);
+            setFlags({ ...flags, showcase: v });
+          }}
+        />
         <DemoFlagRow
           label={language === 'he' ? 'הדגמה: נתונים לא זמינים' : 'Demo: data unavailable'}
           help={

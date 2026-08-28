@@ -80,12 +80,14 @@ export const STRINGS = {
     'תנועות גדולות ביום אחד באות בעקבות חדשות. אפשר להקיש כדי לקרוא למה.',
   ),
   'home.allMovers': p('All market movers →', 'כל מובילי השוק →'),
-  'home.earnWeek': p('Earnings this week', 'דוחות השבוע'),
+  'home.earnWeek': p('Earnings ahead', 'דוחות בשבוע הקרוב'),
   'home.earnHelp': p(
     'A quarterly report card. Prices often swing the day it lands.',
     'תעודת ציונים רבעונית. המחיר בדרך כלל זז ביום הפרסום.',
   ),
   'home.afterClose': p('After close', 'אחרי הנעילה'),
+  'home.beforeOpen': p('Before open', 'לפני הפתיחה'),
+  'home.allEarnings': p('All earnings', 'כל הדוחות'),
 
   // ── Setup banner / resume ─────────────────────────────────────────────
   'setup.banner': p('Complete your setup', 'השלימי את ההגדרה'),
@@ -377,20 +379,38 @@ export const STRINGS = {
   ),
   'news.openSource': p('Open at the source', 'לפתוח במקור'),
   'earn.truncated': p(
-    'Showing {shown} of {total} reports this week.',
-    'מוצגים {shown} מתוך {total} דוחות השבוע.',
+    'Showing {shown} of {total} reports in the week ahead.',
+    'מוצגים {shown} מתוך {total} דוחות בשבוע הקרוב.',
   ),
   'earn.noneInShown': p(
-    'None of the reports shown match — but this week is only partly loaded, so there may be others.',
-    'אף אחד מהדוחות המוצגים לא תואם — אבל השבוע נטען רק חלקית, ייתכן שיש נוספים.',
+    'None of the reports shown match — but the week ahead is only partly loaded, so there may be others.',
+    'אף אחד מהדוחות המוצגים לא תואם — אבל השבוע הקרוב נטען רק חלקית, ייתכן שיש נוספים.',
   ),
-  'earn.weekEmpty': p('No companies report this week.', 'אין חברות שמדווחות השבוע.'),
+  'earn.weekEmpty': p('No companies report in the week ahead.', 'אין חברות שמדווחות בשבוע הקרוב.'),
   // The market-wide feed lists only reports that have not happened yet, so a
   // reader who sees a company they know reported on Monday must not conclude
   // the app thinks it is still pending. Said plainly, once, above the week.
+  // Showcase mode is a deliberate illustration, and the reader is told so
+  // wherever it renders — an unlabelled demo is exactly the thing this app
+  // exists to not do.
+  // Sample prices are still what most screens render. Saying so in place is
+  // the difference between a prototype and a screen that misleads.
+  'demo.pricesNote': p(
+    'Prices, charts and portfolio figures on this screen are sample data, not live market data.',
+    'מחירים, גרפים ונתוני תיק במסך הזה הם נתוני דוגמה, לא נתוני שוק אמיתיים.',
+  ),
+  'demo.showcase': p(
+    'Illustrative data — this is how these screens look on a paid data plan that includes reported results.',
+    'נתוני הדגמה — כך המסכים נראים עם מנוי נתונים בתשלום שכולל גם תוצאות שדווחו.',
+  ),
+  'set.showcaseRow': p('Demo: full earnings data', 'הדגמה: נתוני דוחות מלאים'),
+  'set.showcaseHelp': p(
+    'Fills the calendar and each stock’s history with illustrative figures, to show what a paid data plan adds. Clearly marked wherever it shows, and never used when live data fails.',
+    'ממלא את היומן ואת ההיסטוריה של כל מניה בנתוני הדגמה, כדי להראות מה מנוי בתשלום מוסיף. מסומן בבירור בכל מקום שהוא מופיע, ולעולם לא משמש כשנתונים חיים נכשלים.',
+  ),
   'earn.scheduledOnly': p(
-    'This calendar lists scheduled reports. Results that have already been published appear on each stock’s page.',
-    'היומן מציג דוחות מתוזמנים. תוצאות שכבר פורסמו מופיעות בדף של כל מניה.',
+    'The week ahead: reports still to come. Results already published appear on each stock’s own page.',
+    'השבוע הקרוב: דוחות שעוד צפויים. תוצאות שכבר פורסמו מופיעות בדף של כל מניה.',
   ),
   'stock.nextEarn': p('Next earnings', 'הדוח הבא'),
   'stock.nov': p('Nov', 'נוב׳'),
@@ -549,7 +569,7 @@ export const STRINGS = {
   'earn.revEst': p('Rev est', 'צפי הכנסות'),
   'earn.mktCap': p('Mkt cap', 'שווי שוק'),
   'earn.lastSurprise': p('Last surprise', 'הפתעה אחרונה'),
-  'earn.weekOf': p('{n} companies report this week', '{n} חברות מדווחות השבוע'),
+  'earn.weekOf': p('{n} companies report in the week ahead', '{n} חברות מדווחות בשבוע הקרוב'),
   'earn.noneMatch': p('No reports match this filter', 'אין דוחות שתואמים לסינון הזה'),
 
 

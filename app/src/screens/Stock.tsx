@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { DemoDataNote } from '../components/DemoDataNote';
 import { Card, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Icon } from '../components/Icon';
@@ -77,6 +78,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
     >
       {(x) => (
         <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <DemoDataNote />
           <div>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 9 }}>
               <Num size={27} style={{ fontFamily: 'var(--font-heading)', lineHeight: 1 }}>

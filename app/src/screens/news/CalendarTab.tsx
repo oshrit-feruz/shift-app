@@ -2,22 +2,27 @@ import { useState } from 'react';
 import { Card, CardTitle } from '../../components/Card';
 import { Chip, ChipRail } from '../../components/Chip';
 import { DataState, EmptyState } from '../../components/DataState';
+import { DemoBanner } from '../../components/DemoBanner';
 import { Skeleton } from '../../components/Skeleton';
 import { Num } from '../../components/Num';
 import { Tag } from '../../components/Tag';
 import { useT } from '../../i18n/useT';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useLoadable } from '../../data/useLoadable';
+import { DEMO_FLAGS } from '../../data/demoAdapter';
+import { useDispatch } from '../../state/appState';
 import { fetchWeekEarnings } from '../../data/earnings';
 import { isoDate, pct, signalColor } from '../../lib/format';
+import { ROW_BUTTON_STYLE } from '../../lib/rowButton';
 import type { EarningsRow } from '../../data/types';
 
 /**
- * This week's earnings calendar, from real data.
+ * The week ahead's earnings calendar, from real data.
  *
- * The week is anchored Monday–Sunday (see data/earnings.ts) rather than "the
- * next seven days", so the day strip reads as a calendar week and Monday
- * stays Monday as the week goes on.
+ * The window runs from today (see data/earnings.ts), not from Monday: the
+ * provider's market-wide feed carries only reports that have not happened
+ * yet, so a Monday-anchored week spent most of itself in the past — by
+ * Friday, four of its seven days could not be filled by anything.
  *
  * A week with no reports is a legitimate empty state, not an error — plenty
  * of weeks outside reporting season genuinely have none. The provider being
@@ -25,6 +30,7 @@ import type { EarningsRow } from '../../data/types';
  */
 export function CalendarTab({ watchlist }: { watchlist: string[] }) {
   const t = useT();
+  const dispatch = useDispatch();
   const { language } = useTheme();
   const [onlyWatchlist, setOnlyWatchlist] = useState(false);
   const [day, setDay] = useState<string | null>(null);
@@ -123,14 +129,23 @@ export function CalendarTab({ watchlist }: { watchlist: string[] }) {
               </ChipRail>
             )}
 
+            <DemoBanner />
+
             {/* The provider's market-wide feed carries only reports that
                 have not happened yet. Left unsaid, a reader who knows a
                 company reported on Monday would read its absence — or a
                 "scheduled" row — as the app being wrong rather than the feed
-                being forward-looking. */}
-            <span className="text-muted" style={{ fontSize: 12.5, padding: '0 2px' }}>
-              {t('earn.scheduledOnly')}
-            </span>
+                being forward-looking.
+
+                Not in showcase mode: there the rows deliberately include
+                reported results, so this sentence would be false — and a
+                caveat that does not match what is on screen teaches a reader
+                to stop reading the caveats. */}
+            {!DEMO_FLAGS.showcase && (
+              <span className="text-muted" style={{ fontSize: 12.5, padding: '0 2px' }}>
+                {t('earn.scheduledOnly')}
+              </span>
+            )}
 
             {/* Say it plainly when the endpoint had more than it sent: a
                 partial week rendered as the whole week is the quiet kind of
@@ -158,7 +173,12 @@ export function CalendarTab({ watchlist }: { watchlist: string[] }) {
                     <CardTitle>{isoDate(d, language)}</CardTitle>
                   </div>
                   {events.map((e) => (
-                    <EarningsRowView key={`${e.ticker}-${e.reportDate}`} row={e} t={t} />
+                    <EarningsRowView
+                      key={`${e.ticker}-${e.reportDate}`}
+                      row={e}
+                      t={t}
+                      onOpen={() => dispatch({ type: 'openStock', ticker: e.ticker })}
+                    />
                   ))}
                 </Card>
               ))
@@ -213,22 +233,24 @@ function weekdayLabel(iso: string, language: 'en' | 'he'): string {
 function EarningsRowView({
   row,
   t,
+  onOpen,
 }: {
   row: EarningsRow;
   t: (k: 'stock.epsEst' | 'stock.upcoming') => string;
+  onOpen: () => void;
 }) {
   // No `actual` means the quarter has not been reported yet — the normal
   // state for anything ahead on the calendar, not missing data.
   const reported = row.actual !== null;
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        padding: '10px 13px',
-        borderTop: '1px solid var(--color-divider)',
-      }}
+    // A button, not a div with a click handler: the row navigates, so it has
+    // to be reachable and operable from the keyboard and announced as an
+    // action. `type="button"` because this sits inside no form and must not
+    // ever submit one.
+    <button
+      type="button"
+      onClick={onOpen}
+      style={{ ...ROW_BUTTON_STYLE, padding: '10px 13px', borderTop: '1px solid var(--color-divider)' }}
     >
       <Tag variant="accent" fontSize={12}>
         {row.ticker}
@@ -260,6 +282,6 @@ function EarningsRowView({
           {t('stock.upcoming')}
         </Tag>
       )}
-    </div>
+    </button>
   );
 }

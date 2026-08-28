@@ -17,7 +17,9 @@
  * distinct all the way to the UI.
  */
 
+import { DEMO_FLAGS } from './demoAdapter';
 import { reasonFromResponse } from './providerReason';
+import { showcaseHistory, showcaseWeek } from './showcase';
 import { ok, unavailable, type EarningsRow, type Loadable } from './types';
 
 /**
@@ -78,18 +80,25 @@ export function isoDay(d: Date): string {
 }
 
 /**
- * The Monday-to-Sunday window containing `now`, in UTC.
+ * The window the calendar asks for: today plus the next six days, in UTC.
  *
- * Anchored to a whole week rather than "the next seven days" so the day strip
- * reads as a calendar week — Monday stays Monday as the week progresses,
- * instead of the grid sliding forward every day.
+ * This replaced a Monday-to-Sunday anchor, and the provider is the reason.
+ * The market-wide feed lists only reports that have NOT happened yet, so a
+ * calendar week spent most of itself in the past: by Friday, Monday through
+ * Thursday were structurally empty and the screen showed two usable days.
+ * A window that starts today is every day the feed can actually fill.
+ *
+ * Seven days keeps "the week ahead" as the unit — long enough to plan
+ * around, short enough that the day strip stays readable on a phone.
  */
-export function weekWindow(now: Date = new Date()): { from: string; to: string } {
-  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  // getUTCDay: 0 = Sunday. Shift so Monday is the first day.
-  const offset = (d.getUTCDay() + 6) % 7;
-  const monday = new Date(d.getTime() - offset * 86_400_000);
-  return { from: isoDay(monday), to: isoDay(new Date(monday.getTime() + 6 * 86_400_000)) };
+export const WINDOW_DAYS = 7;
+
+export function weekAheadWindow(now: Date = new Date()): { from: string; to: string } {
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  return {
+    from: isoDay(today),
+    to: isoDay(new Date(today.getTime() + (WINDOW_DAYS - 1) * 86_400_000)),
+  };
 }
 
 /**
@@ -173,12 +182,17 @@ async function read(url: string, fetchImpl: typeof fetch): Promise<Loadable<Earn
   }
 }
 
-/** Every company reporting in the calendar week containing `now`. */
+/** Every company due to report between today and six days ahead. */
 export async function fetchWeekEarnings(
   fetchImpl: typeof fetch = fetch,
   now: Date = new Date(),
 ): Promise<Loadable<EarningsPage>> {
-  const { from, to } = weekWindow(now);
+  // Showcase mode short-circuits before the request: it is a deliberate
+  // illustration of what a paid plan renders, turned on by hand in Settings
+  // and labelled on every screen that shows it. It is never a fallback — a
+  // live failure below still reports itself as a failure.
+  if (DEMO_FLAGS.showcase) return ok(showcaseWeek(now));
+  const { from, to } = weekAheadWindow(now);
   return read(`${EARNINGS_URL}?from=${from}&to=${to}`, fetchImpl);
 }
 
@@ -194,6 +208,7 @@ export async function fetchTickerEarnings(
 ): Promise<Loadable<EarningsPage>> {
   const clean = ticker.trim().toUpperCase();
   if (!clean) return unavailable(UNAVAILABLE);
+  if (DEMO_FLAGS.showcase) return ok(showcaseHistory(clean, now));
   const from = isoDay(new Date(now.getTime() - HISTORY_QUARTERS * DAYS_PER_QUARTER * 86_400_000));
   const to = isoDay(new Date(now.getTime() + LOOKAHEAD_DAYS * 86_400_000));
   return read(`${EARNINGS_URL}?ticker=${encodeURIComponent(clean)}&from=${from}&to=${to}`, fetchImpl);
