@@ -77,15 +77,23 @@ const REASONS = {
   },
 } as const;
 
-/** Maps the proxy's error code to the reason shown on screen. */
+/**
+ * Maps the proxy's error code to the reason shown on screen. The codes are
+ * the shared upstream-failure taxonomy the other API routes use
+ * (api/_lib/upstream.ts), so a code added there gets a real message here
+ * rather than silently collapsing into the generic one.
+ */
 function reasonFor(code: unknown): { en: string; he: string } {
   switch (code) {
     case 'not_configured':
       return REASONS.notConfigured;
-    case 'not_authorized':
+    case 'upstream_unauthorized':
+    case 'upstream_forbidden':
       return REASONS.notAuthorized;
-    case 'rate_limited':
+    case 'upstream_rate_limited':
       return REASONS.rateLimited;
+    case 'upstream_timeout':
+      return REASONS.timeout;
     case 'bad_response':
       return REASONS.badShape;
     default:

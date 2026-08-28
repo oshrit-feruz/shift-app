@@ -214,6 +214,31 @@ export function snapshotAgeDays(computedOn: unknown, now: Date = new Date()): nu
 }
 
 /**
+ * Look up one ticker's row in the mirrored ranking.
+ *
+ * The Satellite card wants only the BUY candidates; a stock's own page wants
+ * whatever the engine knows about *that* ticker regardless of verdict, so
+ * this returns the row for any ranked ticker and null for one the engine
+ * did not rank. Null is a real answer here — most tickers are simply not in
+ * a 100-name ranking — and the caller renders it as "not covered", which is
+ * different from the snapshot being unreadable.
+ */
+export function findRankingRow(body: unknown, ticker: string): SatelliteSignal | null {
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) return null;
+  const ranking = (body as Record<string, unknown>).full_ranking;
+  if (!Array.isArray(ranking)) return null;
+
+  const want = ticker.trim().toUpperCase();
+  if (!want) return null;
+
+  for (const raw of ranking) {
+    const mapped = mapSignal(raw);
+    if (mapped && mapped.ticker === want) return mapped;
+  }
+  return null;
+}
+
+/**
  * A snapshot may read at most this far into the future before we stop trusting
  * it. One day of slack absorbs a viewer whose device clock is a little behind
  * UTC; anything beyond that is a real date problem, not skew, and a
@@ -223,15 +248,27 @@ export function snapshotAgeDays(computedOn: unknown, now: Date = new Date()): nu
 const MAX_FUTURE_SKEW_DAYS = 1;
 
 /**
- * Read the day's BUY candidates from the mirrored snapshot. Never throws.
+ * Read the mirrored snapshot and hand the caller whatever it needs out of it.
  *
- * `fetchImpl` and `now` are injectable so the honest-state branches can be
- * tested without a network or a clock.
+ * Both readers of the mirror — the Satellite card's BUY list and a single
+ * stock's ranking row — need identical transport, freshness and honesty
+ * handling, and the one thing that must never happen is the two drifting so
+ * that one serves a snapshot the other rejects. So the shared part lives
+ * here exactly once and `extract` supplies only the per-caller shape check.
+ *
+ * `extract` returns null when the body is not a shape it recognises, which
+ * becomes 'unavailable'. Note the ordering: the shape check runs BEFORE the
+ * age check, so a malformed file is reported as malformed rather than
+ * sending someone chasing a staleness problem it does not have.
+ *
+ * Never throws. `fetchImpl` and `now` are injectable so every honest-state
+ * branch can be tested without a network or a clock.
  */
-export async function fetchSatelliteSignals(
+async function readMirror<T>(
+  extract: (body: unknown) => T | null,
   fetchImpl: typeof fetch = fetch,
   now: Date = new Date(),
-): Promise<Loadable<SatelliteSignal[]>> {
+): Promise<Loadable<T>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
@@ -251,9 +288,9 @@ export async function fetchSatelliteSignals(
     if (!res.ok) return unavailable();
 
     const body: unknown = await res.json();
-    const signals = extractBuySignals(body);
-    // Unrecognised shape → unavailable, never a fabricated empty list.
-    if (signals === null) return unavailable();
+    const extracted = extract(body);
+    // Unrecognised shape → unavailable, never a fabricated empty result.
+    if (extracted === null) return unavailable();
 
     // Age is checked only after the shape is known good, so a malformed file
     // is reported as malformed rather than as stale.
@@ -280,8 +317,7 @@ export async function fetchSatelliteSignals(
       });
     }
 
-    // A genuinely empty list is a valid answer and renders as the empty state.
-    return ok(signals);
+    return ok(extracted);
   } catch {
     // Network failure, abort/timeout, invalid JSON — all honestly
     // 'unavailable'. Deliberately no demo fallback.
@@ -289,4 +325,46 @@ export async function fetchSatelliteSignals(
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Read the day's BUY candidates from the mirrored snapshot. Never throws.
+ *
+ * A genuinely empty list is a valid answer and renders as the empty state.
+ */
+export async function fetchSatelliteSignals(
+  fetchImpl: typeof fetch = fetch,
+  now: Date = new Date(),
+): Promise<Loadable<SatelliteSignal[]>> {
+  return readMirror(extractBuySignals, fetchImpl, now);
+}
+
+/**
+ * Read one ticker's row from the mirrored ranking. Never throws.
+ *
+ * Resolves to ok(null) when the snapshot is perfectly good but does not rank
+ * this ticker — the common case, since the ranking is 100 names and the app
+ * can open any symbol. That is deliberately NOT 'unavailable': there is
+ * nothing wrong and nothing to retry, the engine simply has no view on this
+ * stock, and the screen says so rather than implying a failure.
+ */
+export async function fetchRankingRow(
+  ticker: string,
+  fetchImpl: typeof fetch = fetch,
+  now: Date = new Date(),
+): Promise<Loadable<SatelliteSignal | null>> {
+  const snap = await readMirror(
+    (body) => {
+      // Distinguishes "snapshot unreadable" (null → unavailable) from
+      // "readable, ticker simply absent" (a box holding null → ok(null)).
+      // Collapsing the two would report a healthy snapshot as broken every
+      // time someone opened an unranked stock.
+      if (body === null || typeof body !== 'object' || Array.isArray(body)) return null;
+      if (!Array.isArray((body as Record<string, unknown>).full_ranking)) return null;
+      return { row: findRankingRow(body, ticker) };
+    },
+    fetchImpl,
+    now,
+  );
+  return snap.status === 'ok' ? ok(snap.data.row) : snap;
 }

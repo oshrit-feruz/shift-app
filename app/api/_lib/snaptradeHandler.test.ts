@@ -160,7 +160,9 @@ describe('/api/snaptrade handler', () => {
 
     await handler({ method: 'GET', query: {} }, makeRes());
     expect((init?.headers as Record<string, string>).Signature).toMatch(/^[A-Za-z0-9+/]+=*$/);
-    expect(init?.method).toBe('GET');
+    // The shared transport leaves the verb unset, which fetch defaults to
+    // GET. What matters is that it is never a mutating one.
+    expect(init?.method ?? 'GET').toBe('GET');
   });
 
   it('ignores caller-supplied query parameters — the upstream path is never caller-steered', async () => {
@@ -179,14 +181,17 @@ describe('/api/snaptrade handler', () => {
     const res = makeRes();
     await handler({ method: 'GET', query: {} }, res);
     expect(res._status).toBe(502);
-    expect((res._body as { error: string }).error).toBe('not_authorized');
+    // The shared upstream taxonomy, so this route reports a rejected key the
+    // same way /api/news and /api/earnings do.
+    expect((res._body as { error: string }).error).toBe('upstream_unauthorized');
+    expect((res._body as { upstreamStatus: number }).upstreamStatus).toBe(401);
   });
 
   it('maps a 429 to a rate-limited error', async () => {
     globalThis.fetch = vi.fn(async () => jsonResponse({}, 429)) as unknown as typeof fetch;
     const res = makeRes();
     await handler({ method: 'GET', query: {} }, res);
-    expect((res._body as { error: string }).error).toBe('rate_limited');
+    expect((res._body as { error: string }).error).toBe('upstream_rate_limited');
   });
 
   it('reports a network failure as unavailable instead of returning stale or invented holdings', async () => {
@@ -213,13 +218,21 @@ describe('/api/snaptrade handler', () => {
     globalThis.fetch = vi.fn(
       (_input: Parameters<typeof fetch>[0], init?: RequestInit) =>
         new Promise((_resolve, reject) => {
-          init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+          // A real fetch rejects with a DOMException named AbortError, which
+          // is what the shared classifier keys on to tell a timeout from an
+          // unreachable host — a plain Error would test the wrong branch.
+          init?.signal?.addEventListener('abort', () =>
+            reject(new DOMException('The operation was aborted.', 'AbortError')),
+          );
         }),
     ) as unknown as typeof fetch;
 
     const res = makeRes();
     await slow({ method: 'GET', query: {} }, res);
     expect(res._status).toBe(502);
+    // A timeout is reported as a timeout, not as an unreachable host — the
+    // two are different operational facts.
+    expect((res._body as { error: string }).error).toBe('upstream_timeout');
     expect(res._headers['Cache-Control']).toBeUndefined();
   });
 

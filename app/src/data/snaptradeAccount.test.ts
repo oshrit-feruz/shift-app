@@ -52,7 +52,7 @@ describe('fetchConnectedAccounts', () => {
   });
 
   it('reports rejected credentials distinctly from an unreachable service', async () => {
-    const rejected = await fetchConnectedAccounts(async () => res({ error: 'not_authorized' }, 502));
+    const rejected = await fetchConnectedAccounts(async () => res({ error: 'upstream_unauthorized' }, 502));
     const unreachable = await fetchConnectedAccounts(async () => res({ error: 'upstream_unavailable' }, 502));
     expect(rejected.status).toBe('unavailable');
     expect(unreachable.status).toBe('unavailable');

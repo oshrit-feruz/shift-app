@@ -140,16 +140,177 @@ and the external `url` — never a full article body.
 Same honesty contract as the satellite feed: any upstream failure (network,
 timeout, non-2xx, unparseable or unexpected-shape body) returns a `4xx`/`5xx`
 with an `{ error, message }` body for the frontend to render as
-"unavailable" — never stale-cached or invented headlines. A ticker with fewer
+"unavailable" — never stale-cached or invented headlines.
+
+**Quota defence, in two layers.** A successful response carries
+`Cache-Control: public, max-age=0, s-maxage=60`, so Vercel's edge serves
+repeat requests for the same ticker without spending an EODHD call — at worst
+one upstream call per ticker per minute however many people are reading.
+**Failures set no cache header at all**, which is what makes them uncacheable
+on Vercel: a transient EODHD hiccup must never be frozen and served to
+everyone for the full TTL. There is deliberately no `stale-while-revalidate`,
+for the same reason. Second, an invalid or missing ticker is rejected
+*before* any upstream call, so a bad request costs nothing — asserted in the
+tests by the absence of the call, not just the status code, since the status
+alone would keep passing if the guard drifted below the fetch.
+
+Not yet covered: **per-client rate limiting**. The cache is shared, so it
+blunts repeat load on one ticker but not a single client walking a thousand
+different ones. That needs a durable counter (Vercel KV or Upstash Redis) and
+is flagged in `app/api/news.ts` as a follow-up for when the app goes
+genuinely public. A ticker with fewer
 than 10 (or even zero) recent real articles returns that shorter real list
 as-is rather than padding it out.
 
-**Required environment variable:** `EODHD_API_KEY` — the account's EODHD API
-key, added in the Vercel dashboard under **Project → Settings → Environment
-Variables**, scoped to Production, Preview, and Development so PR previews
-and local `vercel dev` also work. It is read only server-side
-(`process.env.EODHD_API_KEY`); it must never be given a `VITE_` prefix, which
-would bundle it into the client build.
+**A third live surface:** the stock detail screen's Reports tab.
+`app/src/data/fundamentals.ts` calls the engine's
+`/api/stock/{ticker}/fundamentals`, which returns filed figures straight from
+SEC EDGAR. This one **is not mirrored** — it is per-ticker and on-demand, so
+it cannot be pre-fetched the way a single daily ranking can, and it still
+pays Render's cold start of up to ~60s on the first request after an idle
+period. Its timeout is set accordingly and the tab shows a skeleton that
+survives the wait.
+
+The engine answers **HTTP 200 for everything**, including a ticker it has no
+data for, so the `status` field in the body is the only signal and the data
+layer branches purely on it. Anything that is not literally `'ok'` — an
+unrecognised status included — is unavailable; a body we do not understand is
+never optimistically read as good data. ETFs and non-US listings legitimately
+have no EDGAR filings, so "no filed figures" is a normal answer there rather
+than a malfunction, and it reads differently from "could not reach the
+service" so a cold start is not mistaken for a missing company.
+
+Filing date and form render alongside the revenue figure, never optionally:
+the engine documents this number as display-only and explicitly **not**
+point-in-time (newest filing on record, no reporting lag), so showing which
+filing it came from is what keeps it honest.
+
+## Stock detail screen
+
+`app/src/screens/Stock.tsx` carries three sub-tabs (`screens/stock/`), each
+owning its own data source and loading only when opened — so a stock page
+costs at most one Render call, and only when someone actually asks for
+filings:
+
+| Tab | Source | Notes |
+| --- | --- | --- |
+| סקירה / Overview | demo adapter + real holdings + the mirrored ranking | chart, your position, key stats, analyst ratings, and the engine's own view |
+| דוחות / Reports | `/api/stock/{ticker}/fundamentals` (live, un-mirrored) | branches purely on the engine's `status` |
+| חדשות / News | `/api/news` (this repo's Vercel function) | excerpts only, never a full article body |
+
+The engine's view of a ticker is a **card, not a header field**, because most
+symbols are not in a 100-name ranking: `fetchRankingRow` resolves `ok(null)`
+for a healthy snapshot that simply does not cover this stock, which renders
+as "not covered today" with no retry — deliberately not `unavailable`, since
+nothing failed and there is nothing to retry. Day-change percent is **not**
+in the ranking payload, so it is not shown there rather than being borrowed
+from demo data.
+
+Both mirror readers share one `readMirror` helper so transport, freshness and
+honesty handling cannot drift between them — one serving a snapshot the other
+rejects is exactly the class of bug the mirror's verification exists to
+prevent.
+
+**RTL note:** localized Hebrew dates are *not* wrapped in `<Num>`. `<Num>`
+forces LTR isolation, which is right for numerals and wrong for Hebrew text —
+it reverses the word order on screen. Provider-supplied headlines and
+summaries carry `dir="auto"` so an English article reads as English inside
+the Hebrew page instead of having its punctuation thrown to the wrong side.
+Both were caught by looking at the rendered screen, not by a passing test.
+
+### Where each surface's data comes from
+
+| Surface | Source | Cost per refresh |
+| --- | --- | --- |
+| News screen · הכול / שווקים / אנליסטים | `/api/news` with **no** ticker — EODHD's general market feed | 5 credits |
+| News screen · הווטצ׳ליסט שלי | `/api/news?ticker=` once per followed stock | 10 credits × watchlist size |
+| News screen · דוחות כספיים | `/api/earnings?from=&to=` — this calendar week | 1 Alpha Vantage call |
+| Stock page · חדשות | `/api/news?ticker=` | 10 credits |
+| Stock page · דוחות (filed revenue) | engine `/api/stock/{ticker}/fundamentals` | — |
+| Stock page · רבעונים שדווחו | `/api/earnings?ticker=&from=&to=` — 12 quarters | 1 Alpha Vantage call |
+| Satellite card | the daily mirror in this repo | none |
+
+The general feed is why the browsable news screen is cheap: EODHD's `s`
+parameter takes **one** symbol at a time and a per-ticker call costs double,
+so fanning out over a list of large caps would have cost ~70 credits per
+refresh where the feed costs 5. The watchlist tab is the one place a fan-out
+is justified — the per-stock scoping *is* the feature there, and the list is
+short. Its requests run concurrently and merge into one feed, de-duplicated
+by URL because a single story often carries several tickers.
+
+**Partial failure is not total failure** on the watchlist: if some tickers
+answer and others fail, the ones that answered are shown. Only an
+all-tickers-failed result is `unavailable` — blanking a feed over one bad
+ticker would hide real news the user could have read.
+
+**Clicking a headline opens the source, not a sheet.** The demo feed this
+replaced carried a full article body; real articles deliberately carry only a
+1–2 sentence excerpt, so there is nothing to open in-app and the card links
+out. Keeping the in-app reader would have meant either an empty sheet or
+re-introducing the full text the proxy exists to avoid.
+
+### Earnings calendar (`app/api/earnings.ts`)
+
+Proxies **Alpha Vantage** so the key stays server-side. One route answers two
+questions from two upstream functions: `EARNINGS_CALENDAR` for the whole
+market in a window, `EARNINGS` for one company's reported quarters. Neither
+takes a date range — one returns a fixed horizon, the other a whole history —
+so the window is applied after mapping, in the function.
+
+**Why not EODHD, which serves the news feed.** Its calendar and fundamentals
+endpoints both answer `403` on this account's key: the Calendar API is in
+EODHD's ALL-IN-ONE plan ($99.99/mo) and earnings history sits inside the
+Fundamentals feed ($59.99/mo), while this key covers the News API. Alpha
+Vantage answers both on a free key — verified against their live API before
+the switch: 122 quarters for IBM with actual, estimate and surprise, and
+~1,570 scheduled reports for a three-month horizon. The route's response
+shape is unchanged, so the client was untouched by the switch and switching
+back is this file plus its adapter.
+
+**One honest difference, stated on screen.** `EARNINGS_CALENDAR` lists only
+reports that have **not happened yet**, so the week calendar shows who is due
+to report and carries no `actual` for a company that already has. The
+calendar says so above the week rather than leaving a reader to conclude the
+app thinks Monday's reporter is still pending. Per-stock history is
+unaffected — `EARNINGS` carries the reported figures.
+
+**Two traps this provider sets, both handled:**
+
+1. It reports its own failures with **HTTP 200** and a JSON body carrying
+   `Information`, `Note` or `Error Message` — including on the CSV route. A
+   caller that checks only the status reads a spent quota as an empty week.
+   `readApiError()` runs before anything is mapped, and a quota notice
+   becomes `upstream_rate_limited`.
+2. When it rejects a key on the CSV route it answers the **real header plus
+   one junk line**, which parses cleanly to zero rows. Found by calling the
+   live API, not by reading docs. Data lines that *all* fail to map are now
+   an unreadable body, never an empty week; a header with no data lines is
+   still a legitimate quiet week.
+
+The free key allows only tens of requests a day, which is why the successful
+response carries `s-maxage=21600` (six hours) rather than the news route's
+minute: a scheduled report date does not move between two page loads, and a
+short TTL would spend the day's quota on freshness nobody can perceive and
+then start answering "quota reached" to real readers.
+
+The calendar week is anchored **Monday–Sunday**, not "the next seven days",
+so the day strip reads as a calendar week instead of sliding forward daily.
+The client's history window is **derived** from the endpoint's own
+`MAX_RANGE_DAYS` rather than hand-written twice
+(`app/src/data/earnings.ts`), with a test asserting the two stay in
+agreement — the same publisher/reader discipline the screener mirror uses.
+
+**Required environment variables**, both added in the Vercel dashboard under
+**Project → Settings → Environment Variables**, scoped to Production,
+Preview, and Development so PR previews and local `vercel dev` also work:
+
+| Variable | Used by |
+| --- | --- |
+| `EODHD_API_KEY` | `/api/news` — the news feed |
+| `ALPHAVANTAGE_API_KEY` | `/api/earnings` — the calendar and per-stock history |
+
+Both are read only server-side and neither may be given a `VITE_` prefix,
+which would bundle it into the client build.
 
 Pure request/response mapping lives in `app/api/_lib/news.ts` (unit-tested in
 `news.test.ts`) so it doesn't require mocking global `fetch` or a Vercel
@@ -209,7 +370,15 @@ switch on they are replaced by a statement of what is known, not redrawn:
 | Portfolio allocation donut | Computed from the account's **real** position values; positions the brokerage did not price are excluded, and if none are priced the card says so |
 | Any unreported field | Renders `—`. `null` is never coerced to `0`, and a total is never summed from partially-priced positions — if the total cannot be determined the account reports `unavailable` with that reason |
 
-Same honesty contract as the screener mirror and `/api/news`: any failure —
+Same honesty contract as the screener mirror and `/api/news` — and the same
+machinery: the route's transport is the shared `_lib/upstream.ts`
+`fetchUpstreamJson()`, so its timeout budget, abort wiring and failure
+taxonomy (`upstream_unauthorized`, `upstream_forbidden`,
+`upstream_rate_limited`, `upstream_timeout`, `bad_response`) are the ones
+`/api/news` and `/api/earnings` already answer with, rather than a third
+hand-rolled copy that could drift. SnapTrade authenticates with a `Signature`
+header instead of a query parameter, which is the one thing that helper
+gained (an optional `headers` argument) to serve this route. Any failure —
 network, timeout, non-2xx, unparseable or unexpected-shape body — surfaces as
 the honest "unavailable" state **with a specific reason** ("SnapTrade rejected
 the demo credentials", "SnapTrade did not answer in time"), and never falls
