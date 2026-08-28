@@ -4,7 +4,9 @@ import {
   MAX_SNAPSHOT_AGE_DAYS,
   SCREENER_MIRROR_URL,
   extractBuySignals,
+  fetchRankingRow,
   fetchSatelliteSignals,
+  findRankingRow,
   mapSignal,
   snapshotAgeDays,
   toNumber,
@@ -379,5 +381,75 @@ describe('the committed mirror artifact is consumable by the real parser', () =>
   it('every ranking row maps to a usable ticker', () => {
     const mapped = (snapshot.full_ranking as unknown[]).map(mapSignal);
     expect(mapped.filter((s) => s === null)).toHaveLength(0);
+  });
+});
+
+describe('findRankingRow / fetchRankingRow', () => {
+  const SNAP = {
+    computed_on: FRESH,
+    full_ranking: [
+      { ticker: 'ORCL', price: 144.76, high_52w: 324.63, drawdown_pct: 55.4, composite_score: 0.715, signal: 'BUY' },
+      { ticker: 'INTC', price: 20.1, high_52w: 50.2, drawdown_pct: 60.0, composite_score: 0.4, signal: 'SKIP' },
+    ],
+  };
+
+  it('finds a ranked ticker regardless of its verdict', () => {
+    // The Satellite card wants BUYs only; a stock's own page wants whatever
+    // the engine knows about that ticker, SKIP included.
+    expect(findRankingRow(SNAP, 'INTC')?.signal).toBe('SKIP');
+    expect(findRankingRow(SNAP, 'ORCL')?.drawdownPct).toBe(55.4);
+  });
+
+  it('is case- and whitespace-insensitive', () => {
+    expect(findRankingRow(SNAP, ' orcl ')?.ticker).toBe('ORCL');
+  });
+
+  it('returns null for a ticker the engine did not rank', () => {
+    expect(findRankingRow(SNAP, 'TSLA')).toBeNull();
+  });
+
+  it('returns null for a malformed snapshot', () => {
+    expect(findRankingRow(null, 'ORCL')).toBeNull();
+    expect(findRankingRow({ full_ranking: 'nope' }, 'ORCL')).toBeNull();
+    expect(findRankingRow([SNAP], 'ORCL')).toBeNull();
+  });
+
+  it('resolves ok(row) for a ranked ticker', async () => {
+    const r = await fetchRankingRow('ORCL', async () => res(SNAP), NOW);
+    expect(r.status).toBe('ok');
+    expect(r.status === 'ok' && r.data?.ticker).toBe('ORCL');
+  });
+
+  it('resolves ok(null) — not unavailable — for an unranked ticker', async () => {
+    // A healthy snapshot that simply does not cover this stock is not a
+    // failure and has nothing to retry. Reporting it as unavailable would
+    // show a broken-looking card on most symbols in the app.
+    const r = await fetchRankingRow('TSLA', async () => res(SNAP), NOW);
+    expect(r.status).toBe('ok');
+    expect(r.status === 'ok' && r.data).toBeNull();
+  });
+
+  it('is unavailable when the snapshot is unreadable', async () => {
+    const r = await fetchRankingRow('ORCL', async () => res({ nope: true }), NOW);
+    expect(r.status).toBe('unavailable');
+  });
+
+  it('applies the same staleness rules as the satellite feed', async () => {
+    const stale = await fetchRankingRow('ORCL', async () => res({ ...SNAP, computed_on: '2020-01-01' }), NOW);
+    expect(stale.status).toBe('unavailable');
+    expect(stale.status === 'unavailable' && stale.reason?.he).toContain('ימים');
+
+    const undated = await fetchRankingRow('ORCL', async () => res({ ...SNAP, computed_on: undefined }), NOW);
+    expect(undated.status).toBe('unavailable');
+  });
+
+  it('reads the mirror, never onrender.com', async () => {
+    let seen = '';
+    await fetchRankingRow('ORCL', async (url) => {
+      seen = String(url);
+      return res(SNAP);
+    }, NOW);
+    expect(seen).toBe(SCREENER_MIRROR_URL);
+    expect(seen).not.toContain('onrender.com');
   });
 });

@@ -1,4 +1,5 @@
 import { Card, CardTitle, Divider } from '../components/Card';
+import { DemoDataNote } from '../components/DemoDataNote';
 import { Button } from '../components/Button';
 import { Tag } from '../components/Tag';
 import { Icon } from '../components/Icon';
@@ -15,7 +16,10 @@ import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
+import { fetchWeekEarnings } from '../data/earnings';
+import { DemoBanner } from '../components/DemoBanner';
 import { money, pct, signalColor } from '../lib/format';
+import { ROW_BUTTON_STYLE } from '../lib/rowButton';
 import type { ScreenProps } from '../App';
 
 export function HomeScreen(_: ScreenProps) {
@@ -31,6 +35,7 @@ export function HomeScreen(_: ScreenProps) {
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <DemoDataNote />
       {beg && (
         <DataState
           state={portfolios.state}
@@ -329,71 +334,122 @@ export function HomeScreen(_: ScreenProps) {
         </Button>
       </Card>
 
-      {/* Earnings this week */}
-      <Card padding={13} gap={7}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <CardTitle>{t('home.earnWeek')}</CardTitle>
-          <Tag variant="neutral">3</Tag>
-        </div>
-        {beg && (
-          <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
-            {t('home.earnHelp')}
-          </p>
-        )}
-        {HOME_EARNINGS.map((e, i) => (
-          <div
-            key={i}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '7px 0',
-              borderTop: '1px solid var(--color-divider)',
-            }}
-          >
-            <div
-              style={{
-                width: 55,
-                height: 55,
-                flex: 'none',
-                textAlign: 'center',
-                padding: 4,
-                border: '1px dashed var(--color-text)',
-                borderRadius: 8,
-              }}
-            >
-              <div style={{ fontSize: 12.5, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--acc-lite)', fontWeight: 500 }}>
-                {language === 'he' ? 'אוג׳' : 'Aug'}
-              </div>
-              <Num size={16} weight={500} style={{ fontFamily: 'var(--font-heading)', color: 'var(--acc-mid)' }}>
-                {e.day}
-              </Num>
-            </div>
-            <div style={{ flex: 1, fontSize: 14 }}>{beg ? e.beg[language] : e.adv}</div>
-            <Tag variant="outline" fontSize={12}>
-              {t('home.afterClose')}
-            </Tag>
-          </div>
-        ))}
-      </Card>
+      {/* Earnings ahead — the same live source as the calendar tab.
+          This card used to render a hard-coded list of three companies with
+          invented implied moves, presented exactly like real data. It was the
+          last place in the app where fabricated figures were shown as fact. */}
+      <EarningsAhead />
     </div>
   );
 }
 
-const HOME_EARNINGS = [
-  {
-    day: '26',
-    beg: { en: 'NVIDIA — its biggest report of the year', he: 'NVIDIA — הדוח הגדול שלה בשנה' },
-    adv: 'NVDA · est EPS 1.24 · impl. move ±8.4%',
-  },
-  {
-    day: '27',
-    beg: { en: 'CrowdStrike — cybersecurity', he: 'CrowdStrike — אבטחת מידע' },
-    adv: 'CRWD · est EPS 0.98 · impl. move ±9.1%',
-  },
-  {
-    day: '28',
-    beg: { en: 'Dell — PCs and AI servers', he: 'Dell — מחשבים ושרתי AI' },
-    adv: 'DELL · est EPS 2.31 · impl. move ±7.2%',
-  },
-];
+/**
+ * The next few earnings reports, from the live calendar.
+ *
+ * Deliberately bounded to three: the home screen is a summary, and the
+ * calendar tab is where the whole week lives. Loading and failure are the
+ * shared DataState, so an outage reads as an outage rather than as a quiet
+ * week — and showcase mode carries its label, like every other surface that
+ * can render illustrative figures.
+ */
+const HOME_EARNINGS_SHOWN = 3;
+
+function EarningsAhead() {
+  const t = useT();
+  const { language } = useTheme();
+  const dispatch = useDispatch();
+  const cal = useLoadable(() => fetchWeekEarnings(), []);
+
+  return (
+    <Card padding={13} gap={7}>
+      <DataState
+        state={cal.state}
+        onRetry={cal.retry}
+        skeleton={<SkeletonList count={3} />}
+      >
+        {(page) => {
+          const next = page.rows.slice(0, HOME_EARNINGS_SHOWN);
+          return (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <CardTitle>{t('home.earnWeek')}</CardTitle>
+                {/* The real count, not a fixed number: the badge used to say
+                    "3" whatever the week held. On a truncated response the
+                    rows in hand are fewer than the reports that exist, and
+                    the count is a claim about the week, not about what fitted
+                    in the payload. */}
+                <Tag variant="neutral">{String(page.truncated ? page.totalAvailable : page.rows.length)}</Tag>
+              </div>
+              <DemoBanner />
+              {next.length === 0 ? (
+                <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
+                  {t('earn.weekEmpty')}
+                </p>
+              ) : (
+                next.map((e) => (
+                  <button
+                    key={`${e.ticker}-${e.reportDate}`}
+                    type="button"
+                    onClick={() => dispatch({ type: 'openStock', ticker: e.ticker })}
+                    style={{ ...ROW_BUTTON_STYLE, padding: '7px 0', borderTop: '1px solid var(--color-divider)' }}
+                  >
+                    <div
+                      style={{
+                        width: 55,
+                        height: 55,
+                        flex: 'none',
+                        textAlign: 'center',
+                        padding: 4,
+                        border: '1px dashed var(--color-text)',
+                        borderRadius: 8,
+                      }}
+                    >
+                      <div style={{ fontSize: 12.5, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--acc-lite)', fontWeight: 500 }}>
+                        {monthLabel(e.reportDate, language)}
+                      </div>
+                      <Num size={16} weight={500} style={{ fontFamily: 'var(--font-heading)', color: 'var(--acc-mid)' }}>
+                        {e.reportDate.slice(8)}
+                      </Num>
+                    </div>
+                    <div style={{ flex: 1, fontSize: 14, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      <span>{e.ticker}</span>
+                      {e.estimate !== null && (
+                        <span className="text-muted" style={{ fontSize: 12.5 }}>
+                          {t('stock.epsEst')} <Num>{e.estimate.toFixed(2)}</Num>
+                        </span>
+                      )}
+                    </div>
+                    {/* Only claimed when the provider actually said so — the
+                        old card labelled every row "after close". */}
+                    {e.timing === 'AMC' && (
+                      <Tag variant="outline" fontSize={12}>
+                        {t('home.afterClose')}
+                      </Tag>
+                    )}
+                    {e.timing === 'BMO' && (
+                      <Tag variant="outline" fontSize={12}>
+                        {t('home.beforeOpen')}
+                      </Tag>
+                    )}
+                  </button>
+                ))
+              )}
+              <Button variant="ghost" fontSize={13} alignSelf="flex-start" onClick={() => dispatch({ type: 'go', screen: 'earnings' })}>
+                {t('home.allEarnings')}
+              </Button>
+            </>
+          );
+        }}
+      </DataState>
+    </Card>
+  );
+}
+
+/** Short month name for the date box, in the reader's language. */
+function monthLabel(iso: string, language: 'en' | 'he'): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(language === 'he' ? 'he-IL' : 'en-US', {
+    month: 'short',
+    timeZone: 'UTC',
+  });
+}

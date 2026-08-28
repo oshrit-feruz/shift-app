@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { DemoDataNote } from '../components/DemoDataNote';
 import { Card, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Icon } from '../components/Icon';
@@ -6,6 +7,7 @@ import { Num } from '../components/Num';
 import { AreaChart } from '../components/AreaChart';
 import { CandleChart } from '../components/CandleChart';
 import { Chip } from '../components/Chip';
+import { SegmentedControl } from '../components/SegmentedControl';
 import { DataState } from '../components/DataState';
 import { Skeleton, SkeletonCard, SkeletonList } from '../components/Skeleton';
 import { ListRow, RowValues } from '../components/ListRow';
@@ -15,10 +17,17 @@ import { useT } from '../i18n/useT';
 import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
 import { fetchYourPositions } from '../lib/holdings';
+import { fetchTickerEarnings } from '../data/earnings';
+import { DemoBanner } from '../components/DemoBanner';
 import { money, pct, signalColor } from '../lib/format';
+import { ReportsTab, EarningsHistory } from './stock/ReportsTab';
+import { NewsTab } from './stock/NewsTab';
+import { EngineCard } from './stock/EngineCard';
 import type { ScreenProps } from '../App';
 
 const TIMEFRAMES = ['1D', '1W', '1M', '3M', '1Y'];
+
+type StockTab = 'overview' | 'reports' | 'news';
 
 /**
  * A single ticker's page: price and after-hours header, watchlist/alert
@@ -40,6 +49,11 @@ export function StockScreen({ openAlert }: ScreenProps) {
   const { mode } = useTheme();
   const t = useT();
   const beg = mode === 'beginner';
+  const [tab, setTab] = useState<StockTab>('overview');
+  // openStock can change the ticker while this screen stays mounted (stock ->
+  // stock, from search or a news chip), and the sub-tab is about the stock
+  // you were looking at, not the one you just opened.
+  useEffect(() => setTab('overview'), [s.ticker]);
   const [tf, setTf] = useState('3M');
   const [ind, setInd] = useState({ ma: true, rsi: true, macd: false });
   const sym = useLoadable(() => demoService.symbol(s.ticker), [s.ticker]);
@@ -51,6 +65,15 @@ export function StockScreen({ openAlert }: ScreenProps) {
 
   const closes = demoService.series(`${s.ticker}-candles`, 46, 0.5, 3.4).slice(4);
   const begSeries = demoService.series(`${s.ticker}-line`, 64, 0.55, 2.6);
+
+  // The sample price table covers a handful of tickers. Any other symbol —
+  // and the earnings calendar opens plenty of them — has no quote, but its
+  // filings, news and ranking are live and per-ticker. Gating the whole
+  // screen on the quote turned "we have no sample price for CRWD" into a
+  // dead page, which is a worse answer than the one the data supports.
+  if (sym.state.status === 'unavailable') {
+    return <LiveOnlyStock ticker={s.ticker} />;
+  }
 
   return (
     <DataState
@@ -70,6 +93,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
     >
       {(x) => (
         <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <DemoDataNote />
           <div>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 9 }}>
               <Num size={27} style={{ fontFamily: 'var(--font-heading)', lineHeight: 1 }}>
@@ -109,6 +133,22 @@ export function StockScreen({ openAlert }: ScreenProps) {
             </Button>
           </div>
 
+          {/* Sub-tabs. Overview keeps the price-action reading flow; Reports
+              and News each own a live data source and load only when opened,
+              so a stock page costs one Render call at most and only when
+              someone actually asks for filings. */}
+          <SegmentedControl<StockTab>
+            options={[
+              { value: 'overview', label: t('stock.tabOverview') },
+              { value: 'reports', label: t('stock.tabReports') },
+              { value: 'news', label: t('stock.tabNews') },
+            ]}
+            value={tab}
+            onChange={setTab}
+          />
+
+          {tab === 'overview' && (
+            <>
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
             {TIMEFRAMES.map((f) => (
               <Chip key={f} active={tf === f} onClick={() => setTf(f)}>
@@ -234,52 +274,23 @@ export function StockScreen({ openAlert }: ScreenProps) {
             </div>
           </Card>
 
-          <Card padding={12} gap={8}>
-            <CardTitle>{beg ? t('stock.newsBeg') : t('stock.newsAdv')}</CardTitle>
-            {(beg ? BEG_NEWS : ADV_NEWS).map((a, i) => (
-              <div key={i} style={{ paddingTop: 8, borderTop: '1px solid var(--color-divider)' }}>
-                <div style={{ display: 'flex', gap: 7, alignItems: 'baseline' }}>
-                  <span className="text-muted" style={{ fontSize: 12.5 }}>
-                    {a.meta}
-                  </span>
-                </div>
-                <div style={{ fontSize: 13.5, fontFamily: 'var(--font-heading)', marginTop: 4, lineHeight: 1.35, whiteSpace: 'normal' }}>
-                  {a.head}
-                </div>
-                {a.sum && (
-                  <p style={{ fontSize: 13, margin: '3px 0 0', opacity: 0.76 }}>{a.sum}</p>
-                )}
-              </div>
-            ))}
-          </Card>
+          <NextEarnings ticker={s.ticker} />
 
-          <Card padding={12} gap={8}>
-            <CardTitle>{t('stock.nextEarn')}</CardTitle>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-              <div
-                style={{
-                  width: 50,
-                  textAlign: 'center',
-                  padding: '6px 0',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--color-accent-900)',
-                  flex: 'none',
-                }}
-              >
-                <div className="text-muted" style={{ fontSize: 12.5, letterSpacing: '.06em', textTransform: 'uppercase' }}>
-                  {t('stock.nov')}
-                </div>
-                <Num size={17} style={{ fontFamily: 'var(--font-heading)' }}>
-                  18
-                </Num>
-              </div>
-              <p style={{ margin: 0, fontSize: 13, opacity: 0.8 }}>
-                {beg
-                  ? 'Q3 results, after the close. The last four reports beat expectations and the stock moved 6–9% the next day each time.'
-                  : 'Q3 · Nov 18 AMC · est EPS 1.24 vs 0.68 y/y · implied move ±8.4% · 4/4 beats'}
-              </p>
-            </div>
-          </Card>
+          {/* The engine's own view, from the mirrored daily ranking. Kept as
+              its own card rather than folded into the header because most
+              tickers are not in a 100-name ranking, and "not covered" is a
+              real answer that needs room to say so. */}
+          <EngineCard ticker={s.ticker} />
+            </>
+          )}
+
+          {tab === 'reports' && (
+            <>
+              <ReportsTab ticker={s.ticker} />
+              <EarningsHistory ticker={s.ticker} />
+            </>
+          )}
+          {tab === 'news' && <NewsTab ticker={s.ticker} />}
         </div>
       )}
     </DataState>
@@ -310,17 +321,131 @@ const ADV_STATS = (price: number, mc: string, vol: string, pe: number, rsi: numb
   ['RSI(14)', String(rsi)],
 ];
 
-const BEG_NEWS = [
-  { meta: 'Reuters · 2h', head: 'Nvidia guides data-centre revenue above expectations', sum: 'The company told investors it expects to sell more AI chips next quarter than analysts had penciled in.' },
-  { meta: 'Bloomberg · 6h', head: 'New Blackwell variant enters volume production', sum: 'A cheaper version of its flagship chip starts shipping, aimed at customers priced out of the top model.' },
-  { meta: "Barron's · 1d", head: 'Two more banks lift price targets above $210', sum: 'Analysts set a target for where they think a share should trade. It is an opinion, not a promise.' },
-];
+/**
+ * When this company next reports, from the live earnings source.
+ *
+ * This replaced a hard-coded card that read "Q3 · Nov 18 AMC · est EPS 1.24
+ * vs 0.68 y/y · implied move ±8.4% · 4/4 beats" for every stock in the app —
+ * a fixed date, a fixed estimate and a fabricated implied move, rendered
+ * with the same weight as real figures.
+ *
+ * It renders nothing at all when no scheduled report is known: an absent
+ * card says less than a card that has to explain itself, and "we do not know
+ * when they next report" is not information anyone came for. A provider
+ * failure is likewise silent here, because the Reports tab on this same
+ * screen already reports it in full.
+ */
+function NextEarnings({ ticker }: { ticker: string }) {
+  const t = useT();
+  const { language } = useTheme();
+  const e = useLoadable(() => fetchTickerEarnings(ticker), [ticker]);
+  if (e.state.status !== 'ok') return null;
 
-const ADV_NEWS = [
-  { meta: '16:04 · Reuters', head: 'Nvidia guides data-centre revenue above consensus', sum: null },
-  { meta: '15:41 · Bloomberg', head: 'Blackwell Ultra enters volume production at TSMC', sum: null },
-  { meta: '14:58 · SEC 8-K', head: 'Item 5.02 — appointment of principal accounting officer', sum: null },
-  { meta: "13:22 · Barron's", head: 'Morgan Stanley raises PT to $215 from $195', sum: null },
-  { meta: '11:07 · WSJ', head: 'Hyperscaler capex plans point to sustained AI demand', sum: null },
-  { meta: '09:31 · Benzinga', head: 'Unusual options activity in weekly $190 calls', sum: null },
-];
+  const today = new Date().toISOString().slice(0, 10);
+  // Scheduled means: no reported figure yet, and not in the past.
+  const next = e.state.data.rows
+    .filter((r) => r.actual === null && r.reportDate >= today)
+    .sort((a, b) => a.reportDate.localeCompare(b.reportDate))[0];
+  if (!next) return null;
+
+  const [y, m, d] = next.reportDate.split('-').map(Number);
+  const month = new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(language === 'he' ? 'he-IL' : 'en-US', {
+    month: 'short',
+    timeZone: 'UTC',
+  });
+
+  return (
+    <Card padding={12} gap={8}>
+      <CardTitle>{t('stock.nextEarn')}</CardTitle>
+      <DemoBanner />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+        <div
+          style={{
+            width: 50,
+            textAlign: 'center',
+            padding: '6px 0',
+            borderRadius: 'var(--radius-md)',
+            background: 'var(--color-accent-900)',
+            flex: 'none',
+          }}
+        >
+          <div className="text-muted" style={{ fontSize: 12.5, letterSpacing: '.06em', textTransform: 'uppercase' }}>
+            {month}
+          </div>
+          <Num size={17} style={{ fontFamily: 'var(--font-heading)' }}>
+            {next.reportDate.slice(8)}
+          </Num>
+        </div>
+        <p style={{ margin: 0, fontSize: 13, opacity: 0.8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {/* Only what the provider actually carries: the date, the timing
+              when stated, and the consensus estimate when published. */}
+          {next.timing === 'AMC' && <span>{t('home.afterClose')}</span>}
+          {next.timing === 'BMO' && <span>{t('home.beforeOpen')}</span>}
+          {next.estimate !== null && (
+            <span>
+              {t('stock.epsEst')} <Num>{next.estimate.toFixed(2)}</Num>
+            </span>
+          )}
+        </p>
+      </div>
+    </Card>
+  );
+}
+
+/**
+ * The stock page for a symbol the sample price table does not cover.
+ *
+ * Everything here is live and keyed on the ticker: the engine's ranking view,
+ * filed figures, the quarterly history and the news. What is missing is
+ * missing for a stated reason, in one line, rather than by the page refusing
+ * to render.
+ */
+function LiveOnlyStock({ ticker }: { ticker: string }) {
+  const t = useT();
+  const dispatch = useDispatch();
+  const s = useAppState();
+  const [tab, setTab] = useState<'reports' | 'news'>('reports');
+  const inWl = s.watchlist.includes(ticker);
+
+  return (
+    <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <p className="text-muted" style={{ fontSize: 12.5, margin: 0, padding: '0 2px', lineHeight: 1.45 }}>
+        {t('stock.noQuote')}
+      </p>
+
+      <Button
+        variant="secondary"
+        style={{
+          minHeight: 40,
+          fontSize: 14,
+          ...(inWl
+            ? { border: '1px solid var(--color-accent)', background: 'var(--color-accent-900)', color: 'var(--color-accent-200)' }
+            : {}),
+        }}
+        onClick={() => dispatch({ type: 'toggleWatch', ticker })}
+      >
+        {inWl ? `✓ ${t('stock.inWatchlist')}` : `＋ ${t('stock.toWatchlist')}`}
+      </Button>
+
+      <EngineCard ticker={ticker} />
+
+      <SegmentedControl<'reports' | 'news'>
+        options={[
+          { value: 'reports', label: t('stock.tabReports') },
+          { value: 'news', label: t('stock.tabNews') },
+        ]}
+        value={tab}
+        onChange={setTab}
+      />
+
+      {tab === 'reports' && (
+        <>
+          <NextEarnings ticker={ticker} />
+          <ReportsTab ticker={ticker} />
+          <EarningsHistory ticker={ticker} />
+        </>
+      )}
+      {tab === 'news' && <NewsTab ticker={ticker} />}
+    </div>
+  );
+}
