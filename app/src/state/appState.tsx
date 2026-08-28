@@ -39,6 +39,23 @@ export interface SavedAlert {
   remind: 'day' | 'morning' | 'lands';
   sources: { wires: boolean; filings: boolean };
   notifyBy: { push: boolean; email: boolean };
+  /**
+   * Which side of the threshold the live price was on as of the last tick,
+   * for a 'price' alert only. Used to detect a crossing (side flip) rather
+   * than firing on every tick that happens to land past the threshold — see
+   * lib/priceAlerts.ts. null until the first live price arrives.
+   */
+  lastSide?: 'above' | 'below' | null;
+}
+
+/** A price alert that has actually fired against a live price. */
+export interface FiredPriceAlert {
+  id: string;
+  ticker: string;
+  condition: 'rise' | 'fall';
+  value: string;
+  price: number;
+  ts: number;
 }
 
 export interface ManualPortfolio {
@@ -80,6 +97,7 @@ export interface AppState {
   pfIndex: number;
   aggExcluded: Record<string, boolean>;
   savedAlerts: SavedAlert[];
+  firedPriceAlerts: FiredPriceAlert[];
   manualPortfolios: ManualPortfolio[];
   manualTransactions: Record<string, ManualTransaction[]>;
 }
@@ -102,6 +120,7 @@ const initial: AppState = {
   pfIndex: 0,
   aggExcluded: {},
   savedAlerts: [],
+  firedPriceAlerts: [],
   manualPortfolios: [],
   manualTransactions: {},
 };
@@ -123,6 +142,8 @@ export type Action =
   | { type: 'pfIndex'; index: number }
   | { type: 'toggleAggAccount'; id: string }
   | { type: 'addAlert'; alert: SavedAlert }
+  | { type: 'setAlertSide'; id: string; side: 'above' | 'below' }
+  | { type: 'firePriceAlert'; alert: FiredPriceAlert }
   | { type: 'addManualPortfolio'; portfolio: ManualPortfolio }
   | { type: 'addManualTransaction'; portfolioId: string; transaction: ManualTransaction };
 
@@ -176,6 +197,15 @@ function reducer(s: AppState, a: Action): AppState {
       return { ...s, aggExcluded: { ...s.aggExcluded, [a.id]: !s.aggExcluded[a.id] } };
     case 'addAlert':
       return { ...s, savedAlerts: [...s.savedAlerts, a.alert] };
+    case 'setAlertSide':
+      return {
+        ...s,
+        savedAlerts: s.savedAlerts.map((alert) => (alert.id === a.id ? { ...alert, lastSide: a.side } : alert)),
+      };
+    case 'firePriceAlert':
+      // Newest first, and mark the whole notification center unread again —
+      // matches markNotificationsRead's all-or-nothing clear below.
+      return { ...s, firedPriceAlerts: [a.alert, ...s.firedPriceAlerts], notificationsRead: false };
     case 'addManualPortfolio':
       return { ...s, manualPortfolios: [...s.manualPortfolios, a.portfolio] };
     case 'addManualTransaction':
@@ -203,6 +233,7 @@ const PERSISTED: Array<keyof AppState> = [
   'alertUpThreshold',
   'alertDownThreshold',
   'savedAlerts',
+  'firedPriceAlerts',
   'manualPortfolios',
   'manualTransactions',
 ];

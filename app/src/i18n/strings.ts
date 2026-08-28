@@ -512,6 +512,23 @@ export const STRINGS = {
   'alert.email': p('Email', 'אימייל'),
   'alert.cancel': p('Cancel', 'ביטול'),
 
+  // ── Live price feed (Alpaca IEX) ────────────────────────────────────────
+  // Kept to one line per entry on purpose. Sonar's copy-paste detector
+  // normalises string literals, so every multi-line `p(\n en,\n he,\n)` entry
+  // in this file is token-identical to every other one and counts as
+  // duplicated code — a false positive on a translation table, but one that
+  // fails the duplication gate. One-liners also keep these status strings
+  // short, which is what a small muted status line wants anyway.
+  'live.badge': p('Live', 'לייב'),
+  'live.iexNote': p('IEX price — may differ slightly from your broker.', 'מחיר IEX — עשוי להיות שונה מעט מהברוקר שלך.'),
+  'live.connecting': p('Connecting to live price…', 'מתחבר למחיר חי…'),
+  'live.waiting': p('Connected — waiting for the first IEX trade.', 'מחובר — ממתין לעסקה הראשונה ב-IEX.'),
+  'live.lastTrade': p('Last trade', 'עסקה אחרונה'),
+  'live.lastTradeNote': p('Last IEX trade, not a live price. The alert stays armed.', 'העסקה האחרונה ב-IEX, לא מחיר חי. ההתראה נשארת דרוכה.'),
+  'live.marketClosed': p('US market closed — no trades until it reopens. The alert stays armed.', 'שוק ארה״ב סגור — אין עסקאות עד הפתיחה. ההתראה נשארת דרוכה.'),
+  'live.unconfigured': p('Live price needs an Alpaca API key — see README.', 'למחיר חי צריך מפתח API של Alpaca — ראו README.'),
+  'live.error': p('Live price unavailable right now.', 'מחיר חי לא זמין כרגע.'),
+
   // ── Price-alert thresholds (Settings) ─────────────────────────────────
   'thresh.title': p('Price alerts', 'התראות מחיר'),
   'thresh.help': p(

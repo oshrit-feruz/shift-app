@@ -9,6 +9,8 @@ import { useT } from '../i18n/useT';
 import { money } from '../lib/format';
 import { useDispatch, type AlertKind } from '../state/appState';
 import type { SymbolInfo } from '../data/types';
+import { useLiveQuotes } from '../data/useLiveQuotes';
+import { marketSession } from '../lib/marketHours';
 
 /** New-alert sheet. Alerts are notifications only — creating one never
  *  places or schedules any trade. */
@@ -32,6 +34,15 @@ export function AlertSheet({
   const [sources, setSources] = useState({ wires: true, filings: true });
   const [notifyBy, setNotifyBy] = useState({ push: true, email: false });
   const beg = mode === 'beginner';
+
+  // App.tsx mounts AlertSheet once and leaves it mounted while closed (Sheet
+  // just hides its content), so `open` must gate the subscription itself —
+  // otherwise the default kind==='price' plus a symbol keeps the feed
+  // subscribed for a sheet nobody is looking at.
+  const liveTicker = open && kind === 'price' && symbol ? [symbol.ticker] : [];
+  const { prices: livePrices, status: liveStatus, isLive } = useLiveQuotes(liveTicker);
+  const livePrice = symbol ? livePrices[symbol.ticker] : undefined;
+  const isLivePrice = symbol ? isLive(symbol.ticker) : false;
 
   const types: Array<{ k: AlertKind; glyph: string; title: string; help: string }> = [
     { k: 'price', glyph: '▲', title: t('alert.priceType'), help: t('alert.priceHelp') },
@@ -131,6 +142,33 @@ export function AlertSheet({
               {t('alert.priceHint')}
             </p>
           )}
+          <p className="text-muted" style={{ fontSize: 12.5, margin: 0 }}>
+            {/* A price from the REST snapshot is the last trade, possibly
+                days old over a weekend — it gets the muted "last trade"
+                label, never the live dot. Only a price we actually saw
+                stream in is presented as live. */}
+            {livePrice != null &&
+              (isLivePrice ? (
+                <>
+                  <span style={{ color: 'var(--color-accent)' }}>● {t('live.badge')}</span>{' '}
+                  <Num>{money(livePrice)}</Num> · {t('live.iexNote')}
+                </>
+              ) : (
+                <>
+                  {t('live.lastTrade')} <Num>{money(livePrice)}</Num> · {t('live.lastTradeNote')}
+                </>
+              ))}
+            {/* Connected but priceless is NOT "connecting" — the socket is
+                open and authenticated, there is simply nothing to print.
+                Overnight that is the permanent, correct state, so say which
+                of the two it is rather than implying work still in flight. */}
+            {liveStatus === 'open' &&
+              livePrice == null &&
+              t(marketSession(new Date()) === 'closed' ? 'live.marketClosed' : 'live.waiting')}
+            {liveStatus === 'connecting' && livePrice == null && t('live.connecting')}
+            {liveStatus === 'unconfigured' && t('live.unconfigured')}
+            {liveStatus === 'error' && t('live.error')}
+          </p>
         </>
       )}
       {kind === 'news' && (
