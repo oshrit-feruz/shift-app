@@ -84,7 +84,7 @@ export interface AppState {
   manualTransactions: Record<string, ManualTransaction[]>;
 }
 
-const initial: AppState = {
+export const initial: AppState = {
   screen: 'home',
   ticker: 'NVDA',
   advAnswers: [],
@@ -124,7 +124,12 @@ export type Action =
   | { type: 'toggleAggAccount'; id: string }
   | { type: 'addAlert'; alert: SavedAlert }
   | { type: 'addManualPortfolio'; portfolio: ManualPortfolio }
-  | { type: 'addManualTransaction'; portfolioId: string; transaction: ManualTransaction };
+  | { type: 'addManualTransaction'; portfolioId: string; transaction: ManualTransaction }
+  /** Hydrate the persisted slice from the signed-in user's Supabase row. */
+  | { type: 'replaceState'; persisted: Partial<AppState> }
+  /** Sign-out: drop the persisted slice so the next account on this device
+   *  never sees the previous user's risk profile or progress. */
+  | { type: 'resetPersisted' };
 
 function reducer(s: AppState, a: Action): AppState {
   switch (a.type) {
@@ -186,13 +191,24 @@ function reducer(s: AppState, a: Action): AppState {
           [a.portfolioId]: [...(s.manualTransactions[a.portfolioId] ?? []), a.transaction],
         },
       };
+    case 'replaceState':
+      // Keep the ephemeral navigation (screen/ticker) — the user is mid-app
+      // when the server state lands; yanking them elsewhere would read as a
+      // crash. Everything else resets to initial + the server's slice.
+      return { ...initial, ...a.persisted, screen: s.screen, ticker: s.ticker };
+    case 'resetPersisted':
+      // Back to a clean boot; the localStorage effect below then overwrites
+      // the on-device cache with the blank slice.
+      return { ...initial };
     default:
       return s;
   }
 }
 
 const STORAGE_KEY = 'shift.state';
-const PERSISTED: Array<keyof AppState> = [
+/** The slice that outlives a session: localStorage cache + the signed-in
+ *  user's Supabase row (state/remoteState.ts) both persist exactly this. */
+export const PERSISTED: Array<keyof AppState> = [
   'advAnswers',
   'advStage',
   'advBroker',

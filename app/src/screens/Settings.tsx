@@ -3,6 +3,7 @@ import { Button } from '../components/Button';
 import { Toggle } from '../components/Toggle';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { useAppState, useDispatch, setupProgress } from '../state/appState';
+import { useAuth } from '../auth/AuthProvider';
 import { useTheme, type Signal, type Theme, type Language } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { DEMO_FLAGS } from '../data/demoAdapter';
@@ -15,6 +16,9 @@ export function SettingsScreen(_: ScreenProps) {
   const { mode, setMode, theme, setTheme, signal, setSignal, language, setLanguage } = useTheme();
   const t = useT();
   const setup = setupProgress(s);
+  const { session, signOut } = useAuth();
+  const user = session.status === 'ok' ? session.data?.user : undefined;
+  const provider = user?.app_metadata?.provider;
   const [flags, setFlags] = useState({ unavailable: DEMO_FLAGS.unavailable, showcase: DEMO_FLAGS.showcase });
   const [notif, setNotif] = useState({ push: true, email: true, sms: false, digest: true, movers: false });
 
@@ -203,6 +207,28 @@ export function SettingsScreen(_: ScreenProps) {
         />
         <SettingsLink label={t('setup.tourRow')} onClick={() => dispatch({ type: 'go', screen: 'steps' })} />
       </Card>
+
+      {/* Account — who is signed in, and the way out. Sign-out itself resets
+          the app state (useRemoteSync watches the session), so nothing here
+          has to remember to clear the previous user's slice. */}
+      {user && (
+        <Card padding="12px 13px" gap={9}>
+          <CardTitle size={15}>{t('set.accountSection')}</CardTitle>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ fontSize: 14 }}>
+              {t('set.signedInAs', { email: user.email ?? user.id })}
+            </span>
+            {(provider === 'google' || provider === 'apple') && (
+              <span className="text-muted" style={{ fontSize: 12.5 }}>
+                {t(provider === 'google' ? 'set.providerGoogle' : 'set.providerApple')}
+              </span>
+            )}
+          </div>
+          <Button variant="danger" alignSelf="flex-start" fontSize={13} onClick={() => signOut()}>
+            {t('set.signOut')}
+          </Button>
+        </Card>
+      )}
 
       <Button variant="danger" alignSelf="flex-start" fontSize={13}>
         {t('set.deleteAcct')}

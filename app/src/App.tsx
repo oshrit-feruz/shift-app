@@ -25,6 +25,9 @@ import { LearnScreen } from './screens/onboarding/Learn';
 import { StepsScreen } from './screens/onboarding/Steps';
 import { OpenAccountScreen } from './screens/onboarding/OpenAccount';
 import { FirstRunOverlay } from './screens/onboarding/FirstRunOverlay';
+import { SignInScreen } from './screens/SignIn';
+import { useAuth } from './auth/AuthProvider';
+import { useRemoteSync } from './state/useRemoteSync';
 import { SearchOverlay } from './sheets/SearchOverlay';
 import { NotificationsSheet } from './sheets/NotificationsSheet';
 import { AlertSheet } from './sheets/AlertSheet';
@@ -68,6 +71,64 @@ export interface ScreenProps {
  * navigation — see the layout effect below.
  */
 export function App() {
+  const { session } = useAuth();
+  // The gate, following the FirstRunOverlay precedent but as a branch: the
+  // sign-in screen replaces the shell (there is nothing to navigate while
+  // signed out). 'loading' gets a quiet splash rather than the sign-in
+  // screen so an already-authenticated user never sees a sign-in flash;
+  // 'unavailable' (missing env config) renders SignIn with everything
+  // disabled and the honest reason — deliberately NOT a local-only fallback,
+  // which would make the auth gate silently vanish on a misconfigured
+  // deploy. Once signed in, the existing firstRunSeen/steps flow already
+  // routes new users to onboarding and returning users to the dashboard.
+  const content =
+    session.status === 'loading' ? (
+      <AuthSplash />
+    ) : session.status === 'unavailable' || session.data == null ? (
+      <SignInScreen />
+    ) : (
+      <AppShell />
+    );
+  return (
+    <>
+      {/* Always mounted, whatever the gate shows: the sync hook is also what
+          resets app state on sign-out, and it can only see that transition
+          if it survives the shell unmounting. */}
+      <RemoteSync />
+      {content}
+    </>
+  );
+}
+
+/** Minimal boot state while the stored session is restored (or the OAuth
+ *  redirect is consumed). Same visual language as DataState's loading. */
+function AuthSplash() {
+  const t = useT();
+  return (
+    <div
+      role="status"
+      className="text-muted"
+      style={{
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--g2)',
+        fontSize: 13,
+      }}
+    >
+      {t('data.loading')}
+    </div>
+  );
+}
+
+/** Mounts the Supabase state sync inside the providers; renders nothing. */
+function RemoteSync() {
+  useRemoteSync();
+  return null;
+}
+
+function AppShell() {
   const s = useAppState();
   const dispatch = useDispatch();
   const t = useT();
