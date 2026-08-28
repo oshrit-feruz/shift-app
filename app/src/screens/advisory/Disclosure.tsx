@@ -17,7 +17,7 @@ export function AdvisoryDisclosure(_: ScreenProps) {
       <FlowStepper />
       <Card padding={14} gap={6}>
         <CardTitle>{t('disc.title')}</CardTitle>
-        <p className="text-muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.55 }}>
+        <p className="text-muted" style={{ fontSize: 19, margin: 0, lineHeight: 1.55 }}>
           {t('disc.lead')}
         </p>
       </Card>
@@ -42,12 +42,12 @@ export function AdvisoryDisclosure(_: ScreenProps) {
                 color: 'var(--color-accent-200)',
                 display: 'grid',
                 placeItems: 'center',
-                fontSize: 12,
+                fontSize: 18,
               }}
             >
               {i + 1}
             </span>
-            <span style={{ flex: 1, fontSize: 13.5, lineHeight: 1.5 }}>{t(k)}</span>
+            <span style={{ flex: 1, fontSize: 19.5, lineHeight: 1.5 }}>{t(k)}</span>
           </div>
         ))}
       </Card>
@@ -57,12 +57,12 @@ export function AdvisoryDisclosure(_: ScreenProps) {
       <div style={{ display: 'flex', justifyContent: 'center', gap: 14 }}>
         <Button
           variant="ghost"
-          fontSize={13}
+          fontSize={19}
           onClick={() => dispatch({ type: 'advGoto', screen: 'advChat' })}
         >
           {t('adv.back')}
         </Button>
-        <Button variant="ghost" fontSize={13} onClick={() => dispatch({ type: 'go', screen: 'home' })}>
+        <Button variant="ghost" fontSize={19} onClick={() => dispatch({ type: 'go', screen: 'home' })}>
           {t('adv.later')}
         </Button>
       </div>

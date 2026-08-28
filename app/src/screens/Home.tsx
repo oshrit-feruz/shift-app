@@ -46,14 +46,14 @@ export function HomeScreen(_: ScreenProps) {
             <Card padding={15} gap={0}>
               {/* Mirrors the loaded hero: 18px label, 42px/1.05 total,
                   15px change line, chart block, two 14px blurb lines. */}
-              <SkeletonLine width={96} fontSize={18} bar={11} />
-              <SkeletonLine width="66%" fontSize={42} lineHeight={1.05} bar={34} />
-              <SkeletonLine width={172} fontSize={15} bar={13} />
+              <SkeletonLine width={96} fontSize={22} bar={11} />
+              <SkeletonLine width="66%" fontSize={46} lineHeight={1.05} bar={34} />
+              <SkeletonLine width={172} fontSize={21} bar={13} />
               {/* 83, not the chart's 76: the AreaChart's inline SVG adds a
                   descender line box to its wrapper. Measured, not assumed. */}
               <SkeletonChart height={83} style={{ marginTop: 10 }} />
               <div style={{ marginTop: 10 }}>
-                <SkeletonText lines={2} fontSize={14} />
+                <SkeletonText lines={2} fontSize={20} />
               </div>
             </Card>
           }
@@ -63,10 +63,10 @@ export function HomeScreen(_: ScreenProps) {
             if (!main) {
               return (
                 <Card padding={18} gap={8} style={{ textAlign: 'center', alignItems: 'center' }}>
-                  <span style={{ fontFamily: 'var(--font-heading)', fontSize: 18 }}>
+                  <span style={{ fontFamily: 'var(--font-heading)', fontSize: 22 }}>
                     {t('home.noPfTitle')}
                   </span>
-                  <p className="text-muted" style={{ fontSize: 14, margin: 0, lineHeight: 1.5 }}>
+                  <p className="text-muted" style={{ fontSize: 20, margin: 0, lineHeight: 1.5 }}>
                     {t('home.noPfHelp')}
                   </p>
                   <Button
@@ -86,11 +86,11 @@ export function HomeScreen(_: ScreenProps) {
             }
             return (
               <Card padding={15} gap={0}>
-                <div style={{ fontSize: 18, opacity: 0.75, fontWeight: 600 }}>{t('home.pfToday')}</div>
+                <div style={{ fontSize: 22, opacity: 0.75, fontWeight: 600 }}>{t('home.pfToday')}</div>
                 <div
                   style={{
                     fontFamily: 'var(--font-heading)',
-                    fontSize: 42,
+                    fontSize: 46,
                     lineHeight: 1.05,
                     fontWeight: 700,
                   }}
@@ -100,7 +100,7 @@ export function HomeScreen(_: ScreenProps) {
                 <div
                   style={{
                     color: signalColor(main.dayPct),
-                    fontSize: 15,
+                    fontSize: 21,
                     fontWeight: 600,
                   }}
                 >
@@ -113,7 +113,7 @@ export function HomeScreen(_: ScreenProps) {
                 </div>
                 <p
                   style={{
-                    fontSize: 14,
+                    fontSize: 20,
                     lineHeight: 1.5,
                     margin: '10px 0 0',
                     opacity: 0.85,
@@ -142,9 +142,9 @@ export function HomeScreen(_: ScreenProps) {
           }
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 15, fontWeight: 600 }}>{t('setup.banner')}</span>
+            <span style={{ fontSize: 21, fontWeight: 600 }}>{t('setup.banner')}</span>
             <span style={{ flex: 1 }} />
-            <span style={{ color: 'var(--color-accent-200)', fontSize: 14 }}>{t('setup.resume')} ›</span>
+            <span style={{ color: 'var(--color-accent-200)', fontSize: 20 }}>{t('setup.resume')} ›</span>
           </div>
           <ProgressTrack pct={setup.pct} label={t('setup.stepOf', { n: setup.stepLabel })} />
         </Card>
@@ -168,10 +168,10 @@ export function HomeScreen(_: ScreenProps) {
           >
             <Icon name="trend" size={14} />
           </span>
-          <span style={{ fontSize: 15, fontWeight: 600, flex: 1 }}>{t('home.trackSelf')}</span>
+          <span style={{ fontSize: 21, fontWeight: 600, flex: 1 }}>{t('home.trackSelf')}</span>
           <Tag variant="outline">{t('home.trackHere')}</Tag>
         </div>
-        <p className="text-muted" style={{ fontSize: 14, margin: 0, lineHeight: 1.5 }}>
+        <p className="text-muted" style={{ fontSize: 20, margin: 0, lineHeight: 1.5 }}>
           {t('home.trackSelfSub')}
         </p>
         <Divider />
@@ -223,7 +223,7 @@ export function HomeScreen(_: ScreenProps) {
             </span>
             <span
               style={{
-                fontSize: 15,
+                fontSize: 21,
                 fontWeight: 600,
                 flex: 1,
                 color: 'var(--color-accent-300)',
@@ -233,7 +233,7 @@ export function HomeScreen(_: ScreenProps) {
             </span>
             <Tag variant="accent">{t('adv.tag')}</Tag>
           </div>
-          <p className="text-muted" style={{ fontSize: 14, margin: 0, lineHeight: 1.5 }}>
+          <p className="text-muted" style={{ fontSize: 20, margin: 0, lineHeight: 1.5 }}>
             {t('home.trackAdvisorSub')}
           </p>
         </button>
@@ -251,18 +251,18 @@ export function HomeScreen(_: ScreenProps) {
               color: 'var(--color-accent-200)',
               display: 'grid',
               placeItems: 'center',
-              fontSize: 15,
+              fontSize: 21,
             }}
           >
             ◉
           </span>
           <span style={{ flex: 1 }}>
-            <span style={{ display: 'block', fontSize: 16.5 }}>{t('home.startHere')}</span>
-            <span className="text-muted" style={{ display: 'block', fontSize: 14.5, marginTop: 2 }}>
+            <span style={{ display: 'block', fontSize: 22.5 }}>{t('home.startHere')}</span>
+            <span className="text-muted" style={{ display: 'block', fontSize: 20.5, marginTop: 2 }}>
               {t('home.startHereSub')}
             </span>
           </span>
-          <span style={{ opacity: 0.5, fontSize: 16 }}>›</span>
+          <span style={{ opacity: 0.5, fontSize: 22 }}>›</span>
         </Card>
       )}
 
@@ -296,7 +296,7 @@ export function HomeScreen(_: ScreenProps) {
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
           <CardTitle>{t('home.watchlist')}</CardTitle>
           <div style={{ flex: 1 }} />
-          <Button variant="ghost" fontSize={13} onClick={() => dispatch({ type: 'go', screen: 'watch' })}>
+          <Button variant="ghost" fontSize={19} onClick={() => dispatch({ type: 'go', screen: 'watch' })}>
             {t('home.seeAll')}
           </Button>
         </div>
@@ -332,7 +332,7 @@ export function HomeScreen(_: ScreenProps) {
       <Card padding={13} gap={8}>
         <CardTitle>{beg ? t('home.moversBeg') : t('home.moversAdv')}</CardTitle>
         {beg && (
-          <p className="text-muted" style={{ fontSize: 14, margin: 0 }}>
+          <p className="text-muted" style={{ fontSize: 20, margin: 0 }}>
             {t('home.moversHelp')}
           </p>
         )}
@@ -373,13 +373,13 @@ export function HomeScreen(_: ScreenProps) {
                       textAlign: 'start',
                     }}
                   >
-                    <Num size={14} weight={600} style={{ width: 48 }}>
+                    <Num size={20} weight={600} style={{ width: 48 }}>
                       {x.ticker}
                     </Num>
                     <span
                       style={{
                         flex: 1,
-                        fontSize: 15,
+                        fontSize: 21,
                         opacity: 0.8,
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
@@ -388,7 +388,7 @@ export function HomeScreen(_: ScreenProps) {
                     >
                       {beg ? x.why[language] : `${money(x.price)} · vol ${x.volume}`}
                     </span>
-                    <Num size={15} style={{ color: signalColor(x.changePct) }}>
+                    <Num size={21} style={{ color: signalColor(x.changePct) }}>
                       {pct(x.changePct)}
                     </Num>
                   </button>
@@ -398,7 +398,7 @@ export function HomeScreen(_: ScreenProps) {
         </DataState>
         <Button
           variant="ghost"
-          fontSize={13}
+          fontSize={19}
           alignSelf="flex-start"
           onClick={() => dispatch({ type: 'go', screen: 'movers' })}
         >
@@ -450,7 +450,7 @@ function EarningsAhead() {
               </div>
               <DemoBanner />
               {next.length === 0 ? (
-                <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
+                <p className="text-muted" style={{ fontSize: 19, margin: 0 }}>
                   {t('earn.weekEmpty')}
                 </p>
               ) : (
@@ -478,7 +478,7 @@ function EarningsAhead() {
                     >
                       <div
                         style={{
-                          fontSize: 12.5,
+                          fontSize: 18.5,
                           letterSpacing: '.06em',
                           textTransform: 'uppercase',
                           color: 'var(--acc-lite)',
@@ -488,7 +488,7 @@ function EarningsAhead() {
                         {monthLabel(e.reportDate, language)}
                       </div>
                       <Num
-                        size={16}
+                        size={22}
                         weight={500}
                         style={{
                           fontFamily: 'var(--font-heading)',
@@ -501,7 +501,7 @@ function EarningsAhead() {
                     <div
                       style={{
                         flex: 1,
-                        fontSize: 14,
+                        fontSize: 20,
                         display: 'flex',
                         flexDirection: 'column',
                         gap: 3,
@@ -509,7 +509,7 @@ function EarningsAhead() {
                     >
                       <span>{e.ticker}</span>
                       {e.estimate !== null && (
-                        <span className="text-muted" style={{ fontSize: 12.5 }}>
+                        <span className="text-muted" style={{ fontSize: 18.5 }}>
                           {t('stock.epsEst')} <Num>{e.estimate.toFixed(2)}</Num>
                         </span>
                       )}
@@ -517,12 +517,12 @@ function EarningsAhead() {
                     {/* Only claimed when the provider actually said so — the
                         old card labelled every row "after close". */}
                     {e.timing === 'AMC' && (
-                      <Tag variant="outline" fontSize={12}>
+                      <Tag variant="outline" fontSize={18}>
                         {t('home.afterClose')}
                       </Tag>
                     )}
                     {e.timing === 'BMO' && (
-                      <Tag variant="outline" fontSize={12}>
+                      <Tag variant="outline" fontSize={18}>
                         {t('home.beforeOpen')}
                       </Tag>
                     )}
@@ -531,7 +531,7 @@ function EarningsAhead() {
               )}
               <Button
                 variant="ghost"
-                fontSize={13}
+                fontSize={19}
                 alignSelf="flex-start"
                 onClick={() => dispatch({ type: 'go', screen: 'earnings' })}
               >

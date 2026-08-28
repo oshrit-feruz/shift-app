@@ -99,13 +99,13 @@ export function MoversScreen(_: ScreenProps) {
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <TickerTile ticker={x.ticker} size={26} />
-                      <Num size={14} weight={600}>
+                      <Num size={20} weight={600}>
                         {x.ticker}
                       </Num>
                       <span
                         className="text-muted"
                         style={{
-                          fontSize: 13,
+                          fontSize: 19,
                           flex: 1,
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
@@ -115,14 +115,14 @@ export function MoversScreen(_: ScreenProps) {
                         {x.name}
                       </span>
                       <Num
-                        size={17}
+                        size={23}
                         style={{ fontFamily: 'var(--font-heading)', color: signalColor(x.changePct) }}
                       >
                         {pct(x.changePct)}
                       </Num>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 13, opacity: 0.76, flex: 1 }}>{x.why[language]}</span>
+                      <span style={{ fontSize: 19, opacity: 0.76, flex: 1 }}>{x.why[language]}</span>
                       <Sparkline
                         values={demoService.series(`spark-${x.ticker}-${i}`, 26, x.changePct / 6, 2)}
                         color={signalColor(x.changePct)}
@@ -136,7 +136,7 @@ export function MoversScreen(_: ScreenProps) {
 
           return (
             <Card padding="6px 10px 4px" gap={0}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 18.5 }}>
                 <thead>
                   <tr>
                     <Th align="start">{t('movers.colSym')}</Th>

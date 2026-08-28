@@ -122,10 +122,10 @@ export function LearnScreen(_: ScreenProps) {
           borderRadius: 'var(--radius-md)',
         }}
       >
-        <span className="text-muted" style={{ fontSize: 12.5, flex: 1 }}>
+        <span className="text-muted" style={{ fontSize: 18.5, flex: 1 }}>
           {t('learn.sub')}
         </span>
-        <Button variant="ghost" fontSize={14} onClick={() => dispatch({ type: 'go', screen: 'home' })}>
+        <Button variant="ghost" fontSize={20} onClick={() => dispatch({ type: 'go', screen: 'home' })}>
           ✕
         </Button>
       </div>
@@ -142,8 +142,8 @@ export function LearnScreen(_: ScreenProps) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
           {GLOSSARY[language].map(([k, v]) => (
             <div key={k} style={{ display: 'flex', gap: 11, alignItems: 'baseline' }}>
-              <span style={{ width: 82, flex: 'none', fontSize: 14, fontWeight: 600 }}>{k}</span>
-              <span style={{ flex: 1, fontSize: 13, opacity: 0.82, lineHeight: 1.45 }}>{v}</span>
+              <span style={{ width: 82, flex: 'none', fontSize: 20, fontWeight: 600 }}>{k}</span>
+              <span style={{ flex: 1, fontSize: 19, opacity: 0.82, lineHeight: 1.45 }}>{v}</span>
             </div>
           ))}
         </div>
@@ -153,11 +153,11 @@ export function LearnScreen(_: ScreenProps) {
 
       <div>
         <div
-          style={{ fontFamily: 'var(--font-heading)', fontSize: 22, lineHeight: 1.25, whiteSpace: 'normal' }}
+          style={{ fontFamily: 'var(--font-heading)', fontSize: 26, lineHeight: 1.25, whiteSpace: 'normal' }}
         >
           {page.title[language]}
         </div>
-        <p style={{ fontSize: 14.5, lineHeight: 1.55, margin: '9px 0 0', opacity: 0.85 }}>
+        <p style={{ fontSize: 20.5, lineHeight: 1.55, margin: '9px 0 0', opacity: 0.85 }}>
           {page.body[language]}
         </p>
       </div>
@@ -182,7 +182,7 @@ export function LearnScreen(_: ScreenProps) {
       <Button
         variant="ghost"
         alignSelf="center"
-        fontSize={13}
+        fontSize={19}
         onClick={() => dispatch({ type: 'advGoto', screen: 'advConnect', solo: true })}
       >
         {t('learn.openAccount')}

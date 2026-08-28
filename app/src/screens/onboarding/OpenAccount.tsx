@@ -162,7 +162,7 @@ export function OpenAccountScreen(_: ScreenProps) {
         <div
           style={{
             fontFamily: 'var(--font-heading)',
-            fontSize: 22,
+            fontSize: 26,
             lineHeight: 1.25,
             marginTop: 5,
             whiteSpace: 'normal',
@@ -170,7 +170,7 @@ export function OpenAccountScreen(_: ScreenProps) {
         >
           {title}
         </div>
-        <p style={{ fontSize: 14, lineHeight: 1.55, margin: '8px 0 0', opacity: 0.85 }}>{body}</p>
+        <p style={{ fontSize: 20, lineHeight: 1.55, margin: '8px 0 0', opacity: 0.85 }}>{body}</p>
       </div>
 
       {step === 0 && (
@@ -180,8 +180,8 @@ export function OpenAccountScreen(_: ScreenProps) {
               <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <RadioDot on={kind === k} />
                 <span style={{ flex: 1 }}>
-                  <span style={{ display: 'block', fontSize: 14 }}>{name}</span>
-                  <span className="text-muted" style={{ display: 'block', fontSize: 13, marginTop: 2 }}>
+                  <span style={{ display: 'block', fontSize: 20 }}>{name}</span>
+                  <span className="text-muted" style={{ display: 'block', fontSize: 19, marginTop: 2 }}>
                     {note}
                   </span>
                 </span>
@@ -210,7 +210,7 @@ export function OpenAccountScreen(_: ScreenProps) {
                     borderRadius: 6,
                     display: 'grid',
                     placeItems: 'center',
-                    fontSize: 13,
+                    fontSize: 19,
                     border: `1px solid ${on ? 'transparent' : 'var(--color-divider)'}`,
                     background: on ? 'var(--color-accent)' : 'transparent',
                     color: 'var(--g2)',
@@ -219,15 +219,15 @@ export function OpenAccountScreen(_: ScreenProps) {
                   {on ? '✓' : ''}
                 </span>
                 <span style={{ flex: 1, textAlign: 'start' }}>
-                  <span style={{ display: 'block', fontSize: 14 }}>{name}</span>
-                  <span className="text-muted" style={{ display: 'block', fontSize: 13, marginTop: 2 }}>
+                  <span style={{ display: 'block', fontSize: 20 }}>{name}</span>
+                  <span className="text-muted" style={{ display: 'block', fontSize: 19, marginTop: 2 }}>
                     {note}
                   </span>
                 </span>
               </button>
             );
           })}
-          <div className="text-muted" style={{ fontSize: 13 }}>
+          <div className="text-muted" style={{ fontSize: 19 }}>
             {t('open.docsReady', { n: docsReady })}
           </div>
         </div>
@@ -237,10 +237,10 @@ export function OpenAccountScreen(_: ScreenProps) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {ACCTS[language].map(([k, name, note]) => (
             <button key={k} type="button" style={pickStyle(acct === k)} onClick={() => setAcct(k)}>
-              <span style={{ display: 'block', fontSize: 14 }}>{name}</span>
+              <span style={{ display: 'block', fontSize: 20 }}>{name}</span>
               <span
                 className="text-muted"
-                style={{ display: 'block', fontSize: 13, marginTop: 3, lineHeight: 1.45 }}
+                style={{ display: 'block', fontSize: 19, marginTop: 3, lineHeight: 1.45 }}
               >
                 {note}
               </span>
@@ -252,10 +252,10 @@ export function OpenAccountScreen(_: ScreenProps) {
       {step === 3 && (
         <Card padding={16} gap={10}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            <Num size={30} style={{ fontFamily: 'var(--font-heading)' }}>
+            <Num size={34} style={{ fontFamily: 'var(--font-heading)' }}>
               {'$' + fund.toLocaleString('en-US')}
             </Num>
-            <span className="text-muted" style={{ fontSize: 13 }}>
+            <span className="text-muted" style={{ fontSize: 19 }}>
               {t('open.toStart')}
             </span>
           </div>
@@ -269,14 +269,14 @@ export function OpenAccountScreen(_: ScreenProps) {
           <svg viewBox="0 0 300 60" style={{ width: '100%', height: 56 }} aria-hidden="true">
             <rect x="0" y="26" width="300" height="8" rx="4" fill="var(--line)" />
             <rect x="0" y="26" width={(fund / 5000) * 300} height="8" rx="4" fill="var(--color-accent)" />
-            <text x="0" y="52" fill="var(--muted)" fontSize="11">
+            <text x="0" y="52" fill="var(--muted)" fontSize="17">
               {t('open.smallFine')}
             </text>
-            <text x="300" y="52" textAnchor="end" fill="var(--muted)" fontSize="11">
+            <text x="300" y="52" textAnchor="end" fill="var(--muted)" fontSize="17">
               {t('open.moreLater')}
             </text>
           </svg>
-          <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
+          <p className="text-muted" style={{ fontSize: 19, margin: 0 }}>
             {language === 'he'
               ? 'העברה בנקאית נכנסת בדרך כלל בתוך יום עד שלושה ימי עסקים. כסף שיושב בחשבון הוא עדיין שלך ועדיין לא מושקע, עד שתקני משהו.'
               : 'A bank transfer usually lands in one to three working days. Money sitting in the account is still yours and still uninvested until you buy something.'}
@@ -291,10 +291,10 @@ export function OpenAccountScreen(_: ScreenProps) {
               <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <RadioDot on={firstBuy === k} />
                 <span style={{ flex: 1 }}>
-                  <span style={{ display: 'block', fontSize: 14 }}>{name}</span>
+                  <span style={{ display: 'block', fontSize: 20 }}>{name}</span>
                   <span
                     className="text-muted"
-                    style={{ display: 'block', fontSize: 13, marginTop: 2, lineHeight: 1.45 }}
+                    style={{ display: 'block', fontSize: 19, marginTop: 2, lineHeight: 1.45 }}
                   >
                     {note}
                   </span>
@@ -303,10 +303,10 @@ export function OpenAccountScreen(_: ScreenProps) {
             </button>
           ))}
           <Card padding={14} gap={6} style={{ marginTop: 2 }}>
-            <CardTitle size={14}>
+            <CardTitle size={20}>
               {language === 'he' ? 'מה קורה אחרי שלוחצים קנייה' : 'What happens after you press buy'}
             </CardTitle>
-            <p className="text-muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+            <p className="text-muted" style={{ fontSize: 19, margin: 0, lineHeight: 1.5 }}>
               {language === 'he'
                 ? 'הפקודה מתבצעת בשניות בשעות המסחר. תראי אותה בפוזיציות, ומשם התפקיד היחיד הוא לא לגעת.'
                 : 'The order fills in seconds during market hours. You will see it in your positions, and from then on the only job is leaving it alone.'}
@@ -317,14 +317,14 @@ export function OpenAccountScreen(_: ScreenProps) {
 
       <div style={{ display: 'flex', gap: 8 }}>
         {step > 0 && (
-          <Button variant="secondary" minHeight={48} fontSize={14} onClick={() => setStep(step - 1)}>
+          <Button variant="secondary" minHeight={48} fontSize={20} onClick={() => setStep(step - 1)}>
             {t('nav.back')}
           </Button>
         )}
         <Button
           style={{ flex: 1 }}
           minHeight={48}
-          fontSize={14}
+          fontSize={20}
           onClick={() => {
             if (step >= 4) {
               dispatch({ type: 'stepDone', key: 'open', done: true });
@@ -338,7 +338,7 @@ export function OpenAccountScreen(_: ScreenProps) {
       <Button
         variant="ghost"
         alignSelf="center"
-        fontSize={13}
+        fontSize={19}
         onClick={() => dispatch({ type: 'go', screen: 'learn' })}
       >
         {t('open.backToGuide')}

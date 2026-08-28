@@ -82,7 +82,7 @@ export function EditProfileSheet({ open, onClose }: { open: boolean; onClose: ()
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <Button
               variant="secondary"
-              fontSize={13}
+              fontSize={19}
               minHeight={36}
               disabled={busy != null}
               onClick={() => fileRef.current?.click()}
@@ -92,7 +92,7 @@ export function EditProfileSheet({ open, onClose }: { open: boolean; onClose: ()
             {hasCustomAvatar && (
               <Button
                 variant="ghost"
-                fontSize={13}
+                fontSize={19}
                 minHeight={36}
                 disabled={busy != null}
                 onClick={() => void run('photo', removeAvatar)}
@@ -101,7 +101,7 @@ export function EditProfileSheet({ open, onClose }: { open: boolean; onClose: ()
               </Button>
             )}
           </div>
-          <span className="text-muted" style={{ fontSize: 12 }}>
+          <span className="text-muted" style={{ fontSize: 18 }}>
             {t('set.photoHelp')}
           </span>
         </div>
@@ -117,7 +117,7 @@ export function EditProfileSheet({ open, onClose }: { open: boolean; onClose: ()
 
       {/* Display name */}
       <div className="field">
-        <label htmlFor="display-name" style={{ fontSize: 13 }}>
+        <label htmlFor="display-name" style={{ fontSize: 19 }}>
           {t('set.displayName')}
         </label>
         <input
@@ -128,11 +128,11 @@ export function EditProfileSheet({ open, onClose }: { open: boolean; onClose: ()
           placeholder={t('set.namePlaceholder')}
           onChange={(e) => setName(e.target.value)}
         />
-        {!nameValid && <span style={{ fontSize: 12, color: 'var(--down)' }}>{t('set.nameInvalid')}</span>}
+        {!nameValid && <span style={{ fontSize: 18, color: 'var(--down)' }}>{t('set.nameInvalid')}</span>}
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <Button
-          fontSize={13}
+          fontSize={19}
           minHeight={38}
           disabled={busy != null || !nameChanged || !nameValid}
           onClick={() => void run('name', () => saveDisplayName(name.trim() === '' ? null : name))}
@@ -142,7 +142,7 @@ export function EditProfileSheet({ open, onClose }: { open: boolean; onClose: ()
         {hasCustomName && (
           <Button
             variant="ghost"
-            fontSize={13}
+            fontSize={19}
             minHeight={38}
             disabled={busy != null}
             onClick={() => {
@@ -165,22 +165,22 @@ export function EditProfileSheet({ open, onClose }: { open: boolean; onClose: ()
           paddingTop: 10,
         }}
       >
-        <span style={{ fontSize: 13.5 }}>{profile.email}</span>
-        <span className="text-muted" style={{ fontSize: 12, lineHeight: 1.5 }}>
+        <span style={{ fontSize: 19.5 }}>{profile.email}</span>
+        <span className="text-muted" style={{ fontSize: 18, lineHeight: 1.5 }}>
           {t('set.emailFixed')}
         </span>
       </div>
 
       {error && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <span style={{ fontSize: 13.5 }}>{t('set.saveFailedTitle')}</span>
-          <span className="text-muted" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
+          <span style={{ fontSize: 19.5 }}>{t('set.saveFailedTitle')}</span>
+          <span className="text-muted" style={{ fontSize: 18.5, lineHeight: 1.5 }}>
             {error[language]}
           </span>
         </div>
       )}
       {saved && !error && (
-        <span role="status" className="text-muted" style={{ fontSize: 12.5 }}>
+        <span role="status" className="text-muted" style={{ fontSize: 18.5 }}>
           {t('set.saved')}
         </span>
       )}

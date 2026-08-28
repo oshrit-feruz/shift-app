@@ -34,7 +34,7 @@ export function BuyAtBrokerButton({ ticker }: { ticker: string | null }) {
     background: 'var(--color-accent-900)',
     color: 'var(--color-accent-200)',
     font: 'inherit',
-    fontSize: 12,
+    fontSize: 18,
     cursor: 'pointer',
     whiteSpace: 'nowrap',
   } as const;

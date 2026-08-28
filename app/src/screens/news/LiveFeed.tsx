@@ -187,11 +187,11 @@ function ArticleCard({
             most market news is not about one company, and inventing a ticker
             to fill the slot would be a fabrication. */}
         {ticker && (
-          <Tag variant="accent" fontSize={12}>
+          <Tag variant="accent" fontSize={18}>
             {ticker}
           </Tag>
         )}
-        <span className="text-muted" style={{ fontSize: 12.5, display: 'flex', gap: 5 }}>
+        <span className="text-muted" style={{ fontSize: 18.5, display: 'flex', gap: 5 }}>
           {article.source && <bdi>{article.source}</bdi>}
           {article.source && date && <span>·</span>}
           {date && <span>{date}</span>}
@@ -205,7 +205,7 @@ function ArticleCard({
         style={{
           display: 'block',
           fontFamily: 'var(--font-heading)',
-          fontSize: 14.5,
+          fontSize: 20.5,
           lineHeight: 1.3,
           whiteSpace: 'normal',
         }}
@@ -213,7 +213,7 @@ function ArticleCard({
         {article.headline}
       </span>
       {article.summary && (
-        <span dir="auto" style={{ display: 'block', fontSize: 13, opacity: 0.78, lineHeight: 1.45 }}>
+        <span dir="auto" style={{ display: 'block', fontSize: 19, opacity: 0.78, lineHeight: 1.45 }}>
           {article.summary}
         </span>
       )}
@@ -221,7 +221,7 @@ function ArticleCard({
         href={article.url}
         target="_blank"
         rel="noopener noreferrer"
-        style={{ fontSize: 12.5, color: 'var(--color-accent-200)', textDecoration: 'none' }}
+        style={{ fontSize: 18.5, color: 'var(--color-accent-200)', textDecoration: 'none' }}
       >
         {openLabel} ↗
       </a>

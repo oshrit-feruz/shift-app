@@ -37,15 +37,15 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
       <FlowStepper />
       <Card padding={14} gap={7} outlined>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-          <Tag variant="accent" fontSize={12}>
+          <Tag variant="accent" fontSize={18}>
             {t('adv.tag')}
           </Tag>
-          <Tag variant="outline" fontSize={12}>
+          <Tag variant="outline" fontSize={18}>
             {t('adv.noAction')}
           </Tag>
         </div>
-        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 22 }}>{t('buy.title')}</div>
-        <p className="text-muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 26 }}>{t('buy.title')}</div>
+        <p className="text-muted" style={{ fontSize: 19, margin: 0, lineHeight: 1.5 }}>
           {t('buy.help')}
         </p>
       </Card>
@@ -53,7 +53,7 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
       <Card padding={13} gap={9}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
           <CardTitle>{t(`profile.${profileKey}` as StringKey)}</CardTitle>
-          <span className="text-muted" style={{ fontSize: 13 }}>
+          <span className="text-muted" style={{ fontSize: 19 }}>
             {t('buy.example')}
           </span>
         </div>
@@ -74,17 +74,17 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
               style={{
                 display: 'flex',
                 gap: 8,
-                fontSize: 13.5,
+                fontSize: 19.5,
                 alignItems: 'center',
                 paddingTop: 6,
                 borderTop: '1px solid var(--color-divider)',
               }}
             >
-              <Tag variant="accent" fontSize={12}>
+              <Tag variant="accent" fontSize={18}>
                 Recovery Detector
               </Tag>
               <span style={{ flex: 1 }}>Satellite</span>
-              <Num size={13} style={{ color: 'var(--muted)' }}>
+              <Num size={19} style={{ color: 'var(--muted)' }}>
                 {'$' + (profile.satellitePct * 100).toLocaleString('en-US')}
               </Num>
               <Num>{profile.satellitePct}%</Num>
@@ -100,18 +100,18 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
           <CardTitle>{t('rec.satPositions')}</CardTitle>
           <span style={{ marginInlineStart: 'auto' }}>
-            <Tag variant="outline" fontSize={12}>
+            <Tag variant="outline" fontSize={18}>
               {t('rec.livePrices')}
             </Tag>
           </span>
         </div>
         {profile.satellitePct === 0 && (
-          <p className="text-muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.5 }}>
+          <p className="text-muted" style={{ fontSize: 18.5, margin: 0, lineHeight: 1.5 }}>
             {t('rec.satInfoOnly')}
           </p>
         )}
         {s.advBroker && (
-          <p className="text-muted" style={{ fontSize: 12, margin: 0, lineHeight: 1.5 }}>
+          <p className="text-muted" style={{ fontSize: 18, margin: 0, lineHeight: 1.5 }}>
             {t('buy.handoffNote')}
             {!hasAnyTradeDeepLink() && ` ${t('buy.noDeepLink')}`}
           </p>
@@ -156,7 +156,7 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
       <Button
         variant="ghost"
         alignSelf="center"
-        fontSize={13}
+        fontSize={19}
         onClick={() => dispatch({ type: 'go', screen: 'home' })}
       >
         {t('adv.later')}

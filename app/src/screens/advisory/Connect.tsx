@@ -59,14 +59,14 @@ export function AdvisoryConnect(_: ScreenProps) {
       <FlowStepper />
       <Card padding={13} gap={4}>
         <CardTitle>{t('conn.title')}</CardTitle>
-        <p className="text-muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+        <p className="text-muted" style={{ fontSize: 19, margin: 0, lineHeight: 1.5 }}>
           {flow ? t('conn.help') : t('conn.helpSolo')}
         </p>
       </Card>
 
       <Card padding={13} gap={9}>
         <CardTitle>{t('conn.brokerTitle')}</CardTitle>
-        <p className="text-muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+        <p className="text-muted" style={{ fontSize: 19, margin: 0, lineHeight: 1.5 }}>
           {t('conn.brokerHelp')}
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
@@ -93,12 +93,12 @@ export function AdvisoryConnect(_: ScreenProps) {
               >
                 <LogoTile src={b.logo} size={34} />
                 <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: 'block', fontSize: 14, fontWeight: 600 }}>{b.name}</span>
-                  <span className="text-muted" style={{ display: 'block', fontSize: 12.5, lineHeight: 1.45 }}>
+                  <span style={{ display: 'block', fontSize: 20, fontWeight: 600 }}>{b.name}</span>
+                  <span className="text-muted" style={{ display: 'block', fontSize: 18.5, lineHeight: 1.45 }}>
                     {b.help[language]}
                   </span>
                 </span>
-                <span style={{ color: 'var(--color-accent)', fontSize: 14 }}>{selected ? '✓' : ''}</span>
+                <span style={{ color: 'var(--color-accent)', fontSize: 20 }}>{selected ? '✓' : ''}</span>
               </button>
             );
           })}
@@ -115,8 +115,8 @@ export function AdvisoryConnect(_: ScreenProps) {
               background: 'var(--sunk)',
             }}
           >
-            <CardTitle size={13.5}>{t('conn.handoffTitle')}</CardTitle>
-            <p className="text-muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.5 }}>
+            <CardTitle size={19.5}>{t('conn.handoffTitle')}</CardTitle>
+            <p className="text-muted" style={{ fontSize: 18.5, margin: 0, lineHeight: 1.5 }}>
               {t('conn.handoffHelp')}
             </p>
             {/* Referral only: opening happens on the broker's own site. */}
@@ -124,7 +124,7 @@ export function AdvisoryConnect(_: ScreenProps) {
               variant="secondary"
               block
               minHeight={42}
-              fontSize={13}
+              fontSize={19}
               onClick={() => window.open(BROKER_URLS[s.advBroker!], '_blank', 'noopener,noreferrer')}
             >
               {t('conn.openAt', { broker: brokerName(s.advBroker) })} ↗
@@ -133,11 +133,11 @@ export function AdvisoryConnect(_: ScreenProps) {
         )}
       </Card>
 
-      <CardTitle size={15}>{t('conn.existing')}</CardTitle>
+      <CardTitle size={21}>{t('conn.existing')}</CardTitle>
       <Card padding="4px 0" gap={0}>
         <InstitutionRows />
       </Card>
-      <p className="text-muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.5 }}>
+      <p className="text-muted" style={{ fontSize: 18.5, margin: 0, lineHeight: 1.5 }}>
         {t('conn.note')}
       </p>
 
@@ -153,13 +153,13 @@ export function AdvisoryConnect(_: ScreenProps) {
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 10 }}>
             <Button
               variant="ghost"
-              fontSize={14}
+              fontSize={20}
               onClick={() => dispatch({ type: 'advGoto', screen: 'advBuy', stage: 4 })}
             >
               {t('adv.skipStep')}
             </Button>
             <span style={{ width: 1, height: 14, background: 'var(--color-divider)' }} />
-            <Button variant="ghost" fontSize={14} onClick={() => dispatch({ type: 'go', screen: 'home' })}>
+            <Button variant="ghost" fontSize={20} onClick={() => dispatch({ type: 'go', screen: 'home' })}>
               {t('adv.later')}
             </Button>
           </div>

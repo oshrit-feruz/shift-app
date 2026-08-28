@@ -107,14 +107,14 @@ export function StockScreen({ openAlert }: ScreenProps) {
           <DemoDataNote />
           <div>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 9 }}>
-              <Num size={27} style={{ fontFamily: 'var(--font-heading)', lineHeight: 1 }}>
+              <Num size={31} style={{ fontFamily: 'var(--font-heading)', lineHeight: 1 }}>
                 {money(x.price)}
               </Num>
-              <Num size={14} style={{ color: signalColor(x.changePct) }}>
+              <Num size={20} style={{ color: signalColor(x.changePct) }}>
                 {`${(x.changePct >= 0 ? '+' : '') + ((x.price * x.changePct) / 100).toFixed(2)} · ${pct(x.changePct)}`}
               </Num>
             </div>
-            <div className="text-muted" style={{ fontSize: 13, marginTop: 3 }}>
+            <div className="text-muted" style={{ fontSize: 19, marginTop: 3 }}>
               {t('stock.afterHrs')} <Num>{money(x.price * 1.004)}</Num>
             </div>
           </div>
@@ -125,7 +125,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
               style={{
                 flex: 1,
                 minHeight: 40,
-                fontSize: 14,
+                fontSize: 20,
                 ...(inWl
                   ? {
                       border: '1px solid var(--color-accent)',
@@ -138,7 +138,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
             >
               {inWl ? `✓ ${t('stock.inWatchlist')}` : `＋ ${t('stock.toWatchlist')}`}
             </Button>
-            <Button style={{ flex: 1, minHeight: 40, fontSize: 14 }} onClick={openAlert}>
+            <Button style={{ flex: 1, minHeight: 40, fontSize: 20 }} onClick={openAlert}>
               <Icon name="bell" size={14} strokeWidth={1.8} />
               {t('stock.addAlert')}
             </Button>
@@ -170,7 +170,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
             {beg ? (
               <Card padding={12} gap={0}>
                 <AreaChart values={begSeries} height={150} pad={8} />
-                <p style={{ fontSize: 13, lineHeight: 1.5, margin: '10px 0 0', opacity: 0.85 }}>
+                <p style={{ fontSize: 19, lineHeight: 1.5, margin: '10px 0 0', opacity: 0.85 }}>
                   {t('stock.chartHelp', { pct: '18%' })}
                 </p>
               </Card>
@@ -189,7 +189,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
                     </Chip>
                   ))}
                 </div>
-                <Num size={12} block style={{ color: 'var(--muted)' }}>
+                <Num size={18} block style={{ color: 'var(--muted)' }}>
                   {`O ${(x.price - 1.9).toFixed(2)} H ${(x.price + 2.4).toFixed(2)} L ${(x.price - 3.1).toFixed(2)} C ${x.price.toFixed(2)}`}
                 </Num>
                 <CandleChart
@@ -244,11 +244,11 @@ export function StockScreen({ openAlert }: ScreenProps) {
               {beg ? (
                 BEG_STATS(x.price, x.marketCap, x.volume, x.pe).map((row, i) => (
                   <div key={i} style={{ padding: '7px 0', borderTop: '1px solid var(--color-divider)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 14 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 20 }}>
                       <span>{row.k}</span>
                       <Num>{row.v}</Num>
                     </div>
-                    <div className="text-muted" style={{ fontSize: 12.5, marginTop: 2 }}>
+                    <div className="text-muted" style={{ fontSize: 18.5, marginTop: 2 }}>
                       {row.help}
                     </div>
                   </div>
@@ -262,7 +262,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
                         display: 'flex',
                         justifyContent: 'space-between',
                         gap: 8,
-                        fontSize: 12.5,
+                        fontSize: 18.5,
                         padding: '2px 0',
                       }}
                     >
@@ -280,10 +280,10 @@ export function StockScreen({ openAlert }: ScreenProps) {
             <Card padding={12} gap={7}>
               <CardTitle>{t('stock.analyst')}</CardTitle>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                <span style={{ fontSize: 18, fontFamily: 'var(--font-heading)' }}>
+                <span style={{ fontSize: 22, fontFamily: 'var(--font-heading)' }}>
                   {t('stock.consensus')}
                 </span>
-                <span className="text-muted" style={{ fontSize: 12.5 }}>
+                <span className="text-muted" style={{ fontSize: 18.5 }}>
                   {t('stock.analystMeta')}
                 </span>
               </div>
@@ -293,7 +293,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
                 <div style={{ flex: 8, background: 'var(--muted-2)' }} />
                 <div style={{ flex: 3, background: 'var(--down)' }} />
               </div>
-              <div className="text-muted" style={{ display: 'flex', gap: 9, fontSize: 12.5 }}>
+              <div className="text-muted" style={{ display: 'flex', gap: 9, fontSize: 18.5 }}>
                 <span>{t('stock.rateSb')}</span>
                 <span>{t('stock.rateB')}</span>
                 <span>{t('stock.rateH')}</span>
@@ -406,15 +406,15 @@ function NextEarnings({ ticker }: { ticker: string }) {
         >
           <div
             className="text-muted"
-            style={{ fontSize: 12.5, letterSpacing: '.06em', textTransform: 'uppercase' }}
+            style={{ fontSize: 18.5, letterSpacing: '.06em', textTransform: 'uppercase' }}
           >
             {month}
           </div>
-          <Num size={17} style={{ fontFamily: 'var(--font-heading)' }}>
+          <Num size={23} style={{ fontFamily: 'var(--font-heading)' }}>
             {next.reportDate.slice(8)}
           </Num>
         </div>
-        <p style={{ margin: 0, fontSize: 13, opacity: 0.8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <p style={{ margin: 0, fontSize: 19, opacity: 0.8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {/* Only what the provider actually carries: the date, the timing
               when stated, and the consensus estimate when published. */}
           {next.timing === 'AMC' && <span>{t('home.afterClose')}</span>}
@@ -453,7 +453,7 @@ function LiveOnlyStock({ ticker }: { ticker: string }) {
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <p className="text-muted" style={{ fontSize: 12.5, margin: 0, padding: '0 2px', lineHeight: 1.45 }}>
+      <p className="text-muted" style={{ fontSize: 18.5, margin: 0, padding: '0 2px', lineHeight: 1.45 }}>
         {t('stock.noQuote')}
       </p>
 
@@ -461,7 +461,7 @@ function LiveOnlyStock({ ticker }: { ticker: string }) {
         variant="secondary"
         style={{
           minHeight: 40,
-          fontSize: 14,
+          fontSize: 20,
           ...(inWl
             ? {
                 border: '1px solid var(--color-accent)',

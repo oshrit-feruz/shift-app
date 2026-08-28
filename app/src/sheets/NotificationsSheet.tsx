@@ -65,7 +65,7 @@ export function NotificationsSheet({ open, onClose }: { open: boolean; onClose: 
       maxHeight="80%"
     >
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <Button variant="ghost" fontSize={13} onClick={() => dispatch({ type: 'markNotificationsRead' })}>
+        <Button variant="ghost" fontSize={19} onClick={() => dispatch({ type: 'markNotificationsRead' })}>
           {t('notif.markAll')}
         </Button>
       </div>
@@ -113,32 +113,32 @@ export function NotificationsSheet({ open, onClose }: { open: boolean; onClose: 
                 color: 'var(--color-accent-300)',
                 display: 'grid',
                 placeItems: 'center',
-                fontSize: 13,
+                fontSize: 19,
               }}
             >
               {n.glyph}
             </span>
             <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontSize: 14, whiteSpace: 'normal' }}>
+              <span style={{ display: 'block', fontSize: 20, whiteSpace: 'normal' }}>
                 {n.title[language]}
               </span>
-              <span className="text-muted" style={{ display: 'block', fontSize: 12.5, marginTop: 1 }}>
+              <span className="text-muted" style={{ display: 'block', fontSize: 18.5, marginTop: 1 }}>
                 {n.detail[language]}
               </span>
             </span>
-            <span className="text-muted" style={{ fontSize: 12.5, whiteSpace: 'nowrap' }}>
+            <span className="text-muted" style={{ fontSize: 18.5, whiteSpace: 'nowrap' }}>
               {n.ago[language]}
             </span>
           </button>
           {n.isThresholdAlert && (
             <>
               {/* Equal-prominence disclaimer: same size as the title, not fine print. */}
-              <p style={{ fontSize: 14, lineHeight: 1.5, margin: 0, whiteSpace: 'normal' }}>
+              <p style={{ fontSize: 20, lineHeight: 1.5, margin: 0, whiteSpace: 'normal' }}>
                 {t('thresh.disclaimer')}
               </p>
               <Button
                 variant="secondary"
-                fontSize={13}
+                fontSize={19}
                 minHeight={36}
                 alignSelf="flex-start"
                 onClick={() => dispatch({ type: 'markNotificationsRead' })}
@@ -153,7 +153,7 @@ export function NotificationsSheet({ open, onClose }: { open: boolean; onClose: 
         variant="secondary"
         block
         minHeight={42}
-        fontSize={13}
+        fontSize={19}
         onClick={() => {
           dispatch({ type: 'go', screen: 'watch' });
           onClose();

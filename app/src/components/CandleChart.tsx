@@ -103,7 +103,7 @@ export function CandleChart({
           <line x1="0" y1="14" x2={W} y2="14" stroke="var(--line)" strokeDasharray="3 3" />
           <line x1="0" y1="40" x2={W} y2="40" stroke="var(--line)" strokeDasharray="3 3" />
           <path d={rsiPath} fill="none" stroke="var(--acc-pale)" strokeWidth="1.2" />
-          <text x="3" y="10" fill="var(--muted)" fontSize="8">
+          <text x="3" y="10" fill="var(--muted)" fontSize="14">
             RSI(14) {rsiNow}
           </text>
         </svg>
@@ -131,7 +131,7 @@ export function CandleChart({
           })}
           <path d={mLine(macd)} fill="none" stroke="var(--acc-lite)" strokeWidth="1.1" />
           <path d={mLine(signal)} fill="none" stroke="var(--down)" strokeWidth="1.1" />
-          <text x="3" y="10" fill="var(--muted)" fontSize="8">
+          <text x="3" y="10" fill="var(--muted)" fontSize="14">
             MACD(12,26,9)
           </text>
         </svg>
