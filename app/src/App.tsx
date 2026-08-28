@@ -28,8 +28,8 @@ import { FirstRunOverlay } from './screens/onboarding/FirstRunOverlay';
 import { SignInScreen } from './screens/SignIn';
 import { useAuth } from './auth/AuthProvider';
 import { useRemoteSync } from './state/useRemoteSync';
-import { useProfileSync } from './auth/useProfileSync';
 import { useProviderLanguage } from './auth/useProviderLanguage';
+import { useProfile } from './auth/ProfileProvider';
 import { SearchOverlay } from './sheets/SearchOverlay';
 import { NotificationsSheet } from './sheets/NotificationsSheet';
 import { AlertSheet } from './sheets/AlertSheet';
@@ -127,14 +127,15 @@ function AuthSplash() {
 /** Mounts the Supabase state sync inside the providers; renders nothing. */
 function RemoteSync() {
   useRemoteSync();
-  useProfileSync();
   useProviderLanguage();
   return null;
 }
 
 function AppShell() {
   const s = useAppState();
-  const { profile } = useAuth();
+  // The merged profile, so a user who renamed themselves is greeted by the
+  // name they chose rather than the one Google holds.
+  const { profile } = useProfile();
   const dispatch = useDispatch();
   const t = useT();
   const [searchOpen, setSearchOpen] = useState(false);

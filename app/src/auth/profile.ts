@@ -88,3 +88,45 @@ export function readProfile(user: User | null | undefined): UserProfile {
 export function localeToLanguage(locale: string | null): 'he' | 'en' {
   return locale?.toLowerCase().startsWith('he') ? 'he' : 'en';
 }
+
+/** What the user has chosen for themselves, overriding the provider. */
+export interface ProfileOverrides {
+  displayName: string | null;
+  /** Already-resolved public URL of an uploaded avatar. */
+  avatarUrl: string | null;
+}
+
+/** Longest display name the profiles table will accept. */
+export const DISPLAY_NAME_MAX = 60;
+
+/**
+ * Mirrors the database's own CHECK constraint (see migration 0003).
+ *
+ * Validating here as well is not redundancy for its own sake: it turns a
+ * round trip that fails with a Postgres constraint error into an inline
+ * message the user can act on. The database check remains the real
+ * enforcement — anything holding a session can write to the table directly.
+ */
+export function isValidDisplayName(value: string): boolean {
+  const trimmed = value.trim();
+  return trimmed.length >= 1 && trimmed.length <= DISPLAY_NAME_MAX;
+}
+
+/**
+ * Applies the user's own choices on top of the provider's identity.
+ *
+ * A chosen display name also decides the greeting, which is why `firstName`
+ * is re-derived from it rather than kept from the provider: someone who
+ * renamed themselves should not still be greeted by the Google given name
+ * they were trying to replace. Here the split is the only option available —
+ * there is no separate "given name" in a single free-text field.
+ */
+export function mergeProfile(identity: UserProfile, overrides: ProfileOverrides): UserProfile {
+  const displayName = str(overrides.displayName);
+  return {
+    ...identity,
+    fullName: displayName ?? identity.fullName,
+    firstName: displayName ? (displayName.split(/\s+/)[0] ?? null) : identity.firstName,
+    avatarUrl: str(overrides.avatarUrl) ?? identity.avatarUrl,
+  };
+}

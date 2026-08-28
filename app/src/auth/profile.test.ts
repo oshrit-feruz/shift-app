@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { User } from '@supabase/supabase-js';
-import { EMPTY_PROFILE, localeToLanguage, readProfile } from './profile';
+import {
+  EMPTY_PROFILE,
+  isValidDisplayName,
+  localeToLanguage,
+  mergeProfile,
+  readProfile,
+} from './profile';
 
 const user = (email: unknown, meta: Record<string, unknown>) =>
   ({ email, user_metadata: meta } as unknown as User);
@@ -85,5 +91,54 @@ describe('localeToLanguage', () => {
 
   it.each(['en', 'en-US', 'fr', 'ru-RU', '', null])('maps %s to English', (locale) => {
     expect(localeToLanguage(locale)).toBe('en');
+  });
+});
+
+describe('isValidDisplayName', () => {
+  it.each(['A', 'נועה כהן', 'x'.repeat(60)])('accepts %s', (v) => {
+    expect(isValidDisplayName(v)).toBe(true);
+  });
+
+  it.each(['', '   ', 'x'.repeat(61)])('rejects %s', (v) => {
+    expect(isValidDisplayName(v)).toBe(false);
+  });
+});
+
+describe('mergeProfile', () => {
+  const identity = {
+    email: 'a@b.com',
+    fullName: 'Ada Lovelace',
+    firstName: 'Ada',
+    avatarUrl: 'https://google/a.png',
+    locale: 'en',
+  };
+
+  it('leaves the provider identity alone when nothing is overridden', () => {
+    expect(mergeProfile(identity, { displayName: null, avatarUrl: null })).toEqual(identity);
+  });
+
+  it('lets a chosen name decide the greeting too', () => {
+    // Being greeted by the Google given name you just replaced would defeat
+    // the point of renaming yourself.
+    const merged = mergeProfile(identity, { displayName: 'Countess Ada', avatarUrl: null });
+    expect(merged.fullName).toBe('Countess Ada');
+    expect(merged.firstName).toBe('Countess');
+  });
+
+  it('prefers an uploaded avatar over the provider picture', () => {
+    const merged = mergeProfile(identity, { displayName: null, avatarUrl: 'https://supa/x.webp' });
+    expect(merged.avatarUrl).toBe('https://supa/x.webp');
+  });
+
+  it('falls back to the provider when an override is blank', () => {
+    const merged = mergeProfile(identity, { displayName: '  ', avatarUrl: '' });
+    expect(merged.fullName).toBe('Ada Lovelace');
+    expect(merged.avatarUrl).toBe('https://google/a.png');
+  });
+
+  it('keeps the email and locale, which are never overridable', () => {
+    const merged = mergeProfile(identity, { displayName: 'X', avatarUrl: 'y' });
+    expect(merged.email).toBe('a@b.com');
+    expect(merged.locale).toBe('en');
   });
 });

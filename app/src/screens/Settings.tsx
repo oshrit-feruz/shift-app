@@ -4,6 +4,8 @@ import { Toggle } from '../components/Toggle';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { useAppState, useDispatch, setupProgress } from '../state/appState';
 import { useAuth } from '../auth/AuthProvider';
+import { useProfile } from '../auth/ProfileProvider';
+import { EditProfileSheet } from '../sheets/EditProfileSheet';
 import { DeleteAccountSheet } from '../sheets/DeleteAccountSheet';
 import { useTheme, type Signal, type Theme, type Language } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
@@ -17,12 +19,16 @@ export function SettingsScreen(_: ScreenProps) {
   const { mode, setMode, theme, setTheme, signal, setSignal, language, setLanguage } = useTheme();
   const t = useT();
   const setup = setupProgress(s);
-  const { session, profile, signOut } = useAuth();
+  const { session, signOut } = useAuth();
+  // The merged view — the user's own name and picture where they set them,
+  // the provider's where they did not.
+  const { profile } = useProfile();
   const user = session.status === 'ok' ? session.data?.user : undefined;
   const provider = user?.app_metadata?.provider;
   const [flags, setFlags] = useState({ unavailable: DEMO_FLAGS.unavailable, showcase: DEMO_FLAGS.showcase });
   const [notif, setNotif] = useState({ push: true, email: true, sms: false, digest: true, movers: false });
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   // The address alerts would actually go to, rather than the prototype's
   // invented one. Built inline as a bilingual pair to match the other rows in
   // this list; the no-email branch is reachable only for a provider that
@@ -81,9 +87,14 @@ export function SettingsScreen(_: ScreenProps) {
               )}
             </div>
           </div>
-          <Button variant="secondary" alignSelf="flex-start" fontSize={13} onClick={() => signOut()}>
-            {t('set.signOut')}
-          </Button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Button variant="secondary" fontSize={13} onClick={() => setEditOpen(true)}>
+              {t('set.editProfile')}
+            </Button>
+            <Button variant="ghost" fontSize={13} onClick={() => signOut()}>
+              {t('set.signOut')}
+            </Button>
+          </div>
         </Card>
       )}
 
@@ -282,6 +293,7 @@ export function SettingsScreen(_: ScreenProps) {
           {t('set.deleteAcct')}
         </Button>
       )}
+      <EditProfileSheet open={editOpen} onClose={() => setEditOpen(false)} />
       <DeleteAccountSheet open={deleteOpen} onClose={() => setDeleteOpen(false)} />
     </div>
   );
