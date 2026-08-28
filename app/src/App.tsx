@@ -1,4 +1,13 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import {
+  Suspense,
+  lazy,
+  memo,
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ComponentType,
+} from 'react';
 import { AppHeader } from './components/AppHeader';
 import { TabBar } from './components/TabBar';
 import { BackgroundShapes } from './components/BackgroundShapes';
@@ -14,16 +23,6 @@ import { WatchlistScreen } from './screens/Watchlist';
 import { MoversScreen } from './screens/Movers';
 import { NewsScreen } from './screens/News';
 import { MoreScreen } from './screens/More';
-import { SettingsScreen } from './screens/Settings';
-import { ConnectionsScreen } from './screens/Connections';
-import { AdvisoryChat } from './screens/advisory/Chat';
-import { AdvisoryDisclosure } from './screens/advisory/Disclosure';
-import { AdvisoryRecommendation } from './screens/advisory/Recommendation';
-import { AdvisoryConnect } from './screens/advisory/Connect';
-import { AdvisoryFirstPurchase } from './screens/advisory/FirstPurchase';
-import { LearnScreen } from './screens/onboarding/Learn';
-import { StepsScreen } from './screens/onboarding/Steps';
-import { OpenAccountScreen } from './screens/onboarding/OpenAccount';
 import { FirstRunOverlay } from './screens/onboarding/FirstRunOverlay';
 import { SignInScreen } from './screens/SignIn';
 import { useAuth } from './auth/AuthProvider';
@@ -37,7 +36,42 @@ import { useT as useTranslate } from './i18n/useT';
 import { Button } from './components/Button';
 import { SHELL_ID } from './components/Sheet';
 
-const SCREENS: Record<Screen, (p: ScreenProps) => JSX.Element> = {
+// Screens outside the core tab set load on demand: the advisory flow,
+// onboarding and settings are behind explicit navigation, so their code
+// stays out of the initial bundle. Each maps its named export onto the
+// default shape React.lazy expects.
+const SettingsScreen = lazy(() =>
+  import('./screens/Settings').then((m) => ({ default: m.SettingsScreen })),
+);
+const ConnectionsScreen = lazy(() =>
+  import('./screens/Connections').then((m) => ({ default: m.ConnectionsScreen })),
+);
+const AdvisoryChat = lazy(() =>
+  import('./screens/advisory/Chat').then((m) => ({ default: m.AdvisoryChat })),
+);
+const AdvisoryDisclosure = lazy(() =>
+  import('./screens/advisory/Disclosure').then((m) => ({ default: m.AdvisoryDisclosure })),
+);
+const AdvisoryRecommendation = lazy(() =>
+  import('./screens/advisory/Recommendation').then((m) => ({ default: m.AdvisoryRecommendation })),
+);
+const AdvisoryConnect = lazy(() =>
+  import('./screens/advisory/Connect').then((m) => ({ default: m.AdvisoryConnect })),
+);
+const AdvisoryFirstPurchase = lazy(() =>
+  import('./screens/advisory/FirstPurchase').then((m) => ({ default: m.AdvisoryFirstPurchase })),
+);
+const LearnScreen = lazy(() =>
+  import('./screens/onboarding/Learn').then((m) => ({ default: m.LearnScreen })),
+);
+const StepsScreen = lazy(() =>
+  import('./screens/onboarding/Steps').then((m) => ({ default: m.StepsScreen })),
+);
+const OpenAccountScreen = lazy(() =>
+  import('./screens/onboarding/OpenAccount').then((m) => ({ default: m.OpenAccountScreen })),
+);
+
+const SCREENS: Record<Screen, ComponentType<ScreenProps>> = {
   home: HomeScreen,
   stock: StockScreen,
   pf: PortfolioScreen,
@@ -163,6 +197,10 @@ function AppShell() {
 
   const unread = s.notificationsRead ? 0 : 2;
   const ScreenView = SCREENS[s.screen];
+  // Stable identity so MemoScreen below can bail out when only local shell
+  // state (an opened overlay) changed. Screens read app state via context, so
+  // skipping this subtree never hides a real state change from them.
+  const openAlert = useCallback(() => setAlertOpen(true), []);
 
   // There is one shared scroll container across every screen (no per-route
   // remount), so without this a screen opens wherever the previous one left
@@ -224,7 +262,12 @@ function AppShell() {
             padding: '6px 16px calc(90px + env(safe-area-inset-bottom))',
           }}
         >
-          <ScreenView openAlert={() => setAlertOpen(true)} />
+          {/* Fallback is empty on purpose: a lazy chunk resolves in a frame
+              or two on a warm cache, and the shell (header, tab bar,
+              background) is already painted around it. */}
+          <Suspense fallback={null}>
+            <MemoScreen View={ScreenView} openAlert={openAlert} />
+          </Suspense>
         </div>
         <BackToStepsPill />
         <TabBar current={s.screen} onGo={(screen) => dispatch({ type: 'go', screen })} />
@@ -236,6 +279,22 @@ function AppShell() {
     </div>
   );
 }
+
+/**
+ * Renders the active screen behind a memo boundary: toggling shell-local
+ * state (search/notifications/alert open) re-renders AppShell but must not
+ * re-render the whole screen tree. Both props are referentially stable
+ * between navigations, so this bails out unless the screen itself changed.
+ */
+const MemoScreen = memo(function MemoScreen({
+  View,
+  openAlert,
+}: {
+  View: ComponentType<ScreenProps>;
+  openAlert: () => void;
+}) {
+  return <View openAlert={openAlert} />;
+});
 
 /** Floating "back to the steps" pill when a step opened another screen. */
 function BackToStepsPill() {

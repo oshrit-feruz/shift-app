@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { DemoDataNote } from '../components/DemoDataNote';
 import { Card, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
@@ -63,8 +63,13 @@ export function StockScreen({ openAlert }: ScreenProps) {
     [s.ticker, s.manualTransactions, s.manualPortfolios],
   );
 
-  const closes = demoService.series(`${s.ticker}-candles`, 46, 0.5, 3.4).slice(4);
-  const begSeries = demoService.series(`${s.ticker}-line`, 64, 0.55, 2.6);
+  // Deterministic per ticker — recomputing them on every chip tap (tf/ind
+  // are unrelated state) was wasted work, so memo on the ticker alone.
+  const closes = useMemo(
+    () => demoService.series(`${s.ticker}-candles`, 46, 0.5, 3.4).slice(4),
+    [s.ticker],
+  );
+  const begSeries = useMemo(() => demoService.series(`${s.ticker}-line`, 64, 0.55, 2.6), [s.ticker]);
 
   // The sample price table covers a handful of tickers. Any other symbol —
   // and the earnings calendar opens plenty of them — has no quote, but its

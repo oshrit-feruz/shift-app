@@ -19,6 +19,7 @@
  * the UI.
  */
 
+import { cachedLoadable } from './loadableCache';
 import { reasonFromResponse } from './providerReason';
 import { ok, unavailable, type Loadable, type StockNewsArticle } from './types';
 
@@ -162,7 +163,7 @@ export async function fetchStockNews(
 ): Promise<Loadable<StockNewsArticle[]>> {
   const clean = ticker.trim().toUpperCase();
   if (!clean) return unavailable(UNAVAILABLE);
-  return readNews(`${STOCK_NEWS_URL}?ticker=${encodeURIComponent(clean)}`, fetchImpl);
+  return readNewsCached(`${STOCK_NEWS_URL}?ticker=${encodeURIComponent(clean)}`, fetchImpl);
 }
 
 /**
@@ -177,7 +178,23 @@ export async function fetchStockNews(
 export async function fetchMarketNews(
   fetchImpl: typeof fetch = fetch,
 ): Promise<Loadable<StockNewsArticle[]>> {
-  return readNews(STOCK_NEWS_URL, fetchImpl);
+  return readNewsCached(STOCK_NEWS_URL, fetchImpl);
+}
+
+/**
+ * How long a successful feed is reused. Short — headlines do move — but long
+ * enough that flipping between tabs doesn't re-fan-out one request per
+ * watchlist ticker (each of which costs provider credits server-side).
+ */
+const CACHE_TTL_MS = 2 * 60_000;
+
+/**
+ * Cache wrapper around `readNews`. Only the default transport is cached — an
+ * injected test fetchImpl goes straight through so tests stay isolated.
+ */
+function readNewsCached(url: string, fetchImpl: typeof fetch): Promise<Loadable<StockNewsArticle[]>> {
+  if (fetchImpl !== fetch) return readNews(url, fetchImpl);
+  return cachedLoadable(`news:${url}`, CACHE_TTL_MS, () => readNews(url, fetch));
 }
 
 /** Fetch news articles from a URL, handling transport errors and provider failures. Shared by both per-ticker and market-wide feeds. Never throws. */

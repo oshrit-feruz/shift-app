@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../auth/AuthProvider';
-import { useAppState, useDispatch } from './appState';
+import { PERSISTED, useAppState, useDispatch } from './appState';
 import { debounced, mergeRemote, pickPersisted } from './remoteState';
 
 /**
@@ -55,6 +55,7 @@ export function useRemoteSync() {
     if (prevUserId.current && !userId) {
       writer.cancel();
       hydratedFor.current = null;
+      lastUploaded.current = null;
       dispatch({ type: 'resetPersisted' });
     }
     prevUserId.current = userId;
@@ -88,10 +89,25 @@ export function useRemoteSync() {
     // sign-in boundary, and `local` is just the snapshot taken at it.
   }, [userId, dispatch, writer]);
 
-  // Mirror changes up while signed in and hydrated.
+  // Mirror changes up while signed in and hydrated. Gated on the persisted
+  // slice actually changing: most dispatches are navigation, which is not
+  // persisted, and every ungated call here reset the write debounce and
+  // eventually shipped an identical bag to Supabase.
+  const lastUploaded = useRef<ReturnType<typeof pickPersisted> | null>(null);
   useEffect(() => {
     if (!userId || hydratedFor.current !== userId) return;
-    writer.call(userId, pickPersisted(state));
+    const bag = pickPersisted(state);
+    const prev = lastUploaded.current;
+    if (
+      prev !== null &&
+      PERSISTED.every(
+        (k) => (bag as Record<string, unknown>)[k] === (prev as Record<string, unknown>)[k],
+      )
+    ) {
+      return;
+    }
+    lastUploaded.current = bag;
+    writer.call(userId, bag);
   }, [state, userId, writer]);
 
   // The tab can vanish with a write still in the timer.
