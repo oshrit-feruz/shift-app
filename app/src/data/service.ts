@@ -1,4 +1,5 @@
 import type {
+  Bar,
   EarningsEvent,
   Loadable,
   NewsItem,
@@ -27,6 +28,19 @@ export interface DataService {
   holdings(portfolioId: string): Promise<Loadable<Holding[]>>;
   news(): Promise<Loadable<NewsItem[]>>;
   earnings(): Promise<Loadable<EarningsEvent[]>>;
-  /** Daily close series for charts (seeded/demo or real). */
+  /**
+   * REAL daily price history for one ticker, from the mirror
+   * (data/priceHistory.ts). ok(null) means the mirror publishes nothing for
+   * this symbol — a real answer, not a failure.
+   */
+  dailySeries(ticker: string): Promise<Loadable<Bar[] | null>>;
+  /**
+   * DEMO seeded walk. What is left of the prototype's chart data now that the
+   * stock page and the movers draw real bars: the portfolio's value history
+   * and its benchmark, neither of which can be real until the transactions
+   * behind them are. Never use this for a single stock's price action —
+   * `dailySeries` is real, and a screen mixing the two would be showing
+   * invented price history beside actual sessions.
+   */
   series(key: string, n: number, drift: number, vol: number): number[];
 }

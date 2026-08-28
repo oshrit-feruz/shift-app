@@ -17,6 +17,27 @@ export interface Quote {
 }
 
 /**
+ * One real trading session, from the daily price-history mirror
+ * (data/priceHistory.ts).
+ *
+ * Unlike Quote, no field here is nullable: the publisher drops a row that is
+ * missing any of them rather than passing a half-bar through
+ * (scripts/mirror-prices.mjs). A candlestick needs all four prices to mean
+ * what it draws — a bar with a guessed high is a lie in a shape a reader
+ * cannot see through, where a guessed price at least renders as a number they
+ * could question.
+ */
+export interface Bar {
+  /** Session date, raw YYYY-MM-DD. */
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+/**
  * The market stats that are still demo figures, carried from the design
  * prototype.
  *

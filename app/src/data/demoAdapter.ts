@@ -26,6 +26,7 @@
 
 import type { DataService } from './service';
 import { fetchQuotes, fetchSatelliteSignals } from './recoveryDetector';
+import { fetchDailySeries } from './priceHistory';
 import {
   ok,
   unavailable,
@@ -269,6 +270,17 @@ export const demoService: DataService & { isDemo: true } = {
    */
   async satelliteSignals() {
     return fetchSatelliteSignals();
+  },
+
+  /**
+   * REAL, like satelliteSignals and for the same reasons: it reads the daily
+   * price-history mirror and returns exactly what that read yields. No demo
+   * latency, no DEMO_FLAGS, and above all no seeded-walk fallback — a chart
+   * quietly backfilled with invented price action is indistinguishable from a
+   * real one, which makes it the worst possible thing to fabricate.
+   */
+  async dailySeries(ticker: string) {
+    return fetchDailySeries(ticker);
   },
 
   async portfolios() {

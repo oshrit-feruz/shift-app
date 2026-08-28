@@ -51,8 +51,22 @@ export function signalColor(v: number): string {
  */
 export function compactMoney(v: number): string {
   if (!Number.isFinite(v)) return '—';
-  const neg = v < 0;
-  const abs = Math.abs(v);
+  return (v < 0 ? '−' : '') + '$' + compactAbs(Math.abs(v));
+}
+
+/**
+ * A count — traded shares, not money — at the same scale as compactMoney.
+ *
+ * Separate from compactMoney only because of the currency sign: "$5.5M" for a
+ * share count would read as a dollar volume, which is a different figure.
+ */
+export function compactCount(v: number): string {
+  if (!Number.isFinite(v)) return '—';
+  return (v < 0 ? '−' : '') + compactAbs(Math.abs(v));
+}
+
+/** The shared scale-and-suffix step behind both compact formatters. */
+function compactAbs(abs: number): string {
   // A table rather than chained ternaries: the thresholds read in order and
   // adding one is a single line.
   const SCALES: Array<[number, string]> = [
@@ -69,8 +83,7 @@ export function compactMoney(v: number): string {
     const promoted = SCALES.find(([min]) => min > scale && abs * 1000 >= min * 999.95);
     if (Number((abs / scale).toFixed(1)) >= 1000 && promoted) [scale, suffix] = promoted;
   }
-  const body = suffix === '' ? Math.round(abs).toString() : (abs / scale).toFixed(1);
-  return (neg ? '−' : '') + '$' + body + suffix;
+  return suffix === '' ? Math.round(abs).toString() : (abs / scale).toFixed(1) + suffix;
 }
 
 /**

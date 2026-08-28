@@ -6,6 +6,7 @@ import { Icon } from '../components/Icon';
 import { Num } from '../components/Num';
 import { AreaChart } from '../components/AreaChart';
 import { CandleChart } from '../components/CandleChart';
+import { rsi } from '../components/charts';
 import { Chip } from '../components/Chip';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { DataState } from '../components/DataState';
@@ -19,12 +20,12 @@ import { useLoadable } from '../data/useLoadable';
 import { fetchYourPositions } from '../lib/holdings';
 import { fetchTickerEarnings } from '../data/earnings';
 import { DemoBanner } from '../components/DemoBanner';
-import { money, moneyOrDash, pct, signalColor } from '../lib/format';
+import { compactCount, money, moneyOrDash, pct, signalColor } from '../lib/format';
 import { ReportsTab, EarningsHistory } from './stock/ReportsTab';
 import { NewsTab } from './stock/NewsTab';
 import { EngineCard } from './stock/EngineCard';
 import type { ScreenProps } from '../App';
-import type { SymbolInfo } from '../data/types';
+import type { Bar, SymbolInfo } from '../data/types';
 
 /**
  * The price the still-demo decorations on this screen are computed from: the
@@ -49,7 +50,26 @@ const basisPrice = (x: SymbolInfo): number | null => x.quote?.price ?? null;
 /** A derived demo figure, or the dash owed when there is no price to derive it from. */
 const derived = (px: number | null, f: (p: number) => string): string => (px === null ? '—' : f(px));
 
-const TIMEFRAMES = ['1D', '1W', '1M', '3M', '1Y'];
+/**
+ * The windows a daily series can honestly draw, in trading sessions.
+ *
+ * There is deliberately no 1D. The chart is built on daily bars — one point
+ * per session — so a day is a single dot, and a "1D" tab could only be filled
+ * by inventing the intraday path between yesterday's close and today's. That
+ * needs an intraday feed (see data/priceHistory.ts), not a narrower slice of
+ * this one, so the tab is absent rather than present and lying.
+ */
+const TIMEFRAMES = [
+  { key: '1W', sessions: 5 },
+  { key: '1M', sessions: 22 },
+  { key: '3M', sessions: 66 },
+  { key: '1Y', sessions: 252 },
+] as const;
+
+type Timeframe = (typeof TIMEFRAMES)[number]['key'];
+
+/** Sessions to show for a timeframe. */
+const sessionsFor = (key: Timeframe): number => TIMEFRAMES.find((f) => f.key === key)?.sessions ?? 66;
 
 type StockTab = 'overview' | 'reports' | 'news';
 
@@ -78,7 +98,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
   // stock, from search or a news chip), and the sub-tab is about the stock
   // you were looking at, not the one you just opened.
   useEffect(() => setTab('overview'), [s.ticker]);
-  const [tf, setTf] = useState('3M');
+  const [tf, setTf] = useState<Timeframe>('3M');
   const [ind, setInd] = useState({ ma: true, rsi: true, macd: false });
   const sym = useLoadable(() => demoService.symbol(s.ticker), [s.ticker]);
   const inWl = s.watchlist.includes(s.ticker);
@@ -87,8 +107,15 @@ export function StockScreen({ openAlert }: ScreenProps) {
     [s.ticker, s.manualTransactions, s.manualPortfolios],
   );
 
-  const closes = demoService.series(`${s.ticker}-candles`, 46, 0.5, 3.4).slice(4);
-  const begSeries = demoService.series(`${s.ticker}-line`, 64, 0.55, 2.6);
+  // REAL price history. Separate from `sym` on purpose: the row and the chart
+  // come from different sources with different coverage, so a ticker can have
+  // a price and no published history (or the reverse), and gating one on the
+  // other would blank a panel that has data of its own.
+  const history = useLoadable(() => demoService.dailySeries(s.ticker), [s.ticker]);
+  // The published sessions, or null while loading / when there are none. The
+  // key-stats grid reads them too, so the figures a bar can answer agree with
+  // the chart drawn from the same bars.
+  const seriesBars = history.state.status === 'ok' ? history.state.data : null;
 
   // The app's symbol table covers a handful of tickers. Any other symbol —
   // and the earnings calendar opens plenty of them — has no row here at all,
@@ -182,46 +209,75 @@ export function StockScreen({ openAlert }: ScreenProps) {
             <>
               <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                 {TIMEFRAMES.map((f) => (
-                  <Chip key={f} active={tf === f} onClick={() => setTf(f)}>
-                    <Num>{f}</Num>
+                  <Chip key={f.key} active={tf === f.key} onClick={() => setTf(f.key)}>
+                    <Num>{f.key}</Num>
                   </Chip>
                 ))}
               </div>
 
-              {beg ? (
-                <Card padding={12} gap={0}>
-                  <AreaChart values={begSeries} height={150} pad={8} />
-                  <p style={{ fontSize: 13, lineHeight: 1.5, margin: '10px 0 0', opacity: 0.85 }}>
-                    {t('stock.chartHelp', { pct: '18%' })}
-                  </p>
-                </Card>
-              ) : (
-                <Card padding={8} gap={2}>
-                  <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', paddingBottom: 4 }}>
-                    {(
-                      [
-                        ['ma', 'MA 20/50'],
-                        ['rsi', 'RSI'],
-                        ['macd', 'MACD'],
-                      ] as const
-                    ).map(([k, label]) => (
-                      <Chip key={k} active={ind[k]} onClick={() => setInd({ ...ind, [k]: !ind[k] })}>
-                        {label}
-                      </Chip>
-                    ))}
-                  </div>
-                  <Num size={12} block style={{ color: 'var(--muted)' }}>
-                    {`O ${derived(basisPrice(x), (px) => (px - 1.9).toFixed(2))} H ${derived(basisPrice(x), (px) => (px + 2.4).toFixed(2))} L ${derived(basisPrice(x), (px) => (px - 3.1).toFixed(2))} C ${derived(basisPrice(x), (px) => px.toFixed(2))}`}
-                  </Num>
-                  <CandleChart
-                    closes={closes}
-                    showMA={ind.ma}
-                    showRSI={ind.rsi}
-                    showMACD={ind.macd}
-                    rsiNow={x.demo.rsi}
-                  />
-                </Card>
-              )}
+              {/* The chart is the one panel on this screen that is entirely
+                  real, so it gets its own honest states rather than borrowing
+                  the row's: loading while the mirror is read, "unavailable"
+                  with the reason when it cannot be, and a plain sentence when
+                  the mirror simply publishes nothing for this symbol. None of
+                  those draws a line. */}
+              <DataState
+                state={history.state}
+                onRetry={history.retry}
+                skeleton={<SkeletonCard height={beg ? 188 : 240} lines={2} />}
+              >
+                {(bars) => {
+                  const window = bars?.slice(-sessionsFor(tf)) ?? [];
+                  // A window with one bar in it has no line to draw and no
+                  // change to quote, so it is treated as no chart rather than
+                  // rendered as a dot.
+                  if (window.length < 2) {
+                    return (
+                      <Card padding={12} gap={0}>
+                        <p className="text-muted" style={{ fontSize: 13, margin: 0, textAlign: 'center' }}>
+                          {t('stock.noSeries')}
+                        </p>
+                      </Card>
+                    );
+                  }
+                  const closes = window.map((b) => b.close);
+                  const last = window[window.length - 1];
+                  const windowPct = ((last.close - closes[0]) / closes[0]) * 100;
+
+                  return beg ? (
+                    <Card padding={12} gap={0}>
+                      <AreaChart values={closes} height={150} pad={8} />
+                      <p style={{ fontSize: 13, lineHeight: 1.5, margin: '10px 0 0', opacity: 0.85 }}>
+                        {t('stock.chartHelp', { pct: pct(windowPct) })}
+                      </p>
+                    </Card>
+                  ) : (
+                    <Card padding={8} gap={2}>
+                      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', paddingBottom: 4 }}>
+                        {(
+                          [
+                            ['ma', 'MA 20/50'],
+                            ['rsi', 'RSI'],
+                            ['macd', 'MACD'],
+                          ] as const
+                        ).map(([k, label]) => (
+                          <Chip key={k} active={ind[k]} onClick={() => setInd({ ...ind, [k]: !ind[k] })}>
+                            {label}
+                          </Chip>
+                        ))}
+                      </div>
+                      {/* The last session actually drawn, not four numbers
+                          spun off the headline price. This strip used to read
+                          O = price - 1.9, H = price + 2.4 and so on, which
+                          described no day that ever traded. */}
+                      <Num size={12} block style={{ color: 'var(--muted)' }}>
+                        {`${last.date} · O ${last.open.toFixed(2)} H ${last.high.toFixed(2)} L ${last.low.toFixed(2)} C ${last.close.toFixed(2)}`}
+                      </Num>
+                      <CandleChart bars={window} showMA={ind.ma} showRSI={ind.rsi} showMACD={ind.macd} />
+                    </Card>
+                  );
+                }}
+              </DataState>
 
               <DataState
                 state={positions.state}
@@ -263,24 +319,27 @@ export function StockScreen({ openAlert }: ScreenProps) {
               <Card padding={12} gap={7}>
                 <CardTitle>{beg ? t('stock.basics') : t('stock.keyStats')}</CardTitle>
                 {beg ? (
-                  BEG_STATS(x.quote?.price ?? null, x.demo.marketCap, x.demo.volume, x.demo.pe).map(
-                    (row, i) => (
-                      <div key={i} style={{ padding: '7px 0', borderTop: '1px solid var(--color-divider)' }}>
-                        <div
-                          style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 14 }}
-                        >
-                          <span>{row.k}</span>
-                          <Num>{row.v}</Num>
-                        </div>
-                        <div className="text-muted" style={{ fontSize: 12.5, marginTop: 2 }}>
-                          {row.help}
-                        </div>
+                  BEG_STATS(
+                    x.quote?.price ?? null,
+                    x.demo.marketCap,
+                    seriesBars?.at(-1)?.volume ?? null,
+                    x.demo.pe,
+                  ).map((row, i) => (
+                    <div key={i} style={{ padding: '7px 0', borderTop: '1px solid var(--color-divider)' }}>
+                      <div
+                        style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 14 }}
+                      >
+                        <span>{row.k}</span>
+                        <Num>{row.v}</Num>
                       </div>
-                    ),
-                  )
+                      <div className="text-muted" style={{ fontSize: 12.5, marginTop: 2 }}>
+                        {row.help}
+                      </div>
+                    </div>
+                  ))
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
-                    {ADV_STATS(x).map(([k, v], i) => (
+                    {ADV_STATS(x, seriesBars).map(([k, v], i) => (
                       <div
                         key={i}
                         style={{
@@ -349,12 +408,16 @@ export function StockScreen({ openAlert }: ScreenProps) {
   );
 }
 
-const BEG_STATS = (price: number | null, mc: string, vol: string, pe: number) => [
-  // The one real figure on this card; the rest are still demo stats, which is
-  // what <DemoDataNote /> at the top of the screen says.
+const BEG_STATS = (price: number | null, mc: string, vol: number | null, pe: number) => [
+  // Price and traded volume are real; market cap and P/E are still demo
+  // stats, which is what <DemoDataNote /> at the top of the screen says.
   { k: 'Price', v: moneyOrDash(price), help: 'What one share costs right now' },
   { k: 'Company size', v: mc, help: 'Every share added together — market cap' },
-  { k: 'Traded today', v: `${vol} shares`, help: 'How busy the stock is; high means lots of interest' },
+  {
+    k: 'Traded today',
+    v: vol === null ? '—' : `${compactCount(vol)} shares`,
+    help: 'How busy the stock is; high means lots of interest',
+  },
   { k: 'Price vs earnings', v: `${pe.toFixed(1)}×`, help: 'Years of current profit to pay for the share' },
 ];
 
@@ -363,19 +426,35 @@ const BEG_STATS = (price: number | null, mc: string, vol: string, pe: number) =>
  * the demo ones cannot be mixed up on the way in: `x.quote` is read for the
  * two rows that are real, `x.demo` for the rest.
  */
-const ADV_STATS = (x: SymbolInfo): Array<[string, string]> => {
-  const { marketCap: mc, volume: vol, pe, rsi } = x.demo;
+const ADV_STATS = (x: SymbolInfo, bars: Bar[] | null): Array<[string, string]> => {
+  const { marketCap: mc, pe } = x.demo;
   const price = basisPrice(x);
+
+  // The last two published sessions. Everything below that a daily bar can
+  // answer is answered from them rather than spun off the headline price:
+  // this grid used to read Open = price - 1.9 and Prev close = price * 0.99,
+  // which put an "Open 231.85" directly beneath a chart strip reading
+  // "O 232.80" for the same session. Two different opens on one screen is
+  // worse than one missing one.
+  const last = bars?.at(-1) ?? null;
+  const prev = bars && bars.length > 1 ? bars[bars.length - 2] : null;
+  const rsiNow = bars ? ([...rsi(bars.map((b) => b.close))].reverse().find((v) => v !== null) ?? null) : null;
+  // Average volume over the published window, not a frozen "162.4M" that was
+  // the same figure for every stock in the app.
+  const avgVol = bars ? bars.reduce((a, b) => a + b.volume, 0) / bars.length : null;
+
+  const or = (v: string | null) => v ?? '—';
+
   return [
-    ['Open', derived(price, (p) => (p - 1.9).toFixed(2))],
-    ['Prev close', derived(price, (p) => (p * 0.99).toFixed(2))],
-    ['Day range', derived(price, (p) => `${(p - 3.1).toFixed(2)}–${(p + 2.4).toFixed(2)}`)],
+    ['Open', or(last && last.open.toFixed(2))],
+    ['Prev close', or(prev && prev.close.toFixed(2))],
+    ['Day range', or(last && `${last.low.toFixed(2)}–${last.high.toFixed(2)}`)],
     // Real, from the mirror. The 52-week *low* is not in the payload, so the
     // row reports the high alone rather than pairing a real number with an
     // invented one to keep the old "range" shape.
     ['52w high', moneyOrDash(x.quote?.high52w)],
-    ['Volume', vol],
-    ['Avg vol', '162.4M'],
+    ['Volume', or(last && compactCount(last.volume))],
+    ['Avg vol', or(avgVol === null ? null : compactCount(avgVol))],
     ['Mkt cap', mc],
     ['P/E', pe.toFixed(1)],
     ['Fwd P/E', (pe * 0.62).toFixed(1)],
@@ -383,7 +462,7 @@ const ADV_STATS = (x: SymbolInfo): Array<[string, string]> => {
     ['Beta', '2.14'],
     ['Div yield', '0.02%'],
     ['Short float', '1.1%'],
-    ['RSI(14)', String(rsi)],
+    ['RSI(14)', or(rsiNow === null ? null : String(Math.round(rsiNow)))],
   ];
 };
 

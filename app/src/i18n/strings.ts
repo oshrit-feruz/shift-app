@@ -407,9 +407,12 @@ export const STRINGS = {
   // Rewritten when prices went live: it used to call prices sample data, and
   // leaving that would have been the same failure in the other direction —
   // telling a reader to distrust the one number on the screen that is real.
+  // Charts came off this list when they started drawing published sessions.
+  // Day change is the one that has to stay: no source in the app carries an
+  // intraday move, so the percentage beside every price is still invented.
   'demo.pricesNote': p(
-    'Prices are real, from a daily market snapshot. Day change, volume, charts and portfolio figures on this screen are still sample data.',
-    'המחירים אמיתיים, מתוך תמונת מצב יומית של השוק. שינוי יומי, מחזור, גרפים ונתוני תיק במסך הזה הם עדיין נתוני דוגמה.',
+    'Prices and charts are real, from daily market data. Day change, market cap and portfolio figures on this screen are still sample data.',
+    'המחירים והגרפים אמיתיים, מנתוני שוק יומיים. שינוי יומי, שווי שוק ונתוני תיק במסך הזה הם עדיין נתוני דוגמה.',
   ),
   'demo.showcase': p(
     'Illustrative data — this is how these screens look on a paid data plan that includes reported results.',
@@ -433,9 +436,21 @@ export const STRINGS = {
     'אין נתוני מחיר לדוגמה לסמל הזה — הדוחות והחדשות למטה הם נתונים חיים.',
   ),
   'stock.nov': p('Nov', 'נוב׳'),
+  // Was "Up about 18% over three months" with both the direction and the
+  // figure hard-coded — which, once the line became real, could contradict the
+  // chart directly above it. The change is now measured off the sessions on
+  // screen and carries its own sign, and the period is no longer named because
+  // the reader picked it.
   'stock.chartHelp': p(
-    "Up about {pct} over three months. The line is each day's closing price — where the stock finished the day.",
-    'עלייה של בערך {pct} בשלושה חודשים. הקו הוא מחיר הסגירה של כל יום — איפה המניה סיימה את היום.',
+    "{pct} over the period shown. The line is each day's closing price — where the stock finished the day.",
+    '{pct} בתקופה המוצגת. הקו הוא מחיר הסגירה של כל יום — איפה המניה סיימה את היום.',
+  ),
+  // The mirror publishes a file per covered ticker and nothing for the rest,
+  // so this is a fact about the symbol rather than a failure — no retry, and
+  // deliberately not the "unavailable" state.
+  'stock.noSeries': p(
+    'No price history is published for this symbol yet.',
+    'עדיין לא פורסמה היסטוריית מחירים לסמל הזה.',
   ),
 
   // ── Portfolio ─────────────────────────────────────────────────────────

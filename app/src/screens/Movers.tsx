@@ -3,7 +3,7 @@ import { DemoDataNote } from '../components/DemoDataNote';
 import { Card } from '../components/Card';
 import { Num } from '../components/Num';
 import { Chip, ChipRail } from '../components/Chip';
-import { Sparkline } from '../components/AreaChart';
+import { TickerSparkline } from '../components/TickerSparkline';
 import { TickerTile } from '../components/TickerTile';
 import { DataState } from '../components/DataState';
 import { SkeletonCard, SkeletonList } from '../components/Skeleton';
@@ -90,7 +90,7 @@ export function MoversScreen(_: ScreenProps) {
           if (beg) {
             return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                {filtered.slice(0, 6).map((x, i) => (
+                {filtered.slice(0, 6).map((x) => (
                   <Card
                     key={x.ticker}
                     padding={12}
@@ -123,10 +123,7 @@ export function MoversScreen(_: ScreenProps) {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <span style={{ fontSize: 13, opacity: 0.76, flex: 1 }}>{x.why[language]}</span>
-                      <Sparkline
-                        values={demoService.series(`spark-${x.ticker}-${i}`, 26, x.demo.changePct / 6, 2)}
-                        color={signalColor(x.demo.changePct)}
-                      />
+                      <TickerSparkline ticker={x.ticker} />
                     </div>
                   </Card>
                 ))}
