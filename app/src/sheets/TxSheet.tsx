@@ -7,6 +7,7 @@ import { SegmentedControl } from '../components/SegmentedControl';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { useDispatch, type TransactionSide } from '../state/appState';
+import { useToast } from '../lib/ToastProvider';
 
 /** Manual-transaction sheet — exists only for theoretical portfolios; nothing
  *  is ordered anywhere. */
@@ -24,6 +25,7 @@ export function TxSheet({
   const { mode, language } = useTheme();
   const t = useT();
   const dispatch = useDispatch();
+  const toast = useToast();
   const [side, setSide] = useState<TransactionSide>('buy');
   const [ticker, setTicker] = useState('NVDA');
   const [shares, setShares] = useState('10');
@@ -58,6 +60,7 @@ export function TxSheet({
       },
     });
     onClose();
+    toast(t('toast.transactionAdded'), { icon: 'list' });
   };
 
   return (

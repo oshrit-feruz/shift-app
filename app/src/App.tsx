@@ -36,6 +36,7 @@ import { useT as useTranslate } from './i18n/useT';
 import { Button } from './components/Button';
 import { SHELL_ID } from './components/Sheet';
 import { SkeletonCard } from './components/Skeleton';
+import { ToastHost } from './components/ToastHost';
 
 // Screens outside the core tab set load on demand: the advisory flow,
 // onboarding and settings are behind explicit navigation, so their code
@@ -289,6 +290,7 @@ function AppShell() {
         <NotificationsSheet open={notifOpen} onClose={() => setNotifOpen(false)} />
         <AlertSheet open={alertOpen} onClose={() => setAlertOpen(false)} symbol={currentSymbol ?? null} />
         {!s.firstRunSeen && <FirstRunOverlay />}
+        <ToastHost />
       </div>
     </div>
   );

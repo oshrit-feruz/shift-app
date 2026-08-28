@@ -4,11 +4,13 @@ import { Button } from '../components/Button';
 import { Field } from '../components/Field';
 import { useDispatch } from '../state/appState';
 import { useT } from '../i18n/useT';
+import { useToast } from '../lib/ToastProvider';
 
 /** New theoretical portfolio — no broker behind it. */
 export function NewPortfolioSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useT();
   const dispatch = useDispatch();
+  const toast = useToast();
   const [name, setName] = useState(t('pf.divIncome'));
   const [startingCash, setStartingCash] = useState('25,000');
 
@@ -22,6 +24,7 @@ export function NewPortfolioSheet({ open, onClose }: { open: boolean; onClose: (
       },
     });
     onClose();
+    toast(t('toast.portfolioCreated'), { icon: 'portfolio' });
   };
 
   return (

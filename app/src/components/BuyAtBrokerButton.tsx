@@ -1,5 +1,6 @@
 import { useAppState, useDispatch } from '../state/appState';
 import { useT } from '../i18n/useT';
+import { useToast } from '../lib/ToastProvider';
 import { BROKER_NAMES, openTrade, resolveTrade } from '../lib/brokerLinks';
 
 /**
@@ -23,6 +24,7 @@ export function BuyAtBrokerButton({ ticker }: { ticker: string | null }) {
   const s = useAppState();
   const dispatch = useDispatch();
   const t = useT();
+  const toast = useToast();
   const broker = s.advBroker;
   if (!ticker) return null;
 
@@ -64,6 +66,10 @@ export function BuyAtBrokerButton({ ticker }: { ticker: string | null }) {
       onClick={(e) => {
         e.stopPropagation();
         void openTrade(broker, ticker);
+        // Only the copy-and-open path silently changed the clipboard; a
+        // confirmed per-symbol deep link needs no "copied" toast because
+        // nothing was copied.
+        if (!deepLinked) toast(t('toast.copiedTicker', { ticker }), { icon: 'check' });
       }}
       // Without a per-symbol link the ticker is copied and the broker's own
       // site opens, so the label promises a hand-off rather than a destination.

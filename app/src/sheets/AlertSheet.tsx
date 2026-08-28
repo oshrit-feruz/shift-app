@@ -8,6 +8,7 @@ import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { moneyOrDash } from '../lib/format';
 import { useDispatch, type AlertKind } from '../state/appState';
+import { useToast } from '../lib/ToastProvider';
 import type { SymbolInfo } from '../data/types';
 
 /** New-alert sheet. Alerts are notifications only — creating one never
@@ -24,6 +25,7 @@ export function AlertSheet({
   const { mode } = useTheme();
   const t = useT();
   const dispatch = useDispatch();
+  const toast = useToast();
   const [kind, setKind] = useState<AlertKind>('price');
   const [cond, setCond] = useState<'rise' | 'fall'>('rise');
   const [remind, setRemind] = useState<'day' | 'morning' | 'lands'>('day');
@@ -54,6 +56,7 @@ export function AlertSheet({
       },
     });
     onClose();
+    toast(t('toast.alertCreated'), { icon: 'bell' });
   };
 
   return (

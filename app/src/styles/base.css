@@ -279,6 +279,19 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
   to { opacity: 1; }
 }
 
+/* The toast pill is a leaf glass element, not an ancestor wrapping one — the
+ * backdrop-filter trap above doesn't apply, so its own transform is free to
+ * animate. The springy overshoot easing on entry and the plain ease on exit
+ * is what reads as "iOS toast" rather than a generic fade. */
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(-14px) scale(.92); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes toastOut {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(-8px) scale(.96); }
+}
+
 /* Screen changes stay opacity-only for the reason in the Motion note above;
  * the easing is what makes them read as a settle rather than a blink. */
 .anim-fade-up { animation: fadeUp .26s cubic-bezier(.22, .61, .36, 1) both; }

@@ -804,6 +804,14 @@ export const STRINGS = {
   'set.deleteCancel': p('Cancel', 'ביטול'),
   'set.deleting': p('Deleting…', 'מוחק…'),
   'set.deleteFailedTitle': p('The account was not deleted', 'החשבון לא נמחק'),
+
+  // ── Toasts ────────────────────────────────────────────────────────────
+  'toast.addedToWatchlist': p('Added to watchlist', 'נוסף לווטצ׳ליסט'),
+  'toast.removedFromWatchlist': p('Removed from watchlist', 'הוסר מהווטצ׳ליסט'),
+  'toast.alertCreated': p('Alert created', 'ההתראה נוצרה'),
+  'toast.copiedTicker': p('Copied {ticker}', 'הועתק {ticker}'),
+  'toast.transactionAdded': p('Transaction added', 'התנועה נוספה'),
+  'toast.portfolioCreated': p('Portfolio created', 'התיק נוצר'),
 } as const;
 
 export type StringKey = keyof typeof STRINGS;

@@ -6,6 +6,7 @@ import { ThemeProvider } from './theme/ThemeProvider';
 import { AuthProvider } from './auth/AuthProvider';
 import { ProfileProvider } from './auth/ProfileProvider';
 import { AppStateProvider } from './state/appState';
+import { ToastProvider } from './lib/ToastProvider';
 import { App } from './App';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -18,7 +19,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             knows nothing about the user's profile. */}
         <ProfileProvider>
           <AppStateProvider>
-            <App />
+            {/* Toasts are ephemeral UI, not persisted app state — see
+                lib/ToastProvider.tsx — so its own provider, innermost. */}
+            <ToastProvider>
+              <App />
+            </ToastProvider>
           </AppStateProvider>
         </ProfileProvider>
       </AuthProvider>
