@@ -375,9 +375,24 @@ running, and it is a different fact from having no connection at all:
 | accounts | the real balances and positions |
 
 The middle row is the state a freshly linked Interactive Brokers connection
-sat in during development, and it is on the brokerage's side — an account not
-fully open or funded, or data sharing not granted for it at the broker.
-Reporting it as "nothing connected" sent us hunting for a connection that
+sat in during development, on a real, funded, actively traded account — so it
+is worth recording why, because the obvious guesses are wrong.
+
+**SnapTrade does not reach IBKR over a live API.** Per SnapTrade's own
+integration page it uses an **IBKR Flex Query**: the account holder enables
+SnapTrade under IBKR's *Performance & Reports → Third-Party Reports*, and
+hands SnapTrade a Query ID and Token. That is a scheduled report feed, not a
+request-time call. So a connection can be genuinely Active — the token is
+valid — while no report has been delivered yet, and the account list is
+legitimately empty. Delta, another SnapTrade-based app, documents a 24–48 hour
+wait before data appears when the service is first enabled; SnapTrade's own
+page does not state a figure.
+
+That is also why the real-time/delayed distinction above does not rescue it:
+`data_freshness_mode: realtime` describes how SnapTrade answers, not how fast
+IBKR's report feed starts.
+
+Reporting this as "nothing connected" sent us hunting for a connection that
 already existed, which is why the response now carries the connection list
 (states and counts only; nothing identifying). Nothing in this repo can
 resolve it — the app's job is to say precisely which state it is in. SnapTrade's trading endpoints

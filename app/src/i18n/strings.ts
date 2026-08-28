@@ -790,8 +790,8 @@ export const STRINGS = {
     'מקושר ל-{broker}, אך הברוקר אינו מדווח על אף חשבון.',
   ),
   'live.connectedNoAccountsHelp': p(
-    'The connection is live and this is the brokerage\'s current answer, not a sync still running. It usually means the account is not fully open or funded yet, or that data sharing has not been granted for it at the broker.',
-    'החיבור פעיל וזו התשובה הנוכחית של הברוקר, לא סנכרון שעדיין רץ. בדרך כלל זה אומר שהחשבון עדיין לא נפתח או הופקד במלואו, או ששיתוף הנתונים עבורו טרם אושר אצל הברוקר.',
+    'The connection is live, so this is what the brokerage is currently reporting. Some brokerages — Interactive Brokers among them — deliver data through a scheduled report feed rather than a live API, and that feed can take a day or two to start after it is first enabled. Check that the reporting service is switched on at the broker.',
+    'החיבור פעיל, ולכן זה מה שהברוקר מדווח כרגע. חלק מהברוקרים — ובהם Interactive Brokers — מעבירים נתונים דרך דוח מתוזמן ולא דרך API חי, והזנת הדוח הזו יכולה להתחיל רק יום-יומיים אחרי שמפעילים אותה לראשונה. כדאי לוודא ששירות הדיווח מופעל אצל הברוקר.',
   ),
   'live.connState': p('Connection: {state}', 'החיבור: {state}'),
   'live.connActive': p('active', 'פעיל'),
