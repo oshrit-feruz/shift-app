@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Icon } from '../components/Icon';
 import { Chip, ChipRail } from '../components/Chip';
 import { useAppState } from '../state/appState';
@@ -20,7 +20,16 @@ const TABS: Array<[string, StringKey]> = [
 export function NewsScreen(_props: ScreenProps) {
   const s = useAppState();
   const t = useT();
-  const [tab, setTab] = useState('All');
+  // The earnings calendar is a tab on this screen, but it is also a
+  // destination of its own — "all earnings" on the home screen navigates to
+  // `earnings`. Landing on the news feed instead would quietly answer a
+  // different question than the one asked.
+  const [tab, setTab] = useState(s.screen === 'earnings' ? 'Calendar' : 'All');
+  // Both routes render this same component, so navigating between them does
+  // not remount it and the initial state above would not run again.
+  useEffect(() => {
+    if (s.screen === 'earnings') setTab('Calendar');
+  }, [s.screen]);
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>

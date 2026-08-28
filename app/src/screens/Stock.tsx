@@ -17,6 +17,8 @@ import { useT } from '../i18n/useT';
 import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
 import { fetchYourPositions } from '../lib/holdings';
+import { fetchTickerEarnings } from '../data/earnings';
+import { DemoBanner } from '../components/DemoBanner';
 import { money, pct, signalColor } from '../lib/format';
 import { ReportsTab, EarningsHistory } from './stock/ReportsTab';
 import { NewsTab } from './stock/NewsTab';
@@ -59,6 +61,15 @@ export function StockScreen({ openAlert }: ScreenProps) {
 
   const closes = demoService.series(`${s.ticker}-candles`, 46, 0.5, 3.4).slice(4);
   const begSeries = demoService.series(`${s.ticker}-line`, 64, 0.55, 2.6);
+
+  // The sample price table covers a handful of tickers. Any other symbol —
+  // and the earnings calendar opens plenty of them — has no quote, but its
+  // filings, news and ranking are live and per-ticker. Gating the whole
+  // screen on the quote turned "we have no sample price for CRWD" into a
+  // dead page, which is a worse answer than the one the data supports.
+  if (sym.state.status === 'unavailable') {
+    return <LiveOnlyStock ticker={s.ticker} />;
+  }
 
   return (
     <DataState
@@ -259,33 +270,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
             </div>
           </Card>
 
-          <Card padding={12} gap={8}>
-            <CardTitle>{t('stock.nextEarn')}</CardTitle>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-              <div
-                style={{
-                  width: 50,
-                  textAlign: 'center',
-                  padding: '6px 0',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--color-accent-900)',
-                  flex: 'none',
-                }}
-              >
-                <div className="text-muted" style={{ fontSize: 12.5, letterSpacing: '.06em', textTransform: 'uppercase' }}>
-                  {t('stock.nov')}
-                </div>
-                <Num size={17} style={{ fontFamily: 'var(--font-heading)' }}>
-                  18
-                </Num>
-              </div>
-              <p style={{ margin: 0, fontSize: 13, opacity: 0.8 }}>
-                {beg
-                  ? 'Q3 results, after the close. The last four reports beat expectations and the stock moved 6–9% the next day each time.'
-                  : 'Q3 · Nov 18 AMC · est EPS 1.24 vs 0.68 y/y · implied move ±8.4% · 4/4 beats'}
-              </p>
-            </div>
-          </Card>
+          <NextEarnings ticker={s.ticker} />
 
           {/* The engine's own view, from the mirrored daily ranking. Kept as
               its own card rather than folded into the header because most
@@ -331,3 +316,132 @@ const ADV_STATS = (price: number, mc: string, vol: string, pe: number, rsi: numb
   ['Short float', '1.1%'],
   ['RSI(14)', String(rsi)],
 ];
+
+/**
+ * When this company next reports, from the live earnings source.
+ *
+ * This replaced a hard-coded card that read "Q3 · Nov 18 AMC · est EPS 1.24
+ * vs 0.68 y/y · implied move ±8.4% · 4/4 beats" for every stock in the app —
+ * a fixed date, a fixed estimate and a fabricated implied move, rendered
+ * with the same weight as real figures.
+ *
+ * It renders nothing at all when no scheduled report is known: an absent
+ * card says less than a card that has to explain itself, and "we do not know
+ * when they next report" is not information anyone came for. A provider
+ * failure is likewise silent here, because the Reports tab on this same
+ * screen already reports it in full.
+ */
+function NextEarnings({ ticker }: { ticker: string }) {
+  const t = useT();
+  const { language } = useTheme();
+  const e = useLoadable(() => fetchTickerEarnings(ticker), [ticker]);
+  if (e.state.status !== 'ok') return null;
+
+  const today = new Date().toISOString().slice(0, 10);
+  // Scheduled means: no reported figure yet, and not in the past.
+  const next = e.state.data.rows
+    .filter((r) => r.actual === null && r.reportDate >= today)
+    .sort((a, b) => a.reportDate.localeCompare(b.reportDate))[0];
+  if (!next) return null;
+
+  const [y, m, d] = next.reportDate.split('-').map(Number);
+  const month = new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(language === 'he' ? 'he-IL' : 'en-US', {
+    month: 'short',
+    timeZone: 'UTC',
+  });
+
+  return (
+    <Card padding={12} gap={8}>
+      <CardTitle>{t('stock.nextEarn')}</CardTitle>
+      <DemoBanner />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+        <div
+          style={{
+            width: 50,
+            textAlign: 'center',
+            padding: '6px 0',
+            borderRadius: 'var(--radius-md)',
+            background: 'var(--color-accent-900)',
+            flex: 'none',
+          }}
+        >
+          <div className="text-muted" style={{ fontSize: 12.5, letterSpacing: '.06em', textTransform: 'uppercase' }}>
+            {month}
+          </div>
+          <Num size={17} style={{ fontFamily: 'var(--font-heading)' }}>
+            {next.reportDate.slice(8)}
+          </Num>
+        </div>
+        <p style={{ margin: 0, fontSize: 13, opacity: 0.8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {/* Only what the provider actually carries: the date, the timing
+              when stated, and the consensus estimate when published. */}
+          {next.timing === 'AMC' && <span>{t('home.afterClose')}</span>}
+          {next.timing === 'BMO' && <span>{t('home.beforeOpen')}</span>}
+          {next.estimate !== null && (
+            <span>
+              {t('stock.epsEst')} <Num>{next.estimate.toFixed(2)}</Num>
+            </span>
+          )}
+        </p>
+      </div>
+    </Card>
+  );
+}
+
+/**
+ * The stock page for a symbol the sample price table does not cover.
+ *
+ * Everything here is live and keyed on the ticker: the engine's ranking view,
+ * filed figures, the quarterly history and the news. What is missing is
+ * missing for a stated reason, in one line, rather than by the page refusing
+ * to render.
+ */
+function LiveOnlyStock({ ticker }: { ticker: string }) {
+  const t = useT();
+  const dispatch = useDispatch();
+  const s = useAppState();
+  const [tab, setTab] = useState<'reports' | 'news'>('reports');
+  const inWl = s.watchlist.includes(ticker);
+
+  return (
+    <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <p className="text-muted" style={{ fontSize: 12.5, margin: 0, padding: '0 2px', lineHeight: 1.45 }}>
+        {t('stock.noQuote')}
+      </p>
+
+      <Button
+        variant="secondary"
+        style={{
+          minHeight: 40,
+          fontSize: 14,
+          ...(inWl
+            ? { border: '1px solid var(--color-accent)', background: 'var(--color-accent-900)', color: 'var(--color-accent-200)' }
+            : {}),
+        }}
+        onClick={() => dispatch({ type: 'toggleWatch', ticker })}
+      >
+        {inWl ? `✓ ${t('stock.inWatchlist')}` : `＋ ${t('stock.toWatchlist')}`}
+      </Button>
+
+      <EngineCard ticker={ticker} />
+
+      <SegmentedControl<'reports' | 'news'>
+        options={[
+          { value: 'reports', label: t('stock.tabReports') },
+          { value: 'news', label: t('stock.tabNews') },
+        ]}
+        value={tab}
+        onChange={setTab}
+      />
+
+      {tab === 'reports' && (
+        <>
+          <NextEarnings ticker={ticker} />
+          <ReportsTab ticker={ticker} />
+          <EarningsHistory ticker={ticker} />
+        </>
+      )}
+      {tab === 'news' && <NewsTab ticker={ticker} />}
+    </div>
+  );
+}

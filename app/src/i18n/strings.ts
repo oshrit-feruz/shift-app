@@ -413,6 +413,13 @@ export const STRINGS = {
     'השבוע הקרוב: דוחות שעוד צפויים. תוצאות שכבר פורסמו מופיעות בדף של כל מניה.',
   ),
   'stock.nextEarn': p('Next earnings', 'הדוח הבא'),
+  // Reached by opening a company from the earnings calendar: the sample
+  // price table only covers a handful of tickers, but filings and news are
+  // live for any symbol, so the page is worth showing rather than blanking.
+  'stock.noQuote': p(
+    'No sample price data for this symbol — the reports and news below are live.',
+    'אין נתוני מחיר לדוגמה לסמל הזה — הדוחות והחדשות למטה הם נתונים חיים.',
+  ),
   'stock.nov': p('Nov', 'נוב׳'),
   'stock.chartHelp': p(
     "Up about {pct} over three months. The line is each day's closing price — where the stock finished the day.",
