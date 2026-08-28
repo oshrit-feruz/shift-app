@@ -782,6 +782,9 @@ export const STRINGS = {
     'Off shows the app exactly as it is today, with demo accounts. On replaces them with the one real brokerage account read through SnapTrade. Founder demo only.',
     'כבוי מציג את האפליקציה בדיוק כפי שהיא היום, עם חשבונות הדגמה. דלוק מחליף אותם בחשבון הברוקר האמיתי היחיד שנקרא דרך SnapTrade. להדגמת המייסדת בלבד.',
   ),
+  'live.freshRealtime': p('Read from the brokerage just now', 'נקרא מהברוקר ממש עכשיו'),
+  'live.freshDaily': p("SnapTrade's daily snapshot", 'תמונת המצב היומית של SnapTrade'),
+  'live.asOf': p('Brokerage data fetched {when}', 'נתוני הברוקר נקראו {when}'),
   'more.snaptrade': p('Connected account (demo)', 'חשבון מקושר (הדגמה)'),
   'more.snaptradeHelp': p('One real account, read-only', 'חשבון אמיתי אחד, קריאה בלבד'),
 } as const;

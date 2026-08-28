@@ -148,6 +148,17 @@ export interface ConnectedAccount {
   totalValue: number | null;
   balances: ConnectedBalance[];
   positions: ConnectedPosition[];
+  /**
+   * When the brokerage data behind these positions was fetched, from
+   * SnapTrade's `data_freshness.as_of`. Null when it did not say — the screen
+   * then shows no freshness claim at all rather than implying "live".
+   */
+  asOf: string | null;
+  /**
+   * Which route answered: the daily cache, or the per-connection real-time
+   * one used when the cache had nothing yet.
+   */
+  source: 'daily' | 'realtime';
 }
 
 /**
@@ -155,7 +166,9 @@ export interface ConnectedAccount {
  * an account we cannot address is dropped rather than shown with a fabricated
  * identity, and dropping it is what makes the honest empty state honest.
  */
-export function mapAccount(raw: unknown): Omit<ConnectedAccount, 'balances' | 'positions'> | null {
+export function mapAccount(
+  raw: unknown,
+): Omit<ConnectedAccount, 'balances' | 'positions' | 'asOf' | 'source'> | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const a = raw as Record<string, unknown>;
   const id = str(a.id);
@@ -184,38 +197,64 @@ export function mapBalance(raw: unknown): ConnectedBalance | null {
 }
 
 /**
- * Maps one raw position. A row without a ticker is dropped: an unnamed holding
- * is not something this screen can honestly show.
+ * Unwraps the positions envelope.
  *
- * marketValue is computed only when both units and price are known. SnapTrade
- * has no single market-value field across brokerages, and multiplying a known
- * unit count by an unknown price would produce a confident-looking zero.
+ * `/accounts/{id}/positions/all` answers an OBJECT —
+ * `{ results: [...], data_freshness: { as_of } }` — not a bare array. Reading
+ * it as an array silently yields zero positions, which would render a real
+ * account full of holdings as "no positions": invented emptiness presented as
+ * fact, with no error anywhere. So an unrecognised envelope returns null and
+ * the caller reports `bad_response`. "We could not read it" must never look
+ * like "you hold nothing".
+ */
+export function unwrapPositions(raw: unknown): { rows: unknown[]; asOf: string | null } | null {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
+  const body = raw as Record<string, unknown>;
+  if (!Array.isArray(body.results)) return null;
+  return { rows: body.results, asOf: str(at(body, 'data_freshness', 'as_of')) };
+}
+
+/**
+ * Maps one raw position, against SnapTrade's `AccountPosition` + `Instrument`
+ * schemas.
+ *
+ * `instrument` is a `oneOf` discriminated on `kind` (stock, etf, adr,
+ * mutualfund, cef, crypto, future, cfd, option, other). Every variant that
+ * names a security exposes `symbol` and `description` at the same level, so
+ * one mapper covers them all; options carry an OCC symbol and map as-is.
+ *
+ * `units`, `price` and `cost_basis` arrive as decimal STRINGS ("10.5"), which
+ * num() already tolerates.
+ *
+ * A row with no symbol is dropped: an unnamed holding is not something this
+ * screen can honestly show.
  */
 export function mapPosition(raw: unknown): ConnectedPosition | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const p = raw as Record<string, unknown>;
-  const ticker = str(
-    at(p, 'symbol', 'symbol', 'symbol'),
-    at(p, 'symbol', 'symbol', 'raw_symbol'),
-    at(p, 'symbol', 'raw_symbol'),
-    at(p, 'symbol', 'symbol'),
-    p.symbol,
-  );
+  const ticker = str(at(p, 'instrument', 'symbol'), at(p, 'instrument', 'raw_symbol'));
   if (!ticker) return null;
-  const units = num(p.units, p.quantity, p.fractional_units);
-  const price = num(p.price, at(p, 'symbol', 'price'));
+
+  const units = num(p.units);
+  const price = num(p.price);
+  const avgCost = num(p.cost_basis);
+
   return {
     ticker,
-    description: str(at(p, 'symbol', 'symbol', 'description'), at(p, 'symbol', 'description'), p.description),
+    description: str(at(p, 'instrument', 'description')),
     units,
     price,
+    // Only when both are known. Multiplying a known unit count by an unknown
+    // price would produce a confident-looking zero.
     marketValue: units !== null && price !== null ? units * price : null,
-    avgCost: num(p.average_purchase_price, p.averagePurchasePrice),
-    openPnl: num(p.open_pnl, p.openPnl),
-    currency: str(
-      at(p, 'symbol', 'symbol', 'currency', 'code'),
-      at(p, 'symbol', 'currency', 'code'),
-      at(p, 'currency', 'code'),
-    ),
+    avgCost,
+    /**
+     * DERIVED, not reported: SnapTrade's position schema carries no open-P&L
+     * field at all. This is plain arithmetic over three numbers the brokerage
+     * did report, and it is null the moment any of them is missing — it is
+     * never estimated, and it renders as "—" rather than as a zero return.
+     */
+    openPnl: units !== null && price !== null && avgCost !== null ? units * (price - avgCost) : null,
+    currency: str(p.currency, at(p, 'instrument', 'currency')),
   };
 }

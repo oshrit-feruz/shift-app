@@ -339,11 +339,23 @@ separate product and compliance decision that **has not been made**. Nothing
 in this integration scales to it, and nothing here should be read as a
 prototype of it.
 
-**Read-only, structurally.** The function can reach exactly three upstream
+**Read-only, structurally.** The function can reach exactly five upstream
 paths, all `GET`, listed in one `READ_ONLY_PATHS` constant: `/accounts`,
-`/accounts/{id}/balances`, `/accounts/{id}/positions`. Account ids come from
-SnapTrade's own response, never from the caller, so no request to
-`/api/snaptrade` can steer it at another path. SnapTrade's trading endpoints
+`/accounts/{id}/balances`, `/accounts/{id}/positions/all`, `/authorizations`
+and `/authorizations/{id}/accounts`. Ids come from SnapTrade's own responses,
+never from the caller, so no request to `/api/snaptrade` can steer it at
+another path.
+
+**Why two account routes.** `/accounts` is documented as *daily* data —
+"cached and refreshed once a day" — so a brokerage connected today
+legitimately answers an empty list there while the connection is live and
+active in SnapTrade's dashboard. When that happens the function walks
+`/authorizations` and asks each connection directly, which is the real-time
+route. `source` in the response says which one answered, and the demo screen
+shows it along with SnapTrade's own `data_freshness.as_of`, so the freshness
+of what is on screen is stated rather than implied. SnapTrade's manual-refresh
+endpoint is deliberately **not** called: it is a `POST`, and it is billed per
+call — not something to fire from a public, unauthenticated endpoint. SnapTrade's trading endpoints
 appear nowhere in the codebase, and a unit test asserts that no upstream path
 ever matches a trading route.
 
@@ -369,6 +381,16 @@ switch on they are replaced by a statement of what is known, not redrawn:
 | Home hero + Portfolio day change and performance chart | Replaced by an explicit "no performance history" note — those come from a seeded pseudo-random walk, and SnapTrade reports no day change or priced history here |
 | Portfolio allocation donut | Computed from the account's **real** position values; positions the brokerage did not price are excluded, and if none are priced the card says so |
 | Any unreported field | Renders `—`. `null` is never coerced to `0`, and a total is never summed from partially-priced positions — if the total cannot be determined the account reports `unavailable` with that reason |
+| Open P&L | SnapTrade's position schema carries no such field. It is derived as `units × (price − cost_basis)` from three numbers the brokerage did report, and is `—` the moment any of them is missing — never estimated |
+
+**One shape worth knowing about, because getting it wrong is silent.**
+`/accounts/{id}/positions/all` answers an *object* —
+`{ results: [...], data_freshness: { as_of } }` — not a bare array. Reading it
+as an array yields zero positions with no error at all, which would render a
+real account full of holdings as "no positions": invented emptiness presented
+as fact. An envelope the function cannot read is reported as `bad_response`
+instead, and a test guards it. The same rule covers the account list: rows
+present but none mappable is a `bad_response`, not an account-less user.
 
 Same honesty contract as the screener mirror and `/api/news` — and the same
 machinery: the route's transport is the shared `_lib/upstream.ts`

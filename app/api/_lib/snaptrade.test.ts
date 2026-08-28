@@ -8,6 +8,7 @@ import {
   mapBalance,
   mapPosition,
   maskAccountNumber,
+  unwrapPositions,
 } from './snaptrade.js';
 
 describe('canonicalJson', () => {
@@ -126,40 +127,87 @@ describe('mapBalance', () => {
   });
 });
 
-describe('mapPosition', () => {
-  it('maps a nested SnapTrade position and computes market value', () => {
+describe('unwrapPositions', () => {
+  it('reads the results array and the freshness stamp', () => {
     expect(
-      mapPosition({
-        symbol: { symbol: { symbol: 'AAPL', description: 'Apple Inc.', currency: { code: 'USD' } } },
-        units: 10,
-        price: 200,
-        average_purchase_price: 150,
-        open_pnl: 500,
-      }),
-    ).toEqual({
+      unwrapPositions({ results: [{ a: 1 }], data_freshness: { as_of: '2026-08-28T14:30:00Z' } }),
+    ).toEqual({ rows: [{ a: 1 }], asOf: '2026-08-28T14:30:00Z' });
+  });
+
+  it('accepts a response with no freshness stamp', () => {
+    expect(unwrapPositions({ results: [] })).toEqual({ rows: [], asOf: null });
+  });
+
+  it('rejects a bare array — the endpoint answers an envelope, and reading it as a list would silently yield zero positions', () => {
+    expect(unwrapPositions([{ a: 1 }])).toBeNull();
+  });
+
+  it('rejects a body with no results array rather than reporting an empty account', () => {
+    expect(unwrapPositions({})).toBeNull();
+    expect(unwrapPositions({ results: 'nope' })).toBeNull();
+    expect(unwrapPositions(null)).toBeNull();
+  });
+});
+
+describe('mapPosition', () => {
+  const AAPL = {
+    instrument: { kind: 'stock', symbol: 'AAPL', raw_symbol: 'AAPL', description: 'Apple Inc.', currency: 'USD' },
+    units: '10.5',
+    price: '200',
+    cost_basis: '150',
+    currency: 'USD',
+  };
+
+  it('maps an AccountPosition, parsing the decimal strings SnapTrade sends', () => {
+    expect(mapPosition(AAPL)).toEqual({
       ticker: 'AAPL',
       description: 'Apple Inc.',
-      units: 10,
+      units: 10.5,
       price: 200,
-      marketValue: 2000,
+      marketValue: 2100,
       avgCost: 150,
-      openPnl: 500,
+      openPnl: 525,
       currency: 'USD',
     });
   });
 
-  it('leaves market value null when the price is unknown, rather than producing a confident zero', () => {
-    const p = mapPosition({ symbol: { symbol: { symbol: 'NVDA' } }, units: 3 });
+  it('falls back to the instrument raw symbol', () => {
+    expect(mapPosition({ instrument: { kind: 'stock', raw_symbol: 'NVDA' } })?.ticker).toBe('NVDA');
+  });
+
+  it('maps an option position by its OCC symbol', () => {
+    expect(
+      mapPosition({ instrument: { kind: 'option', symbol: 'AAPL  261218C00240000' }, units: '1' })?.ticker,
+    ).toBe('AAPL  261218C00240000');
+  });
+
+  it('leaves market value null when the price is unknown, rather than a confident zero', () => {
+    const p = mapPosition({ instrument: { kind: 'stock', symbol: 'NVDA' }, units: '3' });
     expect(p?.units).toBe(3);
     expect(p?.price).toBeNull();
     expect(p?.marketValue).toBeNull();
   });
 
-  it('keeps a short position negative', () => {
-    expect(mapPosition({ symbol: { symbol: { symbol: 'TSLA' } }, units: -4, price: 100 })?.marketValue).toBe(-400);
+  it('leaves the derived P&L null when the cost basis is missing — it is arithmetic, never an estimate', () => {
+    expect(mapPosition({ ...AAPL, cost_basis: null })?.openPnl).toBeNull();
   });
 
-  it('drops a row with no ticker', () => {
+  it('derives a loss as a negative number', () => {
+    expect(mapPosition({ ...AAPL, price: '100' })?.openPnl).toBe(-525);
+  });
+
+  it('keeps a short position negative', () => {
+    expect(mapPosition({ instrument: { kind: 'stock', symbol: 'TSLA' }, units: '-4', price: '100' })?.marketValue).toBe(
+      -400,
+    );
+  });
+
+  it('falls back to the instrument currency', () => {
+    expect(mapPosition({ instrument: { kind: 'etf', symbol: 'VOO', currency: 'USD' } })?.currency).toBe('USD');
+  });
+
+  it('drops a row with no symbol at all', () => {
+    expect(mapPosition({ instrument: { kind: 'other' }, units: '5' })).toBeNull();
     expect(mapPosition({ units: 5, price: 10 })).toBeNull();
   });
 });

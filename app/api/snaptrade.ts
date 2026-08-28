@@ -5,6 +5,7 @@ import {
   mapAccount,
   mapBalance,
   mapPosition,
+  unwrapPositions,
   type ConnectedAccount,
   type ConnectedBalance,
   type ConnectedPosition,
@@ -35,9 +36,19 @@ const MAX_ACCOUNTS = 3;
  * require.
  */
 const READ_ONLY_PATHS = {
+  /**
+   * Daily data by SnapTrade's own description: "cached and refreshed once a
+   * day". A connection linked today can legitimately answer an empty list
+   * here, which is why `connections` and `connectionAccounts` below exist.
+   */
   accounts: () => '/accounts',
   balances: (accountId: string) => `/accounts/${encodeURIComponent(accountId)}/balances`,
-  positions: (accountId: string) => `/accounts/${encodeURIComponent(accountId)}/positions`,
+  /** `/positions` does not exist; `/positions/all` is the real path. */
+  positions: (accountId: string) => `/accounts/${encodeURIComponent(accountId)}/positions/all`,
+  /** The real-time route, used only when the daily cache reports nothing. */
+  connections: () => '/authorizations',
+  connectionAccounts: (authorizationId: string) =>
+    `/authorizations/${encodeURIComponent(authorizationId)}/accounts`,
 } as const;
 
 const PROVIDER = 'SnapTrade';
@@ -85,6 +96,72 @@ async function snapTradeGet(
   return result.body;
 }
 
+type MappedAccount = NonNullable<ReturnType<typeof mapAccount>>;
+
+/** A `bad_response` failure, phrased for the one provider this route talks to. */
+function badResponse(detail: string): UpstreamError {
+  console.error(`${ROUTE}: ${detail}`);
+  return new UpstreamError({
+    status: 502,
+    error: 'bad_response',
+    message: `The ${PROVIDER} provider returned an unexpected shape.`,
+  });
+}
+
+/**
+ * Maps an `Account[]` payload — the shape both `/accounts` and
+ * `/authorizations/{id}/accounts` answer with.
+ *
+ * Rows present with none mappable is a shape we do not understand, NOT an
+ * account-less user: every row was missing the id we address it by. Reporting
+ * it as the latter would send someone hunting for a brokerage connection that
+ * is already there, so the two must not look alike.
+ */
+function mapAccountList(raw: unknown, label: string): MappedAccount[] {
+  if (!Array.isArray(raw)) throw badResponse(`${label} did not return an array`);
+  const mapped = raw.map(mapAccount).filter((a): a is MappedAccount => a !== null);
+  if (raw.length > 0 && mapped.length === 0) {
+    throw badResponse(`${label} returned ${raw.length} row(s), none with a usable id`);
+  }
+  return mapped.slice(0, MAX_ACCOUNTS);
+}
+
+/**
+ * The real-time account list, used only when the daily cache reports nothing.
+ *
+ * `/accounts` is documented as daily data, "cached and refreshed once a day",
+ * so a brokerage connected today legitimately answers an empty list there
+ * while the connection itself is live. This walks the connections instead and
+ * asks each one directly.
+ *
+ * Both calls are GET. The manual-refresh endpoint that would force a sync is
+ * deliberately NOT used: it is a POST, and SnapTrade charges per call — not
+ * something to fire from a public, unauthenticated endpoint.
+ */
+async function realtimeAccounts(
+  creds: { clientId: string; consumerKey: string },
+  timeoutMs: number,
+): Promise<MappedAccount[]> {
+  const rawConnections = await snapTradeGet(READ_ONLY_PATHS.connections(), creds, timeoutMs);
+  if (!Array.isArray(rawConnections)) throw badResponse('/authorizations did not return an array');
+
+  const ids = rawConnections
+    .map((c) => (typeof c === 'object' && c !== null ? (c as { id?: unknown }).id : null))
+    .filter((id): id is string => typeof id === 'string' && id !== '')
+    .slice(0, MAX_ACCOUNTS);
+  if (ids.length === 0) return [];
+
+  const perConnection = await Promise.all(
+    ids.map(async (id) =>
+      mapAccountList(
+        await snapTradeGet(READ_ONLY_PATHS.connectionAccounts(id), creds, timeoutMs),
+        `/authorizations/${id}/accounts`,
+      ),
+    ),
+  );
+  return perConnection.flat().slice(0, MAX_ACCOUNTS);
+}
+
 /**
  * Builds the handler with an injectable timeout so tests can exercise the
  * timeout branch in milliseconds. The default export is this with the real
@@ -130,37 +207,26 @@ export function createHandler(timeoutMs: number) {
     // Each upstream call carries its own budget, applied by the shared
     // transport (which keeps the timer armed through body parsing).
     try {
-      const rawAccounts = await snapTradeGet(READ_ONLY_PATHS.accounts(), creds, timeoutMs);
-      if (!Array.isArray(rawAccounts)) {
-        console.error('/api/snaptrade: /accounts did not return an array');
-        return res
-          .status(502)
-          .json({ error: 'bad_response', message: 'SnapTrade returned an unexpected shape.' });
+      let source: 'daily' | 'realtime' = 'daily';
+      let base = mapAccountList(
+        await snapTradeGet(READ_ONLY_PATHS.accounts(), creds, timeoutMs),
+        '/accounts',
+      );
+
+      // The daily cache has nothing. That is expected for a brokerage linked
+      // today, so ask the connections directly before concluding the user has
+      // no account.
+      if (base.length === 0) {
+        base = await realtimeAccounts(creds, timeoutMs);
+        source = 'realtime';
       }
 
-      const base = rawAccounts
-        .map(mapAccount)
-        .filter((a): a is NonNullable<ReturnType<typeof mapAccount>> => a !== null)
-        .slice(0, MAX_ACCOUNTS);
-
-      // Rows arrived but not one of them could be mapped — every account was
-      // missing the id we address it by. That is a shape we do not
-      // understand, NOT an account-less user, and reporting it as the latter
-      // would send someone hunting for a brokerage connection that is
-      // actually already there. The two must not look alike.
-      if (rawAccounts.length > 0 && base.length === 0) {
-        console.error(`${ROUTE}: /accounts returned ${rawAccounts.length} row(s), none with a usable id`);
-        return res
-          .status(502)
-          .json({ error: 'bad_response', message: `The ${PROVIDER} provider returned an unexpected shape.` });
-      }
-
-      // No brokerage linked yet. An honest, explicit empty answer — the demo
+      // Nothing from either route. An honest, explicit empty answer — the demo
       // screen renders "no account connected", never a placeholder holding.
       if (base.length === 0) {
-        console.warn(`${ROUTE}: SnapTrade reported no connected accounts for this Personal key`);
+        console.warn(`${ROUTE}: neither the daily cache nor any connection reported an account`);
         res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=30');
-        return res.status(200).json({ accounts: [] });
+        return res.status(200).json({ accounts: [], source });
       }
 
       const accounts: ConnectedAccount[] = await Promise.all(
@@ -172,10 +238,17 @@ export function createHandler(timeoutMs: number) {
           const balances: ConnectedBalance[] = (Array.isArray(rawBalances) ? rawBalances : [])
             .map(mapBalance)
             .filter((b): b is ConnectedBalance => b !== null);
-          const positions: ConnectedPosition[] = (Array.isArray(rawPositions) ? rawPositions : [])
+
+          // An envelope we cannot read is reported, never flattened to zero
+          // positions — a real account full of holdings must not render as
+          // "no positions" with no error anywhere.
+          const envelope = unwrapPositions(rawPositions);
+          if (envelope === null) throw badResponse(`/accounts/${account.id}/positions/all had no results array`);
+          const positions: ConnectedPosition[] = envelope.rows
             .map(mapPosition)
             .filter((p): p is ConnectedPosition => p !== null);
-          return { ...account, balances, positions };
+
+          return { ...account, balances, positions, asOf: envelope.asOf, source };
         }),
       );
 
@@ -186,7 +259,7 @@ export function createHandler(timeoutMs: number) {
       // an expired response while refreshing in the background is exactly the
       // stale-data fallback this contract forbids.
       res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60');
-      return res.status(200).json({ accounts });
+      return res.status(200).json({ accounts, source });
     } catch (err) {
       // The classified failure the shared transport produced — same codes,
       // same body shape, as /api/news and /api/earnings.

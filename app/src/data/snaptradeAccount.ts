@@ -131,6 +131,10 @@ function parseAccount(raw: unknown): ConnectedAccount | null {
     institution: str(a.institution),
     currency: str(a.currency),
     totalValue: num(a.totalValue),
+    asOf: str(a.asOf),
+    // Anything but the explicit real-time marker is treated as the daily
+    // cache: the weaker claim is the safe default when the field is absent.
+    source: a.source === 'realtime' ? 'realtime' : 'daily',
     balances: balances
       .filter((b): b is Record<string, unknown> => typeof b === 'object' && b !== null)
       .map((b) => ({ currency: str(b.currency), cash: num(b.cash), buyingPower: num(b.buyingPower) })),

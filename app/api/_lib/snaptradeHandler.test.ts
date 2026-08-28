@@ -97,12 +97,54 @@ describe('/api/snaptrade handler', () => {
     expect((res._body as { error: string }).error).toBe('bad_response');
   });
 
-  it('returns an honest empty list when no brokerage is connected yet', async () => {
+  it('returns an honest empty list when neither the daily cache nor any connection has an account', async () => {
+    // Both routes answer nothing: no brokerage linked at all.
     globalThis.fetch = vi.fn(async () => jsonResponse([])) as unknown as typeof fetch;
     const res = makeRes();
     await handler({ method: 'GET', query: {} }, res);
     expect(res._status).toBe(200);
-    expect(res._body).toEqual({ accounts: [] });
+    expect(res._body).toMatchObject({ accounts: [] });
+  });
+
+  it('falls back to the per-connection route when the daily cache is still empty', async () => {
+    // /accounts is daily data, so a brokerage linked today answers [] there
+    // while the connection is live. The account must still be found.
+    const seen: string[] = [];
+    globalThis.fetch = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
+      const url = String(input);
+      seen.push(new URL(url).pathname);
+      if (url.includes('/api/v1/accounts?')) return jsonResponse([]);
+      if (url.includes('/authorizations?')) return jsonResponse([{ id: 'conn-1' }]);
+      if (url.includes('/authorizations/conn-1/accounts')) return jsonResponse([ACCOUNT]);
+      if (url.includes('/positions/all')) return jsonResponse({ results: [] });
+      return jsonResponse([]);
+    }) as unknown as typeof fetch;
+
+    const res = makeRes();
+    await handler({ method: 'GET', query: {} }, res);
+    expect(res._status).toBe(200);
+    const body = res._body as { accounts: unknown[]; source: string };
+    expect(body.accounts).toHaveLength(1);
+    expect(body.source).toBe('realtime');
+    expect(seen).toContain('/api/v1/authorizations');
+    expect(seen).toContain('/api/v1/authorizations/conn-1/accounts');
+  });
+
+  it('reports an unreadable positions envelope instead of rendering a real account as holding nothing', async () => {
+    // The regression this guards: /positions/all answers an object with a
+    // results array. Reading it as a bare array silently yields zero
+    // positions — invented emptiness, with no error anywhere.
+    globalThis.fetch = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
+      const url = String(input);
+      if (url.includes('/positions/all')) return jsonResponse([{ instrument: { symbol: 'AAPL' } }]);
+      if (url.includes('/balances')) return jsonResponse([]);
+      return jsonResponse([ACCOUNT]);
+    }) as unknown as typeof fetch;
+
+    const res = makeRes();
+    await handler({ method: 'GET', query: {} }, res);
+    expect(res._status).toBe(502);
+    expect((res._body as { error: string }).error).toBe('bad_response');
   });
 
   it('fetches accounts, balances and positions and never touches a trading path', async () => {
@@ -110,8 +152,11 @@ describe('/api/snaptrade handler', () => {
     globalThis.fetch = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
       const url = String(input);
       seen.push(url);
-      if (url.includes('/positions')) {
-        return jsonResponse([{ symbol: { symbol: { symbol: 'AAPL' } }, units: 2, price: 100 }]);
+      if (url.includes('/positions/all')) {
+        return jsonResponse({
+          results: [{ instrument: { kind: 'stock', symbol: 'AAPL' }, units: '2', price: '100' }],
+          data_freshness: { as_of: '2026-08-28T14:30:00Z' },
+        });
       }
       if (url.includes('/balances')) return jsonResponse([{ currency: { code: 'USD' }, cash: 42 }]);
       return jsonResponse([ACCOUNT]);
@@ -136,16 +181,17 @@ describe('/api/snaptrade handler', () => {
         currency: null,
       },
     ]);
+    expect(accounts[0].asOf).toBe('2026-08-28T14:30:00Z');
     expect(seen).toHaveLength(3);
     // Asserted on the pathname, not the whole URL: the host itself contains
     // "trade", so matching the URL would pass vacuously.
     expect(seen.map((u) => new URL(u).pathname).sort()).toEqual([
       '/api/v1/accounts',
       '/api/v1/accounts/acc-1/balances',
-      '/api/v1/accounts/acc-1/positions',
+      '/api/v1/accounts/acc-1/positions/all',
     ]);
     for (const url of seen) {
-      expect(new URL(url).pathname).not.toMatch(/\/(trade|orders|options)(\/|$)/i);
+      expect(new URL(url).pathname).not.toMatch(/\/(trade|trading|orders)(\/|$)/i);
     }
   });
 
@@ -183,7 +229,12 @@ describe('/api/snaptrade handler', () => {
     }) as unknown as typeof fetch;
 
     await handler({ method: 'GET', query: { path: '/trade/place-order', accountId: '../../evil' } }, makeRes());
-    expect(seen).toEqual([expect.stringContaining('https://api.snaptrade.com/api/v1/accounts?clientId=')]);
+    // Two calls: the daily list, then the empty-cache fallback. Both are
+    // paths from READ_ONLY_PATHS, neither carries anything the caller sent.
+    expect(seen.map((u) => new URL(u).pathname)).toEqual(['/api/v1/accounts', '/api/v1/authorizations']);
+    for (const url of seen) {
+      expect(new URL(url).search).toMatch(/^\?clientId=demo-client&timestamp=\d+$/);
+    }
   });
 
   it('maps a 401 to a credentials fault rather than an empty account list', async () => {
@@ -247,9 +298,12 @@ describe('/api/snaptrade handler', () => {
   });
 
   it('caches a successful response briefly, without stale-while-revalidate', async () => {
-    globalThis.fetch = vi.fn(async (input: Parameters<typeof fetch>[0]) =>
-      jsonResponse(String(input).includes('/accounts?') ? [ACCOUNT] : []),
-    ) as unknown as typeof fetch;
+    globalThis.fetch = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
+      const url = String(input);
+      if (url.includes('/positions/all')) return jsonResponse({ results: [] });
+      if (url.includes('/api/v1/accounts?')) return jsonResponse([ACCOUNT]);
+      return jsonResponse([]);
+    }) as unknown as typeof fetch;
     const res = makeRes();
     await handler({ method: 'GET', query: {} }, res);
     expect(res._headers['Cache-Control']).toBe('public, max-age=0, s-maxage=60');

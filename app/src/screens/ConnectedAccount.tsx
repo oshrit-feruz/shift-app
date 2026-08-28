@@ -8,6 +8,7 @@ import { useLoadable } from '../data/useLoadable';
 import { fetchConnectedAccounts } from '../data/snaptradeAccount';
 import type { ConnectedAccount, ConnectedPosition } from '../data/types';
 import { useT } from '../i18n/useT';
+import { useTheme } from '../theme/ThemeProvider';
 import { money, pct, signalColor } from '../lib/format';
 import type { ScreenProps } from '../App';
 
@@ -107,8 +108,23 @@ function Maybe({ value, format }: { value: number | null; format: (n: number) =>
   return <Num>{format(value)}</Num>;
 }
 
+/**
+ * SnapTrade's `as_of` is an ISO timestamp. An unparseable one is shown
+ * verbatim rather than dropped or guessed at — it is still a fact the
+ * provider reported.
+ */
+function formatAsOf(iso: string, language: 'en' | 'he'): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString(language === 'he' ? 'he-IL' : 'en-GB', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  });
+}
+
 function AccountCard({ account }: { account: ConnectedAccount }) {
   const t = useT();
+  const { language } = useTheme();
   const title = [account.institution, account.name].filter(Boolean).join(' · ') || account.id;
 
   return (
@@ -128,6 +144,13 @@ function AccountCard({ account }: { account: ConnectedAccount }) {
         </div>
         <div style={{ fontFamily: 'var(--font-heading)', fontSize: 26, lineHeight: 1.1 }}>
           <Maybe value={account.totalValue} format={(n) => money(n)} />
+        </div>
+        {/* How fresh this is, stated rather than implied. When the brokerage
+            gave no timestamp the line simply says which route answered — it
+            never claims an age we were not told. */}
+        <div className="text-muted" style={{ fontSize: 12, lineHeight: 1.5 }}>
+          {account.source === 'realtime' ? t('live.freshRealtime') : t('live.freshDaily')}
+          {account.asOf && ` · ${t('live.asOf', { when: formatAsOf(account.asOf, language) })}`}
         </div>
       </Card>
 

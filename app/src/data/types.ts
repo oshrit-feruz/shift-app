@@ -282,4 +282,15 @@ export interface ConnectedAccount {
   totalValue: number | null;
   balances: ConnectedBalance[];
   positions: ConnectedPosition[];
+  /**
+   * When the brokerage data behind these positions was fetched, from
+   * SnapTrade's `data_freshness.as_of`. Null when it did not say — the screen
+   * then shows no freshness claim at all rather than implying "live".
+   */
+  asOf: string | null;
+  /**
+   * Which route answered: the daily cache, or the per-connection real-time
+   * one used when the cache had nothing yet.
+   */
+  source: 'daily' | 'realtime';
 }

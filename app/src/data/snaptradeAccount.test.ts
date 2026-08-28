@@ -16,6 +16,8 @@ const ACCOUNT = {
   institution: 'Interactive Brokers',
   currency: 'USD',
   totalValue: 1000,
+  asOf: '2026-08-28T14:30:00Z',
+  source: 'realtime' as const,
   balances: [{ currency: 'USD', cash: 100, buyingPower: 200 }],
   positions: [
     {
@@ -30,6 +32,26 @@ const ACCOUNT = {
     },
   ],
 };
+
+describe('freshness and source', () => {
+  it('carries the brokerage fetch time and the route that answered', async () => {
+    const r = await fetchConnectedAccounts(async () => res({ accounts: [ACCOUNT] }));
+    expect(r.status).toBe('ok');
+    if (r.status !== 'ok') return;
+    expect(r.data[0].asOf).toBe('2026-08-28T14:30:00Z');
+    expect(r.data[0].source).toBe('realtime');
+  });
+
+  it('defaults to the weaker daily claim when the source is absent or unrecognised', async () => {
+    const r = await fetchConnectedAccounts(async () =>
+      res({ accounts: [{ ...ACCOUNT, source: undefined, asOf: undefined }] }),
+    );
+    expect(r.status).toBe('ok');
+    if (r.status !== 'ok') return;
+    expect(r.data[0].source).toBe('daily');
+    expect(r.data[0].asOf).toBeNull();
+  });
+});
 
 describe('fetchConnectedAccounts', () => {
   it('returns the real account on a well-formed response', async () => {
