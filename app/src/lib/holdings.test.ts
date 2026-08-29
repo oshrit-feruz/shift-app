@@ -15,7 +15,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const manualPf: ManualPortfolio = { id: 'mine', name: 'My ideas', startingCash: 5000 };
+const manualPf: ManualPortfolio = { id: 'mine', name: 'My ideas' };
 const buy = (ticker: string, shares: number, price: number): ManualTransaction => ({
   id: `tx-${ticker}`,
   side: 'buy',

@@ -27,6 +27,7 @@ import { FirstRunOverlay } from './screens/onboarding/FirstRunOverlay';
 import { SignInScreen } from './screens/SignIn';
 import { useAuth } from './auth/AuthProvider';
 import { useRemoteSync } from './state/useRemoteSync';
+import { LedgerProvider } from './state/useLedgerSync';
 import { useProviderLanguage } from './auth/useProviderLanguage';
 import { useProfile } from './auth/ProfileProvider';
 import { SearchOverlay } from './sheets/SearchOverlay';
@@ -133,7 +134,11 @@ export function App() {
           resets app state on sign-out, and it can only see that transition
           if it survives the shell unmounting. */}
       <RemoteSync />
-      {content}
+      {/* Same reasoning, and the same reason it wraps rather than sits beside
+          the content: it holds the ledger's mutation API, which the portfolio
+          sheets call, and it has to drop the previous account's rows on a
+          sign-out the shell does not survive. */}
+      <LedgerProvider>{content}</LedgerProvider>
     </>
   );
 }

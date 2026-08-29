@@ -513,8 +513,9 @@ export const STRINGS = {
     'התיקים האלה תיאורטיים — שום פקודה לא נשלחת לאף מקום.',
   ),
   'pf.name': p('Name', 'שם'),
-  'pf.startCash': p('Starting cash', 'מזומן פתיחה'),
-  'pf.divIncome': p('Dividend income', 'הכנסה מדיבידנדים'),
+  // Placeholder, not a default value: it shows what a name could be without
+  // filling the field with one nobody chose.
+  'pf.namePlaceholder': p('e.g. Dividend income', 'למשל: הכנסה מדיבידנדים'),
   'pf.syncedAgo': p('synced 12 min ago', 'סונכרן לפני 12 דק׳'),
   'pf.benchmark': p('- - S&P 500', '- - S&P 500'),
 
