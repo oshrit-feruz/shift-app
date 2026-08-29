@@ -38,6 +38,12 @@ body {
 
 button, input, select, textarea, table { font-family: var(--font-body); }
 
+/* Mobile WebKit/Chrome paint a grey overlay on any tappable element on
+ * touch-down by default. Buttons that rely on their own press feedback (the
+ * tab bar's, .tap's, .btn-*'s :active states) would otherwise flash this
+ * flat grey box on top of that feedback for the duration of the tap. */
+button, a, [role='button'] { -webkit-tap-highlight-color: transparent; }
+
 a { color: var(--color-accent); text-decoration: none; }
 a:hover { color: var(--color-accent-300); }
 
