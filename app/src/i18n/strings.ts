@@ -793,6 +793,14 @@ export const STRINGS = {
     'The connection is live, so this is what the brokerage is currently reporting. Some brokerages — Interactive Brokers among them — deliver data through a scheduled report feed rather than a live API, and that feed can take a day or two to start after it is first enabled. Check that the reporting service is switched on at the broker.',
     'החיבור פעיל, ולכן זה מה שהברוקר מדווח כרגע. חלק מהברוקרים — ובהם Interactive Brokers — מעבירים נתונים דרך דוח מתוזמן ולא דרך API חי, והזנת הדוח הזו יכולה להתחיל רק יום-יומיים אחרי שמפעילים אותה לראשונה. כדאי לוודא ששירות הדיווח מופעל אצל הברוקר.',
   ),
+  'live.connDisabledTitle': p(
+    'The connection to {broker} is disabled.',
+    'החיבור ל-{broker} מושבת.',
+  ),
+  'live.connDisabledHelp': p(
+    'Nothing from it is shown. A disabled connection keeps returning its last cached figures, and there is no way to tell how old they are — so showing them would be presenting stale holdings as current. Reconnect it in SnapTrade to restore it.',
+    'שום נתון ממנו אינו מוצג. חיבור מושבת ממשיך להחזיר את הנתונים האחרונים שנשמרו במטמון, ואין דרך לדעת בני כמה הם — כך שהצגתם פירושה להציג החזקות ישנות כאילו הן עדכניות. אפשר לחבר מחדש ב-SnapTrade כדי לשחזר אותו.',
+  ),
   'live.connState': p('Connection: {state}', 'החיבור: {state}'),
   'live.connActive': p('active', 'פעיל'),
   'live.connDisabled': p('disabled', 'מושבת'),

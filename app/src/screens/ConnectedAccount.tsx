@@ -80,32 +80,71 @@ export function ConnectedAccountScreen(_: ScreenProps) {
           // means nothing has been linked in SnapTrade's portal. A live
           // connection reporting no accounts is the brokerage's own current
           // answer, and saying "nothing connected" there would be false.
-          accounts.length === 0 ? (
-            connections.length === 0 ? (
-              <Card padding={16} gap={6}>
-                <span style={{ fontSize: 14 }}>{t('live.none')}</span>
-                <span className="text-muted" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
-                  {t('live.noneHelp')}
-                </span>
-              </Card>
-            ) : (
-              connections.map((connection) => (
-                <ConnectionCard key={connection.id} connection={connection} />
-              ))
-            )
-          ) : (
-            <>
-              {accounts.map((account) => (
-                <AccountCard key={account.id} account={account} />
-              ))}
-              <p className="text-muted" style={{ fontSize: 12, margin: 0, lineHeight: 1.5, padding: '0 2px' }}>
-                {t('live.unknownFields')}
-              </p>
-            </>
-          )
+          (() => {
+            // A disabled connection is reported whether or not other accounts
+            // loaded: its figures are withheld, and silently omitting the
+            // whole connection would read as "you never linked that".
+            const dead = connections.filter((c) => c.disabled === true);
+            const quiet = connections.filter((c) => c.disabled !== true);
+            return (
+              <>
+                {dead.map((connection) => (
+                  <DisabledConnectionCard key={connection.id} connection={connection} />
+                ))}
+                {accounts.length === 0 ? (
+                  quiet.length === 0 && dead.length === 0 ? (
+                    <Card padding={16} gap={6}>
+                      <span style={{ fontSize: 14 }}>{t('live.none')}</span>
+                      <span className="text-muted" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
+                        {t('live.noneHelp')}
+                      </span>
+                    </Card>
+                  ) : (
+                    quiet.map((connection) => (
+                      <ConnectionCard key={connection.id} connection={connection} />
+                    ))
+                  )
+                ) : (
+                  <>
+                    {accounts.map((account) => (
+                      <AccountCard key={account.id} account={account} />
+                    ))}
+                    <p
+                      className="text-muted"
+                      style={{ fontSize: 12, margin: 0, lineHeight: 1.5, padding: '0 2px' }}
+                    >
+                      {t('live.unknownFields')}
+                    </p>
+                  </>
+                )}
+              </>
+            );
+          })()
         }
       </DataState>
     </div>
+  );
+}
+
+/**
+ * A connection SnapTrade has marked disabled.
+ *
+ * Its accounts are never fetched (see the handler), because a disabled
+ * connection keeps serving its last cached state and nothing says how old it
+ * is. This card exists so that withholding is visible rather than silent.
+ */
+function DisabledConnectionCard({ connection }: { connection: ConnectedConnection }) {
+  const t = useT();
+  const broker = connection.brokerage ?? connection.id;
+  return (
+    <Card padding={16} gap={7}>
+      <span style={{ fontSize: 14, color: 'var(--down)' }}>
+        {t('live.connDisabledTitle', { broker })}
+      </span>
+      <span className="text-muted" style={{ fontSize: 12.5, lineHeight: 1.55 }}>
+        {t('live.connDisabledHelp')}
+      </span>
+    </Card>
   );
 }
 

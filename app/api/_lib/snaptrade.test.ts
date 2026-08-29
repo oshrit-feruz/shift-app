@@ -106,12 +106,17 @@ describe('mapAccount', () => {
       }),
     ).toEqual({
       id: 'acc-1',
+      connectionId: null,
       name: 'Individual',
       numberMasked: '••4321',
       institution: 'Interactive Brokers',
       currency: 'USD',
       totalValue: 12345.67,
     });
+  });
+
+  it('carries the owning connection id, so a disabled connection can be excluded', () => {
+    expect(mapAccount({ id: 'a', brokerage_authorization: 'conn-1' })?.connectionId).toBe('conn-1');
   });
 
   it('drops a row with no id — an account we cannot address is not shown', () => {

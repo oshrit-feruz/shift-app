@@ -158,6 +158,12 @@ export interface ConnectedBalance {
 
 export interface ConnectedAccount {
   id: string;
+  /**
+   * The connection this account belongs to (`brokerage_authorization`). Needed
+   * to tell whether the connection behind it is still live — a disabled one
+   * keeps serving its last cached state, which must never be shown as current.
+   */
+  connectionId: string | null;
   name: string | null;
   /** Already masked (see maskAccountNumber) — the full number never leaves the server. */
   numberMasked: string | null;
@@ -194,9 +200,10 @@ export function mapAccount(
   if (!id) return null;
   return {
     id,
+    connectionId: str(a.brokerage_authorization, at(a, 'brokerage_authorization', 'id')),
     name: str(a.name),
     numberMasked: maskAccountNumber(a.number),
-    institution: str(a.institution_name, a.brokerage_authorization, at(a, 'institution', 'name')),
+    institution: str(a.institution_name, at(a, 'institution', 'name')),
     currency: str(at(a, 'balance', 'total', 'currency'), at(a, 'meta', 'currency')),
     totalValue: num(at(a, 'balance', 'total', 'amount'), a.total_value, at(a, 'total_value', 'value')),
   };

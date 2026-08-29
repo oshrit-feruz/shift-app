@@ -140,35 +140,50 @@ function mapAccountList(raw: unknown, label: string): MappedAccount[] {
  * deliberately NOT used: it is a POST, and SnapTrade charges per call — not
  * something to fire from a public, unauthenticated endpoint.
  */
-async function realtimeAccounts(
+async function listConnections(
   creds: { clientId: string; consumerKey: string },
   timeoutMs: number,
-): Promise<{ accounts: MappedAccount[]; connections: ConnectedConnection[] }> {
-  const rawConnections = await snapTradeGet(READ_ONLY_PATHS.connections(), creds, timeoutMs);
-  if (!Array.isArray(rawConnections)) throw badResponse('/authorizations did not return an array');
-
-  const mapped = rawConnections
+): Promise<Array<Omit<ConnectedConnection, 'accountCount'>>> {
+  const raw = await snapTradeGet(READ_ONLY_PATHS.connections(), creds, timeoutMs);
+  if (!Array.isArray(raw)) throw badResponse('/authorizations did not return an array');
+  return raw
     .map(mapConnection)
     .filter((c): c is NonNullable<ReturnType<typeof mapConnection>> => c !== null)
     .slice(0, MAX_ACCOUNTS);
-  if (mapped.length === 0) return { accounts: [], connections: [] };
+}
 
+/**
+ * True for a connection SnapTrade has marked disabled.
+ *
+ * This matters more than it looks. SnapTrade's own docs say a disabled
+ * connection "can no longer access the latest data from the brokerage, but
+ * will continue to return the last available cached state" — so it answers
+ * 200 with holdings that are of entirely unknown age. Serving those as
+ * current is the same lie as the stale screener snapshot this app already
+ * refuses to serve, and it would be worse here because it is money.
+ *
+ * `disabled` is null when SnapTrade did not say. Unknown is treated as live:
+ * the field is documented and normally present, and refusing to show a real
+ * account because one boolean was absent would be its own dishonesty.
+ */
+function isDisabled(c: { disabled: boolean | null }): boolean {
+  return c.disabled === true;
+}
+
+async function realtimeAccounts(
+  live: Array<Omit<ConnectedConnection, 'accountCount'>>,
+  creds: { clientId: string; consumerKey: string },
+  timeoutMs: number,
+): Promise<{ accounts: MappedAccount[]; perConnection: MappedAccount[][] }> {
   const perConnection = await Promise.all(
-    mapped.map(async (connection) =>
+    live.map(async (connection) =>
       mapAccountList(
         await snapTradeGet(READ_ONLY_PATHS.connectionAccounts(connection.id), creds, timeoutMs),
         `/authorizations/${connection.id}/accounts`,
       ),
     ),
   );
-
-  return {
-    accounts: perConnection.flat().slice(0, MAX_ACCOUNTS),
-    // Each connection carries what it actually reported, so a zero-account
-    // answer can name the brokerage and its state instead of looking like
-    // nothing was ever connected.
-    connections: mapped.map((c, i) => ({ ...c, accountCount: perConnection[i].length })),
-  };
+  return { accounts: perConnection.flat().slice(0, MAX_ACCOUNTS), perConnection };
 }
 
 /**
@@ -216,22 +231,42 @@ export function createHandler(timeoutMs: number) {
     // Each upstream call carries its own budget, applied by the shared
     // transport (which keeps the timer armed through body parsing).
     try {
+      // The connection list comes first and always, not only as a fallback.
+      // It is the only place SnapTrade reports `disabled`, and without it a
+      // dead connection's last cached holdings would be served as current.
+      const allConnections = await listConnections(creds, timeoutMs);
+      const live = allConnections.filter((c) => !isDisabled(c));
+      const liveIds = new Set(live.map((c) => c.id));
+
       let source: 'daily' | 'realtime' = 'daily';
+      // Accounts from a disabled connection are dropped here rather than
+      // shown: SnapTrade keeps serving their last cached state, and we have
+      // no way to tell how old it is. The connection is still reported below,
+      // so the screen says the connection is dead rather than silently
+      // showing nothing.
       let base = mapAccountList(
         await snapTradeGet(READ_ONLY_PATHS.accounts(), creds, timeoutMs),
         '/accounts',
-      );
+      ).filter((a) => a.connectionId === null || liveIds.has(a.connectionId));
 
       // The daily cache has nothing. That is expected for a brokerage linked
-      // today, so ask the connections directly before concluding the user has
-      // no account.
-      let connections: ConnectedConnection[] = [];
-      if (base.length === 0) {
-        const realtime = await realtimeAccounts(creds, timeoutMs);
+      // today, so ask the live connections directly before concluding the
+      // user has no account.
+      let perConnection: MappedAccount[][] = live.map(() => []);
+      if (base.length === 0 && live.length > 0) {
+        const realtime = await realtimeAccounts(live, creds, timeoutMs);
         base = realtime.accounts;
-        connections = realtime.connections;
+        perConnection = realtime.perConnection;
         source = 'realtime';
       }
+
+      // Every connection is reported, live or not, with what it returned —
+      // so a zero-account answer can name the brokerage and say whether the
+      // connection is dead or merely quiet.
+      const connections: ConnectedConnection[] = allConnections.map((c) => {
+        const i = live.findIndex((l) => l.id === c.id);
+        return { ...c, accountCount: i === -1 ? 0 : perConnection[i].length };
+      });
 
       // Nothing from either route. An honest, explicit empty answer — the demo
       // screen renders "no account connected", never a placeholder holding.
@@ -283,7 +318,9 @@ export function createHandler(timeoutMs: number) {
       // an expired response while refreshing in the background is exactly the
       // stale-data fallback this contract forbids.
       res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60');
-      return res.status(200).json({ accounts, source });
+      // `connections` rides along on success as well, so a disabled
+      // connection is still reported even when another one is working.
+      return res.status(200).json({ accounts, source, connections });
     } catch (err) {
       // The classified failure the shared transport produced — same codes,
       // same body shape, as /api/news and /api/earnings.

@@ -371,8 +371,22 @@ running, and it is a different fact from having no connection at all:
 | What SnapTrade reports | What the screen says |
 | --- | --- |
 | no connections | "עדיין לא מקושר חשבון ברוקר" — nothing has been linked in the portal |
-| a connection, zero accounts | names the brokerage and says it is connected but reporting no accounts, with the connection's state (active/disabled, read/trade, realtime/delayed) |
+| a live connection, zero accounts | names the brokerage and says it is connected but reporting no accounts, with the connection's state (read/trade, realtime/delayed) |
+| a **disabled** connection | says so, and shows none of its figures — see below |
 | accounts | the real balances and positions |
+
+**A disabled connection is never served.** SnapTrade's docs are explicit that a
+disabled connection "can no longer access the latest data from the brokerage,
+but will continue to return the last available cached state" — it answers 200
+with holdings of entirely unknown age. So the route lists `/authorizations`
+first, on every request, and excludes any disabled connection from account
+discovery: its balances and positions are never even requested. The connection
+is still reported, so the screen says the connection is dead rather than
+implying nothing was ever linked. Showing those cached figures would be the
+same lie as serving a stale screener snapshot, except denominated in money.
+A connection whose `disabled` flag is absent is treated as live — the field is
+documented and normally present, and hiding a real account over one missing
+boolean would be its own dishonesty.
 
 The middle row is the state a freshly linked Interactive Brokers connection
 sat in during development, on a real, funded, actively traded account — so it
