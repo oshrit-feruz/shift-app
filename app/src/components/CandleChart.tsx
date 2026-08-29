@@ -149,7 +149,7 @@ export function CandleChart({
           <line x1="0" y1={rsiY(70)} x2={W} y2={rsiY(70)} stroke="var(--line)" strokeDasharray="3 3" />
           <line x1="0" y1={rsiY(30)} x2={W} y2={rsiY(30)} stroke="var(--line)" strokeDasharray="3 3" />
           <path d={rsiPath} fill="none" stroke="var(--acc-pale)" strokeWidth="1.2" />
-          <text x="3" y="10" fill="var(--muted)" fontSize="14">
+          <text x="3" y="10" fill="var(--muted)" fontSize="11">
             {/* Dashed rather than rounded-to-something when the window is too
                 short to have a reading — a label is not the place to invent one. */}
             RSI(14) {rsiNow === null ? '—' : Math.round(rsiNow)}
@@ -181,7 +181,7 @@ export function CandleChart({
           })}
           <path d={mLine(macd)} fill="none" stroke="var(--acc-lite)" strokeWidth="1.1" />
           <path d={mLine(signal)} fill="none" stroke="var(--down)" strokeWidth="1.1" />
-          <text x="3" y="10" fill="var(--muted)" fontSize="14">
+          <text x="3" y="10" fill="var(--muted)" fontSize="11">
             MACD(12,26,9)
           </text>
         </svg>

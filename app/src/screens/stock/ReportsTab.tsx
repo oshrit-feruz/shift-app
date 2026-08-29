@@ -44,16 +44,16 @@ export function ReportsTab({ ticker }: { ticker: string }) {
           <CardTitle>{t('stock.reportsTitle')}</CardTitle>
 
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 9, flexWrap: 'wrap' }}>
-            <Num size={30} style={{ fontFamily: 'var(--font-heading)', lineHeight: 1 }}>
+            <Num size={27} style={{ fontFamily: 'var(--font-heading)', lineHeight: 1 }}>
               {d.revenue === null ? '—' : compactMoney(d.revenue)}
             </Num>
             {d.yoyPct !== null && (
-              <Num size={20} style={{ color: signalColor(d.yoyPct) }}>
+              <Num size={17} style={{ color: signalColor(d.yoyPct) }}>
                 {pct(d.yoyPct, 1)}
               </Num>
             )}
           </div>
-          <div className="text-muted" style={{ fontSize: 18.5, marginTop: -4 }}>
+          <div className="text-muted" style={{ fontSize: 15.5, marginTop: -4 }}>
             {t('stock.revenue')}
             {d.yoyPct !== null ? ` · ${t('stock.yoy')}` : ''}
           </div>
@@ -89,7 +89,7 @@ export function ReportsTab({ ticker }: { ticker: string }) {
             ))}
           </div>
 
-          <p className="text-muted" style={{ fontSize: 18, lineHeight: 1.5, margin: 0 }}>
+          <p className="text-muted" style={{ fontSize: 15, lineHeight: 1.5, margin: 0 }}>
             {t('stock.reportsNote')}
             {d.source ? ` · ${d.source}` : ''}
           </p>
@@ -164,14 +164,14 @@ function QuarterRow({
   return (
     <div style={{ paddingTop: 7, borderTop: '1px solid var(--color-divider)' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 19 }}>{isoDate(row.reportDate, language)}</span>
+        <span style={{ fontSize: 16 }}>{isoDate(row.reportDate, language)}</span>
         {row.timing && (
-          <Num size={17.5} style={{ color: 'var(--muted)' }}>
+          <Num size={14.5} style={{ color: 'var(--muted)' }}>
             {row.timing}
           </Num>
         )}
         {!reported && (
-          <Tag variant="outline" fontSize={17.5}>
+          <Tag variant="outline" fontSize={14.5}>
             {t('stock.upcoming')}
           </Tag>
         )}
@@ -189,7 +189,7 @@ function QuarterRow({
           </Num>
         )}
       </div>
-      <div className="text-muted" style={{ fontSize: 18.5, marginTop: 2, display: 'flex', gap: 6 }}>
+      <div className="text-muted" style={{ fontSize: 15.5, marginTop: 2, display: 'flex', gap: 6 }}>
         <Num>{reported ? row.actual!.toFixed(2) : '—'}</Num>
         <span>·</span>
         <span>

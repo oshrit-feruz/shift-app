@@ -48,7 +48,7 @@ export function SettingsScreen(_: ScreenProps) {
           remember to clear the previous user's slice. */}
       {user && (
         <Card padding="12px 13px" gap={9}>
-          <CardTitle size={21}>{t('set.accountSection')}</CardTitle>
+          <CardTitle size={18}>{t('set.accountSection')}</CardTitle>
           <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
             {profile.avatarUrl && (
               <img
@@ -66,11 +66,11 @@ export function SettingsScreen(_: ScreenProps) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
               {profile.fullName ? (
                 <>
-                  <span style={{ fontSize: 21, fontWeight: 600 }}>{profile.fullName}</span>
+                  <span style={{ fontSize: 18, fontWeight: 600 }}>{profile.fullName}</span>
                   <span
                     className="text-muted"
                     style={{
-                      fontSize: 19,
+                      fontSize: 16,
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
@@ -82,14 +82,14 @@ export function SettingsScreen(_: ScreenProps) {
               ) : (
                 // No display name from the provider — fall back to naming the
                 // account by its email rather than inventing one.
-                <span style={{ fontSize: 20 }}>
+                <span style={{ fontSize: 17 }}>
                   {t('set.signedInAs', { email: profile.email ?? user.id })}
                 </span>
               )}
               {(provider === 'google' || provider === 'apple') && (
                 <span
                   className="text-muted"
-                  style={{ fontSize: 18.5, display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                  style={{ fontSize: 15.5, display: 'inline-flex', alignItems: 'center', gap: 5 }}
                 >
                   {provider === 'google' ? (
                     <img src="/assets/logo-google.svg" alt="" width={12} height={12} />
@@ -102,10 +102,10 @@ export function SettingsScreen(_: ScreenProps) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <Button variant="secondary" fontSize={19} onClick={() => setEditOpen(true)}>
+            <Button variant="secondary" fontSize={16} onClick={() => setEditOpen(true)}>
               {t('set.editProfile')}
             </Button>
-            <Button variant="ghost" fontSize={19} onClick={() => signOut()}>
+            <Button variant="ghost" fontSize={16} onClick={() => signOut()}>
               {t('set.signOut')}
             </Button>
           </div>
@@ -115,7 +115,7 @@ export function SettingsScreen(_: ScreenProps) {
       {/* Mode pill */}
       <Card padding="10px 12px" gap={6}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ flex: 1, fontSize: 21 }}>{t('set.modeRow')}</span>
+          <span style={{ flex: 1, fontSize: 18 }}>{t('set.modeRow')}</span>
           <div style={{ width: 200 }}>
             <SegmentedControl
               options={[
@@ -124,20 +124,20 @@ export function SettingsScreen(_: ScreenProps) {
               ]}
               value={mode}
               onChange={setMode}
-              fontSize={19}
+              fontSize={16}
             />
           </div>
         </div>
-        <p className="text-muted" style={{ fontSize: 19, margin: 0, lineHeight: 1.4 }}>
+        <p className="text-muted" style={{ fontSize: 16, margin: 0, lineHeight: 1.4 }}>
           {t('set.modeHelp')}
         </p>
       </Card>
 
       {/* Appearance */}
       <Card padding="12px 13px" gap={9}>
-        <CardTitle size={21}>{t('set.appearance')}</CardTitle>
+        <CardTitle size={18}>{t('set.appearance')}</CardTitle>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ flex: 1, fontSize: 20 }}>{t('set.theme')}</span>
+          <span style={{ flex: 1, fontSize: 17 }}>{t('set.theme')}</span>
           <div style={{ width: 170 }}>
             <SegmentedControl<Theme>
               options={[
@@ -146,12 +146,12 @@ export function SettingsScreen(_: ScreenProps) {
               ]}
               value={theme}
               onChange={setTheme}
-              fontSize={19}
+              fontSize={16}
             />
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ flex: 1, fontSize: 20 }}>{t('set.language')}</span>
+          <span style={{ flex: 1, fontSize: 17 }}>{t('set.language')}</span>
           <div style={{ width: 170 }}>
             <SegmentedControl<Language>
               options={[
@@ -160,12 +160,12 @@ export function SettingsScreen(_: ScreenProps) {
               ]}
               value={language}
               onChange={setLanguage}
-              fontSize={19}
+              fontSize={16}
             />
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <span style={{ fontSize: 20 }}>{t('set.signal')}</span>
+          <span style={{ fontSize: 17 }}>{t('set.signal')}</span>
           <SegmentedControl<Signal>
             options={[
               { value: 'vivid', label: t('set.signalVivid') },
@@ -174,9 +174,9 @@ export function SettingsScreen(_: ScreenProps) {
             ]}
             value={signal}
             onChange={setSignal}
-            fontSize={19}
+            fontSize={16}
           />
-          <p className="text-muted" style={{ fontSize: 18.5, margin: 0 }}>
+          <p className="text-muted" style={{ fontSize: 15.5, margin: 0 }}>
             {t('set.signalHelp')}
           </p>
         </div>
@@ -184,8 +184,8 @@ export function SettingsScreen(_: ScreenProps) {
 
       {/* Price-alert thresholds — informational only, opt-in, blank by default */}
       <Card padding="12px 13px" gap={9}>
-        <CardTitle size={21}>{t('thresh.title')}</CardTitle>
-        <div className="text-muted" style={{ fontSize: 18.5, lineHeight: 1.5 }}>
+        <CardTitle size={18}>{t('thresh.title')}</CardTitle>
+        <div className="text-muted" style={{ fontSize: 15.5, lineHeight: 1.5 }}>
           {t('thresh.help')}
         </div>
         <div
@@ -198,7 +198,7 @@ export function SettingsScreen(_: ScreenProps) {
           }}
         >
           <div className="field">
-            <label style={{ fontSize: 19 }}>{t('thresh.up')}</label>
+            <label style={{ fontSize: 16 }}>{t('thresh.up')}</label>
             <input
               className="input"
               type="number"
@@ -208,7 +208,7 @@ export function SettingsScreen(_: ScreenProps) {
             />
           </div>
           <div className="field">
-            <label style={{ fontSize: 19 }}>{t('thresh.down')}</label>
+            <label style={{ fontSize: 16 }}>{t('thresh.down')}</label>
             <input
               className="input"
               type="number"
@@ -222,7 +222,7 @@ export function SettingsScreen(_: ScreenProps) {
 
       {/* Notifications */}
       <Card padding="4px 0" gap={0}>
-        <CardTitle size={21}>
+        <CardTitle size={18}>
           <span style={{ display: 'block', padding: '6px 12px 1px' }}>{t('set.notifSection')}</span>
         </CardTitle>
         {(
@@ -258,8 +258,8 @@ export function SettingsScreen(_: ScreenProps) {
             }}
           >
             <span style={{ flex: 1 }}>
-              <span style={{ display: 'block', fontSize: 20 }}>{label[language]}</span>
-              <span className="text-muted" style={{ display: 'block', fontSize: 18.5 }}>
+              <span style={{ display: 'block', fontSize: 17 }}>{label[language]}</span>
+              <span className="text-muted" style={{ display: 'block', fontSize: 15.5 }}>
                 {help[language]}
               </span>
             </span>
@@ -273,7 +273,7 @@ export function SettingsScreen(_: ScreenProps) {
           went live: its empty state is now whatever the engine actually
           reports, and a control that faked it would misrepresent live data. */}
       <Card padding="4px 0" gap={0}>
-        <CardTitle size={21}>
+        <CardTitle size={18}>
           <span style={{ display: 'block', padding: '6px 12px 1px' }}>{t('set.dataSection')}</span>
         </CardTitle>
         {/* Showcase mode: illustrative earnings figures, to show what a paid
@@ -305,7 +305,7 @@ export function SettingsScreen(_: ScreenProps) {
 
       {/* Setup */}
       <Card padding="6px 0" gap={0}>
-        <CardTitle size={21}>
+        <CardTitle size={18}>
           <span style={{ display: 'block', padding: '8px 13px 2px' }}>{t('setup.section')}</span>
         </CardTitle>
         {setup.incomplete && (
@@ -325,7 +325,7 @@ export function SettingsScreen(_: ScreenProps) {
 
       {/* Opens the confirmation sheet; nothing is deleted from this click. */}
       {user && (
-        <Button variant="danger" alignSelf="flex-start" fontSize={19} onClick={() => setDeleteOpen(true)}>
+        <Button variant="danger" alignSelf="flex-start" fontSize={16} onClick={() => setDeleteOpen(true)}>
           {t('set.deleteAcct')}
         </Button>
       )}
@@ -366,11 +366,11 @@ function SettingsLink({
         textAlign: 'start',
       }}
     >
-      <span style={{ flex: 1, fontSize: 20, color: accent ? 'var(--color-accent-200)' : undefined }}>
+      <span style={{ flex: 1, fontSize: 17, color: accent ? 'var(--color-accent-200)' : undefined }}>
         {label}
       </span>
       {meta != null && (
-        <span className="text-muted" style={{ fontSize: 19 }}>
+        <span className="text-muted" style={{ fontSize: 16 }}>
           {meta}
         </span>
       )}
@@ -402,8 +402,8 @@ function DemoFlagRow({
       }}
     >
       <span style={{ flex: 1 }}>
-        <span style={{ display: 'block', fontSize: 20 }}>{label}</span>
-        <span className="text-muted" style={{ display: 'block', fontSize: 18.5 }}>
+        <span style={{ display: 'block', fontSize: 17 }}>{label}</span>
+        <span className="text-muted" style={{ display: 'block', fontSize: 15.5 }}>
           {help}
         </span>
       </span>

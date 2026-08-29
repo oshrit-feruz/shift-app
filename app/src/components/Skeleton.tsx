@@ -47,7 +47,7 @@ export function Skeleton({
  */
 export function SkeletonLine({
   width = '100%',
-  fontSize = 20,
+  fontSize = 17,
   lineHeight = 1.5,
   bar = 11,
   style,
@@ -91,13 +91,13 @@ export function SkeletonRow({
       divider={divider}
       minHeight={minHeight}
       leading={leading ? <Skeleton width={34} height={34} radius="var(--radius-sm)" /> : undefined}
-      title={<SkeletonLine width="42%" fontSize={21} />}
-      subtitle={subtitle ? <SkeletonLine width="68%" fontSize={19} bar={9} /> : undefined}
+      title={<SkeletonLine width="42%" fontSize={18} />}
+      subtitle={subtitle ? <SkeletonLine width="68%" fontSize={16} bar={9} /> : undefined}
       right={
         right ? (
           <>
-            <SkeletonLine width={56} fontSize={20} />
-            <SkeletonLine width={38} fontSize={18.5} bar={9} />
+            <SkeletonLine width={56} fontSize={17} />
+            <SkeletonLine width={38} fontSize={15.5} bar={9} />
           </>
         ) : undefined
       }
@@ -140,7 +140,7 @@ export function SkeletonList({
 /** Stacked text lines, for paragraph-shaped content. */
 export function SkeletonText({
   lines = 2,
-  fontSize = 20,
+  fontSize = 17,
   widths,
 }: {
   lines?: number;
@@ -206,7 +206,7 @@ export function SkeletonCard({
   return (
     <Card padding={padding} gap={9} style={{ height, overflow: 'hidden', flex: 'none' }}>
       <Skeleton width="46%" height={12} />
-      <SkeletonText lines={lines} fontSize={19} />
+      <SkeletonText lines={lines} fontSize={16} />
     </Card>
   );
 }

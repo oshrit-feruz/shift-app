@@ -70,7 +70,7 @@ export function TxSheet({
         ]}
         value={side}
         onChange={setSide}
-        fontSize={19}
+        fontSize={16}
       />
       <Field
         label={t('tx.symbol')}
@@ -92,17 +92,17 @@ export function TxSheet({
           background: 'var(--sunk)',
         }}
       >
-        <span className="text-muted" style={{ fontSize: 19, flex: 1 }}>
+        <span className="text-muted" style={{ fontSize: 16, flex: 1 }}>
           {verb} <Num>{`${sh} × ${ticker}`}</Num> <Num>{`@ $${px.toFixed(2)}`}</Num>
         </span>
-        <Num size={23}>
+        <Num size={20}>
           {(side === 'sell' ? '+' : '−') +
             '$' +
             (sh * px).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </Num>
       </div>
       {mode === 'beginner' && (
-        <p className="text-muted" style={{ fontSize: 18.5, margin: 0 }}>
+        <p className="text-muted" style={{ fontSize: 15.5, margin: 0 }}>
           {t('pf.theoretical')}
         </p>
       )}

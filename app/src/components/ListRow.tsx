@@ -30,13 +30,13 @@ export function ListRow({
     <>
       {leading}
       <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: 'block', fontSize: 21, fontWeight: 600 }}>{title}</span>
+        <span style={{ display: 'block', fontSize: 18, fontWeight: 600 }}>{title}</span>
         {subtitle != null && (
           <span
             className="text-muted"
             style={{
               display: 'block',
-              fontSize: 19,
+              fontSize: 16,
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
@@ -108,11 +108,11 @@ export function ListRow({
 export function RowValues({ main, sub, subColor }: { main: ReactNode; sub?: ReactNode; subColor?: string }) {
   return (
     <>
-      <span data-num="" style={{ display: 'block', fontSize: 20 }}>
+      <span data-num="" style={{ display: 'block', fontSize: 17 }}>
         {main}
       </span>
       {sub != null && (
-        <span data-num="" style={{ display: 'block', fontSize: 18.5, fontWeight: 600, color: subColor }}>
+        <span data-num="" style={{ display: 'block', fontSize: 15.5, fontWeight: 600, color: subColor }}>
           {sub}
         </span>
       )}

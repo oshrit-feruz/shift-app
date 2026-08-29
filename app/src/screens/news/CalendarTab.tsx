@@ -125,14 +125,14 @@ export function CalendarTab({ watchlist }: { watchlist: string[] }) {
                   >
                     <div
                       className="text-muted"
-                      style={{ fontSize: 17, textTransform: 'uppercase', letterSpacing: '.06em' }}
+                      style={{ fontSize: 14, textTransform: 'uppercase', letterSpacing: '.06em' }}
                     >
                       {weekdayLabel(d, language)}
                     </div>
-                    <Num size={23} style={{ fontFamily: 'var(--font-heading)' }}>
+                    <Num size={20} style={{ fontFamily: 'var(--font-heading)' }}>
                       {d.slice(8)}
                     </Num>
-                    <div className="text-muted" style={{ fontSize: 17 }}>
+                    <div className="text-muted" style={{ fontSize: 14 }}>
                       <Num>{String(events.length)}</Num>
                     </div>
                   </button>
@@ -153,7 +153,7 @@ export function CalendarTab({ watchlist }: { watchlist: string[] }) {
                 caveat that does not match what is on screen teaches a reader
                 to stop reading the caveats. */}
             {!DEMO_FLAGS.showcase && (
-              <span className="text-muted" style={{ fontSize: 18.5, padding: '0 2px' }}>
+              <span className="text-muted" style={{ fontSize: 15.5, padding: '0 2px' }}>
                 {t('earn.scheduledOnly')}
               </span>
             )}
@@ -163,7 +163,7 @@ export function CalendarTab({ watchlist }: { watchlist: string[] }) {
                 inaccuracy this app exists to avoid. */}
             {page.truncated && (
               <Card padding={12} gap={0}>
-                <span className="text-muted" style={{ fontSize: 18.5 }}>
+                <span className="text-muted" style={{ fontSize: 15.5 }}>
                   {t('earn.truncated', { shown: rows.length, total: page.totalAvailable })}
                 </span>
               </Card>
@@ -263,11 +263,11 @@ function EarningsRowView({
       onClick={onOpen}
       style={{ ...ROW_BUTTON_STYLE, padding: '10px 13px', borderTop: '1px solid var(--color-divider)' }}
     >
-      <Tag variant="accent" fontSize={18}>
+      <Tag variant="accent" fontSize={15}>
         {row.ticker}
       </Tag>
       <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <span className="text-muted" style={{ fontSize: 18.5, display: 'flex', gap: 6 }}>
+        <span className="text-muted" style={{ fontSize: 15.5, display: 'flex', gap: 6 }}>
           <span>
             {t('stock.epsEst')} <Num>{row.estimate === null ? '—' : row.estimate.toFixed(2)}</Num>
           </span>
@@ -285,11 +285,11 @@ function EarningsRowView({
           published. Missing surprise renders as the actual EPS, or an em dash
           when even that is absent. */}
       {reported ? (
-        <Num size={19} style={{ color: row.surprisePct === null ? undefined : signalColor(row.surprisePct) }}>
+        <Num size={16} style={{ color: row.surprisePct === null ? undefined : signalColor(row.surprisePct) }}>
           {row.surprisePct === null ? row.actual!.toFixed(2) : pct(row.surprisePct, 1)}
         </Num>
       ) : (
-        <Tag variant="outline" fontSize={17.5}>
+        <Tag variant="outline" fontSize={14.5}>
           {t('stock.upcoming')}
         </Tag>
       )}

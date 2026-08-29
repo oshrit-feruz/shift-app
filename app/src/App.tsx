@@ -161,7 +161,7 @@ function AuthSplash() {
         className="anim-mark-breathe"
         style={{ borderRadius: '50%', boxShadow: 'var(--shadow-lg)' }}
       />
-      <span className="text-muted" style={{ fontSize: 19 }}>
+      <span className="text-muted" style={{ fontSize: 16 }}>
         {t('data.loading')}
       </span>
     </div>
@@ -353,7 +353,7 @@ function BackToStepsPill() {
           // straight through it, so the label was competing with a squiggle.
           background: 'var(--acc-fill)',
           color: 'var(--color-accent-200)',
-          fontSize: 19,
+          fontSize: 16,
           fontWeight: 600,
           boxShadow: 'var(--shadow-lg)',
           backdropFilter: 'blur(10px)',

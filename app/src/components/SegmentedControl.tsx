@@ -3,7 +3,7 @@ export function SegmentedControl<T extends string>({
   options,
   value,
   onChange,
-  fontSize = 20,
+  fontSize = 17,
 }: {
   options: Array<{ value: T; label: string }>;
   value: T;

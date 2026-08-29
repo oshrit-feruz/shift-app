@@ -37,14 +37,14 @@ export function DeleteAccountSheet({ open, onClose }: { open: boolean; onClose: 
 
   return (
     <Sheet open={open} onClose={onClose} title={t('set.deleteTitle')}>
-      <p className="text-muted" style={{ margin: 0, fontSize: 19.5, lineHeight: 1.55 }}>
+      <p className="text-muted" style={{ margin: 0, fontSize: 16.5, lineHeight: 1.55 }}>
         {t('set.deleteWarn')}
       </p>
 
       {error && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <span style={{ fontSize: 20 }}>{t('set.deleteFailedTitle')}</span>
-          <span className="text-muted" style={{ fontSize: 18.5, lineHeight: 1.5 }}>
+          <span style={{ fontSize: 17 }}>{t('set.deleteFailedTitle')}</span>
+          <span className="text-muted" style={{ fontSize: 15.5, lineHeight: 1.5 }}>
             {error[language]}
           </span>
         </div>

@@ -20,7 +20,7 @@ export function Chip({
         padding: big ? '7px 13px' : '6px 12px',
         borderRadius: 999,
         font: 'inherit',
-        fontSize: 19,
+        fontSize: 16,
         whiteSpace: 'nowrap',
         cursor: 'pointer',
         flex: 'none',
