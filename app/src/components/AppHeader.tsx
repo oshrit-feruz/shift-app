@@ -109,6 +109,7 @@ function HeaderIconButton({
     <button
       type="button"
       title={title}
+      className="header-icon-btn"
       onClick={onClick}
       style={{
         position: 'relative',

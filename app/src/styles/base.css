@@ -137,8 +137,7 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
 .btn-primary:active,
 .btn-secondary:active,
 .btn-danger:active { box-shadow: var(--shadow-btn-active); }
-.btn-primary { background: var(--color-accent); color: #fff; }
-.btn-secondary {
+.btn-primary { background: var(--color-accent); color: #fff; }.btn-secondary {
   border: 1px solid var(--color-divider);
   background: var(--sunk);
   color: inherit;
@@ -163,6 +162,27 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
   border-radius: 6px; /* per review: ghost buttons carry a 6px radius */
 }
 .btn-block { display: flex; width: 100%; }
+
+/* Small square row actions (watchlist's +/✕ pair, and any similar per-row
+ * icon button): a bare border on transparent reads as flat, easy to miss as
+ * tappable next to raised .btn-* controls on the same screen. Same contact
+ * shadow, collapsing on press. */
+.row-icon-btn {
+  background: var(--sunk);
+  box-shadow: var(--shadow-btn);
+}
+.row-icon-btn:active { box-shadow: var(--shadow-btn-active); }
+
+/* Header's search/notifications buttons: same flat-square problem as
+ * .row-icon-btn, one size up. */
+.header-icon-btn { box-shadow: var(--shadow-btn); }
+.header-icon-btn:active { box-shadow: var(--shadow-btn-active); }
+
+/* Filter/selection chips (portfolio switcher, screener facets...): an
+ * outline-only pill next to raised buttons on the same screen reads as
+ * disabled rather than tappable, active or not. */
+.chip { box-shadow: var(--shadow-btn); }
+.chip:active { box-shadow: var(--shadow-btn-active); }
 
 /* ── Tags ──────────────────────────────────────────────────────────────── */
 .tag {
@@ -323,7 +343,9 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
 .btn,
 .card[data-clickable='true'],
 .seg-opt,
-.chip {
+.chip,
+.row-icon-btn,
+.header-icon-btn {
   transition:
     background-color .18s ease,
     border-color .18s ease,
