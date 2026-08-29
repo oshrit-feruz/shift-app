@@ -143,6 +143,7 @@ function ModeCard({
   return (
     <button
       type="button"
+      className="select-card"
       onClick={onClick}
       style={{
         display: 'block',
@@ -154,7 +155,7 @@ function ModeCard({
         font: 'inherit',
         color: 'inherit',
         border: `1px solid ${active ? 'var(--color-accent)' : 'var(--color-divider)'}`,
-        background: active ? 'color-mix(in srgb, var(--color-accent) 10%, transparent)' : 'transparent',
+        background: active ? 'color-mix(in srgb, var(--color-accent) 10%, transparent)' : 'var(--sunk)',
       }}
     >
       <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

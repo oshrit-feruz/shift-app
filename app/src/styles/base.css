@@ -184,6 +184,12 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
 .chip { box-shadow: var(--shadow-btn); }
 .chip:active { box-shadow: var(--shadow-btn-active); }
 
+/* Larger selectable option cards (More screen's Beginner/Advanced picker):
+ * same flat-border problem, one size up again — a whole tappable card that
+ * read as inert text next to every other raised control on the screen. */
+.select-card { box-shadow: var(--shadow-btn); }
+.select-card:active { box-shadow: var(--shadow-btn-active); }
+
 /* ── Tags ──────────────────────────────────────────────────────────────── */
 .tag {
   display: inline-flex;
@@ -345,7 +351,8 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
 .seg-opt,
 .chip,
 .row-icon-btn,
-.header-icon-btn {
+.header-icon-btn,
+.select-card {
   transition:
     background-color .18s ease,
     border-color .18s ease,
