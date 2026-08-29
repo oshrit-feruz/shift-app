@@ -20,7 +20,11 @@ export function withDemoData(on: boolean): void {
   if (on) store.set(DEMO_FLAGS.key.demoData, '1');
   vi.stubGlobal('localStorage', {
     getItem: (k: string) => store.get(k) ?? null,
-    setItem: (k: string, v: string) => void store.set(k, v),
-    removeItem: (k: string) => void store.delete(k),
+    setItem: (k: string, v: string) => {
+      store.set(k, v);
+    },
+    removeItem: (k: string) => {
+      store.delete(k);
+    },
   });
 }

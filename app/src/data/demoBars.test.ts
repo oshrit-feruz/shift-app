@@ -61,3 +61,27 @@ describe('generated bars are never a fallback', () => {
     expect((await fetchDailySeries('NVDA', failing, NOW)).status).toBe('unavailable');
   });
 });
+
+// A browser that throws on localStorage (Safari private mode, cookies
+// blocked) used to leave the switch visibly on while the data layer kept
+// reading false, so the chart never changed. The flag now holds in memory.
+describe('the flag survives storage that throws', () => {
+  it('still reads back what was set when localStorage is unusable', async () => {
+    const { DEMO_FLAGS } = await import('./demoFlags');
+    vi.stubGlobal('localStorage', {
+      getItem: () => {
+        throw new Error('blocked');
+      },
+      setItem: () => {
+        throw new Error('blocked');
+      },
+      removeItem: () => {
+        throw new Error('blocked');
+      },
+    });
+    DEMO_FLAGS.set('demoData', true);
+    expect(DEMO_FLAGS.demoData).toBe(true);
+    DEMO_FLAGS.set('demoData', false);
+    expect(DEMO_FLAGS.demoData).toBe(false);
+  });
+});
