@@ -28,7 +28,10 @@ import type { StockNewsArticle } from '../../data/types';
 export function NewsTab({ ticker }: { ticker: string }) {
   const t = useT();
   const { language } = useTheme();
-  const news = useLoadable(() => fetchStockNews(ticker), [ticker]);
+  // `language` is a dependency as well as an argument: the headlines come
+  // back translated, so switching language must refetch rather than leave the
+  // previous language's text on screen.
+  const news = useLoadable(() => fetchStockNews(ticker, language), [ticker, language]);
 
   return (
     <DataState state={news.state} onRetry={news.retry} skeleton={<SkeletonCard height={210} lines={4} />}>
@@ -90,12 +93,13 @@ function Article({
         </div>
       )}
       {/* dir="auto" on the provider's own text: headlines and summaries come
-          from an English-language feed into a Hebrew-first page, and without
-          it the paragraph's RTL context throws the sentence-ending period to
-          the wrong side (".in ahead of consensus"). Auto lets each string
-          take its direction from its own first strong character, so an
-          English article reads as English and a Hebrew one would read as
-          Hebrew. */}
+          from an English-language feed, translated to Hebrew when the app is
+          in Hebrew — and left in English if that translation was unavailable.
+          So the language of this string is not fixed, and without dir="auto"
+          the paragraph's RTL context throws the sentence-ending period to the
+          wrong side (".in ahead of consensus"). Auto lets each string take its
+          direction from its own first strong character, so an English article
+          reads as English and a Hebrew one as Hebrew. */}
       <div
         dir="auto"
         style={{

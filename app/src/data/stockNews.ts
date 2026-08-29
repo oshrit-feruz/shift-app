@@ -9,6 +9,15 @@
  * modelling a body field, so there is nothing for a screen to render even by
  * accident.
  *
+ * LANGUAGE:
+ * The app's current language is sent as `lang`, and the function answers with
+ * Hebrew headlines and excerpts for `he` — the provider's feed is English, and
+ * this app is Hebrew-first. Translation is best effort server-side: if it
+ * fails there, the English text comes back with a normal 200 rather than an
+ * error, because the articles themselves are real and available either way.
+ * The language is part of the request URL, so it is also part of the cache key
+ * below and the two languages never share an entry.
+ *
  * EMPTY IS NOT AN ERROR:
  * A ticker with no recent coverage is a legitimate, successful answer and
  * comes back as ok([]), which the screen renders as an honest empty state.
@@ -159,11 +168,12 @@ const UNAVAILABLE = {
  */
 export async function fetchStockNews(
   ticker: string,
+  language: 'en' | 'he',
   fetchImpl: typeof fetch = fetch,
 ): Promise<Loadable<StockNewsArticle[]>> {
   const clean = ticker.trim().toUpperCase();
   if (!clean) return unavailable(UNAVAILABLE);
-  return readNewsCached(`${STOCK_NEWS_URL}?ticker=${encodeURIComponent(clean)}`, fetchImpl);
+  return readNewsCached(`${STOCK_NEWS_URL}?ticker=${encodeURIComponent(clean)}&lang=${language}`, fetchImpl);
 }
 
 /**
@@ -176,9 +186,10 @@ export async function fetchStockNews(
  * shows which stock it is about without the app having decided in advance.
  */
 export async function fetchMarketNews(
+  language: 'en' | 'he',
   fetchImpl: typeof fetch = fetch,
 ): Promise<Loadable<StockNewsArticle[]>> {
-  return readNewsCached(STOCK_NEWS_URL, fetchImpl);
+  return readNewsCached(`${STOCK_NEWS_URL}?lang=${language}`, fetchImpl);
 }
 
 /**

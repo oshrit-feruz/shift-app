@@ -27,7 +27,11 @@ import { ok, unavailable, type Loadable, type StockNewsArticle } from '../../dat
  * an empty sheet or re-introducing the full text this whole path avoids.
  */
 export function MarketFeed() {
-  const news = useLoadable(() => fetchMarketNews(), []);
+  const { language } = useTheme();
+  // `language` is a dependency, not just an argument: switching the app to
+  // English must refetch, or the screen would keep showing the Hebrew
+  // translation of a feed the user just asked to see in the source language.
+  const news = useLoadable(() => fetchMarketNews(language), [language]);
   const t = useT();
   return <FeedBody state={news.state} onRetry={news.retry} emptyText={t('news.feedEmpty')} showTicker />;
 }
@@ -43,13 +47,14 @@ export function MarketFeed() {
  */
 export function WatchlistFeed({ tickers }: { tickers: string[] }) {
   const t = useT();
+  const { language } = useTheme();
   // Sorted + joined so the effect re-runs when the set changes, not on every
   // render that happens to rebuild the array. The comparator is explicit:
   // bare .sort() coerces to string and compares UTF-16 code units, which is
   // unreliable in general — and here the key's stability is the whole point,
   // so leaving the ordering to a default is exactly the wrong trade.
   const key = [...tickers].sort((a, b) => a.localeCompare(b)).join(',');
-  const news = useLoadable<StockNewsArticle[]>(() => fetchWatchlistNews(tickers), [key]);
+  const news = useLoadable<StockNewsArticle[]>(() => fetchWatchlistNews(tickers, language), [key, language]);
 
   if (tickers.length === 0) {
     return (
@@ -79,10 +84,11 @@ export function WatchlistFeed({ tickers }: { tickers: string[] }) {
  */
 export async function fetchWatchlistNews(
   tickers: string[],
+  language: 'en' | 'he',
   fetchImpl: typeof fetch = fetch,
 ): Promise<Loadable<StockNewsArticle[]>> {
   if (tickers.length === 0) return ok([]);
-  const results = await Promise.all(tickers.map((tk) => fetchStockNews(tk, fetchImpl)));
+  const results = await Promise.all(tickers.map((tk) => fetchStockNews(tk, language, fetchImpl)));
   const good = results.filter((r) => r.status === 'ok');
   if (good.length === 0) {
     return unavailable({
@@ -197,9 +203,11 @@ function ArticleCard({
           {date && <span>{date}</span>}
         </span>
       </span>
-      {/* dir="auto" because the provider's feed is English inside a
-          Hebrew-first page — without it the sentence-ending period lands on
-          the wrong side. */}
+      {/* dir="auto" because this text's language is not fixed: the provider's
+          feed is English, and in Hebrew it is served translated. Each string
+          takes its direction from its own first strong character, so the
+          sentence-ending period lands on the correct side either way — and
+          still does if a translation falls back to the English original. */}
       <span
         dir="auto"
         style={{
