@@ -103,7 +103,74 @@
   /* Type */
   --font-heading: 'Rubik', system-ui, sans-serif;
   --font-body: 'Rubik', system-ui, sans-serif;
+  /* Screen change. Long enough to read as a settle, short enough that a
+   * back-and-forth between two tabs never feels like waiting. */
+  --dur-screen: 220ms;
+  /* Tab re-activation inside a screen — the chrome around it never moved, so
+   * the same 220ms reads as sluggish. */
+  --dur-tab: 140ms;
+  /* Exit. Shorter than the entrance on purpose: a close that matches its open
+   * feels like it lags the tap. useDismissAnimation reads this value. */
+  --dur-exit: 180ms;
+
+  /* Front-loaded: most of the change happens early and the tail only settles.
+   * A symmetric ease-in-out at the same duration reads as a slower blink. */
+  --ease-out: cubic-bezier(.22, .61, .36, 1);
+  /* Exits invert it — leave slowly, then go. */
+  --ease-in: cubic-bezier(.4, 0, 1, 1);
 }
+
+/* ══ 2. --color-accent-900 → two tokens ═══════════════════════════════════
+ *
+ * The problem, in light mode:
+ *
+ *     --color-surface:     rgba(18, 24, 41, .80)
+ *     --color-accent-900:  rgba(18, 24, 41, .85)
+ *
+ * Identical RGB, five points of alpha apart. Every selected chip, active tab
+ * pill and highlighted card that sits ON a card is invisible against it.
+ *
+ * The deeper cause is that one token carries two jobs across 31 call sites:
+ *
+ *   A. selected/active fill — Chip, TabBar, Card highlight, Connect,
+ *      CalendarTab, FirstRunOverlay, OpenAccount, SearchOverlay,
+ *      InstitutionRows, AlertSheet, NotificationsSheet
+ *   B. monogram tile ground — TickerTile, LogoTile, where the fill is a plate
+ *      standing in for a missing logo, sitting in a row beside real logo
+ *      tiles whose ground is #fff
+ *
+ * In dark mode both wanted the same faint violet, which is why the conflation
+ * went unnoticed. In light mode they diverge: B legitimately wants the dark
+ * plate (it must hold its own next to white tiles), A needs to lift off
+ * whatever it covers. Split them, and dark mode does not move at all.
+ */
+
+/* Add to :root — replaces --color-accent-900 */
+:root {
+  /* The only accent fill allowed behind body copy. Pair with
+   * --color-accent-300 for text, --color-accent for a border. */
+  --fill-selected: rgba(139, 92, 246, .14);
+  /* Monogram plate for a ticker or provider with no logo asset. Pair with
+   * --color-accent-200 for the letters. */
+  --tile-ground: rgba(139, 92, 246, .14);
+}
+
+[data-theme="light"] {
+  /* Indigo-900 rather than the surface's slate navy: cards stay dark in light
+   * mode, so a pale tint would vanish on them, and a slate tint is the card's
+   * own colour. Shifting hue instead of lightness is what separates the two
+   * while keeping --color-accent-300 text legible on top — on a card and on
+   * the light page ground alike, since chip rails appear on both. */
+  --fill-selected: rgba(49, 46, 129, .88);
+  /* Unchanged from the old --color-accent-900: this one was always meant to
+   * be a dark plate here, beside the white logo tiles. */
+  --tile-ground: rgba(18, 24, 41, .85);
+}
+
+/* Keep during migration, delete once the 31 call sites are moved.
+ * Aliased to the selected fill because that is the majority use. */
+:root { --color-accent-900: var(--fill-selected); }
+
 
 [data-signal="balanced"] {
   --up: #48c795;

@@ -262,10 +262,27 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
  * containing block — in Chromium that detaches descendant backdrop-filter
  * blur from the real page background for those 220ms, so cards flash opaque
  * on every screen transition instead of reading as glass immediately. */
+
 @keyframes fadeUp {
   from { opacity: 0; }
-  to { opacity: 1; }
+  to   { opacity: 1; }
 }
+
+.anim-fade-up > * {
+  animation: fadeUp var(--dur-screen) var(--ease-out) both;
+}
+
+/* Overlays are a single pane with no glass descendants, so this one may sit
+ * on the element itself. Nest a .card inside one and it moves to `> *` too. */
+.anim-fade-out {
+  animation: fadeOut var(--dur-exit) var(--ease-in) both;
+}
+
+/* TabPanel is an ancestor of glass cards as well — same child targeting. */
+.anim-tab-in > * {
+  animation: fadeUp var(--dur-tab) var(--ease-out) both;
+}
+
 @keyframes sheetUp {
   from { transform: translateY(100%); }
   to { transform: none; }
@@ -290,31 +307,6 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
 @keyframes fadeUp {
   from { opacity: 0; }
   to   { opacity: 1; }
-}
-
-/* Screen change. The wrapper itself stays untouched at full opacity; its
- * direct children each fade. ease-out front-loads the fade, so the screen is
- * legible early and the last third only settles — linear or ease-in-out at
- * the same 220ms reads as a slower blink. */
-.anim-fade-up > * {
-  animation: fadeUp .22s cubic-bezier(.22, .61, .36, 1) both;
-}
-
-/* Exit, paired with useDismissAnimation's 200ms default: shorter than the
- * entrance so a close never feels like it lags the tap. Keep it under the
- * hook's durationMs or the unmount timer cuts it off. Overlays are usually a
- * single pane with no glass descendants, so this one can sit on the element
- * itself — if you ever nest a .card inside one, move it to `> *` as well. */
-.anim-fade-out {
-  animation: fadeOut .18s cubic-bezier(.4, 0, 1, 1) both;
-}
-
-/* Tab re-activation inside a screen. Shorter than a screen change because the
- * chrome around it never moved — 220ms here reads as sluggish. Restarts on
- * each activation because display:none resets the animation. Same child-level
- * targeting: TabPanel is an ancestor of glass cards too. */
-.anim-tab-in > * {
-  animation: fadeUp .14s cubic-bezier(.22, .61, .36, 1) both;
 }
 
 
