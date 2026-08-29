@@ -11,6 +11,7 @@ import { useAppState, useDispatch } from '../state/appState';
 import { useT } from '../i18n/useT';
 import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
+import type { WatchRow } from '../data/types';
 
 /**
  * Full-screen ticker search — and the app's one way onto the watchlist.
@@ -25,6 +26,13 @@ import { useLoadable } from '../data/useLoadable';
  * the sample table — a watchlist you may only fill from ten names is a demo
  * with extra steps.
  */
+/** Rows whose ticker or company name contains the (already lowercased) query. */
+function matches(rows: WatchRow[], query: string): WatchRow[] {
+  return rows.filter(
+    (x) => x.ticker.toLowerCase().includes(query) || (x.name?.toLowerCase().includes(query) ?? false),
+  );
+}
+
 export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { mounted, closing } = useDismissAnimation(open, 170);
   // The body (and its symbols fetch) exists only while the overlay is
@@ -38,7 +46,10 @@ function SearchOverlayBody({ closing, onClose }: { closing: boolean; onClose: ()
   const s = useAppState();
   const t = useT();
   const [q, setQ] = useState('');
-  const symbols = useLoadable(() => demoService.searchUniverse(), []);
+  // The watchlist is passed in so a followed ticker the daily ranking has
+  // since dropped is still listed here — search is where someone goes to take
+  // it off, and a list that omits it cannot be used to do that.
+  const symbols = useLoadable(() => demoService.searchUniverse(s.watchlist), [s.watchlist.join(',')]);
   const query = q.trim().toLowerCase();
 
   return (
@@ -103,19 +114,20 @@ function SearchOverlayBody({ closing, onClose }: { closing: boolean; onClose: ()
           skeleton={<SkeletonList count={5} minHeight={52} firstDivider />}
         >
           {(syms) => {
-            const hits = query
-              ? syms.filter(
-                  (x) =>
-                    x.ticker.toLowerCase().includes(query) ||
-                    (x.name?.toLowerCase().includes(query) ?? false),
-                )
-              : // With no query, what the user already follows is the most
-                // useful thing to show — it is also where they come to remove
-                // one. Falling back to the first few symbols keeps the
-                // overlay from opening empty for someone with no list yet.
-                s.watchlist.length > 0
-                ? syms.filter((x) => s.watchlist.includes(x.ticker))
-                : syms.slice(0, 5);
+            // With no query, what the user already follows is the most useful
+            // thing to show — it is also where they come to remove one, and
+            // it is listed in their order, the same as the watchlist screen.
+            // Falling back to the first few symbols keeps the overlay from
+            // opening empty for someone with no list yet.
+            const tracked = s.watchlist
+              .map((ticker) => syms.find((x) => x.ticker === ticker))
+              .filter((x): x is WatchRow => x !== undefined);
+            const hits = query ? matches(syms, query) : tracked.length > 0 ? tracked : syms.slice(0, 5);
+            const heading = query
+              ? t('search.matches', { n: hits.length })
+              : tracked.length > 0
+                ? t('watch.tracking')
+                : t('search.recent');
             return (
               <>
                 <div
@@ -127,11 +139,7 @@ function SearchOverlayBody({ closing, onClose }: { closing: boolean; onClose: ()
                     padding: '6px 0',
                   }}
                 >
-                  {query
-                    ? t('search.matches', { n: hits.length })
-                    : s.watchlist.length > 0
-                      ? t('watch.tracking')
-                      : t('search.recent')}
+                  {heading}
                 </div>
                 {hits.map((x) => {
                   const watched = s.watchlist.includes(x.ticker);

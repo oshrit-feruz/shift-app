@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { demoService } from './demoAdapter';
 import { clearLoadableCache } from './loadableCache';
 
@@ -18,6 +18,12 @@ const today = NOW.toISOString().slice(0, 10);
 // snapshot would be served to every case after it, and a test asserting on a
 // dead or stale mirror would quietly pass against the healthy one.
 beforeEach(clearLoadableCache);
+// Unstubbing per-test as the last statement meant a failing assertion above it
+// skipped the cleanup, leaking the stubbed fetch into every test after it — one
+// real failure would then produce a cascade of unrelated ones.
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 function mirror(rows: unknown[]): typeof fetch {
   return (async () =>
@@ -40,7 +46,6 @@ describe('symbols() — real prices attached, demo prices quarantined', () => {
     // The prototype figure is still reachable for the demo-only stats, but it
     // is not what the price surfaces read.
     expect(nvda!.demo.price).toBe(DEMO_PRICE.NVDA);
-    vi.unstubAllGlobals();
   });
 
   it('leaves an uncovered ticker with quote: null — not with its demo price', async () => {
@@ -49,7 +54,6 @@ describe('symbols() — real prices attached, demo prices quarantined', () => {
     const aapl = r.status === 'ok' ? r.data.find((s) => s.ticker === 'AAPL')! : null;
     expect(aapl!.quote).toBeNull();
     expect(aapl!.demo.price).toBe(DEMO_PRICE.AAPL);
-    vi.unstubAllGlobals();
   });
 
   it('still lists every symbol when the mirror cannot be read, all quotes null', async () => {
@@ -64,7 +68,6 @@ describe('symbols() — real prices attached, demo prices quarantined', () => {
     const rows = r.status === 'ok' ? r.data : [];
     expect(rows.length).toBeGreaterThan(0);
     expect(rows.every((s) => s.quote === null)).toBe(true);
-    vi.unstubAllGlobals();
   });
 
   it('never reports a stale snapshot price as a quote', async () => {
@@ -79,7 +82,6 @@ describe('symbols() — real prices attached, demo prices quarantined', () => {
     const r = await demoService.symbols();
     const nvda = r.status === 'ok' ? r.data.find((s) => s.ticker === 'NVDA')! : null;
     expect(nvda!.quote).toBeNull();
-    vi.unstubAllGlobals();
   });
 });
 
@@ -88,14 +90,12 @@ describe('symbol() — one ticker, same contract', () => {
     vi.stubGlobal('fetch', mirror([{ ticker: 'NVDA', price: 144.76 }]));
     const r = await demoService.symbol('NVDA');
     expect(r.status === 'ok' && r.data.quote?.price).toBe(144.76);
-    vi.unstubAllGlobals();
   });
 
   it('is unavailable for a symbol the app does not carry, however good the mirror', async () => {
     vi.stubGlobal('fetch', mirror([{ ticker: 'ZZZZ', price: 1 }]));
     const r = await demoService.symbol('ZZZZ');
     expect(r.status).toBe('unavailable');
-    vi.unstubAllGlobals();
   });
 });
 
@@ -110,7 +110,6 @@ describe("watchRows() — the user's own list, whatever is on it", () => {
     );
     const r = await demoService.watchRows(['AAPL', 'NVDA']);
     expect(r.status === 'ok' && r.data.map((x) => x.ticker)).toEqual(['AAPL', 'NVDA']);
-    vi.unstubAllGlobals();
   });
 
   it('keeps a ticker the sample table does not cover, priced from the mirror', async () => {
@@ -126,7 +125,6 @@ describe("watchRows() — the user's own list, whatever is on it", () => {
     expect(orcl!.name).toBeNull();
     expect(orcl!.sector).toBeNull();
     expect(orcl!.demoChangePct).toBeNull();
-    vi.unstubAllGlobals();
   });
 
   it('never lends a demo day change to a ticker with no sample row', async () => {
@@ -141,7 +139,6 @@ describe("watchRows() — the user's own list, whatever is on it", () => {
     const rows = r.status === 'ok' ? r.data : [];
     expect(rows.find((x) => x.ticker === 'NVDA')!.demoChangePct).toBe(2.31);
     expect(rows.find((x) => x.ticker === 'ORCL')!.demoChangePct).toBeNull();
-    vi.unstubAllGlobals();
   });
 
   it('normalises what the caller passes', async () => {
@@ -149,7 +146,6 @@ describe("watchRows() — the user's own list, whatever is on it", () => {
     const r = await demoService.watchRows([' nvda ']);
     expect(r.status === 'ok' && r.data[0].ticker).toBe('NVDA');
     expect(r.status === 'ok' && r.data[0].quote?.price).toBe(144.76);
-    vi.unstubAllGlobals();
   });
 
   it('returns an empty list with no request at all', async () => {
@@ -158,7 +154,6 @@ describe("watchRows() — the user's own list, whatever is on it", () => {
     const r = await demoService.watchRows([]);
     expect(r).toEqual({ status: 'ok', data: [] });
     expect(fetchSpy).not.toHaveBeenCalled();
-    vi.unstubAllGlobals();
   });
 
   it('still lists every row when the mirror is dead, prices null', async () => {
@@ -169,7 +164,6 @@ describe("watchRows() — the user's own list, whatever is on it", () => {
     const rows = r.status === 'ok' ? r.data : [];
     expect(rows.map((x) => x.ticker)).toEqual(['NVDA', 'ORCL']);
     expect(rows.every((x) => x.quote === null)).toBe(true);
-    vi.unstubAllGlobals();
   });
 });
 
@@ -190,7 +184,6 @@ describe('searchUniverse() — everything a user can follow', () => {
     expect(tickers.filter((x) => x === 'NVDA')).toHaveLength(1);
     // Named rows first — those are the ones a company-name search can hit.
     expect(tickers.indexOf('NVDA')).toBeLessThan(tickers.indexOf('ORCL'));
-    vi.unstubAllGlobals();
   });
 
   it('falls back to the sample table when the mirror is dead', async () => {
@@ -201,6 +194,44 @@ describe('searchUniverse() — everything a user can follow', () => {
     const rows = r.status === 'ok' ? r.data : [];
     expect(rows.length).toBeGreaterThan(0);
     expect(rows.every((x) => x.quote === null)).toBe(true);
-    vi.unstubAllGlobals();
+  });
+});
+
+describe('searchUniverse() — one row per symbol, and never drops a followed one', () => {
+  it('lists a followed ticker the ranking no longer covers', async () => {
+    // Search is where someone goes to un-follow a stock. A list that quietly
+    // omits it cannot be used to do that, and disagrees with watchRows.
+    vi.stubGlobal('fetch', mirror([{ ticker: 'NVDA', price: 1 }]));
+    const r = await demoService.searchUniverse(['DELISTED']);
+    const rows = r.status === 'ok' ? r.data : [];
+    const row = rows.find((x) => x.ticker === 'DELISTED');
+    expect(row).toBeDefined();
+    expect(row!.quote).toBeNull();
+    expect(row!.name).toBeNull();
+  });
+
+  it('does not list a followed ticker twice', async () => {
+    vi.stubGlobal(
+      'fetch',
+      mirror([
+        { ticker: 'NVDA', price: 1 },
+        { ticker: 'ORCL', price: 2 },
+      ]),
+    );
+    const r = await demoService.searchUniverse(['NVDA', 'ORCL']);
+    const tickers = r.status === 'ok' ? r.data.map((x) => x.ticker) : [];
+    expect(tickers.filter((x) => x === 'NVDA')).toHaveLength(1);
+    expect(tickers.filter((x) => x === 'ORCL')).toHaveLength(1);
+  });
+
+  it('dedupes a mirror key that only differs by whitespace', async () => {
+    // mapSignal uppercases what the snapshot carries but does not trim it, so
+    // a padded key used to survive the raw comparison against the sample table
+    // and then normalise to a symbol already in the list — two rows for one
+    // company, sharing a React key.
+    vi.stubGlobal('fetch', mirror([{ ticker: ' NVDA ', price: 1 }]));
+    const r = await demoService.searchUniverse();
+    const tickers = r.status === 'ok' ? r.data.map((x) => x.ticker) : [];
+    expect(tickers.filter((x) => x === 'NVDA')).toHaveLength(1);
   });
 });

@@ -206,9 +206,11 @@ export function WatchlistScreen({ openAlert, openSearch }: ScreenProps) {
                 </span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 17 }}>{line.title}</div>
-                  <div className="text-muted" style={{ fontSize: 15.5 }}>
-                    {line.detail}
-                  </div>
+                  {line.detail && (
+                    <div className="text-muted" style={{ fontSize: 15.5 }}>
+                      {line.detail}
+                    </div>
+                  )}
                 </div>
                 <Button
                   variant="ghost"
@@ -290,6 +292,9 @@ function alertTags(alerts: SavedAlert[], ticker: string, t: TFn): string[] {
 
 /** One saved alert as the glyph + two lines the alert card renders. */
 function alertLine(alert: SavedAlert, t: TFn): { glyph: string; title: string; detail: string } {
+  // The sheet lets both channels be cleared, so this can legitimately be
+  // empty — and an empty half must not leave a separator hanging off the end
+  // of the line, or an alert with no detail at all rendering a blank row.
   const notify = [alert.notifyBy.push ? t('alert.push') : '', alert.notifyBy.email ? t('alert.email') : '']
     .filter(Boolean)
     .join(', ');
@@ -316,6 +321,6 @@ function alertLine(alert: SavedAlert, t: TFn): { glyph: string; title: string; d
   return {
     glyph: '📅',
     title: `${alert.ticker} ${t('alert.earnType')}`,
-    detail: `${t(remindKey)} · ${notify}`,
+    detail: [t(remindKey), notify].filter(Boolean).join(' · '),
   };
 }

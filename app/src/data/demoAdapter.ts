@@ -297,21 +297,38 @@ export const demoService: DataService & { isDemo: true } = {
   /**
    * The addressable universe: the sample table first (those rows carry a
    * company name, which is what someone typing "apple" is searching for),
-   * then every other symbol the day's ranking covers.
+   * then every other symbol the day's ranking covers, then anything in
+   * `include` that neither had.
+   *
+   * `include` is the caller's watchlist. A ticker the ranking has since
+   * dropped is still on the user's list, and search is where they go to take
+   * it off — a list that quietly omits it cannot be used to do that, and
+   * disagrees with `watchRows`, which keeps it.
+   *
+   * Dedupe is on the normalised ticker, not the raw mirror key. mapSignal
+   * uppercases what the snapshot carries but does not trim it, so a key with
+   * stray whitespace failed a raw comparison against the sample table while
+   * watchRow normalised it to the same symbol — two rows for one company,
+   * under one React key.
    *
    * A dead mirror leaves the sample table, which is still a usable — if
    * short — list to search, so this is only 'unavailable' under the demo
    * failure flag.
    */
-  async searchUniverse() {
+  async searchUniverse(include: string[] = []) {
     const quotes = await fetchQuotes();
     if (DEMO_FLAGS.unavailable) return unavailable<WatchRow[]>();
-    const rows = SYMS.map((row) => watchRow(row.ticker, quotes));
-    if (quotes.status === 'ok') {
-      for (const ticker of Object.keys(quotes.data)) {
-        if (!SYMS.some((x) => x.ticker === ticker)) rows.push(watchRow(ticker, quotes));
-      }
-    }
+    const rows: WatchRow[] = [];
+    const seen = new Set<string>();
+    const add = (raw: string) => {
+      const row = watchRow(raw, quotes);
+      if (seen.has(row.ticker)) return;
+      seen.add(row.ticker);
+      rows.push(row);
+    };
+    for (const row of SYMS) add(row.ticker);
+    if (quotes.status === 'ok') for (const ticker of Object.keys(quotes.data)) add(ticker);
+    for (const ticker of include) add(ticker);
     return ok(rows);
   },
 

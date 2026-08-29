@@ -78,7 +78,7 @@ export const STRINGS = {
   'home.startHere': p('New to investing? Start here', 'חדשה בהשקעות? מתחילים כאן'),
   'home.startHereSub': p('A short guide, then the steps', 'מדריך קצר, ואחריו הצעדים'),
   'home.watchlist': p('Watchlist', 'ווטצ׳ליסט'),
-  'home.watchlistEmpty': p('You are not following any stocks yet', 'עדיין לא עוקב אחרי אף מניה'),
+  'home.watchlistEmpty': p('You are not following any stocks yet', 'עדיין לא עוקבת אחרי אף מניה'),
   'home.watchlistAdd': p('Add your first stock', 'להוסיף מניה ראשונה'),
   'home.seeAll': p('See all', 'לראות הכול'),
   'home.moversBeg': p("What's moving today", 'מה זז היום'),
@@ -523,7 +523,7 @@ export const STRINGS = {
   'watch.noAlerts': p('No alerts yet', 'אין עדיין התראות'),
   'watch.noAlertsHelp': p(
     'An alert tells you when a stock you follow crosses a price, gets mentioned in the news, or reports.',
-    'התראה מודיעה לך כשמניה שאתה עוקב אחריה חוצה מחיר, מוזכרת בחדשות או מפרסמת דוח.',
+    'התראה מודיעה לך כשמניה שאת עוקבת אחריה חוצה מחיר, מוזכרת בחדשות או מפרסמת דוח.',
   ),
   'watch.symbolOnly': p('Symbol only', 'סימבול בלבד'),
   'watch.alertNudge': p(

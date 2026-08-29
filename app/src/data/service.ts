@@ -32,9 +32,12 @@ export interface DataService {
   watchRows(tickers: string[]): Promise<Loadable<WatchRow[]>>;
   /**
    * Everything a user can put on their watchlist: the sample table plus every
-   * symbol in the engine's daily ranking. Backs ticker search.
+   * symbol in the engine's daily ranking, plus any ticker in `include` that
+   * neither covers. Backs ticker search, which passes the user's watchlist so
+   * a symbol the ranking has since dropped is still listed — and can still be
+   * un-followed.
    */
-  searchUniverse(): Promise<Loadable<WatchRow[]>>;
+  searchUniverse(include?: string[]): Promise<Loadable<WatchRow[]>>;
   /** Live positions currently held by the Recovery Detector engine. */
   satelliteSignals(): Promise<Loadable<SatelliteSignal[]>>;
   portfolios(): Promise<Loadable<PortfolioSummary[]>>;
