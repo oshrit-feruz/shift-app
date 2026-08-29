@@ -9,6 +9,15 @@
  * modelling a body field, so there is nothing for a screen to render even by
  * accident.
  *
+ * LANGUAGE:
+ * The app's current language is sent as `lang`, and the function answers with
+ * Hebrew headlines and excerpts for `he` — the provider's feed is English, and
+ * this app is Hebrew-first. Translation is best effort server-side: if it
+ * fails there, the English text comes back with a normal 200 rather than an
+ * error, because the articles themselves are real and available either way.
+ * The language is part of the request URL, so it is also part of the cache key
+ * below and the two languages never share an entry.
+ *
  * EMPTY IS NOT AN ERROR:
  * A ticker with no recent coverage is a legitimate, successful answer and
  * comes back as ok([]), which the screen renders as an honest empty state.
@@ -21,7 +30,7 @@
 
 import { cachedLoadable } from './loadableCache';
 import { reasonFromResponse } from './providerReason';
-import { ok, unavailable, type Loadable, type StockNewsArticle } from './types';
+import { ok, unavailable, type Loadable, type NewsSentiment, type StockNewsArticle } from './types';
 
 /** Same-origin: the function is deployed alongside the app on Vercel. */
 export const STOCK_NEWS_URL = '/api/news';
@@ -114,6 +123,7 @@ export function mapNewsArticle(raw: unknown): StockNewsArticle | null {
     symbols: Array.isArray(row.symbols)
       ? row.symbols.filter((x): x is string => typeof x === 'string' && x.trim() !== '')
       : [],
+    sentiment: sentiment(row.sentiment),
   };
 }
 
@@ -147,6 +157,17 @@ export function publishedAtMs(iso: string | null | undefined): number {
   return Number.isNaN(ms) ? UNDATED : ms;
 }
 
+/**
+ * Keep the provider's tone score only if it is one of the three buckets the
+ * function documents. Anything else — a missing field, a typo, a new value a
+ * later provider version invents — is null, which renders as no tag at all.
+ * A tag is a claim about the article, so it is made only from a value we
+ * actually recognise.
+ */
+function sentiment(v: unknown): NewsSentiment | null {
+  return v === 'positive' || v === 'negative' || v === 'neutral' ? v : null;
+}
+
 const UNAVAILABLE = {
   en: 'News is unavailable right now.',
   he: 'החדשות אינן זמינות כרגע.',
@@ -159,11 +180,12 @@ const UNAVAILABLE = {
  */
 export async function fetchStockNews(
   ticker: string,
+  language: 'en' | 'he',
   fetchImpl: typeof fetch = fetch,
 ): Promise<Loadable<StockNewsArticle[]>> {
   const clean = ticker.trim().toUpperCase();
   if (!clean) return unavailable(UNAVAILABLE);
-  return readNewsCached(`${STOCK_NEWS_URL}?ticker=${encodeURIComponent(clean)}`, fetchImpl);
+  return readNewsCached(`${STOCK_NEWS_URL}?ticker=${encodeURIComponent(clean)}&lang=${language}`, fetchImpl);
 }
 
 /**
@@ -176,9 +198,10 @@ export async function fetchStockNews(
  * shows which stock it is about without the app having decided in advance.
  */
 export async function fetchMarketNews(
+  language: 'en' | 'he',
   fetchImpl: typeof fetch = fetch,
 ): Promise<Loadable<StockNewsArticle[]>> {
-  return readNewsCached(STOCK_NEWS_URL, fetchImpl);
+  return readNewsCached(`${STOCK_NEWS_URL}?lang=${language}`, fetchImpl);
 }
 
 /**

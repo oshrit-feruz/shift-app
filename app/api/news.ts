@@ -1,4 +1,5 @@
 import { isValidTicker, mapArticle, resolveSymbol, type NewsArticle } from './_lib/news.js';
+import { translateToHebrew } from './_lib/translate.js';
 import { failureBody, fetchUpstreamJson } from './_lib/upstream.js';
 import { type ApiRequest, type ApiResponse } from './_lib/http.js';
 
@@ -20,6 +21,66 @@ const MAX_FEED_ARTICLES = 30;
 const DEFAULT_UPSTREAM_TIMEOUT_MS = 15_000;
 
 /**
+ * Budget for the whole translation step, whatever number of requests it
+ * takes. Deliberately small next to the news budget above: the headlines are
+ * already in hand at this point, and a slow translator must not turn a
+ * successful news response into a timeout. When it elapses, the English
+ * articles are served.
+ *
+ * 15s (news) + 6s (this) sits inside the function's own 30s platform limit in
+ * vercel.json with room to spare.
+ */
+const TRANSLATE_TIMEOUT_MS = 6_000;
+
+/** The languages this route can answer in. `en` is the provider's own. */
+const LANGUAGES = ['en', 'he'] as const;
+type Language = (typeof LANGUAGES)[number];
+
+function isLanguage(value: string): value is Language {
+  return (LANGUAGES as readonly string[]).includes(value);
+}
+
+/**
+ * Hebrew headlines and excerpts, when the app is running in Hebrew.
+ *
+ * BEST EFFORT: if the translator is unconfigured, slow, broken or out of
+ * quota, the English articles are returned with a 200 rather than an error.
+ * The news itself succeeded — only its wording is the provider's. See
+ * _lib/translate.ts for why that is the honest answer here and not a silent
+ * degradation.
+ *
+ * Only `headline` and `summary` are translated. `source` is a publisher's
+ * name, `symbols` are tickers, and both are proper nouns the UI already
+ * renders bidi-isolated; translating them would corrupt real data rather than
+ * localise it.
+ */
+async function translateArticles(articles: NewsArticle[]): Promise<NewsArticle[]> {
+  const apiKey = process.env.GOOGLE_TRANSLATE_API_KEY;
+  if (!apiKey) {
+    // Not a 500 like a missing EODHD key: translation is optional, news is not.
+    console.warn('/api/news: GOOGLE_TRANSLATE_API_KEY is not set — serving untranslated articles');
+    return articles;
+  }
+  if (articles.length === 0) return articles;
+
+  // Flattened [headline, summary, headline, summary, …] so the whole screen is
+  // one batch (two requests at the feed's 30 articles) rather than one per card.
+  const texts: string[] = [];
+  for (const a of articles) texts.push(a.headline, a.summary);
+
+  const translated = await translateToHebrew(texts, apiKey, TRANSLATE_TIMEOUT_MS);
+  // All or nothing: a partial result would be a feed half in each language,
+  // and a mis-paired one would put another article's words under a headline.
+  if (translated === null) return articles;
+
+  return articles.map((a, i) => ({
+    ...a,
+    headline: translated[i * 2],
+    summary: translated[i * 2 + 1],
+  }));
+}
+
+/**
  * Builds the handler with an injectable upstream timeout, so a test can
  * exercise a stalled-body timeout in milliseconds instead of waiting out the
  * real 10s budget. The default export below — what Vercel actually calls in
@@ -37,6 +98,10 @@ const DEFAULT_UPSTREAM_TIMEOUT_MS = 15_000;
  * legitimate 200 with an empty list, not an error — and if EODHD has fewer
  * than 5 recent articles for a ticker, that shorter real list is returned
  * as-is rather than padded out to a minimum count.
+ *
+ * `?lang=he` additionally translates the headline and excerpt to Hebrew, for
+ * the app's Hebrew-first UI. That step is best effort and never fails the
+ * response — see translateArticles below.
  */
 export function createHandler(timeoutMs: number) {
   return async function handler(req: ApiRequest, res: ApiResponse) {
@@ -69,6 +134,23 @@ export function createHandler(timeoutMs: number) {
         .json({ error: 'invalid_ticker', message: 'Ticker contains unsupported characters.' });
     }
 
+    // Which language to answer in. Absent means English — the provider's own
+    // wording and exactly what this route did before translation existed, so
+    // an older client keeps working unchanged.
+    const langParam = req.query.lang;
+    if (Array.isArray(langParam) && langParam.length > 1) {
+      return res
+        .status(400)
+        .json({ error: 'repeated_param', message: 'Query param "lang" must be given once.' });
+    }
+    const rawLang = (Array.isArray(langParam) ? langParam[0] : langParam)?.trim().toLowerCase();
+    const lang = rawLang === undefined || rawLang === '' ? 'en' : rawLang;
+    if (!isLanguage(lang)) {
+      return res
+        .status(400)
+        .json({ error: 'invalid_lang', message: 'Query param "lang" must be "en" or "he".' });
+    }
+
     const apiKey = process.env.EODHD_API_KEY;
     if (!apiKey) {
       // A deploy/config problem, not a caller error — logged for us, generic for callers.
@@ -98,10 +180,14 @@ export function createHandler(timeoutMs: number) {
         .json({ error: 'bad_response', message: 'The news provider returned an unexpected shape.' });
     }
 
-    const articles: NewsArticle[] = body
+    const mapped: NewsArticle[] = body
       .map(mapArticle)
       .filter((a): a is NewsArticle => a !== null)
       .slice(0, wanted);
+
+    // Translation is the last step and cannot fail the response: whatever it
+    // returns, `articles` is a real list of real articles.
+    const articles = lang === 'he' ? await translateArticles(mapped) : mapped;
 
     // A short edge cache on a successful response only — never on an error
     // path above, which must keep reaching this function so a real recovery
@@ -122,6 +208,10 @@ export function createHandler(timeoutMs: number) {
     // are not real-time, so a longer TTL would cut that proportionally
     // (300s -> ~288/day) if the quota ever gets tight — the number is here,
     // deliberately, rather than buried in a config.
+    //
+    // The cache key being the full URL also keeps the two languages apart:
+    // ?lang=he and the English variant are separate entries, so a Hebrew
+    // reader can never be served the English response out of the CDN.
     //
     // Note the cache key is the full request URL, so ?ticker=nvda and
     // ?ticker=NVDA are separate entries costing separate upstream calls even

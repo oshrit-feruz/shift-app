@@ -195,7 +195,17 @@ export interface StockNewsArticle {
    * fabrication.
    */
   symbols: string[];
+  /**
+   * How the provider scored the story's tone, or null when it did not score
+   * it at all — the sentiment field is not on every EODHD plan or every row.
+   * Null is rendered as no tag: "we were not told" is not the same claim as
+   * "the provider called this neutral", and only one of them is ours to make.
+   */
+  sentiment: NewsSentiment | null;
 }
+
+/** The provider's tone score, bucketed. See StockNewsArticle.sentiment. */
+export type NewsSentiment = 'positive' | 'negative' | 'neutral';
 
 /**
  * One company's scheduled or reported quarter, from the earnings calendar.

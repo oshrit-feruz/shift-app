@@ -2,8 +2,10 @@ import { Card, CardTitle } from '../../components/Card';
 import { DataState, EmptyState } from '../../components/DataState';
 import { SkeletonCard } from '../../components/Skeleton';
 import { Tag } from '../../components/Tag';
-import { useT } from '../../i18n/useT';
+import { useT, type TFn } from '../../i18n/useT';
+import { sentimentTag } from './sentimentTag';
 import { useTheme } from '../../theme/ThemeProvider';
+import { useDispatch } from '../../state/appState';
 import { useLoadable } from '../../data/useLoadable';
 import { fetchMarketNews, fetchStockNews, publishedAtMs } from '../../data/stockNews';
 import { isoDate } from '../../lib/format';
@@ -27,7 +29,11 @@ import { ok, unavailable, type Loadable, type StockNewsArticle } from '../../dat
  * an empty sheet or re-introducing the full text this whole path avoids.
  */
 export function MarketFeed() {
-  const news = useLoadable(() => fetchMarketNews(), []);
+  const { language } = useTheme();
+  // `language` is a dependency, not just an argument: switching the app to
+  // English must refetch, or the screen would keep showing the Hebrew
+  // translation of a feed the user just asked to see in the source language.
+  const news = useLoadable(() => fetchMarketNews(language), [language]);
   const t = useT();
   return <FeedBody state={news.state} onRetry={news.retry} emptyText={t('news.feedEmpty')} showTicker />;
 }
@@ -43,13 +49,14 @@ export function MarketFeed() {
  */
 export function WatchlistFeed({ tickers }: { tickers: string[] }) {
   const t = useT();
+  const { language } = useTheme();
   // Sorted + joined so the effect re-runs when the set changes, not on every
   // render that happens to rebuild the array. The comparator is explicit:
   // bare .sort() coerces to string and compares UTF-16 code units, which is
   // unreliable in general — and here the key's stability is the whole point,
   // so leaving the ordering to a default is exactly the wrong trade.
   const key = [...tickers].sort((a, b) => a.localeCompare(b)).join(',');
-  const news = useLoadable<StockNewsArticle[]>(() => fetchWatchlistNews(tickers), [key]);
+  const news = useLoadable<StockNewsArticle[]>(() => fetchWatchlistNews(tickers, language), [key, language]);
 
   if (tickers.length === 0) {
     return (
@@ -79,10 +86,11 @@ export function WatchlistFeed({ tickers }: { tickers: string[] }) {
  */
 export async function fetchWatchlistNews(
   tickers: string[],
+  language: 'en' | 'he',
   fetchImpl: typeof fetch = fetch,
 ): Promise<Loadable<StockNewsArticle[]>> {
   if (tickers.length === 0) return ok([]);
-  const results = await Promise.all(tickers.map((tk) => fetchStockNews(tk, fetchImpl)));
+  const results = await Promise.all(tickers.map((tk) => fetchStockNews(tk, language, fetchImpl)));
   const good = results.filter((r) => r.status === 'ok');
   if (good.length === 0) {
     return unavailable({
@@ -155,6 +163,7 @@ function FeedBody({
                 language={language}
                 showTicker={showTicker}
                 openLabel={t('news.openSource')}
+                t={t}
               />
             ))}
           </div>
@@ -169,16 +178,22 @@ function ArticleCard({
   language,
   showTicker,
   openLabel,
+  t,
 }: {
   article: StockNewsArticle;
   language: 'en' | 'he';
   showTicker: boolean;
   openLabel: string;
+  t: TFn;
 }) {
+  const dispatch = useDispatch();
   // Only the general feed needs the chip — on the watchlist the user already
   // knows which stocks these are, and a chip per card would be noise.
   const ticker = showTicker ? article.symbols[0] : undefined;
   const date = article.publishedAt ? isoDate(article.publishedAt.slice(0, 10), language) : '';
+  // Absent whenever the provider sent no score — no chip rather than a
+  // guessed one. See sentimentTag.
+  const tone = sentimentTag(article.sentiment);
 
   return (
     <Card padding={14} gap={5}>
@@ -186,9 +201,26 @@ function ArticleCard({
         {/* Absent for a story about a sector, an index or a rate decision —
             most market news is not about one company, and inventing a ticker
             to fill the slot would be a fabrication. */}
+        {/* The chip is the way into the stock: tapping it opens that stock's
+            page, the same `openStock` every other list in the app dispatches.
+            It is deliberately the CHIP and not the whole card — the headline's
+            job is to reach the full article at its source, since the excerpt
+            is all this app is allowed to hold, and a card that did both would
+            have to pick one on a tap. */}
         {ticker && (
-          <Tag variant="accent" fontSize={15}>
+          <Tag
+            variant="accent"
+            fontSize={15}
+            onClick={() => dispatch({ type: 'openStock', ticker })}
+            // The visible text is four letters; this says where they lead.
+            label={t('news.viewTicker', { ticker })}
+          >
             {ticker}
+          </Tag>
+        )}
+        {tone && (
+          <Tag variant={tone.variant} fontSize={15}>
+            {t(tone.key)}
           </Tag>
         )}
         <span className="text-muted" style={{ fontSize: 15.5, display: 'flex', gap: 5 }}>
@@ -197,9 +229,11 @@ function ArticleCard({
           {date && <span>{date}</span>}
         </span>
       </span>
-      {/* dir="auto" because the provider's feed is English inside a
-          Hebrew-first page — without it the sentence-ending period lands on
-          the wrong side. */}
+      {/* dir="auto" because this text's language is not fixed: the provider's
+          feed is English, and in Hebrew it is served translated. Each string
+          takes its direction from its own first strong character, so the
+          sentence-ending period lands on the correct side either way — and
+          still does if a translation falls back to the English original. */}
       <span
         dir="auto"
         style={{
@@ -217,14 +251,39 @@ function ArticleCard({
           {article.summary}
         </span>
       )}
-      <a
-        href={article.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        style={{ fontSize: 15.5, color: 'var(--color-accent-200)', textDecoration: 'none' }}
-      >
-        {openLabel} ↗
-      </a>
+      {/* Two destinations, said plainly rather than left to a guess about what
+          a tap does: the article lives at its source, the stock lives in this
+          app. The chip above opens the same stock page; this is the version
+          that reads as an action. */}
+      <span style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <a
+          href={article.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ fontSize: 15.5, color: 'var(--color-accent-200)', textDecoration: 'none' }}
+        >
+          {openLabel} ↗
+        </a>
+        {ticker && (
+          <button
+            type="button"
+            onClick={() => dispatch({ type: 'openStock', ticker })}
+            style={{
+              // A link-shaped button: same affordance as the anchor beside it,
+              // but it navigates inside the app rather than leaving it.
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              fontFamily: 'inherit',
+              fontSize: 15.5,
+              color: 'var(--color-accent-200)',
+              cursor: 'pointer',
+            }}
+          >
+            {t('news.viewTicker', { ticker })}
+          </button>
+        )}
+      </span>
     </Card>
   );
 }

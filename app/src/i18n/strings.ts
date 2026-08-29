@@ -389,6 +389,12 @@ export const STRINGS = {
     'הווטצ׳ליסט שלך ריק, אז אין עבור מה למשוך חדשות.',
   ),
   'news.openSource': p('Open at the source', 'לפתוח במקור'),
+  // The provider's own tone score for a story, not this app's reading of it —
+  // see screens/news/sentimentTag.ts. An article the provider did not score
+  // carries no tag at all rather than one of these.
+  'news.sentimentPositive': p('Positive', 'חיובי'),
+  'news.sentimentNegative': p('Negative', 'שלילי'),
+  'news.sentimentNeutral': p('Neutral', 'ניטרלי'),
   'earn.truncated': p(
     'Showing {shown} of {total} reports in the week ahead.',
     'מוצגים {shown} מתוך {total} דוחות בשבוע הקרוב.',
