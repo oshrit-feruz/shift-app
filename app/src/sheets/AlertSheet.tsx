@@ -121,6 +121,7 @@ export function AlertSheet({
           <button
             key={a.k}
             type="button"
+            className="select-card"
             onClick={() => setKind(a.k)}
             style={{
               display: 'flex',
@@ -136,7 +137,7 @@ export function AlertSheet({
               textAlign: 'start',
               border: `1px solid ${kind === a.k ? 'var(--color-accent)' : 'var(--color-divider)'}`,
               background:
-                kind === a.k ? 'color-mix(in srgb, var(--color-accent) 10%, transparent)' : 'transparent',
+                kind === a.k ? 'color-mix(in srgb, var(--color-accent) 10%, transparent)' : 'var(--sunk)',
             }}
           >
             <span
