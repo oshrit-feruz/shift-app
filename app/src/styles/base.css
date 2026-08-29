@@ -281,9 +281,9 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
 
 /* Screen changes stay opacity-only for the reason in the Motion note above;
  * the easing is what makes them read as a settle rather than a blink. */
-.anim-fade-up { animation: fadeUp .26s cubic-bezier(.22, .61, .36, 1) both; }
+.anim-fade-up {}
 .anim-fade-out { animation: fadeOut .16s ease both; }
-/* Tab re-activation inside a screen: shorter than a screen change, same
+/* Tab re-activati§on inside a screen: shorter than a screen change, same
  * opacity-only rule (tab panels are ancestors of glass cards too). The
  * animation restarts on each activation because display:none resets it. */
 .anim-tab-in { animation: fadeUp .18s cubic-bezier(.22, .61, .36, 1) both; }
