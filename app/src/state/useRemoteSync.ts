@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../auth/AuthProvider';
-import { PERSISTED, useAppState, useDispatch } from './appState';
-import { debounced, mergeRemote, pickPersisted } from './remoteState';
+import { PERSISTED, readPersisted, useAppState, useDispatch } from './appState';
+import { debounced, mergeRemote, pickPersisted, remoteDiffers } from './remoteState';
 
 /**
  * Keeps the persisted slice in sync with the signed-in user's Supabase row
@@ -12,7 +12,12 @@ import { debounced, mergeRemote, pickPersisted } from './remoteState';
  *  1. fetch the row → mergeRemote (server wins if non-empty, else local is
  *     uploaded — see remoteState.ts) → dispatch replaceState;
  *  2. from then on, mirror every state change up with a trailing debounce,
- *     flushed on pagehide so the last edit before closing isn't lost.
+ *     flushed on pagehide so the last edit before closing isn't lost;
+ *  3. re-read the row whenever this tab comes back to the foreground, so a
+ *     device left open picks up what the user did on another one. Sign-in is
+ *     not the only moment the two can diverge: someone who adds a stock on
+ *     their phone and switches back to a laptop tab that has been open since
+ *     morning is looking at a stale list until this fires.
  *
  * All writes are best-effort try/catch, same tone as the localStorage effect
  * in appState.tsx — the on-device cache keeps working when the network
@@ -34,6 +39,10 @@ export function useRemoteSync() {
   // again when that upsert FAILS, so "retried by the next state change" stays
   // true even when the next state happens to equal the failed one.
   const lastUploaded = useRef<Record<string, unknown> | null>(null);
+  // The live state, for the re-read below. A dependency on `state` itself
+  // would tear down and re-add the visibility listeners on every dispatch.
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   const writer = useMemo(
     () =>
@@ -62,6 +71,56 @@ export function useRemoteSync() {
       }, 1500),
     [],
   );
+
+  // Adopt the server's slice when this tab returns to the foreground.
+  //
+  // Two guards, both of which cost correctness if dropped:
+  //  - a pending local write means this device has an edit the server has
+  //    not seen; adopting now would discard it, so the write is flushed and
+  //    the re-read left to the next foregrounding.
+  //  - an unchanged slice is not dispatched at all. Without that check every
+  //    tab switch would replaceState with equal-but-new objects, re-render
+  //    the tree and re-arm an upload of what we just read.
+  const resync = useCallback(() => {
+    if (!userId || !supabase || hydratedFor.current !== userId) return;
+    if (writer.pending()) {
+      writer.flush();
+      return;
+    }
+    const local = pickPersisted(stateRef.current);
+    supabase
+      .from('user_state')
+      .select('state')
+      .eq('user_id', userId)
+      .maybeSingle()
+      .then(
+        ({ data, error }) => {
+          // Best-effort like every other read here: a failed check leaves the
+          // device on what it already had, which is the last thing it knew to
+          // be true rather than a guess.
+          if (error || !remoteDiffers(local, data?.state ?? null)) return;
+          dispatch({
+            type: 'replaceState',
+            persisted: readPersisted(data!.state as Record<string, unknown>),
+          });
+        },
+        (err: unknown) => console.warn('remote sync re-read failed', err),
+      );
+  }, [userId, dispatch, writer]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') resync();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    // A tab that never went hidden but lost the network still needs one:
+    // whatever changed elsewhere while it was offline is only visible now.
+    window.addEventListener('online', resync);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('online', resync);
+    };
+  }, [resync]);
 
   // Hydrate on sign-in; reset the app state on sign-out (covers both the
   // Settings button and an expired session) so the next account on this

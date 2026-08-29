@@ -46,6 +46,35 @@ export function mergeRemote(
 }
 
 /**
+ * Does the server's slice say something different from what this device
+ * holds? Compared over PERSISTED only, and by value: both sides are plain
+ * JSON bags, and the local one is rebuilt on every render, so identity
+ * comparison would report "changed" every time and make the app adopt — and
+ * re-render — on every check.
+ *
+ * Used by the periodic re-read, which must be silent when nothing changed:
+ * a device sitting idle on the watchlist should not re-render because it
+ * looked.
+ */
+export function remoteDiffers(local: Record<string, unknown>, remote: unknown): boolean {
+  const serverBag =
+    remote != null && typeof remote === 'object' && !Array.isArray(remote)
+      ? (remote as Record<string, unknown>)
+      : null;
+  // No row, or a row we cannot read as an object, is not a change to adopt —
+  // it is an absence, and treating it as one would wipe the device's list.
+  if (serverBag === null || Object.keys(serverBag).length === 0) return false;
+  const incoming = readPersisted(serverBag);
+  for (const k of PERSISTED) {
+    // A key the server has never written is not a difference: the slice grows
+    // over time, and an older row simply has fewer keys than this build.
+    if (!(k in incoming)) continue;
+    if (JSON.stringify(incoming[k]) !== JSON.stringify(local[k])) return true;
+  }
+  return false;
+}
+
+/**
  * Trailing debounce with an explicit flush, for the write path: the state
  * changes on every dispatch, and mirroring each one to Supabase would be a
  * request per tap. `flush` exists for pagehide — the last edit before the
@@ -54,7 +83,7 @@ export function mergeRemote(
 export function debounced<A extends unknown[]>(
   fn: (...args: A) => void,
   ms: number,
-): { call: (...args: A) => void; flush: () => void; cancel: () => void } {
+): { call: (...args: A) => void; flush: () => void; cancel: () => void; pending: () => boolean } {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let pending: A | null = null;
   const fire = () => {
@@ -80,5 +109,9 @@ export function debounced<A extends unknown[]>(
       timer = null;
       pending = null;
     },
+    // Whether an edit is still sitting in the timer. The re-read path asks,
+    // because adopting the server's slice while this device has an unsent
+    // change of its own would throw that change away.
+    pending: () => pending !== null,
   };
 }
