@@ -101,15 +101,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AuthState>(() => {
     const signInWith = async (provider: 'google' | 'apple') => {
-      if (!supabase) return; // buttons are disabled in this state anyway
+      if (!supabase) return;
+
       setSignInError(null);
+
+      const redirectTo = `${window.location.origin}/`;
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
-        // No router: OAuth has no callback route to land on, so it returns
-        // to the origin and supabase-js consumes the code from the URL.
-        options: { redirectTo: window.location.origin },
+        options: {
+          redirectTo,
+        },
       });
-      // On success the browser navigates away and this line never runs.
+
       if (error) setSignInError(SIGN_IN_FAILED);
     };
     return {
