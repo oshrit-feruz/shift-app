@@ -1,19 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { demoBars } from './demoBars';
 import { fetchDailySeries } from './priceHistory';
+import { withDemoData } from './demoFlagsStub';
 
 const NOW = new Date('2026-08-28T09:00:00Z'); // a Friday
-
-/** vitest has no localStorage, so DEMO_FLAGS reads false unless this installs one. */
-function withDemoData(on: boolean) {
-  const store = new Map<string, string>();
-  if (on) store.set('shift.demo.data', '1');
-  vi.stubGlobal('localStorage', {
-    getItem: (k: string) => store.get(k) ?? null,
-    setItem: (k: string, v: string) => void store.set(k, v),
-    removeItem: (k: string) => void store.delete(k),
-  });
-}
 
 afterEach(() => {
   vi.unstubAllGlobals();

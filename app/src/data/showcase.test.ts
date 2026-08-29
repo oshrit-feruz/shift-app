@@ -1,23 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { showcaseHistory, showcaseWeek } from './showcase';
 import { fetchTickerEarnings, fetchWeekEarnings } from './earnings';
+import { withDemoData } from './demoFlagsStub';
 
 const NOW = new Date('2026-08-28T09:00:00Z'); // a Friday
-
-/**
- * There is no localStorage under vitest, so DEMO_FLAGS reads false — which is
- * itself the assertion for the "off" cases below. This installs a minimal one
- * for the cases that need the flag on.
- */
-function withDemoData(on: boolean) {
-  const store = new Map<string, string>();
-  if (on) store.set('shift.demo.data', '1');
-  vi.stubGlobal('localStorage', {
-    getItem: (k: string) => store.get(k) ?? null,
-    setItem: (k: string, v: string) => void store.set(k, v),
-    removeItem: (k: string) => void store.delete(k),
-  });
-}
 
 afterEach(() => {
   vi.unstubAllGlobals();
