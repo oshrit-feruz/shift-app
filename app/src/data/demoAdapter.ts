@@ -87,7 +87,6 @@ const PORTFOLIOS: PortfolioSummary[] = [
   { id: 'blink', kind: 'linked', name: 'Blink', broker: 'Blink', logo: '/assets/broker-blink.webp', acct: '••4821', syncedAgo: { en: '4 minutes ago', he: 'לפני 4 דקות' }, total: 48214.6, dayPct: 0.86, allTimePct: 31.4 },
   { id: 'ibkr', kind: 'linked', name: 'Interactive Brokers', broker: 'Interactive Brokers', logo: '/assets/broker-ibkr.webp', acct: '••7130', syncedAgo: { en: '11 minutes ago', he: 'לפני 11 דקות' }, total: 12905.11, dayPct: 1.94, allTimePct: 58.2 },
   { id: 'colmex', kind: 'linked', name: 'Colmex Pro', broker: 'Colmex Pro', logo: '/assets/broker-colmex.webp', acct: '••2265', syncedAgo: { en: '1 hour ago', he: 'לפני שעה' }, total: 21470.02, dayPct: -0.22, allTimePct: 9.8 },
-  { id: 'sandbox', kind: 'manual', name: 'Sandbox', broker: null, logo: null, acct: 'manual entry', syncedAgo: { en: 'you last edited it Aug 22', he: 'עדכנת לאחרונה ב-22 באוג׳' }, total: 9840.25, dayPct: 1.32, allTimePct: 12.9 },
 ];
 
 const HOLDING_SHAPE: Array<[string, number, number]> = [
@@ -330,6 +329,15 @@ export const demoService: DataService & { isDemo: true } = {
     return respond(PORTFOLIOS);
   },
 
+  /**
+   * The demo brokers' positions.
+   *
+   * `HOLDING_SHAPE` is an invented table, so it is served only for the demo
+   * broker accounts it belongs to. Manual portfolios — Sandbox included — are
+   * the user's own ledger and are valued from the transactions they actually
+   * recorded (see lib/positions.ts); handing them this table is what made a
+   * brand-new Sandbox open with six positions nobody had bought.
+   */
   async holdings(portfolioId: string) {
     if (DEMO_FLAGS.unavailable) return unavailable();
     const holdings: Holding[] = HOLDING_SHAPE.map(([ticker, shares, plPct]) => {
@@ -345,9 +353,10 @@ export const demoService: DataService & { isDemo: true } = {
         plPct,
       };
     });
-    // Institutions expose totals only, never holdings (product rule).
+    // Institutions expose totals only, never holdings (product rule), and a
+    // manual portfolio's holdings are not this table's to invent.
     return ok(
-      portfolioId === 'agg' || PORTFOLIOS.some((pf) => pf.id === portfolioId && pf.kind !== 'institution')
+      portfolioId === 'agg' || PORTFOLIOS.some((pf) => pf.id === portfolioId && pf.kind === 'linked')
         ? holdings
         : [],
     );

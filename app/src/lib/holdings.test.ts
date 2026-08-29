@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchYourPositions, manualPortfolioSummaries, portfolioList } from './holdings';
 import { withDemoData } from '../data/demoFlagsStub';
+import { demoService } from '../data/demoAdapter';
 import type { ManualPortfolio, ManualTransaction } from '../state/appState';
 
 afterEach(() => {
@@ -75,5 +76,46 @@ describe('fetchYourPositions respects the sample-data switch', () => {
     withDemoData(false);
     const res = await fetchYourPositions('AMD', { mine: [buy('NVDA', 3, 100)] }, [manualPf]);
     expect(res).toEqual({ status: 'ok', data: [] });
+  });
+});
+
+// The demo Sandbox is gone: it was a hard-coded 'manual' portfolio served the
+// same invented six-position table as the brokers, so a user who had never
+// recorded a trade still opened it on $9,840 of holdings that were not theirs.
+// Manual portfolios are the user's own ledger and take nothing from that table.
+describe('the fabricated holdings table is the demo brokers’ alone', () => {
+  it('reports no demo Sandbox portfolio, even with sample data on', async () => {
+    withDemoData(true);
+    const res = await demoService.portfolios();
+    expect(res.status).toBe('ok');
+    if (res.status !== 'ok') return;
+    expect(res.data.some((pf) => pf.id === 'sandbox')).toBe(false);
+    expect(res.data.every((pf) => pf.kind !== 'manual')).toBe(true);
+  });
+
+  it('serves no holdings for a manual portfolio, even with sample data on', async () => {
+    withDemoData(true);
+    await expect(demoService.holdings('mine')).resolves.toEqual({ status: 'ok', data: [] });
+  });
+
+  it('still serves the demo brokers their positions', async () => {
+    withDemoData(true);
+    const res = await demoService.holdings('blink');
+    expect(res.status).toBe('ok');
+    if (res.status !== 'ok') return;
+    expect(res.data.length).toBeGreaterThan(0);
+  });
+
+  // With sample data on, the user's own portfolio must still show only what
+  // they logged — the demo table must not leak in beside it.
+  it('gives a manual portfolio only the user’s own transactions in demo mode', async () => {
+    withDemoData(true);
+    const res = await fetchYourPositions('NVDA', { mine: [buy('NVDA', 3, 100)] }, [manualPf]);
+    expect(res.status).toBe('ok');
+    if (res.status !== 'ok') return;
+    const mine = res.data.filter((x) => x.portfolio.id === 'mine');
+    expect(mine).toHaveLength(1);
+    expect(mine[0].holding.shares).toBe(3);
+    expect(mine[0].holding.avgCost).toBe(100);
   });
 });

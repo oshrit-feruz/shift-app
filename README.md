@@ -56,9 +56,9 @@ row into a dozen lines and lose the shape of the data.
 ## Product rules (implemented, not just displayed)
 
 - **Two tracks.** Self-directed (watchlist, movers, news, stock pages, own
-  portfolios — including the manual **Sandbox** theoretical portfolio, the only
-  place "Add transaction" exists; broker-linked portfolios are read-only
-  synced) and the **"קבלי המלצה" advisory track**.
+  portfolios — manual **theoretical portfolios** are the only place "Add
+  transaction" exists, and they are the user's own ledger, not a fixture;
+  broker-linked portfolios are read-only synced) and the **"קבלי המלצה" advisory track**.
 - **Deterministic advisory mapping** (`app/src/lib/advisory.ts`, unit-tested):
   four answers → fixed scoring → Conservative (0% satellite) / Balanced (10%) /
   Growth (15%); **hard rule:** horizon under 2 years OR no safety net ⇒

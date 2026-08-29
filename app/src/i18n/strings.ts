@@ -475,13 +475,12 @@ export const STRINGS = {
   'pf.excluded': p('excluded', 'לא נכלל'),
   'pf.allAccounts': p('All accounts', 'כל החשבונות'),
   'pf.allLinked': p('All linked accounts', 'כל החשבונות המחוברים'),
-  'pf.aggDetail': p(
-    'Pick below which accounts are included — Sandbox stays out',
-    'בחרי למטה אילו חשבונות נכללים — Sandbox נשאר בחוץ',
-  ),
+  // Names no account: which portfolios exist is now up to the user, so a
+  // sentence naming one of them goes stale the moment they rename or add.
+  'pf.aggDetail': p('Pick below which accounts are included', 'בחרי למטה אילו חשבונות נכללים'),
   'pf.synced': p('Synced {when} · read-only', 'סונכרן {when} · לקריאה בלבד'),
-  'pf.sandboxTitle': p('Sandbox · theoretical', 'Sandbox · תיאורטי'),
-  'pf.sandboxDetail': p('No broker — you record the transactions', 'בלי ברוקר — את רושמת את העסקאות'),
+  // Used for any manual portfolio, not only Sandbox.
+  'pf.manualDetail': p('No broker — you record the transactions', 'בלי ברוקר — את רושמת את העסקאות'),
   'pf.manage': p('Manage', 'לנהל'),
   'pf.link': p('Link', 'לחבר'),
   'pf.concentration': p(

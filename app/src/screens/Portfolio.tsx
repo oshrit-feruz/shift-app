@@ -187,7 +187,7 @@ export function PortfolioScreen(_: ScreenProps) {
                     {isAgg
                       ? t('pf.aggDetail')
                       : isManual
-                        ? t('pf.sandboxDetail')
+                        ? t('pf.manualDetail')
                         : t('pf.synced', { when: pf.syncedAgo?.[language] ?? '' })}
                   </span>
                 </span>
