@@ -31,7 +31,7 @@ export function BuyAtBrokerButton({ ticker }: { ticker: string | null }) {
     padding: '4px 10px',
     borderRadius: 999,
     border: '1px solid var(--color-accent-700)',
-    background: 'var(--color-accent-900)',
+    background: 'var(--fill-selected)',
     color: 'var(--color-accent-200)',
     font: 'inherit',
     fontSize: 15,

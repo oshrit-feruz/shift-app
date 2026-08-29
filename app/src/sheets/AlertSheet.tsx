@@ -145,7 +145,7 @@ export function AlertSheet({
                 height: 28,
                 flex: 'none',
                 borderRadius: 8,
-                background: 'var(--color-accent-900)',
+                background: 'var(--fill-selected)',
                 color: 'var(--color-accent-300)',
                 display: 'grid',
                 placeItems: 'center',

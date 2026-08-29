@@ -118,7 +118,7 @@ export function CalendarTab({ watchlist }: { watchlist: string[] }) {
                       padding: '7px 10px',
                       borderRadius: 'var(--radius-md)',
                       border: `1px solid ${selected === d ? 'var(--color-accent)' : 'var(--color-divider)'}`,
-                      background: selected === d ? 'var(--color-accent-900)' : 'transparent',
+                      background: selected === d ? 'var(--fill-selected)' : 'transparent',
                       color: 'inherit',
                       font: 'inherit',
                       cursor: 'pointer',

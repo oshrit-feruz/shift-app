@@ -28,7 +28,7 @@ export function Chip({
         alignItems: 'center',
         gap: 7,
         border: `1px solid ${active ? 'var(--color-accent)' : 'var(--color-divider)'}`,
-        background: active ? 'var(--color-accent-900)' : 'transparent',
+        background: active ? 'var(--fill-selected)' : 'transparent',
         color: active ? 'var(--color-accent-300)' : 'inherit',
       }}
     >

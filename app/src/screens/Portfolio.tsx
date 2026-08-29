@@ -382,7 +382,7 @@ export function LongTermSavings() {
                   height: 30,
                   flex: 'none',
                   borderRadius: 8,
-                  background: 'var(--color-accent-900)',
+                  background: 'var(--fill-selected)',
                   color: 'var(--color-accent-200)',
                   display: 'grid',
                   placeItems: 'center',

@@ -49,7 +49,7 @@ export function Card({
     // reset the sheen .card paints as its background-image, so the one
     // highlighted card on a screen would be the only pane without a
     // specular highlight.
-    backgroundColor: highlight ? 'var(--color-accent-900)' : undefined,
+    backgroundColor: highlight ? 'var(--fill-selected)' : undefined,
     ...style,
   };
   if (onClick) {

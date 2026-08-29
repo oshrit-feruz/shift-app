@@ -148,7 +148,7 @@ export function OpenAccountScreen(_: ScreenProps) {
     font: 'inherit',
     color: 'inherit',
     cursor: 'pointer',
-    background: on ? 'var(--color-accent-900)' : 'var(--color-surface)',
+    background: on ? 'var(--fill-selected)' : 'var(--color-surface)',
     border: `1px solid ${on ? 'var(--color-accent)' : 'var(--color-divider)'}`,
   });
 

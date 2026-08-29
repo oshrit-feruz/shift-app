@@ -38,7 +38,7 @@ export function AdvisoryDisclosure(_: ScreenProps) {
                 height: 20,
                 flex: 'none',
                 borderRadius: 6,
-                background: 'var(--color-accent-900)',
+                background: 'var(--fill-selected)',
                 color: 'var(--color-accent-200)',
                 display: 'grid',
                 placeItems: 'center',

@@ -111,7 +111,7 @@ export function InstitutionRows() {
                   height: 32,
                   flex: 'none',
                   borderRadius: 'var(--radius-sm)',
-                  background: 'var(--color-accent-900)',
+                  background: 'var(--fill-selected)',
                   color: 'var(--color-accent-200)',
                   display: 'grid',
                   placeItems: 'center',
@@ -137,7 +137,7 @@ export function InstitutionRows() {
                   ...(chosen
                     ? {
                         border: '1px solid var(--color-accent)',
-                        background: 'var(--color-accent-900)',
+                        background: 'var(--fill-selected)',
                         color: 'var(--color-accent-200)',
                       }
                     : {

@@ -143,8 +143,9 @@ export function DesignSystemPage() {
             ))}
           </div>
           <Note>
-            800 backs icon tiles and pills. 300 carries interactive text. --color-accent-900 is the accent at
-            14% alpha and is the only accent fill used behind body copy.
+            800 backs icon tiles and pills. 300 carries interactive text. --fill-selected is the accent at
+            14% alpha for selected/active fills; --tile-ground is the same faint violet for a monogram tile's
+            ground, next to real logo tiles' white.
           </Note>
           <SubTitle>Signal — up / down</SubTitle>
           <Note>
@@ -514,7 +515,7 @@ export function DesignSystemPage() {
                 style={{
                   padding: 13,
                   border: '1px solid var(--color-accent)',
-                  background: 'var(--color-accent-900)',
+                  background: 'var(--fill-selected)',
                   flexDirection: 'row',
                   alignItems: 'center',
                   gap: 11,

@@ -188,7 +188,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
                 ...(inWl
                   ? {
                       border: '1px solid var(--color-accent)',
-                      background: 'var(--color-accent-900)',
+                      background: 'var(--fill-selected)',
                       color: 'var(--color-accent-200)',
                     }
                   : {}),
@@ -521,7 +521,7 @@ function NextEarnings({ ticker }: { ticker: string }) {
             textAlign: 'center',
             padding: '6px 0',
             borderRadius: 'var(--radius-md)',
-            background: 'var(--color-accent-900)',
+            background: 'var(--fill-selected)',
             flex: 'none',
           }}
         >
@@ -581,7 +581,7 @@ function LiveOnlyStock({ ticker }: { ticker: string }) {
           ...(inWl
             ? {
                 border: '1px solid var(--color-accent)',
-                background: 'var(--color-accent-900)',
+                background: 'var(--fill-selected)',
                 color: 'var(--color-accent-200)',
               }
             : {}),

@@ -109,7 +109,7 @@ export function NotificationsSheet({ open, onClose }: { open: boolean; onClose: 
                 height: 26,
                 flex: 'none',
                 borderRadius: 8,
-                background: 'var(--color-accent-900)',
+                background: 'var(--fill-selected)',
                 color: 'var(--color-accent-300)',
                 display: 'grid',
                 placeItems: 'center',

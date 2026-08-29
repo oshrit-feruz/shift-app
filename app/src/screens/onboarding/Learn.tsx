@@ -202,7 +202,7 @@ function TopicArt({ idx }: { idx: number }) {
             cx="120"
             cy="75"
             r="58"
-            fill="var(--color-accent-900)"
+            fill="var(--fill-selected)"
             stroke="var(--color-accent)"
             strokeWidth="1.5"
           />
@@ -243,10 +243,10 @@ function TopicArt({ idx }: { idx: number }) {
             stroke="var(--down)"
             strokeWidth="1.5"
           />
-          <circle cx="180" cy="46" r="17" fill="var(--color-accent-900)" stroke="var(--color-accent)" />
-          <circle cx="222" cy="46" r="17" fill="var(--color-accent-900)" stroke="var(--color-accent)" />
+          <circle cx="180" cy="46" r="17" fill="var(--fill-selected)" stroke="var(--color-accent)" />
+          <circle cx="222" cy="46" r="17" fill="var(--fill-selected)" stroke="var(--color-accent)" />
           <circle cx="180" cy="88" r="17" fill="var(--down)" opacity=".3" stroke="var(--down)" />
-          <circle cx="222" cy="88" r="17" fill="var(--color-accent-900)" stroke="var(--color-accent)" />
+          <circle cx="222" cy="88" r="17" fill="var(--fill-selected)" stroke="var(--color-accent)" />
         </svg>
       );
     case 3:
@@ -267,7 +267,7 @@ function TopicArt({ idx }: { idx: number }) {
             width="118"
             height="70"
             rx="8"
-            fill="var(--color-accent-900)"
+            fill="var(--fill-selected)"
             stroke="var(--color-accent)"
             strokeWidth="1.5"
           />

@@ -87,7 +87,7 @@ export function AdvisoryConnect(_: ScreenProps) {
                   color: 'inherit',
                   cursor: 'pointer',
                   textAlign: 'start',
-                  background: selected ? 'var(--color-accent-900)' : 'var(--color-surface)',
+                  background: selected ? 'var(--fill-selected)' : 'var(--color-surface)',
                   border: `1px solid ${selected ? 'var(--color-accent)' : 'var(--color-divider)'}`,
                 }}
               >

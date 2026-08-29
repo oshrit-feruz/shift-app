@@ -37,7 +37,10 @@
   --color-accent-300: #A78BFA;
   --color-accent-700: #5B21B6;
   --color-accent-800: #4C1D95;
-  --color-accent-900: rgba(139, 92, 246, .14); /* the only accent fill behind body copy */
+  /* Split from one token: dark mode wants the same faint violet for both
+   * jobs, so these carry identical values here (light mode's differ). */
+  --fill-selected: rgba(139, 92, 246, .14); /* selected/active fill: chip, tab pill, highlighted card */
+  --tile-ground: rgba(139, 92, 246, .14); /* monogram tile ground, beside real logo tiles' white */
 
   /* Special surfaces */
   --sunk: rgba(0, 0, 0, .25);
@@ -152,7 +155,14 @@
   --color-accent-300: #818CF8;
   --color-accent-700: #4338CA;
   --color-accent-800: #3730A3;
-  --color-accent-900: rgba(18, 24, 41, .85);
+  /* --fill-selected can no longer share --color-surface's near-black:
+   * rgba(18,24,41,.8) vs .85 read as identical on a card. An indigo tint
+   * instead of a darker neutral is what a selection sitting on a dark card
+   * needs to actually read as selected. --tile-ground keeps the old value —
+   * a dark plate is the right monogram ground next to a white logo tile;
+   * only the reused-as-selection-fill job was broken. */
+  --fill-selected: rgba(79, 70, 229, .22);
+  --tile-ground: rgba(18, 24, 41, .85);
   --color-divider: rgba(146, 155, 172, .45);
   --shadow-btn: 0 1px 2px rgba(18, 24, 41, .18), 0 6px 16px rgba(18, 24, 41, .16);
   --shadow-btn-active: 0 1px 2px rgba(18, 24, 41, .2);

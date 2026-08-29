@@ -180,7 +180,7 @@ function SearchOverlayBody({ closing, onClose }: { closing: boolean; onClose: ()
                             font: 'inherit',
                             fontSize: 15,
                             border: `1px solid ${watched ? 'var(--color-accent)' : 'var(--color-divider)'}`,
-                            background: watched ? 'var(--color-accent-900)' : 'transparent',
+                            background: watched ? 'var(--fill-selected)' : 'transparent',
                             color: watched ? 'var(--color-accent-200)' : 'var(--color-accent)',
                           }}
                         >
