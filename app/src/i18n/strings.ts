@@ -414,13 +414,6 @@ export const STRINGS = {
     'Prices and charts are real, from daily market data. Day change, market cap and portfolio figures on this screen are still sample data.',
     'המחירים והגרפים אמיתיים, מנתוני שוק יומיים. שינוי יומי, שווי שוק ונתוני תיק במסך הזה הם עדיין נתוני דוגמה.',
   ),
-  // What the standing note says instead once sample data is on. The switch
-  // makes the charts generated as well, so the usual sentence — which
-  // promises real prices and real charts — would be false.
-  'demo.allSample': p(
-    'Sample data is on: every figure and chart on this screen is illustrative, not real market data.',
-    'נתוני דמו פעילים: כל הנתונים והגרפים במסך הזה הם להמחשה, לא נתוני שוק אמיתיים.',
-  ),
   'more.demoData': p('Sample data', 'נתוני דמו'),
   'more.demoDataHelp': p(
     'Draws charts from generated price action and fills the earnings screens with illustrative figures, so nothing is ever empty. Turn it off to use real market data.',

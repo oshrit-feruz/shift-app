@@ -22,18 +22,21 @@ import { useDemoMode } from '../lib/DemoModeProvider';
  * number that a reader takes for a real one is the failure this app is built
  * to avoid.
  *
- * In demo mode the sentence swaps rather than disappears. Sample data makes
- * the charts generated too, which turns "prices and charts are real" into a
- * plain falsehood — the one thing this line exists to prevent. It is the same
- * note, saying what is true at the time, not a second disclaimer stacked on
- * top of the switch the reader already threw.
+ * In demo mode it renders nothing at all. The line exists to tell a reader
+ * something they could not otherwise know; someone who turned sample data on
+ * already knows, and the switch says what it does where it is thrown. What it
+ * must never do is stay up unchanged — sample data makes the charts generated
+ * too, so "prices and charts are real" would become a plain falsehood, which
+ * is the one thing this line exists to prevent. Saying nothing is fine here;
+ * saying something false is not.
  */
 export function DemoDataNote() {
   const t = useT();
   const demo = useDemoMode();
+  if (demo) return null;
   return (
     <p className="text-muted" style={{ fontSize: 15, margin: 0, padding: '0 2px', lineHeight: 1.45 }}>
-      {t(demo ? 'demo.allSample' : 'demo.pricesNote')}
+      {t('demo.pricesNote')}
     </p>
   );
 }
