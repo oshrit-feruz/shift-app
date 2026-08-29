@@ -47,7 +47,7 @@ export function Skeleton({
  */
 export function SkeletonLine({
   width = '100%',
-  fontSize = 17,
+  fontSize = 15.5,
   lineHeight = 1.5,
   bar = 11,
   style,
@@ -140,7 +140,7 @@ export function SkeletonList({
 /** Stacked text lines, for paragraph-shaped content. */
 export function SkeletonText({
   lines = 2,
-  fontSize = 17,
+  fontSize = 15.5,
   widths,
 }: {
   lines?: number;
