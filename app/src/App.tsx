@@ -91,7 +91,11 @@ const SCREENS: Record<Screen, ComponentType<ScreenProps>> = {
 };
 
 export interface ScreenProps {
-  openAlert: () => void;
+  /** Open the new-alert sheet. Pass a ticker to attach the alert to it; with
+   *  no argument the sheet asks which stock the alert is about. */
+  openAlert: (ticker?: string) => void;
+  /** Open the ticker search overlay — the app's one way to add a stock. */
+  openSearch: () => void;
 }
 
 /**
@@ -186,9 +190,16 @@ function AppShell() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [alertOpen, setAlertOpen] = useState(false);
 
+  // Which ticker the alert sheet is about: whatever asked for it, falling
+  // back to the stock page the user is on. Alerts created from the watchlist
+  // used to arrive with an empty ticker, which made them unattributable.
+  const [alertTicker, setAlertTicker] = useState<string | null>(null);
+
   const symbols = useLoadable(() => demoService.symbols(), []);
   const currentSymbol =
     symbols.state.status === 'ok' ? symbols.state.data.find((x) => x.ticker === s.ticker) : undefined;
+  const alertFor = alertTicker ?? (s.screen === 'stock' ? s.ticker : '');
+  const alertSymbol = currentSymbol?.ticker === alertFor ? currentSymbol : null;
 
   const titleKey = `title.${s.screen}` as StringKey;
   const kickerKey = `kicker.${s.screen}` as StringKey;
@@ -210,7 +221,11 @@ function AppShell() {
   // Stable identity so MemoScreen below can bail out when only local shell
   // state (an opened overlay) changed. Screens read app state via context, so
   // skipping this subtree never hides a real state change from them.
-  const openAlert = useCallback(() => setAlertOpen(true), []);
+  const openAlert = useCallback((ticker?: string) => {
+    setAlertTicker(ticker ?? null);
+    setAlertOpen(true);
+  }, []);
+  const openSearch = useCallback(() => setSearchOpen(true), []);
 
   // There is one shared scroll container across every screen (no per-route
   // remount), so without this a screen opens wherever the previous one left
@@ -259,7 +274,7 @@ function AppShell() {
           kicker={kicker}
           title={title}
           unreadCount={unread}
-          onSearch={() => setSearchOpen(true)}
+          onSearch={openSearch}
           onNotifications={() => setNotifOpen(true)}
         />
         <div
@@ -276,7 +291,7 @@ function AppShell() {
               in a frame or two, but on a slow network a lazy screen would
               otherwise be an empty hole between header and tab bar. */}
           <Suspense fallback={<ScreenFallback />}>
-            <MemoScreen View={ScreenView} openAlert={openAlert} />
+            <MemoScreen View={ScreenView} openAlert={openAlert} openSearch={openSearch} />
           </Suspense>
         </div>
         <BackToStepsPill />
@@ -287,7 +302,12 @@ function AppShell() {
         />
         <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
         <NotificationsSheet open={notifOpen} onClose={() => setNotifOpen(false)} />
-        <AlertSheet open={alertOpen} onClose={() => setAlertOpen(false)} symbol={currentSymbol ?? null} />
+        <AlertSheet
+          open={alertOpen}
+          onClose={() => setAlertOpen(false)}
+          ticker={alertFor}
+          symbol={alertSymbol}
+        />
         {!s.firstRunSeen && <FirstRunOverlay />}
       </div>
     </div>
@@ -314,11 +334,13 @@ function ScreenFallback() {
 const MemoScreen = memo(function MemoScreen({
   View,
   openAlert,
+  openSearch,
 }: {
   View: ComponentType<ScreenProps>;
-  openAlert: () => void;
+  openAlert: (ticker?: string) => void;
+  openSearch: () => void;
 }) {
-  return <View openAlert={openAlert} />;
+  return <View openAlert={openAlert} openSearch={openSearch} />;
 });
 
 /** Floating "back to the steps" pill when a step opened another screen. */

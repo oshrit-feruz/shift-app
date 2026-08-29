@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { initial, PERSISTED } from './appState';
-import { debounced, mergeRemote, pickPersisted } from './remoteState';
+import { initial, LEGACY_SEED_WATCHLIST, PERSISTED } from './appState';
+import { adoptRemote, debounced, mergeRemote, pickPersisted, remoteDiffers } from './remoteState';
 
 describe('pickPersisted', () => {
   it('extracts exactly the PERSISTED keys', () => {
@@ -41,6 +41,20 @@ describe('mergeRemote', () => {
     // Local-only keys do NOT survive a non-empty server row — no per-key
     // splicing of regulatory state (see mergeRemote docs).
     expect(next.watchlist).toBeUndefined();
+  });
+
+  it('drops the retired demo watchlist seed coming back from the server', () => {
+    // A row written before the watchlist became the user's own still carries
+    // the eight seeded stocks. Letting it win would push them back onto a
+    // device that has already dropped them, and "starts empty" would last
+    // exactly until the next sign-in.
+    const server = { advStage: 2, watchlist: [...LEGACY_SEED_WATCHLIST] };
+    expect(mergeRemote(local, server).next.watchlist).toEqual([]);
+  });
+
+  it('keeps a server watchlist the user actually chose', () => {
+    const server = { advStage: 2, watchlist: ['ORCL', 'NVDA'] };
+    expect(mergeRemote(local, server).next.watchlist).toEqual(['ORCL', 'NVDA']);
   });
 
   it('whitelists incoming keys through PERSISTED', () => {
@@ -93,5 +107,101 @@ describe('debounced', () => {
     vi.advanceTimersByTime(2000);
     d.flush();
     expect(fn).not.toHaveBeenCalled();
+  });
+});
+
+describe('remoteDiffers — the foreground re-read', () => {
+  const local = pickPersisted({ ...initial, watchlist: ['NVDA'] });
+
+  it('sees a stock added on another device', () => {
+    expect(remoteDiffers(local, { watchlist: ['NVDA', 'ORCL'] })).toBe(true);
+  });
+
+  it('sees a stock removed on another device', () => {
+    expect(remoteDiffers(local, { watchlist: [] })).toBe(true);
+  });
+
+  it('stays quiet when the server says what this device already holds', () => {
+    // A new array with the same contents is not a change. Identity comparison
+    // would report one on every check and re-render the app on every tab
+    // switch.
+    expect(remoteDiffers(local, { watchlist: ['NVDA'] })).toBe(false);
+  });
+
+  it('never treats a missing or unreadable row as an instruction to wipe', () => {
+    expect(remoteDiffers(local, null)).toBe(false);
+    expect(remoteDiffers(local, {})).toBe(false);
+    expect(remoteDiffers(local, 'garbage')).toBe(false);
+    expect(remoteDiffers(local, [1, 2])).toBe(false);
+  });
+
+  it('ignores keys an older row never wrote', () => {
+    // The slice grows between builds; a row written by an older client is
+    // short, not different.
+    expect(remoteDiffers(local, { watchlist: ['NVDA'], advStage: 0 })).toBe(false);
+  });
+
+  it('does not report the retired seed as a change worth adopting', () => {
+    // It is normalised away on read, so a server row still carrying it says
+    // the same thing an empty local list does.
+    const empty = pickPersisted(initial);
+    expect(remoteDiffers(empty, { watchlist: [...LEGACY_SEED_WATCHLIST] })).toBe(false);
+  });
+});
+
+describe('debounced.pending', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('reports an edit still sitting in the timer, and stops once it fires', () => {
+    const d = debounced(() => {}, 100);
+    expect(d.pending()).toBe(false);
+    d.call();
+    expect(d.pending()).toBe(true);
+    vi.advanceTimersByTime(100);
+    expect(d.pending()).toBe(false);
+  });
+
+  it('is clear after a flush and after a cancel', () => {
+    const d = debounced(() => {}, 100);
+    d.call();
+    d.flush();
+    expect(d.pending()).toBe(false);
+    d.call();
+    d.cancel();
+    expect(d.pending()).toBe(false);
+  });
+});
+
+describe('adoptRemote — what the foreground re-read applies', () => {
+  it('returns null when the server has nothing new', () => {
+    const current = pickPersisted({ ...initial, watchlist: ['NVDA'] });
+    expect(adoptRemote(current, { watchlist: ['NVDA'] })).toBeNull();
+    expect(adoptRemote(current, null)).toBeNull();
+  });
+
+  it('takes the server value for the keys the row carries', () => {
+    const current = pickPersisted({ ...initial, watchlist: ['NVDA'] });
+    const next = adoptRemote(current, { watchlist: ['NVDA', 'ORCL'] });
+    expect(next?.watchlist).toEqual(['NVDA', 'ORCL']);
+  });
+
+  it('keeps local values for keys an incomplete row does not carry', () => {
+    // The failure this guards: replaceState fills every omitted key from
+    // `initial`, so adopting a bare server bag would wipe the keys a row
+    // written by an older client never had. Losing someone's manual
+    // portfolios because their stored row predates that feature is invisible
+    // until it is permanent.
+    const portfolios = [{ id: 'p1', name: 'Sandbox', startingCash: 1000 }];
+    const current = pickPersisted({ ...initial, watchlist: ['NVDA'], manualPortfolios: portfolios });
+    const next = adoptRemote(current, { watchlist: ['ORCL'] });
+    expect(next?.watchlist).toEqual(['ORCL']);
+    expect(next?.manualPortfolios).toEqual(portfolios);
+  });
+
+  it('still normalises what it adopts', () => {
+    const current = pickPersisted(initial);
+    expect(adoptRemote(current, { watchlist: [...LEGACY_SEED_WATCHLIST] })).toBeNull();
+    expect(adoptRemote(current, { watchlist: [' orcl ', 'ORCL'] })?.watchlist).toEqual(['ORCL']);
   });
 });

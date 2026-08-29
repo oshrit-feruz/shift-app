@@ -78,6 +78,8 @@ export const STRINGS = {
   'home.startHere': p('New to investing? Start here', 'חדשה בהשקעות? מתחילים כאן'),
   'home.startHereSub': p('A short guide, then the steps', 'מדריך קצר, ואחריו הצעדים'),
   'home.watchlist': p('Watchlist', 'ווטצ׳ליסט'),
+  'home.watchlistEmpty': p('You are not following any stocks yet', 'עדיין לא עוקבת אחרי אף מניה'),
+  'home.watchlistAdd': p('Add your first stock', 'להוסיף מניה ראשונה'),
   'home.seeAll': p('See all', 'לראות הכול'),
   'home.moversBeg': p("What's moving today", 'מה זז היום'),
   'home.moversAdv': p('Top movers', 'המובילים'),
@@ -502,11 +504,28 @@ export const STRINGS = {
   'pf.benchmark': p('- - S&P 500', '- - S&P 500'),
 
   // ── Watchlist / alerts ────────────────────────────────────────────────
-  'watch.sub': p('4 active alerts · 8 tracked', '4 התראות פעילות · 8 במעקב'),
+  // The subtitle counts what the user actually has, so it is built from two
+  // halves rather than one frozen sentence.
+  'watch.trackedCount': p('{n} tracked', '{n} במעקב'),
+  'watch.alertsCount': p('{n} active alerts', '{n} התראות פעילות'),
   'watch.newAlert': p('New alert', 'התראה חדשה'),
+  'watch.addStock': p('Add stock', 'להוסיף מניה'),
   'watch.tracking': p('Tracking', 'במעקב'),
   'watch.activeAlerts': p('Active alerts', 'התראות פעילות'),
   'watch.remove': p('Remove', 'להסיר'),
+  'watch.empty': p('Your watchlist is empty', 'הווטצ׳ליסט שלך ריק'),
+  'watch.emptyHelp': p(
+    'Search for a stock and add it. The list is yours — it stays on this device and syncs to your account.',
+    'לחפש מניה ולהוסיף אותה. הרשימה שלך — היא נשמרת במכשיר ומסתנכרנת לחשבון שלך.',
+  ),
+  'watch.removeAria': p('Remove {ticker} from your watchlist', 'להסיר את {ticker} מהווטצ׳ליסט'),
+  'watch.alertAria': p('New alert for {ticker}', 'התראה חדשה על {ticker}'),
+  'watch.noAlerts': p('No alerts yet', 'אין עדיין התראות'),
+  'watch.noAlertsHelp': p(
+    'An alert tells you when a stock you follow crosses a price, gets mentioned in the news, or reports.',
+    'התראה מודיעה לך כשמניה שאת עוקבת אחריה חוצה מחיר, מוזכרת בחדשות או מפרסמת דוח.',
+  ),
+  'watch.symbolOnly': p('Symbol only', 'סימבול בלבד'),
   'watch.alertNudge': p(
     'An alert is just a nudge — it never buys or sells anything.',
     'התראה היא רק תזכורת — היא לא קונה ולא מוכרת כלום.',
@@ -520,6 +539,12 @@ export const STRINGS = {
   'alert.newsHelp': p('When a keyword shows up in coverage', 'כשמילת מפתח מופיעה בכיסוי התקשורתי'),
   'alert.earnType': p('Earnings report', 'דוח רבעוני'),
   'alert.earnHelp': p('Before or when results land', 'לפני הפרסום או ברגע שהוא יוצא'),
+  'alert.stock': p('Stock', 'מניה'),
+  'alert.pickStock': p('Choose a stock', 'לבחור מניה'),
+  'alert.noStock': p(
+    'Add a stock to your watchlist first — an alert has to be about something.',
+    'קודם להוסיף מניה לווטצ׳ליסט — התראה חייבת להיות על משהו.',
+  ),
   'alert.condition': p('Condition', 'תנאי'),
   'alert.rises': p('Rises above', 'עולה מעל'),
   'alert.falls': p('Falls below', 'יורד מתחת'),
@@ -567,6 +592,14 @@ export const STRINGS = {
   // ── Search ────────────────────────────────────────────────────────────
   'search.placeholder': p('Search ticker or company', 'חיפוש סימבול או חברה'),
   'search.recent': p('Recent', 'אחרונים'),
+  'search.add': p('Add', 'להוסיף'),
+  'search.added': p('Added', 'נוסף'),
+  'search.addAria': p('Add {ticker} to your watchlist', 'להוסיף את {ticker} לווטצ׳ליסט'),
+  'search.removeAria': p('Remove {ticker} from your watchlist', 'להסיר את {ticker} מהווטצ׳ליסט'),
+  // Shown for a symbol that is in the engine's daily ranking but has no row
+  // in the sample table — we have its price and nothing else, and the row
+  // says so rather than leaving a blank where a company name belongs.
+  'search.rankedOnly': p("In today's ranking", 'בדירוג היומי'),
   'search.matches': p('{n} matches', '{n} תוצאות'),
   'search.noMatch': p('No match for', 'אין תוצאה עבור'),
   'search.noMatchHelp': p(

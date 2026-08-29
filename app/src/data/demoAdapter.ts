@@ -37,6 +37,7 @@ import {
   type PortfolioSummary,
   type Quote,
   type SymbolInfo,
+  type WatchRow,
 } from './types';
 
 export type DemoFlag = 'unavailable' | 'showcase';
@@ -218,6 +219,27 @@ function withQuote(row: SymbolRow, quotes: Loadable<Record<string, Quote>>): Sym
   return { ...row, quote: quotes.status === 'ok' ? (quotes.data[row.ticker] ?? null) : null };
 }
 
+/**
+ * Describe one ticker with everything actually known about it, and nothing
+ * else. The sample table supplies a name, a sector and the demo day change
+ * when it has a row; a symbol it does not cover keeps those null rather than
+ * borrowing another company's.
+ */
+function watchRow(rawTicker: string, quotes: Loadable<Record<string, Quote>>): WatchRow {
+  const ticker = rawTicker.trim().toUpperCase();
+  const row = SYMS.find((x) => x.ticker === ticker);
+  const quote = quotes.status === 'ok' ? (quotes.data[ticker] ?? null) : null;
+  return {
+    ticker,
+    name: row?.name ?? null,
+    sector: row?.sector ?? null,
+    plain: row?.plain ?? null,
+    quote,
+    demoChangePct: row?.demo.changePct ?? null,
+    ranked: quote !== null,
+  };
+}
+
 /** Deterministic seeded pseudo-random walk — same math as the prototype charts. */
 function rng(seed: number) {
   let s = seed;
@@ -250,6 +272,64 @@ export const demoService: DataService & { isDemo: true } = {
     if (DEMO_FLAGS.unavailable) return unavailable();
     const s = SYMS.find((x) => x.ticker === ticker);
     return s ? ok(withQuote(s, quotes)) : unavailable();
+  },
+
+  /**
+   * The user's watchlist, in their order.
+   *
+   * The sample table is consulted for a name, a sector and the demo day
+   * change, but it does not gate the row: a ticker it has never heard of is
+   * still returned, described by its real quote alone. A watchlist that
+   * silently dropped the symbols the sample table misses would be the demo
+   * list wearing the user's name.
+   *
+   * An empty watchlist returns ok([]) without touching the mirror — a new
+   * account should cost no request at all, and "you have not added anything"
+   * is not a failure to report.
+   */
+  async watchRows(tickers: string[]) {
+    if (tickers.length === 0) return ok<WatchRow[]>([]);
+    const quotes = await fetchQuotes();
+    if (DEMO_FLAGS.unavailable) return unavailable<WatchRow[]>();
+    return ok(tickers.map((ticker) => watchRow(ticker, quotes)));
+  },
+
+  /**
+   * The addressable universe: the sample table first (those rows carry a
+   * company name, which is what someone typing "apple" is searching for),
+   * then every other symbol the day's ranking covers, then anything in
+   * `include` that neither had.
+   *
+   * `include` is the caller's watchlist. A ticker the ranking has since
+   * dropped is still on the user's list, and search is where they go to take
+   * it off — a list that quietly omits it cannot be used to do that, and
+   * disagrees with `watchRows`, which keeps it.
+   *
+   * Dedupe is on the normalised ticker, not the raw mirror key. mapSignal
+   * uppercases what the snapshot carries but does not trim it, so a key with
+   * stray whitespace failed a raw comparison against the sample table while
+   * watchRow normalised it to the same symbol — two rows for one company,
+   * under one React key.
+   *
+   * A dead mirror leaves the sample table, which is still a usable — if
+   * short — list to search, so this is only 'unavailable' under the demo
+   * failure flag.
+   */
+  async searchUniverse(include: string[] = []) {
+    const quotes = await fetchQuotes();
+    if (DEMO_FLAGS.unavailable) return unavailable<WatchRow[]>();
+    const rows: WatchRow[] = [];
+    const seen = new Set<string>();
+    const add = (raw: string) => {
+      const row = watchRow(raw, quotes);
+      if (seen.has(row.ticker)) return;
+      seen.add(row.ticker);
+      rows.push(row);
+    };
+    for (const row of SYMS) add(row.ticker);
+    if (quotes.status === 'ok') for (const ticker of Object.keys(quotes.data)) add(ticker);
+    for (const ticker of include) add(ticker);
+    return ok(rows);
   },
 
   /**

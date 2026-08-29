@@ -7,9 +7,10 @@ import { Icon } from '../components/Icon';
 import { Num } from '../components/Num';
 import { AreaChart } from '../components/AreaChart';
 import { MetricStrip } from '../components/MetricStrip';
-import { ListRow, RowValues } from '../components/ListRow';
+import { ListRow } from '../components/ListRow';
+import { WatchRowValues } from '../components/WatchRowValues';
 import { TickerTile } from '../components/TickerTile';
-import { DataState } from '../components/DataState';
+import { DataState, EmptyState } from '../components/DataState';
 import { Skeleton, SkeletonChart, SkeletonLine, SkeletonList, SkeletonText } from '../components/Skeleton';
 import { ProgressTrack } from '../components/Progress';
 import { useAppState, useDispatch, setupProgress } from '../state/appState';
@@ -23,7 +24,7 @@ import { money, moneyOrDash, pct, signalColor } from '../lib/format';
 import { ROW_BUTTON_STYLE } from '../lib/rowButton';
 import type { ScreenProps } from '../App';
 
-export function HomeScreen(_: ScreenProps) {
+export function HomeScreen({ openSearch }: ScreenProps) {
   const s = useAppState();
   const dispatch = useDispatch();
   const { mode, language } = useTheme();
@@ -31,6 +32,10 @@ export function HomeScreen(_: ScreenProps) {
   const beg = mode === 'beginner';
   const symbols = useLoadable(() => demoService.symbols(), []);
   const portfolios = useLoadable(() => demoService.portfolios(), []);
+  // The preview shows the user's own list — the same rows the watchlist tab
+  // does, capped. It used to show the top of the sample symbol table, which
+  // looked identical whether or not the user had followed anything.
+  const watched = useLoadable(() => demoService.watchRows(s.watchlist), [s.watchlist.join(',')]);
   const setup = setupProgress(s);
   // Deterministic for a given key, so compute the walk once, not per render.
   const pfSeries = useMemo(() => demoService.series('home-pf', 60, 0.42, 2.2), []);
@@ -301,30 +306,41 @@ export function HomeScreen(_: ScreenProps) {
           </Button>
         </div>
         <DataState
-          state={symbols.state}
-          onRetry={symbols.retry}
-          skeleton={<SkeletonList count={beg ? 4 : 6} leading={beg} />}
+          state={watched.state}
+          onRetry={watched.retry}
+          skeleton={<SkeletonList count={Math.min(s.watchlist.length || 1, beg ? 4 : 6)} leading={beg} />}
         >
-          {(syms) => (
-            <>
-              {syms.slice(0, beg ? 4 : 6).map((x) => (
-                <ListRow
-                  key={x.ticker}
-                  leading={beg ? <TickerTile ticker={x.ticker} /> : undefined}
-                  title={x.ticker}
-                  subtitle={beg ? x.plain[language] : `${x.demo.marketCap} · P/E ${x.demo.pe.toFixed(1)}`}
-                  right={
-                    <RowValues
-                      main={moneyOrDash(x.quote?.price)}
-                      sub={pct(x.demo.changePct)}
-                      subColor={signalColor(x.demo.changePct)}
-                    />
-                  }
-                  onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}
-                />
-              ))}
-            </>
-          )}
+          {(rows) =>
+            rows.length === 0 ? (
+              <EmptyState>
+                <div style={{ fontSize: 16.5 }}>{t('home.watchlistEmpty')}</div>
+                <Button
+                  variant="ghost"
+                  fontSize={16}
+                  alignSelf="center"
+                  style={{ marginTop: 2 }}
+                  onClick={openSearch}
+                >
+                  ＋ {t('home.watchlistAdd')}
+                </Button>
+              </EmptyState>
+            ) : (
+              <>
+                {rows.slice(0, beg ? 4 : 6).map((x) => (
+                  <ListRow
+                    key={x.ticker}
+                    leading={beg ? <TickerTile ticker={x.ticker} /> : undefined}
+                    title={x.ticker}
+                    subtitle={
+                      beg ? (x.plain?.[language] ?? x.name ?? undefined) : (x.name ?? x.sector ?? undefined)
+                    }
+                    right={<WatchRowValues row={x} />}
+                    onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}
+                  />
+                ))}
+              </>
+            )
+          }
         </DataState>
       </Card>
 

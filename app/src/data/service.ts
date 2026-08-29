@@ -7,6 +7,7 @@ import type {
   Holding,
   SatelliteSignal,
   SymbolInfo,
+  WatchRow,
 } from './types';
 
 /**
@@ -22,6 +23,21 @@ import type {
 export interface DataService {
   symbols(): Promise<Loadable<SymbolInfo[]>>;
   symbol(ticker: string): Promise<Loadable<SymbolInfo>>;
+  /**
+   * Rows for an arbitrary list of tickers, in the order given — the user's
+   * watchlist. Unlike `symbols()` this is not restricted to the sample table:
+   * a ticker with no row there comes back described by what is actually known
+   * about it (see WatchRow). An empty list is ok([]), with no fetch at all.
+   */
+  watchRows(tickers: string[]): Promise<Loadable<WatchRow[]>>;
+  /**
+   * Everything a user can put on their watchlist: the sample table plus every
+   * symbol in the engine's daily ranking, plus any ticker in `include` that
+   * neither covers. Backs ticker search, which passes the user's watchlist so
+   * a symbol the ranking has since dropped is still listed — and can still be
+   * un-followed.
+   */
+  searchUniverse(include?: string[]): Promise<Loadable<WatchRow[]>>;
   /** Live positions currently held by the Recovery Detector engine. */
   satelliteSignals(): Promise<Loadable<SatelliteSignal[]>>;
   portfolios(): Promise<Loadable<PortfolioSummary[]>>;

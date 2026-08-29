@@ -1,4 +1,4 @@
-import { PERSISTED, type AppState } from './appState';
+import { PERSISTED, readPersisted, type AppState } from './appState';
 
 /**
  * Pure logic for syncing the persisted slice with the user's Supabase row
@@ -38,11 +38,61 @@ export function mergeRemote(
       : {};
   const serverHasData = Object.keys(serverBag).length > 0;
   const source = serverHasData ? serverBag : local;
-  const next: Partial<AppState> = {};
+  // readPersisted, not a raw copy: it whitelists through PERSISTED and drops
+  // the retired demo watchlist seed, so a row written before the watchlist
+  // became the user's own doesn't push those eight stocks back onto a device
+  // that has already dropped them.
+  return { next: readPersisted(source), shouldUpload: !serverHasData };
+}
+
+/**
+ * Does the server's slice say something different from what this device
+ * holds? Compared over PERSISTED only, and by value: both sides are plain
+ * JSON bags, and the local one is rebuilt on every render, so identity
+ * comparison would report "changed" every time and make the app adopt — and
+ * re-render — on every check.
+ *
+ * Used by the periodic re-read, which must be silent when nothing changed:
+ * a device sitting idle on the watchlist should not re-render because it
+ * looked.
+ */
+export function remoteDiffers(local: Record<string, unknown>, remote: unknown): boolean {
+  const serverBag =
+    remote != null && typeof remote === 'object' && !Array.isArray(remote)
+      ? (remote as Record<string, unknown>)
+      : null;
+  // No row, or a row we cannot read as an object, is not a change to adopt —
+  // it is an absence, and treating it as one would wipe the device's list.
+  if (serverBag === null || Object.keys(serverBag).length === 0) return false;
+  const incoming = readPersisted(serverBag);
   for (const k of PERSISTED) {
-    if (k in source) (next as Record<string, unknown>)[k] = source[k];
+    // A key the server has never written is not a difference: the slice grows
+    // over time, and an older row simply has fewer keys than this build.
+    if (!(k in incoming)) continue;
+    if (JSON.stringify(incoming[k]) !== JSON.stringify(local[k])) return true;
   }
-  return { next, shouldUpload: !serverHasData };
+  return false;
+}
+
+/**
+ * What the foreground re-read should hand to replaceState, or null when the
+ * server has nothing new to say.
+ *
+ * Merged over the device's current slice rather than replacing it. That
+ * difference matters: replaceState fills every key the bag omits from
+ * `initial`, so adopting a bare server bag would reset any persisted key the
+ * row happens not to carry — and a row written by an older client is short,
+ * not empty. Wiping a user's manual portfolios because their stored row
+ * predates that feature is the kind of data loss that is invisible until it
+ * is permanent.
+ *
+ * The wholesale "server wins" of mergeRemote is deliberate and stays as it
+ * is: it runs once, at sign-in, where taking the account's state whole is
+ * the point. This runs on every foregrounding, where it is not.
+ */
+export function adoptRemote(current: Record<string, unknown>, remote: unknown): Partial<AppState> | null {
+  if (!remoteDiffers(current, remote)) return null;
+  return { ...current, ...readPersisted(remote as Record<string, unknown>) } as Partial<AppState>;
 }
 
 /**
@@ -54,7 +104,7 @@ export function mergeRemote(
 export function debounced<A extends unknown[]>(
   fn: (...args: A) => void,
   ms: number,
-): { call: (...args: A) => void; flush: () => void; cancel: () => void } {
+): { call: (...args: A) => void; flush: () => void; cancel: () => void; pending: () => boolean } {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let pending: A | null = null;
   const fire = () => {
@@ -80,5 +130,9 @@ export function debounced<A extends unknown[]>(
       timer = null;
       pending = null;
     },
+    // Whether an edit is still sitting in the timer. The re-read path asks,
+    // because adopting the server's slice while this device has an unsent
+    // change of its own would throw that change away.
+    pending: () => pending !== null,
   };
 }
