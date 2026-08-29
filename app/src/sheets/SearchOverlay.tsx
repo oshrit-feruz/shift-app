@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useDismissAnimation } from '../lib/useDismissAnimation';
 import { Button } from '../components/Button';
 import { Icon } from '../components/Icon';
@@ -54,9 +54,15 @@ function SearchOverlayBody({ closing, onClose }: { closing: boolean; onClose: ()
   const toast = useToast();
   const [q, setQ] = useState('');
   // The watchlist is passed in so a followed ticker the daily ranking has
-  // since dropped is still listed here — search is where someone goes to take
-  // it off, and a list that omits it cannot be used to do that.
-  const symbols = useLoadable(() => demoService.searchUniverse(s.watchlist), [s.watchlist.join(',')]);
+  // since dropped is still findable here — search is where someone goes to
+  // take it off, and a symbol search cannot reach what the universe omits.
+  //
+  // Snapshotted at mount rather than tracked: the searchable set must not be
+  // rebuilt every time the user adds a stock, or the list they are working
+  // through would refetch under their hands. The body is mounted fresh each
+  // time the overlay opens, so the snapshot is never stale for long.
+  const universeFor = useRef(s.watchlist).current;
+  const symbols = useLoadable(() => demoService.searchUniverse(universeFor), []);
   const query = q.trim().toLowerCase();
 
   return (
@@ -121,20 +127,13 @@ function SearchOverlayBody({ closing, onClose }: { closing: boolean; onClose: ()
           skeleton={<SkeletonList count={5} minHeight={52} firstDivider />}
         >
           {(syms) => {
-            // With no query, what the user already follows is the most useful
-            // thing to show — it is also where they come to remove one, and
-            // it is listed in their order, the same as the watchlist screen.
-            // Falling back to the first few symbols keeps the overlay from
-            // opening empty for someone with no list yet.
-            const tracked = s.watchlist
-              .map((ticker) => syms.find((x) => x.ticker === ticker))
-              .filter((x): x is WatchRow => x !== undefined);
-            const hits = query ? matches(syms, query) : tracked.length > 0 ? tracked : syms.slice(0, 5);
-            const heading = query
-              ? t('search.matches', { n: hits.length })
-              : tracked.length > 0
-                ? t('watch.tracking')
-                : t('search.recent');
+            // One list, whatever the user follows. An earlier version swapped
+            // in the watchlist once it had anything on it, so adding a stock
+            // replaced the list being browsed with a list of one — the row
+            // the user had just tapped. The list stays put; the row's own
+            // button is what changes to say it was added.
+            const hits = query ? matches(syms, query) : syms.slice(0, 5);
+            const heading = query ? t('search.matches', { n: hits.length }) : t('search.recent');
             return (
               <>
                 <div
