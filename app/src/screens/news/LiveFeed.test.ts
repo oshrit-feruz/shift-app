@@ -18,7 +18,7 @@ describe('fetchWatchlistNews', () => {
       NVDA: { articles: [art('https://e/a', '2026-08-26T10:00:00Z')] },
       AAPL: { articles: [art('https://e/b', '2026-08-27T10:00:00Z')] },
     };
-    const r = await fetchWatchlistNews(['NVDA', 'AAPL'], async (url) => {
+    const r = await fetchWatchlistNews(['NVDA', 'AAPL'], 'en', async (url) => {
       const tk = new URL(String(url), 'https://x.test').searchParams.get('ticker')!;
       return res(byTicker[tk]);
     });
@@ -29,7 +29,7 @@ describe('fetchWatchlistNews', () => {
   it('shows a story once even when several tickers return it', async () => {
     // One story often carries multiple tickers, so it comes back from more
     // than one request.
-    const r = await fetchWatchlistNews(['NVDA', 'AMD'], async () =>
+    const r = await fetchWatchlistNews(['NVDA', 'AMD'], 'en', async () =>
       res({ articles: [art('https://e/same', '2026-08-27T10:00:00Z')] }),
     );
     expect(r.status === 'ok' && r.data).toHaveLength(1);
@@ -38,7 +38,7 @@ describe('fetchWatchlistNews', () => {
   it('keeps what succeeded when only some tickers fail', async () => {
     // Blanking the whole feed over one bad ticker would hide real news the
     // user could have read.
-    const r = await fetchWatchlistNews(['NVDA', 'BAD'], async (url) => {
+    const r = await fetchWatchlistNews(['NVDA', 'BAD'], 'en', async (url) => {
       const tk = new URL(String(url), 'https://x.test').searchParams.get('ticker');
       return tk === 'BAD'
         ? res({ error: 'x' }, 502)
@@ -50,19 +50,19 @@ describe('fetchWatchlistNews', () => {
 
   it('is unavailable only when every ticker failed', async () => {
     // That is a real outage — and it must not read as "no news today".
-    const r = await fetchWatchlistNews(['NVDA', 'AAPL'], async () => res({ error: 'x' }, 502));
+    const r = await fetchWatchlistNews(['NVDA', 'AAPL'], 'en', async () => res({ error: 'x' }, 502));
     expect(r.status).toBe('unavailable');
   });
 
   it('treats all-empty-but-successful as a legitimate empty feed', async () => {
-    const r = await fetchWatchlistNews(['NVDA'], async () => res({ articles: [] }));
+    const r = await fetchWatchlistNews(['NVDA'], 'en', async () => res({ articles: [] }));
     expect(r.status).toBe('ok');
     expect(r.status === 'ok' && r.data).toEqual([]);
   });
 
   it('returns an empty feed for an empty watchlist without any request', async () => {
     let called = 0;
-    const r = await fetchWatchlistNews([], async () => {
+    const r = await fetchWatchlistNews([], 'en', async () => {
       called += 1;
       return res({ articles: [] });
     });
@@ -72,7 +72,7 @@ describe('fetchWatchlistNews', () => {
 
   it('sorts an article with no date last rather than dropping it', async () => {
     // The headline is still real; only its timestamp is missing.
-    const r = await fetchWatchlistNews(['NVDA'], async () =>
+    const r = await fetchWatchlistNews(['NVDA'], 'en', async () =>
       res({ articles: [art('https://e/nodate', ''), art('https://e/dated', '2026-08-27T10:00:00Z')] }),
     );
     expect(r.status === 'ok' && r.data.map((a) => a.url)).toEqual(['https://e/dated', 'https://e/nodate']);
@@ -101,7 +101,7 @@ describe('feed ordering across timezones', () => {
       return new Response(JSON.stringify(body), { status: 200 });
     }) as unknown as typeof fetch;
 
-    const result = await fetchWatchlistNews(['AAA', 'BBB'], fetchImpl);
+    const result = await fetchWatchlistNews(['AAA', 'BBB'], 'en', fetchImpl);
     expect(result.status).toBe('ok');
     if (result.status !== 'ok') return;
     expect(result.data.map((a) => a.url)).toEqual(['b', 'a']);

@@ -7,6 +7,7 @@ import { AuthProvider } from './auth/AuthProvider';
 import { ProfileProvider } from './auth/ProfileProvider';
 import { AppStateProvider } from './state/appState';
 import { DemoModeProvider } from './lib/DemoModeProvider';
+import { ToastProvider } from './components/Toast';
 import { App } from './App';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -22,7 +23,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             {/* The React mirror of the sample-data switch. Screens read it
                 into their useLoadable deps so a flip re-fetches at once. */}
             <DemoModeProvider>
-              <App />
+              {/* Inside app state so any screen can raise a toast, and outside
+                  the shell so a toast survives a screen change. */}
+              <ToastProvider>
+                <App />
+              </ToastProvider>
             </DemoModeProvider>
           </AppStateProvider>
         </ProfileProvider>

@@ -17,7 +17,14 @@ export interface UpstreamArticle {
   publisher?: unknown;
   provider?: unknown;
   symbols?: unknown;
+  sentiment?: unknown;
 }
+
+/**
+ * How the provider scored the article's tone. Not our judgement: EODHD ships a
+ * `sentiment` object with the row, and this is a reading of its `polarity`.
+ */
+export type Sentiment = 'positive' | 'negative' | 'neutral';
 
 export interface NewsArticle {
   headline: string;
@@ -36,9 +43,28 @@ export interface NewsArticle {
    * one company, and inventing a ticker for those would be a fabrication.
    */
   symbols: string[];
+  /**
+   * The provider's own tone score, bucketed — or null when it did not send
+   * one, which is normal: EODHD includes `sentiment` only on some plans and
+   * not on every row. Null means "we were not told", and the UI shows no tag
+   * rather than guessing at "neutral". Silence and a real neutral score are
+   * different claims, and only one of them is ours to make.
+   */
+  sentiment: Sentiment | null;
 }
 
 const SUMMARY_MAX_CHARS = 280;
+
+/**
+ * Where a polarity score stops being neutral.
+ *
+ * EODHD's polarity runs -1..1 and comes from a VADER-style model, whose own
+ * documented cut-off for "not neutral" is ±0.05 — so this threshold is the
+ * upstream convention rather than a number we picked. It lives here, named,
+ * because it is the one tunable in this mapping: raise it and more stories
+ * read as neutral.
+ */
+const SENTIMENT_THRESHOLD = 0.05;
 
 /**
  * How much of an upstream article body is examined at all.
@@ -235,7 +261,28 @@ export function mapArticle(raw: unknown): NewsArticle | null {
     summary,
     url,
     symbols: mapSymbols(a.symbols),
+    sentiment: mapSentiment(a.sentiment),
   };
+}
+
+/**
+ * Read EODHD's `{ polarity, neg, neu, pos }` sentiment object into one of three
+ * buckets, or null when there is nothing usable to read.
+ *
+ * Null covers every "we were not told" case — the field absent (plans without
+ * sentiment), the object malformed, the polarity not a finite number — and is
+ * deliberately NOT collapsed into 'neutral'. "The provider scored this story as
+ * neutral" is a claim about the article; "the provider said nothing" is a claim
+ * about the response. Presenting the second as the first would be inventing a
+ * fact, which is the one thing this data path does not do.
+ */
+export function mapSentiment(raw: unknown): Sentiment | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const polarity = (raw as { polarity?: unknown }).polarity;
+  if (typeof polarity !== 'number' || !Number.isFinite(polarity)) return null;
+  if (polarity >= SENTIMENT_THRESHOLD) return 'positive';
+  if (polarity <= -SENTIMENT_THRESHOLD) return 'negative';
+  return 'neutral';
 }
 
 /**

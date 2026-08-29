@@ -1,7 +1,9 @@
 import { Card, CardTitle } from '../../components/Card';
 import { DataState, EmptyState } from '../../components/DataState';
 import { SkeletonCard } from '../../components/Skeleton';
-import { useT } from '../../i18n/useT';
+import { Tag } from '../../components/Tag';
+import { useT, type TFn } from '../../i18n/useT';
+import { sentimentTag } from '../news/sentimentTag';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useLoadable } from '../../data/useLoadable';
 import { fetchStockNews } from '../../data/stockNews';
@@ -28,7 +30,10 @@ import type { StockNewsArticle } from '../../data/types';
 export function NewsTab({ ticker }: { ticker: string }) {
   const t = useT();
   const { language } = useTheme();
-  const news = useLoadable(() => fetchStockNews(ticker), [ticker]);
+  // `language` is a dependency as well as an argument: the headlines come
+  // back translated, so switching language must refetch rather than leave the
+  // previous language's text on screen.
+  const news = useLoadable(() => fetchStockNews(ticker, language), [ticker, language]);
 
   return (
     <DataState state={news.state} onRetry={news.retry} skeleton={<SkeletonCard height={210} lines={4} />}>
@@ -42,7 +47,7 @@ export function NewsTab({ ticker }: { ticker: string }) {
           <Card padding={12} gap={8}>
             <CardTitle>{t('stock.tabNews')}</CardTitle>
             {articles.map((a) => (
-              <Article key={a.url} article={a} language={language} readLabel={t('stock.newsRead')} />
+              <Article key={a.url} article={a} language={language} readLabel={t('stock.newsRead')} t={t} />
             ))}
             <p className="text-muted" style={{ fontSize: 15, lineHeight: 1.5, margin: '2px 0 0' }}>
               {t('stock.newsExcerptNote')}
@@ -68,12 +73,16 @@ function Article({
   article,
   language,
   readLabel,
+  t,
 }: {
   article: StockNewsArticle;
   language: 'en' | 'he';
   readLabel: string;
+  t: TFn;
 }) {
   const published = publishedLabel(article.publishedAt, language);
+  // The provider's tone score, or nothing at all when it did not send one.
+  const tone = sentimentTag(article.sentiment);
 
   return (
     <div style={{ paddingTop: 8, borderTop: '1px solid var(--color-divider)' }}>
@@ -82,20 +91,29 @@ function Article({
           a single mixed run gets reordered by bidi and renders as
           "2026 באוג׳ Reuters · 26". Isolating the source keeps each part
           intact and the separator where it was written. */}
-      {(article.source || published) && (
-        <div className="text-muted" style={{ fontSize: 15.5, display: 'flex', gap: 5 }}>
+      {(article.source || published || tone) && (
+        <div
+          className="text-muted"
+          style={{ fontSize: 15.5, display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}
+        >
           {article.source && <bdi>{article.source}</bdi>}
           {article.source && published && <span>·</span>}
           {published && <span>{published}</span>}
+          {tone && (
+            <Tag variant={tone.variant} fontSize={14.5}>
+              {t(tone.key)}
+            </Tag>
+          )}
         </div>
       )}
       {/* dir="auto" on the provider's own text: headlines and summaries come
-          from an English-language feed into a Hebrew-first page, and without
-          it the paragraph's RTL context throws the sentence-ending period to
-          the wrong side (".in ahead of consensus"). Auto lets each string
-          take its direction from its own first strong character, so an
-          English article reads as English and a Hebrew one would read as
-          Hebrew. */}
+          from an English-language feed, translated to Hebrew when the app is
+          in Hebrew — and left in English if that translation was unavailable.
+          So the language of this string is not fixed, and without dir="auto"
+          the paragraph's RTL context throws the sentence-ending period to the
+          wrong side (".in ahead of consensus"). Auto lets each string take its
+          direction from its own first strong character, so an English article
+          reads as English and a Hebrew one as Hebrew. */}
       <div
         dir="auto"
         style={{

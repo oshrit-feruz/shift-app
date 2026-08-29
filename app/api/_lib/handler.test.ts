@@ -1,18 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import handler, { createHandler } from '../news.js';
 import { itMeetsTheFailureContract, makeRes } from './failureContract.js';
+import { clearTranslationMemo } from './translate.js';
 
 const ORIGINAL_FETCH = globalThis.fetch;
 const ORIGINAL_KEY = process.env.EODHD_API_KEY;
+const ORIGINAL_TRANSLATE_KEY = process.env.GOOGLE_TRANSLATE_API_KEY;
 
 beforeEach(() => {
   process.env.EODHD_API_KEY = 'test-key';
+  // Translation is opt-in per test: the default is a route with no translator
+  // configured, which must behave exactly as it did before it had one.
+  delete process.env.GOOGLE_TRANSLATE_API_KEY;
+  clearTranslationMemo();
 });
 
 afterEach(() => {
   globalThis.fetch = ORIGINAL_FETCH;
+  vi.restoreAllMocks();
   if (ORIGINAL_KEY === undefined) delete process.env.EODHD_API_KEY;
   else process.env.EODHD_API_KEY = ORIGINAL_KEY;
+  if (ORIGINAL_TRANSLATE_KEY === undefined) delete process.env.GOOGLE_TRANSLATE_API_KEY;
+  else process.env.GOOGLE_TRANSLATE_API_KEY = ORIGINAL_TRANSLATE_KEY;
 });
 
 describe('handler', () => {
@@ -135,6 +144,9 @@ describe('handler', () => {
           // Empty for a per-ticker response: the caller already knows the
           // stock, so there is nothing for the tags to disambiguate.
           symbols: [],
+          // EODHD sent no sentiment for this row, so the article carries no
+          // tone tag rather than a neutral one.
+          sentiment: null,
         },
       ],
     });
@@ -266,5 +278,185 @@ describe('handler', () => {
     const res = makeRes();
     await handler({ method: 'GET', query: { ticker: 'NVDA' } }, res);
     expect(res._body).toMatchObject({ error: 'bad_response' });
+  });
+});
+
+/**
+ * `?lang=he` translates the headline and excerpt, because the app is
+ * Hebrew-first and EODHD's feed is English.
+ *
+ * The property under test throughout is that translation is a BEST-EFFORT
+ * last step: whatever the translator does, the caller still gets its real
+ * articles with a 200. A secondary service must not be able to turn a
+ * successful news response into an outage.
+ */
+describe('handler translation', () => {
+  const ARTICLE = {
+    title: 'NVIDIA lifts outlook',
+    link: 'https://www.reuters.com/tech/nvidia',
+    date: '2026-08-27T09:42:00+00:00',
+    content: 'NVIDIA posted strong results.',
+    source: 'Reuters',
+  };
+
+  /** EODHD answers the news call; the translator answers anything aimed at its host. */
+  function routed(translate: (texts: string[]) => Response | Promise<Response>) {
+    return vi.fn(async (url: URL | string, init?: RequestInit) => {
+      if (String(url).includes('translation.googleapis.com')) {
+        return translate(JSON.parse(String(init?.body)).q as string[]);
+      }
+      return new Response(JSON.stringify([ARTICLE]), { status: 200 });
+    }) as unknown as typeof fetch;
+  }
+
+  const translateOk = (texts: string[]) =>
+    new Response(
+      JSON.stringify({ data: { translations: texts.map((t) => ({ translatedText: `HE:${t}` })) } }),
+      { status: 200 },
+    );
+
+  it('returns Hebrew headline and summary, leaving the source and link untouched', async () => {
+    process.env.GOOGLE_TRANSLATE_API_KEY = 'translate-key';
+    globalThis.fetch = routed(translateOk);
+    const res = makeRes();
+    await handler({ method: 'GET', query: { ticker: 'NVDA', lang: 'he' } }, res);
+
+    expect(res._status).toBe(200);
+    expect(res._body).toMatchObject({
+      articles: [
+        {
+          headline: 'HE:NVIDIA lifts outlook',
+          summary: 'HE:NVIDIA posted strong results.',
+          // A publisher's name and the link are facts, not copy: translating
+          // them would corrupt real data rather than localise it.
+          source: 'Reuters',
+          url: 'https://www.reuters.com/tech/nvidia',
+        },
+      ],
+    });
+  });
+
+  it('keeps the provider’s sentiment through translation', async () => {
+    // The tone score is EODHD's, not the translator's: a Hebrew response must
+    // carry the same score the English one would, untouched by the translator.
+    process.env.GOOGLE_TRANSLATE_API_KEY = 'translate-key';
+    globalThis.fetch = vi.fn(async (url: URL | string, init?: RequestInit) => {
+      if (String(url).includes('translation.googleapis.com')) {
+        return translateOk(JSON.parse(String(init?.body)).q as string[]);
+      }
+      return new Response(
+        JSON.stringify([{ ...ARTICLE, sentiment: { polarity: -0.8, neg: 0.9, neu: 0.1, pos: 0 } }]),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const res = makeRes();
+    await handler({ method: 'GET', query: { ticker: 'NVDA', lang: 'he' } }, res);
+    expect(res._body).toMatchObject({
+      articles: [{ headline: 'HE:NVIDIA lifts outlook', sentiment: 'negative' }],
+    });
+  });
+
+  it('never leaks the translation key to the caller', async () => {
+    process.env.GOOGLE_TRANSLATE_API_KEY = 'translate-secret';
+    globalThis.fetch = routed(translateOk);
+    const res = makeRes();
+    await handler({ method: 'GET', query: { lang: 'he' } }, res);
+    expect(JSON.stringify(res._body)).not.toContain('translate-secret');
+  });
+
+  it('does not call the translator at all for English', async () => {
+    process.env.GOOGLE_TRANSLATE_API_KEY = 'translate-key';
+    const spy = routed(translateOk);
+    globalThis.fetch = spy;
+    const res = makeRes();
+    await handler({ method: 'GET', query: { ticker: 'NVDA', lang: 'en' } }, res);
+
+    expect(res._status).toBe(200);
+    expect(res._body).toMatchObject({ articles: [{ headline: 'NVIDIA lifts outlook' }] });
+    expect(vi.mocked(spy).mock.calls.every(([url]) => !String(url).includes('googleapis'))).toBe(true);
+  });
+
+  it('treats an absent lang as English, exactly as before translation existed', async () => {
+    process.env.GOOGLE_TRANSLATE_API_KEY = 'translate-key';
+    const spy = routed(translateOk);
+    globalThis.fetch = spy;
+    const res = makeRes();
+    await handler({ method: 'GET', query: { ticker: 'NVDA' } }, res);
+    expect(res._body).toMatchObject({ articles: [{ headline: 'NVIDIA lifts outlook' }] });
+    expect(vi.mocked(spy).mock.calls.every(([url]) => !String(url).includes('googleapis'))).toBe(true);
+  });
+
+  // The whole point of the fallback: real, current articles are still worth
+  // showing in English. Answering 502 because a translator failed would hide
+  // news that was fetched successfully.
+  it.each([
+    ['the translator errors', () => new Response('nope', { status: 500 })],
+    ['the quota is spent or the key is restricted', () => new Response('forbidden', { status: 403 })],
+    [
+      'the translator answers a shape we cannot map',
+      () => new Response(JSON.stringify({ data: { translations: [] } }), { status: 200 }),
+    ],
+  ])('serves the English articles with a 200 when %s', async (_label, translate) => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    process.env.GOOGLE_TRANSLATE_API_KEY = 'translate-key';
+    globalThis.fetch = routed(translate);
+    const res = makeRes();
+    await handler({ method: 'GET', query: { ticker: 'NVDA', lang: 'he' } }, res);
+
+    expect(res._status).toBe(200);
+    expect(res._body).toMatchObject({ articles: [{ headline: 'NVIDIA lifts outlook' }] });
+    expect(res._headers['Cache-Control']).toBe('public, max-age=0, s-maxage=60');
+  });
+
+  it('serves English, not a 500, when no translation key is configured', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // Unlike a missing EODHD key, which is a 500: news without translation is
+    // still news, so an unconfigured translator degrades instead of failing.
+    const spy = routed(translateOk);
+    globalThis.fetch = spy;
+    const res = makeRes();
+    await handler({ method: 'GET', query: { ticker: 'NVDA', lang: 'he' } }, res);
+
+    expect(res._status).toBe(200);
+    expect(res._body).toMatchObject({ articles: [{ headline: 'NVIDIA lifts outlook' }] });
+    expect(vi.mocked(spy).mock.calls.every(([url]) => !String(url).includes('googleapis'))).toBe(true);
+  });
+
+  it.each([
+    ['an unsupported language', { lang: 'fr' }],
+    ['a nonsense value', { lang: 'he; DROP' }],
+  ])('rejects %s without spending an upstream call', async (_label, query) => {
+    const fetchSpy = vi.fn();
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+    const res = makeRes();
+    await handler({ method: 'GET', query }, res);
+    expect(res._status).toBe(400);
+    expect(res._body).toMatchObject({ error: 'invalid_lang' });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(res._headers['Cache-Control']).toBeUndefined();
+  });
+
+  it('rejects a repeated lang parameter, like a repeated ticker', async () => {
+    const fetchSpy = vi.fn();
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+    const res = makeRes();
+    await handler({ method: 'GET', query: { lang: ['he', 'en'] } }, res);
+    expect(res._status).toBe(400);
+    expect(res._body).toMatchObject({ error: 'repeated_param' });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not call the translator when there is nothing to translate', async () => {
+    process.env.GOOGLE_TRANSLATE_API_KEY = 'translate-key';
+    const spy = vi.fn(async (url: URL | string) => {
+      if (String(url).includes('translation.googleapis.com')) throw new Error('should not be called');
+      return new Response('[]', { status: 200 });
+    }) as unknown as typeof fetch;
+    globalThis.fetch = spy;
+    const res = makeRes();
+    await handler({ method: 'GET', query: { ticker: 'NVDA', lang: 'he' } }, res);
+    expect(res._status).toBe(200);
+    expect(res._body).toEqual({ ticker: 'NVDA', articles: [] });
   });
 });

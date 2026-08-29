@@ -266,6 +266,44 @@ for the same reason. Second, an invalid or missing ticker is rejected
 tests by the absence of the call, not just the status code, since the status
 alone would keep passing if the guard drifted below the fetch.
 
+**Tone tags.** EODHD scores some rows with its own `sentiment` object, and
+`mapSentiment` (`app/api/_lib/news.ts`) buckets that `polarity` into
+positive / negative / neutral, rendered as a green / red / grey chip in both
+languages (`app/src/screens/news/sentimentTag.ts`). The threshold is ±0.05,
+the VADER-style model's own documented cut-off rather than a number we picked.
+A row the provider did not score carries **no tag at all** — not a "neutral"
+one. "We were not told" and "the provider called this neutral" are different
+claims, and only one of them is ours to make; sentiment ships on some EODHD
+plans and some rows only, so this is the common case, not an edge case.
+
+**Hebrew headlines.** The app is Hebrew-first but EODHD's feed is English, so
+`GET /api/news?lang=he` translates each `headline` and `summary` to Hebrew
+through the Google Cloud Translation API before answering
+(`app/api/_lib/translate.ts`). `source`, `url`, `symbols` and `publishedAt` are
+facts, not copy, and are never touched. The step is **best effort and cannot
+fail the response**: if `GOOGLE_TRANSLATE_API_KEY` is unset, or the API errors,
+times out, or the monthly free allowance is spent, the English articles are
+returned with a normal `200`. That is not a silent
+degradation — the articles are real, current and fetched successfully; only
+the wording is the provider's. Hiding real headlines because a *secondary*
+service is down would remove information the reader could have used, and
+inventing a translation is not on the table. A batch is all-or-nothing: if
+the API returns a different number of translations than it was sent, the whole
+batch is discarded rather than paired up by index, which could put one
+article's words under another's headline. Quota is defended by the edge cache
+above (the language is part of the URL, so the two languages cache
+separately), by sending each distinct string once, and by a small in-process
+memo of recently translated strings that survives warm function invocations.
+`lang` accepts only `en` (the default, and exactly the pre-translation
+behaviour) or `he`; anything else is a `400` before any upstream call.
+
+One provider quirk is handled rather than shipped to the screen: the v2 API
+HTML-escapes its output even for `format: 'text'`, so `decodeEntities` undoes
+that before the string leaves the function — otherwise a card would read
+"Nvidia&#39;s" in the middle of Hebrew copy. Anything that is not a recognised
+entity is left exactly as written, since a bare `&` is ordinary text in a
+headline.
+
 Not yet covered: **per-client rate limiting**. The cache is shared, so it
 blunts repeat load on one ticker but not a single client walking a thousand
 different ones. That needs a durable counter (Vercel KV or Upstash Redis) and
@@ -415,16 +453,18 @@ The client's history window is **derived** from the endpoint's own
 (`app/src/data/earnings.ts`), with a test asserting the two stay in
 agreement — the same publisher/reader discipline the screener mirror uses.
 
-**Required environment variables**, both added in the Vercel dashboard under
+**Environment variables**, added in the Vercel dashboard under
 **Project → Settings → Environment Variables**, scoped to Production,
-Preview, and Development so PR previews and local `vercel dev` also work:
+Preview, and Development so PR previews and local `vercel dev` also work. The
+first two are required; the third only changes the language of the news:
 
 | Variable | Used by |
 | --- | --- |
 | `EODHD_API_KEY` | `/api/news` — the news feed |
+| `GOOGLE_TRANSLATE_API_KEY` | `/api/news?lang=he` — Hebrew headlines, via the Cloud Translation API. **Optional**: without it the news is served in the provider's English rather than failing. The key travels as the API's `key=` query parameter, so restrict it **to the Cloud Translation API** in the Google Cloud console — an HTTP-referrer restriction would break it, since the call is server-side. The first 500k characters a month are free, but the project still needs billing enabled. |
 | `ALPHAVANTAGE_API_KEY` | `/api/earnings` — the calendar and per-stock history; also a **GitHub Actions secret**, where `mirror-prices.yml` spends one call per covered ticker per day. If it is the same key, the earnings route lives on what is left of the daily allowance. |
 
-Both are read only server-side and neither may be given a `VITE_` prefix,
+All three are read only server-side and none may be given a `VITE_` prefix,
 which would bundle it into the client build.
 
 Pure request/response mapping lives in `app/api/_lib/news.ts` (unit-tested in

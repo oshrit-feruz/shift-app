@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Sheet } from '../components/Sheet';
 import { Button } from '../components/Button';
 import { Field } from '../components/Field';
@@ -7,23 +7,46 @@ import { SegmentedControl } from '../components/SegmentedControl';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { moneyOrDash } from '../lib/format';
-import { useDispatch, type AlertKind } from '../state/appState';
+import { newId } from '../lib/ids';
+import { useAppState, useDispatch, type AlertKind } from '../state/appState';
 import type { SymbolInfo } from '../data/types';
 
-/** New-alert sheet. Alerts are notifications only — creating one never
- *  places or schedules any trade. */
+/**
+ * New-alert sheet. Alerts are notifications only — creating one never places
+ * or schedules any trade.
+ *
+ * `ticker` is what the alert will be about, and `symbol` is its sample-table
+ * row when there is one (for the price in the sheet header). Opened from
+ * somewhere with no ticker in hand — the watchlist's own "New alert" button —
+ * the sheet asks which stock, choosing from the user's watchlist, rather than
+ * saving an alert attached to nothing.
+ */
 export function AlertSheet({
   open,
   onClose,
+  ticker,
   symbol,
 }: {
   open: boolean;
   onClose: () => void;
+  ticker: string;
   symbol: SymbolInfo | null;
 }) {
   const { mode } = useTheme();
   const t = useT();
   const dispatch = useDispatch();
+  const s = useAppState();
+  const pickerId = useId();
+  const [picked, setPicked] = useState('');
+  // Cleared on close, not only on submit: the sheet stays mounted between
+  // openings, so a stock picked and then cancelled would still be selected —
+  // and the Create button still enabled — the next time it opens, ready to
+  // file an alert against a stock nobody chose this time.
+  useEffect(() => {
+    if (!open) setPicked('');
+  }, [open]);
+  // The caller's ticker wins; the picker only matters when it gave none.
+  const target = ticker || picked;
   const [kind, setKind] = useState<AlertKind>('price');
   const [cond, setCond] = useState<'rise' | 'fall'>('rise');
   const [remind, setRemind] = useState<'day' | 'morning' | 'lands'>('day');
@@ -40,11 +63,12 @@ export function AlertSheet({
   ];
 
   const submit = () => {
+    if (!target) return;
     dispatch({
       type: 'addAlert',
       alert: {
-        id: `alert-${Date.now()}`,
-        ticker: symbol?.ticker ?? '',
+        id: newId('alert'),
+        ticker: target,
         kind,
         condition: cond,
         value: kind === 'price' ? value : kind === 'news' ? keywords : '',
@@ -61,8 +85,37 @@ export function AlertSheet({
       open={open}
       onClose={onClose}
       title={t('watch.newAlert')}
-      meta={symbol ? <Num>{`${symbol.ticker} · ${moneyOrDash(symbol.quote?.price)}`}</Num> : undefined}
+      meta={
+        target ? <Num>{symbol ? `${target} · ${moneyOrDash(symbol.quote?.price)}` : target}</Num> : undefined
+      }
     >
+      {/* Only when the caller had no ticker. Everywhere else the alert's
+          subject is already decided and re-asking would be noise. */}
+      {!ticker &&
+        (s.watchlist.length === 0 ? (
+          <p className="text-muted" style={{ fontSize: 16, margin: 0, lineHeight: 1.45 }}>
+            {t('alert.noStock')}
+          </p>
+        ) : (
+          <div className="field">
+            <label htmlFor={pickerId}>{t('alert.stock')}</label>
+            <select
+              id={pickerId}
+              className="input"
+              value={picked}
+              onChange={(e) => setPicked(e.target.value)}
+              style={{ height: 40, minHeight: 40 }}
+            >
+              <option value="">{t('alert.pickStock')}</option>
+              {s.watchlist.map((x) => (
+                <option key={x} value={x}>
+                  {x}
+                </option>
+              ))}
+            </select>
+          </div>
+        ))}
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {types.map((a) => (
           <button
@@ -197,7 +250,7 @@ export function AlertSheet({
           </label>
         </div>
       </div>
-      <Button block minHeight={44} onClick={submit}>
+      <Button block minHeight={44} onClick={submit} disabled={!target}>
         {t('alert.create')}
       </Button>
     </Sheet>

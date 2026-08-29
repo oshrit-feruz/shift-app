@@ -26,7 +26,13 @@ export function ListRow({
   divider?: boolean;
   padding?: string;
 }) {
-  const inner = (
+  // The tappable part of the row, without `trailing`: a row can carry its own
+  // action buttons (add an alert, drop a stock from the watchlist), and a
+  // <button> inside a <button> is invalid HTML — the browser is free to drop
+  // the inner one, which is the row's whole point on the watchlist. So the
+  // row's own hit area covers everything up to the trailing slot, and
+  // trailing sits beside it rather than inside it.
+  const body = (
     <>
       {leading}
       <span style={{ flex: 1, minWidth: 0 }}>
@@ -47,7 +53,6 @@ export function ListRow({
         )}
       </span>
       {right != null && <span style={{ textAlign: 'end' }}>{right}</span>}
-      {trailing}
     </>
   );
   const style = {
@@ -76,30 +81,50 @@ export function ListRow({
     // `...style, border: 0, borderTop: style.borderTop` left borderTop at its
     // original (earlier) position and `border: 0` won — every clickable row
     // silently lost its divider. Destructured out, it lands after the reset.
+    //
+    // It is also spread conditionally rather than written as
+    // `borderTop: <value or undefined>`. React treats an explicit `undefined`
+    // as "clear this property", which does not mean "leave the 0 from the
+    // shorthand" — it resets border-top to the UA default, and a <button>'s
+    // UA default is `2px outset`. That drew a black line across the top of
+    // every clickable row that had no divider of its own.
     const { borderTop, ...base } = style;
-    return (
+    const button = (
       <button
         type="button"
-        className={anim}
+        className={trailing == null ? anim : undefined}
         onClick={onClick}
         style={{
           ...base,
+          // With a trailing slot the divider and the row's own padding move
+          // to the wrapper, so the two sit on one line under one border.
+          ...(trailing != null ? { minHeight: undefined, padding: 0 } : {}),
           background: 'transparent',
           border: 0,
-          borderTop,
+          // A row with a trailing slot wears its divider on the wrapper below,
+          // so the button must keep none at all.
+          ...(trailing == null && borderTop ? { borderTop } : {}),
           color: 'inherit',
           font: 'inherit',
           cursor: 'pointer',
           textAlign: 'start',
         }}
       >
-        {inner}
+        {body}
       </button>
+    );
+    if (trailing == null) return button;
+    return (
+      <div className={anim} style={style}>
+        <span style={{ display: 'flex', flex: 1, minWidth: 0 }}>{button}</span>
+        {trailing}
+      </div>
     );
   }
   return (
     <div className={anim} style={style}>
-      {inner}
+      {body}
+      {trailing}
     </div>
   );
 }

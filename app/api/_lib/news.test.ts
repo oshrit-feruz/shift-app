@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { summarize, deriveSource, mapArticle, mapSymbols, resolveSymbol, isValidTicker } from './news.js';
+import {
+  summarize,
+  deriveSource,
+  mapArticle,
+  mapSentiment,
+  mapSymbols,
+  resolveSymbol,
+  isValidTicker,
+} from './news.js';
 
 describe('summarize', () => {
   it('returns empty string for empty or missing content', () => {
@@ -57,6 +65,9 @@ describe('mapArticle', () => {
       summary: 'NVIDIA posted strong results. Analysts raised targets.',
       url: 'https://www.reuters.com/tech/nvidia',
       symbols: [],
+      // The row carried no `sentiment`, and an unscored story is tagged as
+      // nothing rather than as neutral.
+      sentiment: null,
     });
   });
 
@@ -173,5 +184,44 @@ describe('isValidTicker', () => {
     expect(isValidTicker('../etc')).toBe(false);
     expect(isValidTicker('NVDA&x=1')).toBe(false);
     expect(isValidTicker('')).toBe(false);
+  });
+});
+
+describe('mapSentiment', () => {
+  it('buckets the provider’s polarity score', () => {
+    expect(mapSentiment({ polarity: 0.62, neg: 0, neu: 0.4, pos: 0.6 })).toBe('positive');
+    expect(mapSentiment({ polarity: -0.62 })).toBe('negative');
+    expect(mapSentiment({ polarity: 0 })).toBe('neutral');
+    expect(mapSentiment({ polarity: 0.04 })).toBe('neutral');
+    expect(mapSentiment({ polarity: -0.04 })).toBe('neutral');
+  });
+
+  it('treats the threshold itself as scored, not neutral', () => {
+    expect(mapSentiment({ polarity: 0.05 })).toBe('positive');
+    expect(mapSentiment({ polarity: -0.05 })).toBe('negative');
+  });
+
+  // Null is "the provider said nothing", which is a different claim from
+  // "the provider called this neutral" — and the only one of the two we are
+  // entitled to make from an absent or unusable field. The UI shows no tag.
+  it.each([
+    ['the field is absent', undefined],
+    ['it is null', null],
+    ['it is not an object', 0.5],
+    ['polarity is missing', { neg: 0.1, pos: 0.9 }],
+    ['polarity is a string', { polarity: '0.5' }],
+    ['polarity is NaN', { polarity: Number.NaN }],
+    ['polarity is infinite', { polarity: Number.POSITIVE_INFINITY }],
+  ])('returns null, never neutral, when %s', (_label, raw) => {
+    expect(mapSentiment(raw)).toBeNull();
+  });
+
+  it('carries a real score through mapArticle', () => {
+    const mapped = mapArticle({
+      title: 'H',
+      link: 'https://e.com/x',
+      sentiment: { polarity: -0.4, neg: 0.7, neu: 0.3, pos: 0 },
+    });
+    expect(mapped?.sentiment).toBe('negative');
   });
 });

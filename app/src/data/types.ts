@@ -86,6 +86,36 @@ export interface SymbolInfo {
 }
 
 /**
+ * One row of the user's own watchlist, or one result in ticker search.
+ *
+ * Deliberately NOT SymbolInfo. The watchlist is the user's to fill, and they
+ * can put any symbol on it — including one the app's ten-row sample table has
+ * never heard of. SymbolInfo cannot describe such a ticker without inventing a
+ * name, a sector and six demo statistics for it, so this type makes every
+ * borrowed field nullable instead and each renders as "—" or is simply
+ * omitted.
+ *
+ * `quote` is real (the daily mirror). `demoChangePct` is the one demo figure
+ * carried over, and only for the sample-table tickers that have one — it is
+ * null for everything else rather than fabricated, which is why it keeps the
+ * `demo` prefix at the point of use.
+ */
+export interface WatchRow {
+  ticker: string;
+  /** Company name, or null for a ticker known to us only by its symbol. */
+  name: string | null;
+  sector: string | null;
+  /** Beginner-mode plain-language description, when the sample table has one. */
+  plain: { en: string; he: string } | null;
+  /** REAL, from the daily mirror; null when the mirror does not cover it. */
+  quote: Quote | null;
+  /** DEMO day change, only for tickers in the sample table. */
+  demoChangePct: number | null;
+  /** True when the ticker appears in the engine's daily ranking. */
+  ranked: boolean;
+}
+
+/**
  * A candidate surfaced by the Recovery Detector screener.
  * Every number is nullable on purpose: this comes from a live API whose rows
  * may omit a field, and an absent number renders as "—" rather than being
@@ -166,7 +196,17 @@ export interface StockNewsArticle {
    * fabrication.
    */
   symbols: string[];
+  /**
+   * How the provider scored the story's tone, or null when it did not score
+   * it at all — the sentiment field is not on every EODHD plan or every row.
+   * Null is rendered as no tag: "we were not told" is not the same claim as
+   * "the provider called this neutral", and only one of them is ours to make.
+   */
+  sentiment: NewsSentiment | null;
 }
+
+/** The provider's tone score, bucketed. See StockNewsArticle.sentiment. */
+export type NewsSentiment = 'positive' | 'negative' | 'neutral';
 
 /**
  * One company's scheduled or reported quarter, from the earnings calendar.
