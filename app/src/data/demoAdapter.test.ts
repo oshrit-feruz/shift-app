@@ -98,3 +98,109 @@ describe('symbol() — one ticker, same contract', () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe("watchRows() — the user's own list, whatever is on it", () => {
+  it('returns rows in the order the user put them in', async () => {
+    vi.stubGlobal(
+      'fetch',
+      mirror([
+        { ticker: 'NVDA', price: 144.76 },
+        { ticker: 'AAPL', price: 210.5 },
+      ]),
+    );
+    const r = await demoService.watchRows(['AAPL', 'NVDA']);
+    expect(r.status === 'ok' && r.data.map((x) => x.ticker)).toEqual(['AAPL', 'NVDA']);
+    vi.unstubAllGlobals();
+  });
+
+  it('keeps a ticker the sample table does not cover, priced from the mirror', async () => {
+    // The whole point of a real watchlist: ORCL is in the engine's ranking
+    // but has no sample row, and must not be silently dropped from a list the
+    // user just added it to.
+    vi.stubGlobal('fetch', mirror([{ ticker: 'ORCL', price: 151.94, high_52w: 324.63 }]));
+    const r = await demoService.watchRows(['ORCL']);
+    const orcl = r.status === 'ok' ? r.data[0] : null;
+    expect(orcl!.ticker).toBe('ORCL');
+    expect(orcl!.quote?.price).toBe(151.94);
+    // ...and nothing about it is invented.
+    expect(orcl!.name).toBeNull();
+    expect(orcl!.sector).toBeNull();
+    expect(orcl!.demoChangePct).toBeNull();
+    vi.unstubAllGlobals();
+  });
+
+  it('never lends a demo day change to a ticker with no sample row', async () => {
+    vi.stubGlobal(
+      'fetch',
+      mirror([
+        { ticker: 'NVDA', price: 1 },
+        { ticker: 'ORCL', price: 2 },
+      ]),
+    );
+    const r = await demoService.watchRows(['NVDA', 'ORCL']);
+    const rows = r.status === 'ok' ? r.data : [];
+    expect(rows.find((x) => x.ticker === 'NVDA')!.demoChangePct).toBe(2.31);
+    expect(rows.find((x) => x.ticker === 'ORCL')!.demoChangePct).toBeNull();
+    vi.unstubAllGlobals();
+  });
+
+  it('normalises what the caller passes', async () => {
+    vi.stubGlobal('fetch', mirror([{ ticker: 'NVDA', price: 144.76 }]));
+    const r = await demoService.watchRows([' nvda ']);
+    expect(r.status === 'ok' && r.data[0].ticker).toBe('NVDA');
+    expect(r.status === 'ok' && r.data[0].quote?.price).toBe(144.76);
+    vi.unstubAllGlobals();
+  });
+
+  it('returns an empty list with no request at all', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy as unknown as typeof fetch);
+    const r = await demoService.watchRows([]);
+    expect(r).toEqual({ status: 'ok', data: [] });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it('still lists every row when the mirror is dead, prices null', async () => {
+    vi.stubGlobal('fetch', (async () => {
+      throw new TypeError('Failed to fetch');
+    }) as unknown as typeof fetch);
+    const r = await demoService.watchRows(['NVDA', 'ORCL']);
+    const rows = r.status === 'ok' ? r.data : [];
+    expect(rows.map((x) => x.ticker)).toEqual(['NVDA', 'ORCL']);
+    expect(rows.every((x) => x.quote === null)).toBe(true);
+    vi.unstubAllGlobals();
+  });
+});
+
+describe('searchUniverse() — everything a user can follow', () => {
+  it("offers the ranking's symbols alongside the sample table", async () => {
+    vi.stubGlobal(
+      'fetch',
+      mirror([
+        { ticker: 'ORCL', price: 151.94 },
+        { ticker: 'NVDA', price: 144.76 },
+      ]),
+    );
+    const r = await demoService.searchUniverse();
+    const tickers = r.status === 'ok' ? r.data.map((x) => x.ticker) : [];
+    expect(tickers).toContain('ORCL');
+    expect(tickers).toContain('NVDA');
+    // No duplicate for a ticker that is in both.
+    expect(tickers.filter((x) => x === 'NVDA')).toHaveLength(1);
+    // Named rows first — those are the ones a company-name search can hit.
+    expect(tickers.indexOf('NVDA')).toBeLessThan(tickers.indexOf('ORCL'));
+    vi.unstubAllGlobals();
+  });
+
+  it('falls back to the sample table when the mirror is dead', async () => {
+    vi.stubGlobal('fetch', (async () => {
+      throw new TypeError('Failed to fetch');
+    }) as unknown as typeof fetch);
+    const r = await demoService.searchUniverse();
+    const rows = r.status === 'ok' ? r.data : [];
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((x) => x.quote === null)).toBe(true);
+    vi.unstubAllGlobals();
+  });
+});

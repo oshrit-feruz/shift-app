@@ -1,4 +1,4 @@
-import { PERSISTED, type AppState } from './appState';
+import { PERSISTED, readPersisted, type AppState } from './appState';
 
 /**
  * Pure logic for syncing the persisted slice with the user's Supabase row
@@ -38,11 +38,11 @@ export function mergeRemote(
       : {};
   const serverHasData = Object.keys(serverBag).length > 0;
   const source = serverHasData ? serverBag : local;
-  const next: Partial<AppState> = {};
-  for (const k of PERSISTED) {
-    if (k in source) (next as Record<string, unknown>)[k] = source[k];
-  }
-  return { next, shouldUpload: !serverHasData };
+  // readPersisted, not a raw copy: it whitelists through PERSISTED and drops
+  // the retired demo watchlist seed, so a row written before the watchlist
+  // became the user's own doesn't push those eight stocks back onto a device
+  // that has already dropped them.
+  return { next: readPersisted(source), shouldUpload: !serverHasData };
 }
 
 /**

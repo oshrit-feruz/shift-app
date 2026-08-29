@@ -194,7 +194,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
             >
               {inWl ? `✓ ${t('stock.inWatchlist')}` : `＋ ${t('stock.toWatchlist')}`}
             </Button>
-            <Button style={{ flex: 1, minHeight: 40, fontSize: 17 }} onClick={openAlert}>
+            <Button style={{ flex: 1, minHeight: 40, fontSize: 17 }} onClick={() => openAlert(s.ticker)}>
               <Icon name="bell" size={14} strokeWidth={1.8} />
               {t('stock.addAlert')}
             </Button>

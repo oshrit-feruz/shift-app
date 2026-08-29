@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { initial, PERSISTED } from './appState';
+import { initial, LEGACY_SEED_WATCHLIST, PERSISTED } from './appState';
 import { debounced, mergeRemote, pickPersisted } from './remoteState';
 
 describe('pickPersisted', () => {
@@ -41,6 +41,20 @@ describe('mergeRemote', () => {
     // Local-only keys do NOT survive a non-empty server row — no per-key
     // splicing of regulatory state (see mergeRemote docs).
     expect(next.watchlist).toBeUndefined();
+  });
+
+  it('drops the retired demo watchlist seed coming back from the server', () => {
+    // A row written before the watchlist became the user's own still carries
+    // the eight seeded stocks. Letting it win would push them back onto a
+    // device that has already dropped them, and "starts empty" would last
+    // exactly until the next sign-in.
+    const server = { advStage: 2, watchlist: [...LEGACY_SEED_WATCHLIST] };
+    expect(mergeRemote(local, server).next.watchlist).toEqual([]);
+  });
+
+  it('keeps a server watchlist the user actually chose', () => {
+    const server = { advStage: 2, watchlist: ['ORCL', 'NVDA'] };
+    expect(mergeRemote(local, server).next.watchlist).toEqual(['ORCL', 'NVDA']);
   });
 
   it('whitelists incoming keys through PERSISTED', () => {
