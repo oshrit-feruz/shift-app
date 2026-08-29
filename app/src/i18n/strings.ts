@@ -593,6 +593,10 @@ export const STRINGS = {
   'search.placeholder': p('Search ticker or company', 'חיפוש סימבול או חברה'),
   'search.recent': p('Recent', 'אחרונים'),
   'search.add': p('Add', 'להוסיף'),
+  // Confirmations. The subject is a stock — מניה, feminine — so the verb
+  // agrees with it rather than with the ticker's letters.
+  'toast.added': p('{ticker} added to your watchlist', '{ticker} נוספה לווטצ׳ליסט'),
+  'toast.removed': p('{ticker} removed from your watchlist', '{ticker} הוסרה מהווטצ׳ליסט'),
   'search.added': p('Added', 'נוסף'),
   'search.addAria': p('Add {ticker} to your watchlist', 'להוסיף את {ticker} לווטצ׳ליסט'),
   'search.removeAria': p('Remove {ticker} from your watchlist', 'להסיר את {ticker} מהווטצ׳ליסט'),
