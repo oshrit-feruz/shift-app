@@ -223,7 +223,7 @@ function ArticleCard({
             {t(tone.key)}
           </Tag>
         )}
-        <span className="text-muted" style={{ fontSize: 15.5, display: 'flex', gap: 5 }}>
+        <span className="text-muted" style={{ fontSize: 'var(--text-caption)', display: 'flex', gap: 5 }}>
           {article.source && <bdi>{article.source}</bdi>}
           {article.source && date && <span>·</span>}
           {date && <span>{date}</span>}
@@ -239,7 +239,7 @@ function ArticleCard({
         style={{
           display: 'block',
           fontFamily: 'var(--font-heading)',
-          fontSize: 17.5,
+          fontSize: 'var(--text-row)',
           lineHeight: 1.3,
           whiteSpace: 'normal',
         }}
@@ -247,7 +247,7 @@ function ArticleCard({
         {article.headline}
       </span>
       {article.summary && (
-        <span dir="auto" style={{ display: 'block', fontSize: 16, opacity: 0.78, lineHeight: 1.45 }}>
+        <span dir="auto" style={{ display: 'block', fontSize: 'var(--text-body)', opacity: 0.78, lineHeight: 1.45 }}>
           {article.summary}
         </span>
       )}
@@ -260,7 +260,7 @@ function ArticleCard({
           href={article.url}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ fontSize: 15.5, color: 'var(--color-accent-200)', textDecoration: 'none' }}
+          style={{ fontSize: 'var(--text-caption)', color: 'var(--color-accent-200)', textDecoration: 'none' }}
         >
           {openLabel} ↗
         </a>
@@ -275,7 +275,7 @@ function ArticleCard({
               border: 'none',
               padding: 0,
               fontFamily: 'inherit',
-              fontSize: 15.5,
+              fontSize: 'var(--text-caption)',
               color: 'var(--color-accent-200)',
               cursor: 'pointer',
             }}

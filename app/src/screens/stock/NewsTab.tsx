@@ -49,7 +49,7 @@ export function NewsTab({ ticker }: { ticker: string }) {
             {articles.map((a) => (
               <Article key={a.url} article={a} language={language} readLabel={t('stock.newsRead')} t={t} />
             ))}
-            <p className="text-muted" style={{ fontSize: 15, lineHeight: 1.5, margin: '2px 0 0' }}>
+            <p className="text-muted" style={{ fontSize: 'var(--text-caption)', lineHeight: 1.5, margin: '2px 0 0' }}>
               {t('stock.newsExcerptNote')}
             </p>
           </Card>
@@ -94,7 +94,7 @@ function Article({
       {(article.source || published || tone) && (
         <div
           className="text-muted"
-          style={{ fontSize: 15.5, display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}
+          style={{ fontSize: 'var(--text-caption)', display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}
         >
           {article.source && <bdi>{article.source}</bdi>}
           {article.source && published && <span>·</span>}
@@ -117,7 +117,7 @@ function Article({
       <div
         dir="auto"
         style={{
-          fontSize: 16.5,
+          fontSize: 'var(--text-body)',
           fontFamily: 'var(--font-heading)',
           marginTop: 4,
           lineHeight: 1.35,
@@ -127,7 +127,7 @@ function Article({
         {article.headline}
       </div>
       {article.summary && (
-        <p dir="auto" style={{ fontSize: 16, margin: '3px 0 0', opacity: 0.76, lineHeight: 1.45 }}>
+        <p dir="auto" style={{ fontSize: 'var(--text-body)', margin: '3px 0 0', opacity: 0.76, lineHeight: 1.45 }}>
           {article.summary}
         </p>
       )}
@@ -140,7 +140,7 @@ function Article({
         style={{
           display: 'inline-block',
           marginTop: 5,
-          fontSize: 15.5,
+          fontSize: 'var(--text-caption)',
           color: 'var(--color-accent-200)',
           textDecoration: 'none',
         }}

@@ -116,7 +116,7 @@ function MoversBody(_: ScreenProps) {
                       <span
                         className="text-muted"
                         style={{
-                          fontSize: 16,
+                          fontSize: 'var(--text-body)',
                           flex: 1,
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
@@ -133,7 +133,7 @@ function MoversBody(_: ScreenProps) {
                       </Num>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 16, opacity: 0.76, flex: 1 }}>{x.why[language]}</span>
+                      <span style={{ fontSize: 'var(--text-body)', opacity: 0.76, flex: 1 }}>{x.why[language]}</span>
                       <TickerSparkline ticker={x.ticker} />
                     </div>
                   </Card>
@@ -144,7 +144,7 @@ function MoversBody(_: ScreenProps) {
 
           return (
             <Card padding="6px 10px 4px" gap={0}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 15.5 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-caption)' }}>
                 <thead>
                   <tr>
                     <Th align="start">{t('movers.colSym')}</Th>

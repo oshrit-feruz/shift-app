@@ -59,14 +59,14 @@ export function AdvisoryConnect(_: ScreenProps) {
       <FlowStepper />
       <Card padding={13} gap={4}>
         <CardTitle>{t('conn.title')}</CardTitle>
-        <p className="text-muted" style={{ fontSize: 16, margin: 0, lineHeight: 1.5 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0, lineHeight: 1.5 }}>
           {flow ? t('conn.help') : t('conn.helpSolo')}
         </p>
       </Card>
 
       <Card padding={13} gap={9}>
         <CardTitle>{t('conn.brokerTitle')}</CardTitle>
-        <p className="text-muted" style={{ fontSize: 16, margin: 0, lineHeight: 1.5 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0, lineHeight: 1.5 }}>
           {t('conn.brokerHelp')}
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
@@ -87,18 +87,18 @@ export function AdvisoryConnect(_: ScreenProps) {
                   color: 'inherit',
                   cursor: 'pointer',
                   textAlign: 'start',
-                  background: selected ? 'var(--color-accent-900)' : 'var(--color-surface)',
+                  background: selected ? 'var(--fill-selected)' : 'var(--color-surface)',
                   border: `1px solid ${selected ? 'var(--color-accent)' : 'var(--color-divider)'}`,
                 }}
               >
                 <LogoTile src={b.logo} size={34} />
                 <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: 'block', fontSize: 17, fontWeight: 600 }}>{b.name}</span>
-                  <span className="text-muted" style={{ display: 'block', fontSize: 15.5, lineHeight: 1.45 }}>
+                  <span style={{ display: 'block', fontSize: 'var(--text-row)', fontWeight: 600 }}>{b.name}</span>
+                  <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-caption)', lineHeight: 1.45 }}>
                     {b.help[language]}
                   </span>
                 </span>
-                <span style={{ color: 'var(--color-accent)', fontSize: 17 }}>{selected ? '✓' : ''}</span>
+                <span style={{ color: 'var(--color-accent)', fontSize: 'var(--text-row)' }}>{selected ? '✓' : ''}</span>
               </button>
             );
           })}
@@ -116,7 +116,7 @@ export function AdvisoryConnect(_: ScreenProps) {
             }}
           >
             <CardTitle size={16.5}>{t('conn.handoffTitle')}</CardTitle>
-            <p className="text-muted" style={{ fontSize: 15.5, margin: 0, lineHeight: 1.5 }}>
+            <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
               {t('conn.handoffHelp')}
             </p>
             {/* Referral only: opening happens on the broker's own site. */}
@@ -137,7 +137,7 @@ export function AdvisoryConnect(_: ScreenProps) {
       <Card padding="4px 0" gap={0}>
         <InstitutionRows />
       </Card>
-      <p className="text-muted" style={{ fontSize: 15.5, margin: 0, lineHeight: 1.5 }}>
+      <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
         {t('conn.note')}
       </p>
 

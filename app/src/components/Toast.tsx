@@ -97,7 +97,7 @@ function ToastHost({ message, closing }: { message: string; closing: boolean }) 
           maxWidth: '100%',
           padding: '10px 15px',
           borderRadius: 999,
-          fontSize: 16,
+          fontSize: 'var(--text-body)',
           lineHeight: 1.3,
           textAlign: 'center',
           color: 'var(--color-text)',

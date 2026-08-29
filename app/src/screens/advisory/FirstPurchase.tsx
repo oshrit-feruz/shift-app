@@ -44,8 +44,8 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
             {t('adv.noAction')}
           </Tag>
         </div>
-        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 23 }}>{t('buy.title')}</div>
-        <p className="text-muted" style={{ fontSize: 16, margin: 0, lineHeight: 1.5 }}>
+        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-heading)' }}>{t('buy.title')}</div>
+        <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0, lineHeight: 1.5 }}>
           {t('buy.help')}
         </p>
       </Card>
@@ -53,7 +53,7 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
       <Card padding={13} gap={9}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
           <CardTitle>{t(`profile.${profileKey}` as StringKey)}</CardTitle>
-          <span className="text-muted" style={{ fontSize: 16 }}>
+          <span className="text-muted" style={{ fontSize: 'var(--text-body)' }}>
             {t('buy.example')}
           </span>
         </div>
@@ -74,7 +74,7 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
               style={{
                 display: 'flex',
                 gap: 8,
-                fontSize: 16.5,
+                fontSize: 'var(--text-body)',
                 alignItems: 'center',
                 paddingTop: 6,
                 borderTop: '1px solid var(--color-divider)',
@@ -106,12 +106,12 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
           </span>
         </div>
         {profile.satellitePct === 0 && (
-          <p className="text-muted" style={{ fontSize: 15.5, margin: 0, lineHeight: 1.5 }}>
+          <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
             {t('rec.satInfoOnly')}
           </p>
         )}
         {s.advBroker && (
-          <p className="text-muted" style={{ fontSize: 15, margin: 0, lineHeight: 1.5 }}>
+          <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
             {t('buy.handoffNote')}
             {!hasAnyTradeDeepLink() && ` ${t('buy.noDeepLink')}`}
           </p>

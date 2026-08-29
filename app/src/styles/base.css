@@ -47,7 +47,13 @@ button, a, [role='button'] { -webkit-tap-highlight-color: transparent; }
 a { color: var(--color-accent); text-decoration: none; }
 a:hover { color: var(--color-accent-300); }
 
-h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 0; }
+/* Bilingual app: Hebrew is compact and fits nowrap, but the same string in
+ * English runs 30-40% longer and has nowhere to go, so it used to cross the
+ * card's rounded corner instead of wrapping. Headings wrap by default now;
+ * `.nowrap` below is the opt-in for the few that share a flex row with a
+ * control that wrapping would push out of place. */
+h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
+.nowrap { white-space: nowrap; }
 
 :focus { outline: none; }
 :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
@@ -91,7 +97,7 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
 .elev-sm { box-shadow: var(--shadow-sm); }
 .elev-md { box-shadow: var(--shadow-md); }
 .elev-lg { box-shadow: var(--shadow-lg); }
-.card-title { font-weight: 600; white-space: nowrap; }
+.card-title { font-weight: 600; }
 
 /* Light mode keeps cards dark on purpose — white text forced past inline styles. */
 [data-theme="light"] .card {
@@ -131,8 +137,7 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
 .btn-primary:active,
 .btn-secondary:active,
 .btn-danger:active { box-shadow: var(--shadow-btn-active); }
-.btn-primary { background: var(--color-accent); color: #fff; }
-.btn-secondary {
+.btn-primary { background: var(--color-accent); color: #fff; }.btn-secondary {
   border: 1px solid var(--color-divider);
   background: var(--sunk);
   color: inherit;
@@ -157,6 +162,33 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
   border-radius: 6px; /* per review: ghost buttons carry a 6px radius */
 }
 .btn-block { display: flex; width: 100%; }
+
+/* Small square row actions (watchlist's +/✕ pair, and any similar per-row
+ * icon button): a bare border on transparent reads as flat, easy to miss as
+ * tappable next to raised .btn-* controls on the same screen. Same contact
+ * shadow, collapsing on press. */
+.row-icon-btn {
+  background: var(--sunk);
+  box-shadow: var(--shadow-btn);
+}
+.row-icon-btn:active { box-shadow: var(--shadow-btn-active); }
+
+/* Header's search/notifications buttons: same flat-square problem as
+ * .row-icon-btn, one size up. */
+.header-icon-btn { box-shadow: var(--shadow-btn); }
+.header-icon-btn:active { box-shadow: var(--shadow-btn-active); }
+
+/* Filter/selection chips (portfolio switcher, screener facets...): an
+ * outline-only pill next to raised buttons on the same screen reads as
+ * disabled rather than tappable, active or not. */
+.chip { box-shadow: var(--shadow-btn); }
+.chip:active { box-shadow: var(--shadow-btn-active); }
+
+/* Larger selectable option cards (More screen's Beginner/Advanced picker):
+ * same flat-border problem, one size up again — a whole tappable card that
+ * read as inert text next to every other raised control on the screen. */
+.select-card { box-shadow: var(--shadow-btn); }
+.select-card:active { box-shadow: var(--shadow-btn-active); }
 
 /* ── Tags ──────────────────────────────────────────────────────────────── */
 .tag {
@@ -285,21 +317,42 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
   to { opacity: 1; }
 }
 
-/* Screen changes stay opacity-only for the reason in the Motion note above;
- * the easing is what makes them read as a settle rather than a blink. */
-.anim-fade-up {}
-.anim-fade-out { animation: fadeOut .16s ease both; }
-/* Tab re-activati§on inside a screen: shorter than a screen change, same
- * opacity-only rule (tab panels are ancestors of glass cards too). The
- * animation restarts on each activation because display:none resets it. */
-.anim-tab-in { animation: fadeUp .18s cubic-bezier(.22, .61, .36, 1) both; }
+/* Screen change. The wrapper itself stays untouched at full opacity; its
+ * direct children each fade. ease-out front-loads the fade, so the screen is
+ * legible early and the last third only settles — linear or ease-in-out at
+ * the same duration reads as a slower blink. */
+.anim-fade-up > * {
+  animation: fadeUp var(--dur-screen) var(--ease-out) both;
+}
+
+/* Exit, paired with useDismissAnimation's --dur-exit default (read from this
+ * same token, not a duplicated number): shorter than the entrance so a close
+ * never feels like it lags the tap. Overlays are usually a single pane with
+ * no glass descendants, so this one can sit on the element itself — if you
+ * ever nest a .card inside one, move it to `> *` as well. */
+.anim-fade-out {
+  animation: fadeOut var(--dur-exit) var(--ease-in) both;
+}
+
+/* Tab re-activation inside a screen. Shorter than a screen change because the
+ * chrome around it never moved — the screen-change duration here reads as
+ * sluggish. Restarts on each activation because display:none resets the
+ * animation. Same child-level targeting: TabPanel is an ancestor of glass
+ * cards too. */
+.anim-tab-in > * {
+  animation: fadeUp var(--dur-tab) var(--ease-out) both;
+}
+
 
 /* Interactive polish: colour/opacity/background only — never transform on
  * anything that contains a glass card. */
 .btn,
 .card[data-clickable='true'],
 .seg-opt,
-.chip {
+.chip,
+.row-icon-btn,
+.header-icon-btn,
+.select-card {
   transition:
     background-color .18s ease,
     border-color .18s ease,

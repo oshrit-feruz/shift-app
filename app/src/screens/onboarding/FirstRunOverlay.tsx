@@ -65,11 +65,11 @@ export function FirstRunOverlay() {
         <div>
           <div
             className="text-muted"
-            style={{ fontSize: 15.5, letterSpacing: '.1em', textTransform: 'uppercase' }}
+            style={{ fontSize: 'var(--text-caption)', letterSpacing: '.1em', textTransform: 'uppercase' }}
           >
             Language · שפה
           </div>
-          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 24, lineHeight: 1.25, marginTop: 6 }}>
+          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-heading)', lineHeight: 1.25, marginTop: 6 }}>
             בחרי שפה · Choose your language
           </div>
         </div>
@@ -88,14 +88,14 @@ export function FirstRunOverlay() {
               padding: 14,
               borderRadius: 'var(--radius-md)',
               border: `1px solid ${language === l ? 'var(--color-accent)' : 'var(--color-divider)'}`,
-              background: language === l ? 'var(--color-accent-900)' : 'transparent',
+              background: language === l ? 'var(--fill-selected)' : 'transparent',
               color: 'inherit',
               font: 'inherit',
               cursor: 'pointer',
             }}
           >
-            <span style={{ fontSize: 18, fontWeight: 600 }}>{name}</span>
-            <span className="text-muted" style={{ display: 'block', fontSize: 15.5, marginTop: 3 }}>
+            <span style={{ fontSize: 'var(--text-title)', fontWeight: 600 }}>{name}</span>
+            <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-caption)', marginTop: 3 }}>
               {sub}
             </span>
           </button>
@@ -109,14 +109,14 @@ export function FirstRunOverlay() {
       <div>
         <div
           className="text-muted"
-          style={{ fontSize: 15.5, letterSpacing: '.1em', textTransform: 'uppercase' }}
+          style={{ fontSize: 'var(--text-caption)', letterSpacing: '.1em', textTransform: 'uppercase' }}
         >
           {t('firstRun.kicker')}
         </div>
         <div
           style={{
             fontFamily: 'var(--font-heading)',
-            fontSize: 24,
+            fontSize: 'var(--text-heading)',
             lineHeight: 1.25,
             marginTop: 6,
             whiteSpace: 'normal',
@@ -124,7 +124,7 @@ export function FirstRunOverlay() {
         >
           {t('firstRun.q')}
         </div>
-        <p className="text-muted" style={{ fontSize: 16, margin: '8px 0 0' }}>
+        <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: '8px 0 0' }}>
           {t('firstRun.help')}
         </p>
       </div>
@@ -143,19 +143,19 @@ export function FirstRunOverlay() {
             padding: 14,
             borderRadius: 'var(--radius-md)',
             border: `1px solid ${mode === m ? 'var(--color-accent)' : 'var(--color-divider)'}`,
-            background: mode === m ? 'var(--color-accent-900)' : 'transparent',
+            background: mode === m ? 'var(--fill-selected)' : 'transparent',
             color: 'inherit',
             font: 'inherit',
             cursor: 'pointer',
           }}
         >
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 18, fontWeight: 600 }}>{name}</span>
+            <span style={{ fontSize: 'var(--text-title)', fontWeight: 600 }}>{name}</span>
             <Tag variant="outline" fontSize={15}>
               {badge}
             </Tag>
           </span>
-          <span style={{ display: 'block', fontSize: 16, opacity: 0.78, marginTop: 5 }}>{blurb}</span>
+          <span style={{ display: 'block', fontSize: 'var(--text-body)', opacity: 0.78, marginTop: 5 }}>{blurb}</span>
           {/* density sketch */}
           <svg viewBox="0 0 260 44" style={{ width: '100%', height: 40, marginTop: 9 }} aria-hidden="true">
             {Array.from({ length: dense ? 9 : 4 }, (_, i) => (

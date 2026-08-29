@@ -66,11 +66,11 @@ export function SettingsScreen(_: ScreenProps) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
               {profile.fullName ? (
                 <>
-                  <span style={{ fontSize: 18, fontWeight: 600 }}>{profile.fullName}</span>
+                  <span style={{ fontSize: 'var(--text-title)', fontWeight: 600 }}>{profile.fullName}</span>
                   <span
                     className="text-muted"
                     style={{
-                      fontSize: 16,
+                      fontSize: 'var(--text-body)',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
@@ -82,14 +82,14 @@ export function SettingsScreen(_: ScreenProps) {
               ) : (
                 // No display name from the provider — fall back to naming the
                 // account by its email rather than inventing one.
-                <span style={{ fontSize: 17 }}>
+                <span style={{ fontSize: 'var(--text-row)' }}>
                   {t('set.signedInAs', { email: profile.email ?? user.id })}
                 </span>
               )}
               {(provider === 'google' || provider === 'apple') && (
                 <span
                   className="text-muted"
-                  style={{ fontSize: 15.5, display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                  style={{ fontSize: 'var(--text-caption)', display: 'inline-flex', alignItems: 'center', gap: 5 }}
                 >
                   {provider === 'google' ? (
                     <img src="/assets/logo-google.svg" alt="" width={12} height={12} />
@@ -115,7 +115,7 @@ export function SettingsScreen(_: ScreenProps) {
       {/* Mode pill */}
       <Card padding="10px 12px" gap={6}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ flex: 1, fontSize: 18 }}>{t('set.modeRow')}</span>
+          <span style={{ flex: 1, fontSize: 'var(--text-title)' }}>{t('set.modeRow')}</span>
           <div style={{ width: 200 }}>
             <SegmentedControl
               options={[
@@ -128,7 +128,7 @@ export function SettingsScreen(_: ScreenProps) {
             />
           </div>
         </div>
-        <p className="text-muted" style={{ fontSize: 16, margin: 0, lineHeight: 1.4 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0, lineHeight: 1.4 }}>
           {t('set.modeHelp')}
         </p>
       </Card>
@@ -137,7 +137,7 @@ export function SettingsScreen(_: ScreenProps) {
       <Card padding="12px 13px" gap={9}>
         <CardTitle size={18}>{t('set.appearance')}</CardTitle>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ flex: 1, fontSize: 17 }}>{t('set.theme')}</span>
+          <span style={{ flex: 1, fontSize: 'var(--text-row)' }}>{t('set.theme')}</span>
           <div style={{ width: 170 }}>
             <SegmentedControl<Theme>
               options={[
@@ -151,7 +151,7 @@ export function SettingsScreen(_: ScreenProps) {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ flex: 1, fontSize: 17 }}>{t('set.language')}</span>
+          <span style={{ flex: 1, fontSize: 'var(--text-row)' }}>{t('set.language')}</span>
           <div style={{ width: 170 }}>
             <SegmentedControl<Language>
               options={[
@@ -165,7 +165,7 @@ export function SettingsScreen(_: ScreenProps) {
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <span style={{ fontSize: 17 }}>{t('set.signal')}</span>
+          <span style={{ fontSize: 'var(--text-row)' }}>{t('set.signal')}</span>
           <SegmentedControl<Signal>
             options={[
               { value: 'vivid', label: t('set.signalVivid') },
@@ -176,7 +176,7 @@ export function SettingsScreen(_: ScreenProps) {
             onChange={setSignal}
             fontSize={16}
           />
-          <p className="text-muted" style={{ fontSize: 15.5, margin: 0 }}>
+          <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0 }}>
             {t('set.signalHelp')}
           </p>
         </div>
@@ -185,7 +185,7 @@ export function SettingsScreen(_: ScreenProps) {
       {/* Price-alert thresholds — informational only, opt-in, blank by default */}
       <Card padding="12px 13px" gap={9}>
         <CardTitle size={18}>{t('thresh.title')}</CardTitle>
-        <div className="text-muted" style={{ fontSize: 15.5, lineHeight: 1.5 }}>
+        <div className="text-muted" style={{ fontSize: 'var(--text-caption)', lineHeight: 1.5 }}>
           {t('thresh.help')}
         </div>
         <div
@@ -198,7 +198,7 @@ export function SettingsScreen(_: ScreenProps) {
           }}
         >
           <div className="field">
-            <label style={{ fontSize: 16 }}>{t('thresh.up')}</label>
+            <label style={{ fontSize: 'var(--text-body)' }}>{t('thresh.up')}</label>
             <input
               className="input"
               type="number"
@@ -208,7 +208,7 @@ export function SettingsScreen(_: ScreenProps) {
             />
           </div>
           <div className="field">
-            <label style={{ fontSize: 16 }}>{t('thresh.down')}</label>
+            <label style={{ fontSize: 'var(--text-body)' }}>{t('thresh.down')}</label>
             <input
               className="input"
               type="number"
@@ -258,8 +258,8 @@ export function SettingsScreen(_: ScreenProps) {
             }}
           >
             <span style={{ flex: 1 }}>
-              <span style={{ display: 'block', fontSize: 17 }}>{label[language]}</span>
-              <span className="text-muted" style={{ display: 'block', fontSize: 15.5 }}>
+              <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>{label[language]}</span>
+              <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-caption)' }}>
                 {help[language]}
               </span>
             </span>
@@ -357,11 +357,11 @@ function SettingsLink({
         textAlign: 'start',
       }}
     >
-      <span style={{ flex: 1, fontSize: 17, color: accent ? 'var(--color-accent-200)' : undefined }}>
+      <span style={{ flex: 1, fontSize: 'var(--text-row)', color: accent ? 'var(--color-accent-200)' : undefined }}>
         {label}
       </span>
       {meta != null && (
-        <span className="text-muted" style={{ fontSize: 16 }}>
+        <span className="text-muted" style={{ fontSize: 'var(--text-body)' }}>
           {meta}
         </span>
       )}
@@ -393,8 +393,8 @@ function DemoFlagRow({
       }}
     >
       <span style={{ flex: 1 }}>
-        <span style={{ display: 'block', fontSize: 17 }}>{label}</span>
-        <span className="text-muted" style={{ display: 'block', fontSize: 15.5 }}>
+        <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>{label}</span>
+        <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-caption)' }}>
           {help}
         </span>
       </span>

@@ -35,7 +35,7 @@ function matches(rows: WatchRow[], query: string): WatchRow[] {
 }
 
 export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { mounted, closing } = useDismissAnimation(open, 170);
+  const { mounted, closing } = useDismissAnimation(open);
   // The body (and its symbols fetch) exists only while the overlay is
   // actually shown — the always-mounted wrapper must not fetch on app boot.
   if (!mounted) return null;
@@ -106,7 +106,7 @@ function SearchOverlayBody({ closing, onClose }: { closing: boolean; onClose: ()
             placeholder={t('search.placeholder')}
             // 16px, not smaller: this field autoFocuses on open, and any
             // input under 16px makes iOS Safari zoom the page in on focus.
-            style={{ paddingInlineStart: 32, height: 38, minHeight: 38, fontSize: 19 }}
+            style={{ paddingInlineStart: 32, height: 38, minHeight: 38, fontSize: 'var(--text-title)' }}
           />
         </label>
         <Button
@@ -139,7 +139,7 @@ function SearchOverlayBody({ closing, onClose }: { closing: boolean; onClose: ()
                 <div
                   className="text-muted"
                   style={{
-                    fontSize: 15.5,
+                    fontSize: 'var(--text-caption)',
                     letterSpacing: '.09em',
                     textTransform: 'uppercase',
                     padding: '6px 0',
@@ -178,9 +178,9 @@ function SearchOverlayBody({ closing, onClose }: { closing: boolean; onClose: ()
                             borderRadius: 999,
                             cursor: 'pointer',
                             font: 'inherit',
-                            fontSize: 15,
+                            fontSize: 'var(--text-caption)',
                             border: `1px solid ${watched ? 'var(--color-accent)' : 'var(--color-divider)'}`,
-                            background: watched ? 'var(--color-accent-900)' : 'transparent',
+                            background: watched ? 'var(--fill-selected)' : 'transparent',
                             color: watched ? 'var(--color-accent-200)' : 'var(--color-accent)',
                           }}
                         >
@@ -198,10 +198,10 @@ function SearchOverlayBody({ closing, onClose }: { closing: boolean; onClose: ()
                 })}
                 {query && hits.length === 0 && (
                   <div style={{ padding: '34px 8px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 17 }}>
+                    <div style={{ fontSize: 'var(--text-row)' }}>
                       {t('search.noMatch')} “{q}”
                     </div>
-                    <div className="text-muted" style={{ fontSize: 16, marginTop: 4 }}>
+                    <div className="text-muted" style={{ fontSize: 'var(--text-body)', marginTop: 4 }}>
                       {t('search.noMatchHelp')}
                     </div>
                   </div>

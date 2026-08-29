@@ -134,7 +134,7 @@ export function TabBar({
             width: indicator.width + 20,
             height: indicator.height + 4,
             borderRadius: 99,
-            background: 'var(--color-accent-900)',
+            background: 'var(--fill-selected)',
             transition: 'left .32s cubic-bezier(.34, 1.1, .4, 1), width .32s cubic-bezier(.34, 1.1, .4, 1)',
             pointerEvents: 'none',
           }}
@@ -198,7 +198,7 @@ export function TabBar({
               )}
               <span
                 style={{
-                  fontSize: 13.5,
+                  fontSize: 'var(--text-micro)',
                   lineHeight: 1,
                   fontWeight: active ? 600 : 400,
                 }}

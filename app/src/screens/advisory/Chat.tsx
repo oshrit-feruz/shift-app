@@ -63,11 +63,11 @@ export function AdvisoryChat(_: ScreenProps) {
           <Tag variant="accent" fontSize={15}>
             {t('adv.tag')}
           </Tag>
-          <span className="text-muted" style={{ fontSize: 15.5 }}>
+          <span className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
             {t('adv.noAction')}
           </span>
         </div>
-        <p className="text-muted" style={{ fontSize: 15.5, margin: 0, lineHeight: 1.5 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
           {t('adv.chatIntro')}
         </p>
       </Card>
@@ -84,7 +84,7 @@ export function AdvisoryChat(_: ScreenProps) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7, paddingTop: 2 }}>
           <div
             className="text-muted"
-            style={{ fontSize: 15.5, letterSpacing: '.08em', textTransform: 'uppercase' }}
+            style={{ fontSize: 'var(--text-caption)', letterSpacing: '.08em', textTransform: 'uppercase' }}
           >
             {t('adv.pickOne')}
           </div>
@@ -104,13 +104,13 @@ export function AdvisoryChat(_: ScreenProps) {
                 background: 'var(--sunk)',
                 color: 'inherit',
                 font: 'inherit',
-                fontSize: 17,
+                fontSize: 'var(--text-row)',
                 cursor: 'pointer',
                 textAlign: 'start',
               }}
             >
               <span style={{ flex: 1 }}>{t(label)}</span>
-              <span style={{ opacity: 0.45, fontSize: 17 }}>›</span>
+              <span style={{ opacity: 0.45, fontSize: 'var(--text-row)' }}>›</span>
             </button>
           ))}
         </div>
@@ -121,14 +121,14 @@ export function AdvisoryChat(_: ScreenProps) {
           <Card padding={14} gap={9} highlight>
             <div
               className="text-muted"
-              style={{ fontSize: 15.5, letterSpacing: '.1em', textTransform: 'uppercase' }}
+              style={{ fontSize: 'var(--text-caption)', letterSpacing: '.1em', textTransform: 'uppercase' }}
             >
               {t('adv.yourProfile')}
             </div>
-            <div style={{ fontFamily: 'var(--font-heading)', fontSize: 27, lineHeight: 1.1 }}>
+            <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-display)', lineHeight: 1.1 }}>
               {t(`profile.${profileKey}` as StringKey)}
             </div>
-            <p style={{ fontSize: 16.5, lineHeight: 1.55, margin: 0, opacity: 0.85 }}>
+            <p style={{ fontSize: 'var(--text-body)', lineHeight: 1.55, margin: 0, opacity: 0.85 }}>
               {t(`profile.${profileKey}.blurb` as StringKey)}
               {hardRule(ans) && ` ${t('profile.hardNote')}`}
             </p>
@@ -139,7 +139,7 @@ export function AdvisoryChat(_: ScreenProps) {
                   style={{
                     display: 'flex',
                     gap: 9,
-                    fontSize: 16,
+                    fontSize: 'var(--text-body)',
                     padding: '5px 0',
                     borderTop: '1px solid var(--color-divider)',
                   }}
@@ -180,9 +180,9 @@ export function AdvisoryChat(_: ScreenProps) {
               <Tag variant="neutral" fontSize={15}>
                 {t('adv.fromLibrary')}
               </Tag>
-              <span style={{ fontSize: 17, fontWeight: 600 }}>{t('adv.eduChatTitle')}</span>
+              <span style={{ fontSize: 'var(--text-row)', fontWeight: 600 }}>{t('adv.eduChatTitle')}</span>
             </div>
-            <p className="text-muted" style={{ fontSize: 16, margin: 0, lineHeight: 1.5 }}>
+            <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0, lineHeight: 1.5 }}>
               {t('adv.eduChatBody')}
             </p>
             <Button

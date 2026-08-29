@@ -47,7 +47,7 @@ export function DataState<T>({
       <div
         role="status"
         className="text-muted"
-        style={{ textAlign: 'center', padding: '16px 0', fontSize: 16 }}
+        style={{ textAlign: 'center', padding: '16px 0', fontSize: 'var(--text-body)' }}
       >
         {t('data.loading')}
       </div>
@@ -58,8 +58,8 @@ export function DataState<T>({
       <div
         style={{ textAlign: 'center', padding: '14px 0', display: 'flex', flexDirection: 'column', gap: 6 }}
       >
-        <span style={{ fontSize: 17 }}>{t('data.unavailable')}</span>
-        <span className="text-muted" style={{ fontSize: 15.5, lineHeight: 1.5 }}>
+        <span style={{ fontSize: 'var(--text-row)' }}>{t('data.unavailable')}</span>
+        <span className="text-muted" style={{ fontSize: 'var(--text-caption)', lineHeight: 1.5 }}>
           {/* A specific reason from the data layer beats the generic copy:
               "the snapshot is 9 days old" tells the user something true and
               actionable, where "try again later" would imply a transient
@@ -80,7 +80,7 @@ export function DataState<T>({
 /** Honest empty state for ok-but-empty lists (e.g. no open satellite positions). */
 export function EmptyState({ children }: { children: ReactNode }) {
   return (
-    <div style={{ textAlign: 'center', padding: '14px 0', color: 'var(--muted)', fontSize: 17 }}>
+    <div style={{ textAlign: 'center', padding: '14px 0', color: 'var(--muted)', fontSize: 'var(--text-row)' }}>
       {children}
     </div>
   );

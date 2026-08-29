@@ -173,7 +173,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
                 says nothing, where the OHLC strip's dashes at least keep the
                 labelled shape of a row the reader is scanning. */}
             {basisPrice(x) !== null && (
-              <div className="text-muted" style={{ fontSize: 16, marginTop: 3 }}>
+              <div className="text-muted" style={{ fontSize: 'var(--text-body)', marginTop: 3 }}>
                 {t('stock.afterHrs')} <Num>{money(basisPrice(x)! * 1.004)}</Num>
               </div>
             )}
@@ -185,11 +185,11 @@ export function StockScreen({ openAlert }: ScreenProps) {
               style={{
                 flex: 1,
                 minHeight: 40,
-                fontSize: 17,
+                fontSize: 'var(--text-row)',
                 ...(inWl
                   ? {
                       border: '1px solid var(--color-accent)',
-                      background: 'var(--color-accent-900)',
+                      background: 'var(--fill-selected)',
                       color: 'var(--color-accent-200)',
                     }
                   : {}),
@@ -201,7 +201,10 @@ export function StockScreen({ openAlert }: ScreenProps) {
             >
               {inWl ? `✓ ${t('stock.inWatchlist')}` : `＋ ${t('stock.toWatchlist')}`}
             </Button>
-            <Button style={{ flex: 1, minHeight: 40, fontSize: 17 }} onClick={() => openAlert(s.ticker)}>
+            <Button
+              style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-row)' }}
+              onClick={() => openAlert(s.ticker)}
+            >
               <Icon name="bell" size={14} strokeWidth={1.8} />
               {t('stock.addAlert')}
             </Button>
@@ -249,7 +252,10 @@ export function StockScreen({ openAlert }: ScreenProps) {
                 if (window.length < 2) {
                   return (
                     <Card padding={12} gap={0}>
-                      <p className="text-muted" style={{ fontSize: 16, margin: 0, textAlign: 'center' }}>
+                      <p
+                        className="text-muted"
+                        style={{ fontSize: 'var(--text-body)', margin: 0, textAlign: 'center' }}
+                      >
                         {t('stock.noSeries')}
                       </p>
                     </Card>
@@ -262,7 +268,14 @@ export function StockScreen({ openAlert }: ScreenProps) {
                 return beg ? (
                   <Card padding={12} gap={0}>
                     <AreaChart values={closes} height={150} pad={8} />
-                    <p style={{ fontSize: 16, lineHeight: 1.5, margin: '10px 0 0', opacity: 0.85 }}>
+                    <p
+                      style={{
+                        fontSize: 'var(--text-body)',
+                        lineHeight: 1.5,
+                        margin: '10px 0 0',
+                        opacity: 0.85,
+                      }}
+                    >
                       {t('stock.chartHelp', { pct: pct(windowPct) })}
                     </p>
                   </Card>
@@ -341,11 +354,18 @@ export function StockScreen({ openAlert }: ScreenProps) {
                   x.demo.pe,
                 ).map((row, i) => (
                   <div key={i} style={{ padding: '7px 0', borderTop: '1px solid var(--color-divider)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 17 }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        gap: 10,
+                        fontSize: 'var(--text-row)',
+                      }}
+                    >
                       <span>{row.k}</span>
                       <Num>{row.v}</Num>
                     </div>
-                    <div className="text-muted" style={{ fontSize: 15.5, marginTop: 2 }}>
+                    <div className="text-muted" style={{ fontSize: 'var(--text-caption)', marginTop: 2 }}>
                       {row.help}
                     </div>
                   </div>
@@ -359,7 +379,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
                         display: 'flex',
                         justifyContent: 'space-between',
                         gap: 8,
-                        fontSize: 15.5,
+                        fontSize: 'var(--text-caption)',
                         padding: '2px 0',
                       }}
                     >
@@ -378,10 +398,10 @@ export function StockScreen({ openAlert }: ScreenProps) {
               <Card padding={12} gap={7}>
                 <CardTitle>{t('stock.analyst')}</CardTitle>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                  <span style={{ fontSize: 19, fontFamily: 'var(--font-heading)' }}>
+                  <span style={{ fontSize: 'var(--text-title)', fontFamily: 'var(--font-heading)' }}>
                     {t('stock.consensus')}
                   </span>
-                  <span className="text-muted" style={{ fontSize: 15.5 }}>
+                  <span className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
                     {t('stock.analystMeta')}
                   </span>
                 </div>
@@ -391,7 +411,10 @@ export function StockScreen({ openAlert }: ScreenProps) {
                   <div style={{ flex: 8, background: 'var(--muted-2)' }} />
                   <div style={{ flex: 3, background: 'var(--down)' }} />
                 </div>
-                <div className="text-muted" style={{ display: 'flex', gap: 9, fontSize: 15.5 }}>
+                <div
+                  className="text-muted"
+                  style={{ display: 'flex', gap: 9, fontSize: 'var(--text-caption)' }}
+                >
                   <span>{t('stock.rateSb')}</span>
                   <span>{t('stock.rateB')}</span>
                   <span>{t('stock.rateH')}</span>
@@ -528,13 +551,13 @@ function NextEarnings({ ticker }: { ticker: string }) {
             textAlign: 'center',
             padding: '6px 0',
             borderRadius: 'var(--radius-md)',
-            background: 'var(--color-accent-900)',
+            background: 'var(--fill-selected)',
             flex: 'none',
           }}
         >
           <div
             className="text-muted"
-            style={{ fontSize: 15.5, letterSpacing: '.06em', textTransform: 'uppercase' }}
+            style={{ fontSize: 'var(--text-caption)', letterSpacing: '.06em', textTransform: 'uppercase' }}
           >
             {month}
           </div>
@@ -542,7 +565,16 @@ function NextEarnings({ ticker }: { ticker: string }) {
             {next.reportDate.slice(8)}
           </Num>
         </div>
-        <p style={{ margin: 0, fontSize: 16, opacity: 0.8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <p
+          style={{
+            margin: 0,
+            fontSize: 'var(--text-body)',
+            opacity: 0.8,
+            display: 'flex',
+            gap: 8,
+            flexWrap: 'wrap',
+          }}
+        >
           {/* Only what the provider actually carries: the date, the timing
               when stated, and the consensus estimate when published. */}
           {next.timing === 'AMC' && <span>{t('home.afterClose')}</span>}
@@ -576,7 +608,10 @@ function LiveOnlyStock({ ticker }: { ticker: string }) {
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <p className="text-muted" style={{ fontSize: 15.5, margin: 0, padding: '0 2px', lineHeight: 1.45 }}>
+      <p
+        className="text-muted"
+        style={{ fontSize: 'var(--text-caption)', margin: 0, padding: '0 2px', lineHeight: 1.45 }}
+      >
         {t('stock.noQuote')}
       </p>
 
@@ -584,11 +619,11 @@ function LiveOnlyStock({ ticker }: { ticker: string }) {
         variant="secondary"
         style={{
           minHeight: 40,
-          fontSize: 17,
+          fontSize: 'var(--text-row)',
           ...(inWl
             ? {
                 border: '1px solid var(--color-accent)',
-                background: 'var(--color-accent-900)',
+                background: 'var(--fill-selected)',
                 color: 'var(--color-accent-200)',
               }
             : {}),

@@ -34,7 +34,7 @@ export function TickerTile({ ticker, size = 34 }: { ticker: string; size?: numbe
     borderRadius: 'var(--radius-sm)',
     display: 'grid',
     placeItems: 'center' as const,
-    fontSize: size < 30 ? 12 : 13.5,
+    fontSize: size < 30 ? 12 : 'var(--text-micro)',
     fontWeight: 600,
   };
   if (url) {
@@ -53,7 +53,7 @@ export function TickerTile({ ticker, size = 34 }: { ticker: string; size?: numbe
     );
   }
   return (
-    <span style={{ ...base, background: 'var(--color-accent-900)', color: 'var(--color-accent-200)' }}>
+    <span style={{ ...base, background: 'var(--tile-ground)', color: 'var(--color-accent-200)' }}>
       {ticker.slice(0, 2)}
     </span>
   );
@@ -80,11 +80,11 @@ export function LogoTile({
           flex: 'none',
           borderRadius: 7,
           border: dashed ? '1px dashed var(--muted)' : undefined,
-          background: dashed ? 'transparent' : 'var(--color-accent-900)',
+          background: dashed ? 'transparent' : 'var(--tile-ground)',
           color: dashed ? 'var(--muted)' : 'var(--color-accent-200)',
           display: 'grid',
           placeItems: 'center',
-          fontSize: 14,
+          fontSize: 'var(--text-micro)',
           fontWeight: 600,
         }}
       >
