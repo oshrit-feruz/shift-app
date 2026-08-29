@@ -47,7 +47,13 @@ button, a, [role='button'] { -webkit-tap-highlight-color: transparent; }
 a { color: var(--color-accent); text-decoration: none; }
 a:hover { color: var(--color-accent-300); }
 
-h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 0; }
+/* Bilingual app: Hebrew is compact and fits nowrap, but the same string in
+ * English runs 30-40% longer and has nowhere to go, so it used to cross the
+ * card's rounded corner instead of wrapping. Headings wrap by default now;
+ * `.nowrap` below is the opt-in for the few that share a flex row with a
+ * control that wrapping would push out of place. */
+h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
+.nowrap { white-space: nowrap; }
 
 :focus { outline: none; }
 :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
@@ -91,7 +97,7 @@ h1, h2, h3, h4 { font-family: var(--font-heading); white-space: nowrap; margin: 
 .elev-sm { box-shadow: var(--shadow-sm); }
 .elev-md { box-shadow: var(--shadow-md); }
 .elev-lg { box-shadow: var(--shadow-lg); }
-.card-title { font-weight: 600; white-space: nowrap; }
+.card-title { font-weight: 600; }
 
 /* Light mode keeps cards dark on purpose — white text forced past inline styles. */
 [data-theme="light"] .card {

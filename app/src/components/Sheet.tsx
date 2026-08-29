@@ -80,7 +80,8 @@ export function Sheet({
         />
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
           <div
-            style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-title)', whiteSpace: 'nowrap', flex: 'none' }}
+            className="nowrap"
+            style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-title)', flex: 'none' }}
           >
             {title}
           </div>

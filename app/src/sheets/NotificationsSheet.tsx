@@ -119,7 +119,7 @@ export function NotificationsSheet({ open, onClose }: { open: boolean; onClose: 
               {n.glyph}
             </span>
             <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontSize: 'var(--text-row)', whiteSpace: 'normal' }}>
+              <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>
                 {n.title[language]}
               </span>
               <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-caption)', marginTop: 1 }}>
@@ -133,7 +133,7 @@ export function NotificationsSheet({ open, onClose }: { open: boolean; onClose: 
           {n.isThresholdAlert && (
             <>
               {/* Equal-prominence disclaimer: same size as the title, not fine print. */}
-              <p style={{ fontSize: 'var(--text-row)', lineHeight: 1.5, margin: 0, whiteSpace: 'normal' }}>
+              <p style={{ fontSize: 'var(--text-row)', lineHeight: 1.5, margin: 0 }}>
                 {t('thresh.disclaimer')}
               </p>
               <Button
