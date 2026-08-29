@@ -103,6 +103,16 @@
   /* Type */
   --font-heading: 'Rubik', system-ui, sans-serif;
   --font-body: 'Rubik', system-ui, sans-serif;
+
+  /* Motion — durations and easings base.css's animation classes share with
+   * useDismissAnimation, so there is one source of truth for how long an
+   * exit actually plays instead of a CSS duration and a JS timeout each
+   * carrying their own number. */
+  --dur-screen: .22s;
+  --dur-tab: .14s;
+  --dur-exit: .18s;
+  --ease-out: cubic-bezier(.22, .61, .36, 1);
+  --ease-in: cubic-bezier(.4, 0, 1, 1);
 }
 
 [data-signal="balanced"] {

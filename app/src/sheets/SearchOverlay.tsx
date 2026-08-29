@@ -35,7 +35,7 @@ function matches(rows: WatchRow[], query: string): WatchRow[] {
 }
 
 export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { mounted, closing } = useDismissAnimation(open, 170);
+  const { mounted, closing } = useDismissAnimation(open);
   // The body (and its symbols fetch) exists only while the overlay is
   // actually shown — the always-mounted wrapper must not fetch on app boot.
   if (!mounted) return null;
