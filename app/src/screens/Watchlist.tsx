@@ -1,5 +1,4 @@
 import { Card, CardTitle } from '../components/Card';
-import { DemoDataNote } from '../components/DemoDataNote';
 import { Button } from '../components/Button';
 import { Tag } from '../components/Tag';
 import { ListRow } from '../components/ListRow';
@@ -42,7 +41,6 @@ export function WatchlistScreen({ openAlert, openSearch }: ScreenProps) {
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <DemoDataNote />
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <span className="text-muted" style={{ fontSize: 16, flex: 1 }}>
           {`${t('watch.alertsCount', { n: s.savedAlerts.length })} · ${t('watch.trackedCount', {

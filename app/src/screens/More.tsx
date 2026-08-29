@@ -1,6 +1,8 @@
 import { Card, CardTitle } from '../components/Card';
 import { Icon, type IconName } from '../components/Icon';
 import { Tag } from '../components/Tag';
+import { Toggle } from '../components/Toggle';
+import { useDemoMode, useSetDemoMode } from '../lib/DemoModeProvider';
 import { useDispatch, type Screen } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
@@ -22,6 +24,8 @@ export function MoreScreen(_: ScreenProps) {
   const { mode, setMode } = useTheme();
   const t = useT();
   const beg = mode === 'beginner';
+  const demo = useDemoMode();
+  const setDemo = useSetDemoMode();
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -45,6 +49,24 @@ export function MoreScreen(_: ScreenProps) {
         </div>
         <p className="text-muted" style={{ fontSize: 15, margin: 0 }}>
           {t('more.switchNote')}
+        </p>
+      </Card>
+
+      {/* Sample data. One switch over everything the app can invent —
+          the charts and the earnings screens — so a reader who would rather
+          see a filled-in app than an honest gap can have one, by asking.
+          It carries no on-screen disclaimer where it renders: the reader
+          turned it on themselves, and the standing note at the top of each
+          screen already says what they are looking at. */}
+      <Card padding="10px 12px" gap={6}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ flex: 1 }}>
+            <span style={{ display: 'block', fontSize: 17, fontWeight: 500 }}>{t('more.demoData')}</span>
+          </span>
+          <Toggle label={t('more.demoData')} on={demo} onChange={setDemo} />
+        </div>
+        <p className="text-muted" style={{ fontSize: 15, margin: 0, lineHeight: 1.45 }}>
+          {t('more.demoDataHelp')}
         </p>
       </Card>
 

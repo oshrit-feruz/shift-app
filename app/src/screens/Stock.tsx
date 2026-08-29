@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { DemoDataNote } from '../components/DemoDataNote';
 import { Card, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Icon } from '../components/Icon';
@@ -20,7 +19,7 @@ import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
 import { fetchYourPositions } from '../lib/holdings';
 import { fetchTickerEarnings } from '../data/earnings';
-import { DemoBanner } from '../components/DemoBanner';
+import { useDemoMode } from '../lib/DemoModeProvider';
 import { compactCount, money, moneyOrDash, pct, signalColor } from '../lib/format';
 import { ReportsTab, EarningsHistory } from './stock/ReportsTab';
 import { NewsTab } from './stock/NewsTab';
@@ -111,6 +110,9 @@ export function StockScreen({ openAlert }: ScreenProps) {
   const setTab = (next: StockTab) => setTabFor({ ticker: s.ticker, tab: next });
   const [tf, setTf] = useState<Timeframe>('3M');
   const [ind, setInd] = useState({ ma: true, rsi: true, macd: false });
+  // In the useLoadable deps below, so turning sample data on or off redraws
+  // the chart at once instead of on the next visit to this ticker.
+  const demo = useDemoMode();
   const sym = useLoadable(() => demoService.symbol(s.ticker), [s.ticker]);
   const inWl = s.watchlist.includes(s.ticker);
   const positions = useLoadable(
@@ -122,7 +124,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
   // come from different sources with different coverage, so a ticker can have
   // a price and no published history (or the reverse), and gating one on the
   // other would blank a panel that has data of its own.
-  const history = useLoadable(() => demoService.dailySeries(s.ticker), [s.ticker]);
+  const history = useLoadable(() => demoService.dailySeries(s.ticker), [s.ticker, demo]);
   // The published sessions, or null while loading / when there are none. The
   // key-stats grid reads them too, so the figures a bar can answer agree with
   // the chart drawn from the same bars.
@@ -157,7 +159,6 @@ export function StockScreen({ openAlert }: ScreenProps) {
     >
       {(x) => (
         <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <DemoDataNote />
           <div>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 9 }}>
               <Num size={28} style={{ fontFamily: 'var(--font-heading)', lineHeight: 1 }}>
@@ -420,7 +421,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
 
 const BEG_STATS = (price: number | null, mc: string, vol: number | null, pe: number) => [
   // Price and traded volume are real; market cap and P/E are still demo
-  // stats, which is what <DemoDataNote /> at the top of the screen says.
+  // stats — see the `demo` key they are read from in data/types.ts.
   { k: 'Price', v: moneyOrDash(price), help: 'What one share costs right now' },
   { k: 'Company size', v: mc, help: 'Every share added together — market cap' },
   {
@@ -491,9 +492,10 @@ const ADV_STATS = (x: SymbolInfo, bars: Bar[] | null): Array<[string, string]> =
  * screen already reports it in full.
  */
 function NextEarnings({ ticker }: { ticker: string }) {
+  const demo = useDemoMode();
   const t = useT();
   const { language } = useTheme();
-  const e = useLoadable(() => fetchTickerEarnings(ticker), [ticker]);
+  const e = useLoadable(() => fetchTickerEarnings(ticker), [ticker, demo]);
   if (e.state.status !== 'ok') return null;
 
   const today = new Date().toISOString().slice(0, 10);
@@ -512,7 +514,6 @@ function NextEarnings({ ticker }: { ticker: string }) {
   return (
     <Card padding={12} gap={8}>
       <CardTitle>{t('stock.nextEarn')}</CardTitle>
-      <DemoBanner />
       <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
         <div
           style={{

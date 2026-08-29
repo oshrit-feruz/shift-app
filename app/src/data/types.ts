@@ -44,7 +44,8 @@ export interface Bar {
  * They live behind their own key so no call site can render an invented
  * number while believing it is real: `x.demo.changePct` says what it is at
  * the point of use, where a flat `x.changePct` sitting beside a real price
- * would not. Screens that show these carry <DemoDataNote /> as well.
+ * would not. That naming is now the whole guard — the standing on-screen
+ * note was removed, so nothing but the key tells a call site what it holds.
  *
  * Day change is the notable absence from Quote: the mirrored ranking has no
  * day-change field, so it cannot be made real from this source and is not

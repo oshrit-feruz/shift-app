@@ -13,8 +13,10 @@ import type { WatchRow } from '../data/types';
  * is what the rest of the app renders for a missing figure.
  *
  * `price` is real (the daily mirror). The percentage under it is still a demo
- * figure for the tickers that have one, which is why every screen using this
- * carries <DemoDataNote />.
+ * figure for the tickers that have one — it is read from the `demo` key for
+ * exactly that reason (see data/types.ts), which is now the only thing
+ * marking it as invented: the standing on-screen note this used to point at
+ * has been removed.
  */
 export function WatchRowValues({ row }: { row: WatchRow }) {
   return (

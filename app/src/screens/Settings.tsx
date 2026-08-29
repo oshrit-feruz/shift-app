@@ -10,7 +10,7 @@ import { EditProfileSheet } from '../sheets/EditProfileSheet';
 import { DeleteAccountSheet } from '../sheets/DeleteAccountSheet';
 import { useTheme, type Signal, type Theme, type Language } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
-import { DEMO_FLAGS } from '../data/demoAdapter';
+import { DEMO_FLAGS } from '../data/demoFlags';
 import { useState } from 'react';
 import type { ScreenProps } from '../App';
 
@@ -26,7 +26,7 @@ export function SettingsScreen(_: ScreenProps) {
   const { profile } = useProfile();
   const user = session.status === 'ok' ? session.data?.user : undefined;
   const provider = user?.app_metadata?.provider;
-  const [flags, setFlags] = useState({ unavailable: DEMO_FLAGS.unavailable, showcase: DEMO_FLAGS.showcase });
+  const [flags, setFlags] = useState({ unavailable: DEMO_FLAGS.unavailable });
   const [notif, setNotif] = useState({ push: true, email: true, sms: false, digest: true, movers: false });
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -276,18 +276,9 @@ export function SettingsScreen(_: ScreenProps) {
         <CardTitle size={18}>
           <span style={{ display: 'block', padding: '6px 12px 1px' }}>{t('set.dataSection')}</span>
         </CardTitle>
-        {/* Showcase mode: illustrative earnings figures, to show what a paid
-            data plan renders. Labelled on every screen that shows it — see
-            components/DemoBanner. */}
-        <DemoFlagRow
-          label={t('set.showcaseRow')}
-          help={t('set.showcaseHelp')}
-          on={flags.showcase}
-          onChange={(v) => {
-            DEMO_FLAGS.set('showcase', v);
-            setFlags({ ...flags, showcase: v });
-          }}
-        />
+        {/* Sample data is the reader's own switch and lives in the More tab
+            with the rest of what they control; what stays here is the QA
+            switch, which is for us. */}
         <DemoFlagRow
           label={language === 'he' ? 'הדגמה: נתונים לא זמינים' : 'Demo: data unavailable'}
           help={
