@@ -21,7 +21,7 @@ const MAX_FEED_ARTICLES = 30;
 const DEFAULT_UPSTREAM_TIMEOUT_MS = 15_000;
 
 /**
- * Budget for the whole DeepL translation step, whatever number of requests it
+ * Budget for the whole translation step, whatever number of requests it
  * takes. Deliberately small next to the news budget above: the headlines are
  * already in hand at this point, and a slow translator must not turn a
  * successful news response into a timeout. When it elapses, the English
@@ -43,10 +43,11 @@ function isLanguage(value: string): value is Language {
 /**
  * Hebrew headlines and excerpts, when the app is running in Hebrew.
  *
- * BEST EFFORT: if DeepL is unconfigured, slow, broken or out of free quota,
- * the English articles are returned with a 200 rather than an error. The news
- * itself succeeded — only its wording is the provider's. See _lib/translate.ts
- * for why that is the honest answer here and not a silent degradation.
+ * BEST EFFORT: if the translator is unconfigured, slow, broken or out of
+ * quota, the English articles are returned with a 200 rather than an error.
+ * The news itself succeeded — only its wording is the provider's. See
+ * _lib/translate.ts for why that is the honest answer here and not a silent
+ * degradation.
  *
  * Only `headline` and `summary` are translated. `source` is a publisher's
  * name, `symbols` are tickers, and both are proper nouns the UI already
@@ -54,10 +55,10 @@ function isLanguage(value: string): value is Language {
  * localise it.
  */
 async function translateArticles(articles: NewsArticle[]): Promise<NewsArticle[]> {
-  const apiKey = process.env.DEEPL_API_KEY;
+  const apiKey = process.env.GOOGLE_TRANSLATE_API_KEY;
   if (!apiKey) {
     // Not a 500 like a missing EODHD key: translation is optional, news is not.
-    console.warn('/api/news: DEEPL_API_KEY is not set — serving untranslated articles');
+    console.warn('/api/news: GOOGLE_TRANSLATE_API_KEY is not set — serving untranslated articles');
     return articles;
   }
   if (articles.length === 0) return articles;

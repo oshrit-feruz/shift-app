@@ -278,16 +278,17 @@ plans and some rows only, so this is the common case, not an edge case.
 
 **Hebrew headlines.** The app is Hebrew-first but EODHD's feed is English, so
 `GET /api/news?lang=he` translates each `headline` and `summary` to Hebrew
-through DeepL before answering (`app/api/_lib/translate.ts`). `source`, `url`,
-`symbols` and `publishedAt` are facts, not copy, and are never touched. The
-step is **best effort and cannot fail the response**: if `DEEPL_API_KEY` is
-unset, or DeepL errors, times out, or the free plan's monthly quota is spent,
-the English articles are returned with a normal `200`. That is not a silent
+through the Google Cloud Translation API before answering
+(`app/api/_lib/translate.ts`). `source`, `url`, `symbols` and `publishedAt` are
+facts, not copy, and are never touched. The step is **best effort and cannot
+fail the response**: if `GOOGLE_TRANSLATE_API_KEY` is unset, or the API errors,
+times out, or the monthly free allowance is spent, the English articles are
+returned with a normal `200`. That is not a silent
 degradation — the articles are real, current and fetched successfully; only
 the wording is the provider's. Hiding real headlines because a *secondary*
 service is down would remove information the reader could have used, and
 inventing a translation is not on the table. A batch is all-or-nothing: if
-DeepL returns a different number of translations than it was sent, the whole
+the API returns a different number of translations than it was sent, the whole
 batch is discarded rather than paired up by index, which could put one
 article's words under another's headline. Quota is defended by the edge cache
 above (the language is part of the URL, so the two languages cache
@@ -295,6 +296,13 @@ separately), by sending each distinct string once, and by a small in-process
 memo of recently translated strings that survives warm function invocations.
 `lang` accepts only `en` (the default, and exactly the pre-translation
 behaviour) or `he`; anything else is a `400` before any upstream call.
+
+One provider quirk is handled rather than shipped to the screen: the v2 API
+HTML-escapes its output even for `format: 'text'`, so `decodeEntities` undoes
+that before the string leaves the function — otherwise a card would read
+"Nvidia&#39;s" in the middle of Hebrew copy. Anything that is not a recognised
+entity is left exactly as written, since a bare `&` is ordinary text in a
+headline.
 
 Not yet covered: **per-client rate limiting**. The cache is shared, so it
 blunts repeat load on one ticker but not a single client walking a thousand
@@ -453,7 +461,7 @@ first two are required; the third only changes the language of the news:
 | Variable | Used by |
 | --- | --- |
 | `EODHD_API_KEY` | `/api/news` — the news feed |
-| `DEEPL_API_KEY` | `/api/news?lang=he` — Hebrew headlines. **Optional**: without it the news is served in the provider's English rather than failing. A free-plan key carries a `:fx` suffix, which is how the route picks DeepL's free host over the paid one. |
+| `GOOGLE_TRANSLATE_API_KEY` | `/api/news?lang=he` — Hebrew headlines, via the Cloud Translation API. **Optional**: without it the news is served in the provider's English rather than failing. The key travels as the API's `key=` query parameter, so restrict it **to the Cloud Translation API** in the Google Cloud console — an HTTP-referrer restriction would break it, since the call is server-side. The first 500k characters a month are free, but the project still needs billing enabled. |
 | `ALPHAVANTAGE_API_KEY` | `/api/earnings` — the calendar and per-stock history; also a **GitHub Actions secret**, where `mirror-prices.yml` spends one call per covered ticker per day. If it is the same key, the earnings route lives on what is left of the daily allowance. |
 
 All three are read only server-side and none may be given a `VITE_` prefix,

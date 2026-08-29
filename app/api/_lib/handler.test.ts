@@ -5,13 +5,13 @@ import { clearTranslationMemo } from './translate.js';
 
 const ORIGINAL_FETCH = globalThis.fetch;
 const ORIGINAL_KEY = process.env.EODHD_API_KEY;
-const ORIGINAL_DEEPL_KEY = process.env.DEEPL_API_KEY;
+const ORIGINAL_TRANSLATE_KEY = process.env.GOOGLE_TRANSLATE_API_KEY;
 
 beforeEach(() => {
   process.env.EODHD_API_KEY = 'test-key';
   // Translation is opt-in per test: the default is a route with no translator
   // configured, which must behave exactly as it did before it had one.
-  delete process.env.DEEPL_API_KEY;
+  delete process.env.GOOGLE_TRANSLATE_API_KEY;
   clearTranslationMemo();
 });
 
@@ -20,8 +20,8 @@ afterEach(() => {
   vi.restoreAllMocks();
   if (ORIGINAL_KEY === undefined) delete process.env.EODHD_API_KEY;
   else process.env.EODHD_API_KEY = ORIGINAL_KEY;
-  if (ORIGINAL_DEEPL_KEY === undefined) delete process.env.DEEPL_API_KEY;
-  else process.env.DEEPL_API_KEY = ORIGINAL_DEEPL_KEY;
+  if (ORIGINAL_TRANSLATE_KEY === undefined) delete process.env.GOOGLE_TRANSLATE_API_KEY;
+  else process.env.GOOGLE_TRANSLATE_API_KEY = ORIGINAL_TRANSLATE_KEY;
 });
 
 describe('handler', () => {
@@ -286,9 +286,9 @@ describe('handler', () => {
  * Hebrew-first and EODHD's feed is English.
  *
  * The property under test throughout is that translation is a BEST-EFFORT
- * last step: whatever DeepL does, the caller still gets its real articles with
- * a 200. A secondary service must not be able to turn a successful news
- * response into an outage.
+ * last step: whatever the translator does, the caller still gets its real
+ * articles with a 200. A secondary service must not be able to turn a
+ * successful news response into an outage.
  */
 describe('handler translation', () => {
   const ARTICLE = {
@@ -299,23 +299,24 @@ describe('handler translation', () => {
     source: 'Reuters',
   };
 
-  /** EODHD answers the news call; DeepL answers anything aimed at its host. */
-  function routed(deepl: (texts: string[]) => Response | Promise<Response>) {
+  /** EODHD answers the news call; the translator answers anything aimed at its host. */
+  function routed(translate: (texts: string[]) => Response | Promise<Response>) {
     return vi.fn(async (url: URL | string, init?: RequestInit) => {
-      if (String(url).includes('deepl.com')) {
-        return deepl(JSON.parse(String(init?.body)).text as string[]);
+      if (String(url).includes('translation.googleapis.com')) {
+        return translate(JSON.parse(String(init?.body)).q as string[]);
       }
       return new Response(JSON.stringify([ARTICLE]), { status: 200 });
     }) as unknown as typeof fetch;
   }
 
   const translateOk = (texts: string[]) =>
-    new Response(JSON.stringify({ translations: texts.map((t) => ({ text: `HE:${t}` })) }), {
-      status: 200,
-    });
+    new Response(
+      JSON.stringify({ data: { translations: texts.map((t) => ({ translatedText: `HE:${t}` })) } }),
+      { status: 200 },
+    );
 
   it('returns Hebrew headline and summary, leaving the source and link untouched', async () => {
-    process.env.DEEPL_API_KEY = 'deepl-key:fx';
+    process.env.GOOGLE_TRANSLATE_API_KEY = 'translate-key';
     globalThis.fetch = routed(translateOk);
     const res = makeRes();
     await handler({ method: 'GET', query: { ticker: 'NVDA', lang: 'he' } }, res);
@@ -337,11 +338,11 @@ describe('handler translation', () => {
 
   it('keeps the provider’s sentiment through translation', async () => {
     // The tone score is EODHD's, not the translator's: a Hebrew response must
-    // carry the same score the English one would, untouched by DeepL.
-    process.env.DEEPL_API_KEY = 'deepl-key:fx';
+    // carry the same score the English one would, untouched by the translator.
+    process.env.GOOGLE_TRANSLATE_API_KEY = 'translate-key';
     globalThis.fetch = vi.fn(async (url: URL | string, init?: RequestInit) => {
-      if (String(url).includes('deepl.com')) {
-        return translateOk(JSON.parse(String(init?.body)).text as string[]);
+      if (String(url).includes('translation.googleapis.com')) {
+        return translateOk(JSON.parse(String(init?.body)).q as string[]);
       }
       return new Response(
         JSON.stringify([{ ...ARTICLE, sentiment: { polarity: -0.8, neg: 0.9, neu: 0.1, pos: 0 } }]),
@@ -356,16 +357,16 @@ describe('handler translation', () => {
     });
   });
 
-  it('never leaks the DeepL key to the caller', async () => {
-    process.env.DEEPL_API_KEY = 'deepl-secret:fx';
+  it('never leaks the translation key to the caller', async () => {
+    process.env.GOOGLE_TRANSLATE_API_KEY = 'translate-secret';
     globalThis.fetch = routed(translateOk);
     const res = makeRes();
     await handler({ method: 'GET', query: { lang: 'he' } }, res);
-    expect(JSON.stringify(res._body)).not.toContain('deepl-secret');
+    expect(JSON.stringify(res._body)).not.toContain('translate-secret');
   });
 
   it('does not call the translator at all for English', async () => {
-    process.env.DEEPL_API_KEY = 'deepl-key:fx';
+    process.env.GOOGLE_TRANSLATE_API_KEY = 'translate-key';
     const spy = routed(translateOk);
     globalThis.fetch = spy;
     const res = makeRes();
@@ -373,17 +374,17 @@ describe('handler translation', () => {
 
     expect(res._status).toBe(200);
     expect(res._body).toMatchObject({ articles: [{ headline: 'NVIDIA lifts outlook' }] });
-    expect(vi.mocked(spy).mock.calls.every(([url]) => !String(url).includes('deepl'))).toBe(true);
+    expect(vi.mocked(spy).mock.calls.every(([url]) => !String(url).includes('googleapis'))).toBe(true);
   });
 
   it('treats an absent lang as English, exactly as before translation existed', async () => {
-    process.env.DEEPL_API_KEY = 'deepl-key:fx';
+    process.env.GOOGLE_TRANSLATE_API_KEY = 'translate-key';
     const spy = routed(translateOk);
     globalThis.fetch = spy;
     const res = makeRes();
     await handler({ method: 'GET', query: { ticker: 'NVDA' } }, res);
     expect(res._body).toMatchObject({ articles: [{ headline: 'NVIDIA lifts outlook' }] });
-    expect(vi.mocked(spy).mock.calls.every(([url]) => !String(url).includes('deepl'))).toBe(true);
+    expect(vi.mocked(spy).mock.calls.every(([url]) => !String(url).includes('googleapis'))).toBe(true);
   });
 
   // The whole point of the fallback: real, current articles are still worth
@@ -391,15 +392,15 @@ describe('handler translation', () => {
   // news that was fetched successfully.
   it.each([
     ['the translator errors', () => new Response('nope', { status: 500 })],
-    ['the free quota is spent', () => new Response('quota', { status: 456 })],
+    ['the quota is spent or the key is restricted', () => new Response('forbidden', { status: 403 })],
     [
       'the translator answers a shape we cannot map',
-      () => new Response(JSON.stringify({ translations: [] }), { status: 200 }),
+      () => new Response(JSON.stringify({ data: { translations: [] } }), { status: 200 }),
     ],
-  ])('serves the English articles with a 200 when %s', async (_label, deepl) => {
+  ])('serves the English articles with a 200 when %s', async (_label, translate) => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    process.env.DEEPL_API_KEY = 'deepl-key:fx';
-    globalThis.fetch = routed(deepl);
+    process.env.GOOGLE_TRANSLATE_API_KEY = 'translate-key';
+    globalThis.fetch = routed(translate);
     const res = makeRes();
     await handler({ method: 'GET', query: { ticker: 'NVDA', lang: 'he' } }, res);
 
@@ -408,7 +409,7 @@ describe('handler translation', () => {
     expect(res._headers['Cache-Control']).toBe('public, max-age=0, s-maxage=60');
   });
 
-  it('serves English, not a 500, when no DeepL key is configured', async () => {
+  it('serves English, not a 500, when no translation key is configured', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     // Unlike a missing EODHD key, which is a 500: news without translation is
     // still news, so an unconfigured translator degrades instead of failing.
@@ -419,7 +420,7 @@ describe('handler translation', () => {
 
     expect(res._status).toBe(200);
     expect(res._body).toMatchObject({ articles: [{ headline: 'NVIDIA lifts outlook' }] });
-    expect(vi.mocked(spy).mock.calls.every(([url]) => !String(url).includes('deepl'))).toBe(true);
+    expect(vi.mocked(spy).mock.calls.every(([url]) => !String(url).includes('googleapis'))).toBe(true);
   });
 
   it.each([
@@ -447,9 +448,9 @@ describe('handler translation', () => {
   });
 
   it('does not call the translator when there is nothing to translate', async () => {
-    process.env.DEEPL_API_KEY = 'deepl-key:fx';
+    process.env.GOOGLE_TRANSLATE_API_KEY = 'translate-key';
     const spy = vi.fn(async (url: URL | string) => {
-      if (String(url).includes('deepl.com')) throw new Error('should not be called');
+      if (String(url).includes('translation.googleapis.com')) throw new Error('should not be called');
       return new Response('[]', { status: 200 });
     }) as unknown as typeof fetch;
     globalThis.fetch = spy;

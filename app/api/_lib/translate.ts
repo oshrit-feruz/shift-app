@@ -1,6 +1,8 @@
 /**
- * Hebrew translation for provider text, via DeepL — server-side only, so the
- * DeepL key stays where the EODHD one does and never reaches the browser.
+ * Hebrew translation for provider text, via Google Cloud Translation —
+ * server-side only, so the translation key stays where the EODHD one does and
+ * never reaches the browser. It travels as a query parameter (`key=`), which
+ * this API requires, so it must never be logged or echoed either.
  *
  * BEST EFFORT, BY DESIGN.
  * Everything here answers `null` rather than throwing or half-succeeding, and
@@ -14,22 +16,34 @@
  * when we cannot.
  *
  * NOTHING IS EVER PARTIALLY TRANSLATED FROM A BAD RESPONSE.
- * If DeepL returns a different number of translations than we sent, the
+ * If the API returns a different number of translations than we sent, the
  * mapping between input and output is no longer knowable, and pairing them by
  * index would put one article's headline on another. That is a fabrication,
  * so the whole batch is discarded instead.
  */
 
-/** DeepL rejects a request carrying more than 50 texts. */
-export const MAX_TEXTS_PER_REQUEST = 50;
+const ENDPOINT = 'https://translation.googleapis.com/language/translate/v2';
+
+/** Google rejects a request carrying more than 128 text segments. */
+export const MAX_TEXTS_PER_REQUEST = 128;
+
+/**
+ * A second bound on one request, in characters.
+ *
+ * The segment cap is not the only limit — a request is bounded by total size
+ * too, and 128 article summaries would be well past it. Kept comfortably below
+ * the documented ceiling: nothing is gained by riding the edge, and one
+ * oversized request would fail the whole batch into an English fallback.
+ */
+export const MAX_CHARS_PER_REQUEST = 20_000;
 
 /**
  * How many source strings the process-wide memo holds.
  *
- * The free plan allows 500,000 characters a month and a market feed is ~11,000
- * characters, so repeat work is the thing worth eliminating. Headlines repeat
- * heavily — the same story comes back on the next feed load, and the same
- * article is tagged with several watchlist tickers — and a Vercel function
+ * The free allowance is 500,000 characters a month and a market feed is
+ * ~11,000 characters, so repeat work is the thing worth eliminating. Headlines
+ * repeat heavily — the same story comes back on the next feed load, and the
+ * same article is tagged with several watchlist tickers — and a Vercel function
  * instance is reused across invocations, so a small module-level map absorbs
  * most of that. 500 entries is a few hundred KB at most.
  */
@@ -73,35 +87,61 @@ export function isHebrew(text: string): boolean {
   return /[֐-׿]/.test(text);
 }
 
+/** The five XML predefined entities. Named entities beyond these do not appear in this API's output. */
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+};
+
 /**
- * DeepL serves free keys and paid keys from different hosts, and answers a
- * key on the wrong host with an auth error. Free keys carry a `:fx` suffix,
- * which is the documented way to tell them apart — so a later upgrade to a
- * paid key is a dashboard change with no code change behind it.
+ * Undo the HTML escaping this API applies to its output.
+ *
+ * `translatedText` comes back with `&#39;`, `&amp;` and friends even when the
+ * request asked for `format: 'text'` — a documented quirk of the v2 API. The
+ * card renders the string as text, so an undecoded entity reaches the screen
+ * literally: a headline would read "Nvidia&#39;s outlook" in Hebrew copy.
+ *
+ * Anything that is not a recognised entity is left exactly as written. A bare
+ * "&" or a "&#" that starts nothing is ordinary text in a headline, and
+ * rewriting it would corrupt a real string in the name of tidying one.
  */
-export function deeplEndpoint(apiKey: string): string {
-  return apiKey.endsWith(':fx')
-    ? 'https://api-free.deepl.com/v2/translate'
-    : 'https://api.deepl.com/v2/translate';
+export function decodeEntities(text: string): string {
+  if (!text.includes('&')) return text;
+  return text.replace(/&(#x[0-9a-fA-F]+|#\d+|[a-zA-Z]+);/g, (whole, body: string) => {
+    if (body[0] !== '#') return NAMED_ENTITIES[body.toLowerCase()] ?? whole;
+    const code = body[1] === 'x' || body[1] === 'X' ? parseInt(body.slice(2), 16) : Number(body.slice(1));
+    // Reject anything outside the Unicode range, and the surrogate block that
+    // String.fromCodePoint would throw on.
+    if (!Number.isFinite(code) || code < 0 || code > 0x10ffff) return whole;
+    if (code >= 0xd800 && code <= 0xdfff) return whole;
+    return String.fromCodePoint(code);
+  });
 }
 
-/** Parse `{ translations: [{ text }] }`, or null if the body is not that shape. */
+/** Parse `{ data: { translations: [{ translatedText }] } }`, or null if the body is not that shape. */
 function readTranslations(body: unknown, expected: number): string[] | null {
   if (typeof body !== 'object' || body === null) return null;
-  const list = (body as { translations?: unknown }).translations;
+  const data = (body as { data?: unknown }).data;
+  if (typeof data !== 'object' || data === null) return null;
+  const list = (data as { translations?: unknown }).translations;
+  // A length that does not match what we sent makes the pairing unknowable —
+  // see the file header. Discard the batch rather than guess at the alignment.
   if (!Array.isArray(list) || list.length !== expected) return null;
   const out: string[] = [];
   for (const item of list) {
     if (typeof item !== 'object' || item === null) return null;
-    const text = (item as { text?: unknown }).text;
+    const text = (item as { translatedText?: unknown }).translatedText;
     // An empty string back is legitimate; a missing or non-string field is not.
     if (typeof text !== 'string') return null;
-    out.push(text);
+    out.push(decodeEntities(text));
   }
   return out;
 }
 
-/** One POST of up to MAX_TEXTS_PER_REQUEST texts. Returns null on any failure. */
+/** One POST of a single chunk. Returns null on any failure. */
 async function translateChunk(
   chunk: string[],
   apiKey: string,
@@ -112,26 +152,26 @@ async function translateChunk(
     console.error('/api/news: translation failed — budget spent before the request');
     return null;
   }
+  const url = `${ENDPOINT}?key=${encodeURIComponent(apiKey)}`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), remainingMs);
   try {
-    const res = await fetchImpl(deeplEndpoint(apiKey), {
+    const res = await fetchImpl(url, {
       method: 'POST',
       signal: controller.signal,
-      headers: {
-        // DeepL's own scheme, not Bearer.
-        Authorization: `DeepL-Auth-Key ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      // source_lang is pinned rather than auto-detected: the feed is English,
-      // and detection on a three-word headline is a coin flip we don't need.
-      body: JSON.stringify({ text: chunk, source_lang: 'EN', target_lang: 'HE' }),
+      headers: { 'Content-Type': 'application/json' },
+      // `source` is pinned rather than auto-detected: the feed is English, and
+      // detection on a three-word headline is a coin flip we don't need.
+      // `format: 'text'` because these are plain strings, not HTML fragments.
+      body: JSON.stringify({ q: chunk, source: 'en', target: 'he', format: 'text' }),
     });
     if (!res.ok) {
-      // 456 is DeepL's "quota exceeded" — an expected end-of-month state on
-      // the free plan, and the reason this whole path degrades rather than
-      // fails. Logged by status only: never the key, never the article text.
-      console.error(`/api/news: translation failed — DeepL returned ${res.status}`);
+      // 403 is the common operational one — quota spent, billing off, API not
+      // enabled, or a key restricted away from this API — and the reason this
+      // whole path degrades rather than fails. Logged by status only: the key
+      // is in the URL, so neither it nor the article text goes anywhere near a
+      // log line.
+      console.error(`/api/news: translation failed — Google returned ${res.status}`);
       return null;
     }
     // Kept inside the timeout, like fetchUpstreamJson: fetch() resolves when
@@ -139,7 +179,7 @@ async function translateChunk(
     const body: unknown = await res.json();
     const translated = readTranslations(body, chunk.length);
     if (translated === null) {
-      console.error('/api/news: translation failed — unexpected DeepL response shape');
+      console.error('/api/news: translation failed — unexpected Google response shape');
       return null;
     }
     return translated;
@@ -149,6 +189,31 @@ async function translateChunk(
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Split texts into requests that respect BOTH bounds — segment count and total
+ * characters. A single string longer than the character budget still goes out
+ * on its own rather than being dropped or cut: the API's own limit is higher
+ * than this budget, so an outsized headline is its own request, not a failure.
+ */
+export function chunkTexts(texts: string[]): string[][] {
+  const chunks: string[][] = [];
+  let current: string[] = [];
+  let chars = 0;
+  for (const text of texts) {
+    const tooMany = current.length >= MAX_TEXTS_PER_REQUEST;
+    const tooLong = current.length > 0 && chars + text.length > MAX_CHARS_PER_REQUEST;
+    if (tooMany || tooLong) {
+      chunks.push(current);
+      current = [];
+      chars = 0;
+    }
+    current.push(text);
+    chars += text.length;
+  }
+  if (current.length > 0) chunks.push(current);
+  return chunks;
 }
 
 /**
@@ -187,22 +252,22 @@ export async function translateToHebrew(
   }
   if (pending.length === 0) return out;
 
-  for (let start = 0; start < pending.length; start += MAX_TEXTS_PER_REQUEST) {
-    const indices = pending.slice(start, start + MAX_TEXTS_PER_REQUEST);
-    // The same string can appear twice in one batch (two feeds carrying one
-    // story). Sending it once keeps the request smaller and the quota lower;
-    // the results are written back to every index that asked for it.
-    const unique = [...new Set(indices.map((i) => texts[i]))];
-    const translated = await translateChunk(unique, apiKey, deadline - Date.now(), fetchImpl);
+  // The same string can appear more than once in a batch (two feeds carrying
+  // one story). It is sent once, and the result is written back to every index
+  // that asked for it — smaller requests, and less of the monthly allowance.
+  const unique = [...new Set(pending.map((i) => texts[i]))];
+  const bySource = new Map<string, string>();
+
+  for (const chunk of chunkTexts(unique)) {
+    const translated = await translateChunk(chunk, apiKey, deadline - Date.now(), fetchImpl);
     if (translated === null) return null;
-    // Written back from this chunk's own results rather than by re-reading the
-    // memo, which is a cache and may have evicted an entry by the time we look.
-    const bySource = new Map<string, string>();
-    for (let u = 0; u < unique.length; u += 1) {
-      bySource.set(unique[u], translated[u]);
-      remember(unique[u], translated[u]);
+    for (let c = 0; c < chunk.length; c += 1) {
+      // Collected here as well as memoised, because the memo is a cache and may
+      // have evicted an entry by the time the write-back below reads it.
+      bySource.set(chunk[c], translated[c]);
+      remember(chunk[c], translated[c]);
     }
-    for (const i of indices) out[i] = bySource.get(texts[i]) ?? texts[i];
   }
+  for (const i of pending) out[i] = bySource.get(texts[i]) ?? texts[i];
   return out;
 }
