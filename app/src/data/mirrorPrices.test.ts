@@ -11,8 +11,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildFile,
-  isQuotaError,
+  fatalKind,
+  isFatalError,
   mapSeries,
+  mergeBars,
   readApiError,
   serialise,
 } from '../../../scripts/mirror-prices.mjs';
@@ -43,15 +45,64 @@ describe('readApiError', () => {
   });
 });
 
-describe('isQuotaError', () => {
+describe('isFatalError', () => {
   // A spent quota must stop the run; an unknown symbol must only skip one
   // ticker. Reading the first as the second would burn the remaining calls on
   // responses that cannot succeed.
   it('separates "stop" from "skip this symbol"', () => {
     expect(
-      isQuotaError('Note: Thank you for using Alpha Vantage! Our standard API rate limit is 25 requests'),
+      isFatalError('Note: Thank you for using Alpha Vantage! Our standard API rate limit is 25 requests'),
     ).toBe(true);
-    expect(isQuotaError('Error Message: Invalid API call')).toBe(false);
+    expect(isFatalError('Error Message: Invalid API call')).toBe(false);
+  });
+
+  // The message that had every scheduled run aborting on its first ticker.
+  // It is still fatal — the next call would hit it identically — but it is a
+  // parameter this key cannot use, not a spent quota, and a run that reports
+  // the wrong one sends whoever reads the log looking for the wrong fix.
+  it('names a premium-parameter refusal as itself, not as a spent quota', () => {
+    const premium =
+      'Information: Thank you for using Alpha Vantage! The outputsize=full parameter value is a premium feature for the TIME_SERIES_DAILY endpoint.';
+    expect(isFatalError(premium)).toBe(true);
+    expect(fatalKind(premium)).toContain('parameter');
+    expect(fatalKind('Note: our standard API rate limit is 25 requests per day')).toContain('quota');
+  });
+});
+
+describe('mergeBars', () => {
+  const bar = (d: string, c: number) => ({ d, o: c, h: c, l: c, c, v: 1 });
+
+  // The reason this exists: the free size reaches back 100 sessions and the
+  // chart's year window wants ~252, so a run that replaced the file could
+  // never draw a year no matter how long the job had been running.
+  it('keeps sessions older than the fetched window', () => {
+    const merged = mergeBars([bar('2026-01-02', 1), bar('2026-01-05', 2)], [bar('2026-01-06', 3)]);
+    expect(merged.map((b) => b.d)).toEqual(['2026-01-02', '2026-01-05', '2026-01-06']);
+  });
+
+  it('lets a restated session overwrite the published one', () => {
+    const merged = mergeBars([bar('2026-01-05', 2)], [bar('2026-01-05', 9)]);
+    expect(merged).toEqual([bar('2026-01-05', 9)]);
+  });
+
+  it('returns oldest-first even when the inputs are not', () => {
+    const merged = mergeBars([bar('2026-01-09', 1)], [bar('2026-01-07', 2), bar('2026-01-08', 3)]);
+    expect(merged.map((b) => b.d)).toEqual(['2026-01-07', '2026-01-08', '2026-01-09']);
+  });
+
+  it('treats a missing previous file as no history rather than throwing', () => {
+    expect(mergeBars(null, [bar('2026-01-05', 1)])).toEqual([bar('2026-01-05', 1)]);
+  });
+
+  // The cap is what keeps a file the browser downloads from growing without
+  // bound as the runs accumulate.
+  it('caps the archive at the retained window, keeping the newest', () => {
+    const previous = Array.from({ length: 400 }, (_, i) =>
+      bar(`2020-01-${String((i % 28) + 1).padStart(2, '0')}`, i),
+    );
+    const merged = mergeBars(previous, [bar('2026-01-05', 1)]);
+    expect(merged.length).toBeLessThanOrEqual(340);
+    expect(merged[merged.length - 1].d).toBe('2026-01-05');
   });
 });
 
@@ -114,6 +165,19 @@ describe('what the publisher writes is what the reader accepts', () => {
       { date: '2026-08-27', open: 232.8, high: 240.8065, low: 231.45, close: 238.79, volume: 5505922 },
     ]);
     // And the stamp the reader ages it by is one the reader can parse.
+    expect(seriesAgeDays(parsed.as_of, new Date('2026-08-28T00:00:00Z'))).toBe(1);
+  });
+
+  // The merge is the path every run after the first takes, so the reader has
+  // to accept its output too — and `as_of` has to follow the newest session
+  // the merge produced, not the newest the fetch happened to carry.
+  it('round-trips a merged file, stamped by its newest session', () => {
+    const older = mapSeries(payload({ '2026-08-20': row('220', '221', '219', '220.5', '1000') }))!;
+    const merged = mergeBars(older, bars!);
+    const parsed = JSON.parse(serialise(buildFile('IBM', merged)));
+    const read = extractBars(parsed);
+    expect(read?.map((b) => b.date)).toEqual(['2026-08-20', '2026-08-26', '2026-08-27']);
+    expect(parsed.as_of).toBe('2026-08-27');
     expect(seriesAgeDays(parsed.as_of, new Date('2026-08-28T00:00:00Z'))).toBe(1);
   });
 

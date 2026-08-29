@@ -18,7 +18,10 @@ declare module '*/mirror-prices.mjs' {
     v: number;
   }
   export function readApiError(body: unknown): string | null;
-  export function isQuotaError(reason: string): boolean;
+  export function isFatalError(reason: string): boolean;
+  export function fatalKind(reason: string): string;
+  export function mergeBars(previous: PublishedBar[] | null, fresh: PublishedBar[]): PublishedBar[];
+  export function readPublishedBars(path: string): PublishedBar[];
   export function mapSeries(body: unknown): PublishedBar[] | null;
   export function buildFile(
     ticker: string,
