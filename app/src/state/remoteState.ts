@@ -75,6 +75,27 @@ export function remoteDiffers(local: Record<string, unknown>, remote: unknown): 
 }
 
 /**
+ * What the foreground re-read should hand to replaceState, or null when the
+ * server has nothing new to say.
+ *
+ * Merged over the device's current slice rather than replacing it. That
+ * difference matters: replaceState fills every key the bag omits from
+ * `initial`, so adopting a bare server bag would reset any persisted key the
+ * row happens not to carry — and a row written by an older client is short,
+ * not empty. Wiping a user's manual portfolios because their stored row
+ * predates that feature is the kind of data loss that is invisible until it
+ * is permanent.
+ *
+ * The wholesale "server wins" of mergeRemote is deliberate and stays as it
+ * is: it runs once, at sign-in, where taking the account's state whole is
+ * the point. This runs on every foregrounding, where it is not.
+ */
+export function adoptRemote(current: Record<string, unknown>, remote: unknown): Partial<AppState> | null {
+  if (!remoteDiffers(current, remote)) return null;
+  return { ...current, ...readPersisted(remote as Record<string, unknown>) } as Partial<AppState>;
+}
+
+/**
  * Trailing debounce with an explicit flush, for the write path: the state
  * changes on every dispatch, and mirroring each one to Supabase would be a
  * request per tap. `flush` exists for pagehide — the last edit before the

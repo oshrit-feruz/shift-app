@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { initial, LEGACY_SEED_WATCHLIST, PERSISTED } from './appState';
-import { debounced, mergeRemote, pickPersisted, remoteDiffers } from './remoteState';
+import { adoptRemote, debounced, mergeRemote, pickPersisted, remoteDiffers } from './remoteState';
 
 describe('pickPersisted', () => {
   it('extracts exactly the PERSISTED keys', () => {
@@ -170,5 +170,38 @@ describe('debounced.pending', () => {
     d.call();
     d.cancel();
     expect(d.pending()).toBe(false);
+  });
+});
+
+describe('adoptRemote — what the foreground re-read applies', () => {
+  it('returns null when the server has nothing new', () => {
+    const current = pickPersisted({ ...initial, watchlist: ['NVDA'] });
+    expect(adoptRemote(current, { watchlist: ['NVDA'] })).toBeNull();
+    expect(adoptRemote(current, null)).toBeNull();
+  });
+
+  it('takes the server value for the keys the row carries', () => {
+    const current = pickPersisted({ ...initial, watchlist: ['NVDA'] });
+    const next = adoptRemote(current, { watchlist: ['NVDA', 'ORCL'] });
+    expect(next?.watchlist).toEqual(['NVDA', 'ORCL']);
+  });
+
+  it('keeps local values for keys an incomplete row does not carry', () => {
+    // The failure this guards: replaceState fills every omitted key from
+    // `initial`, so adopting a bare server bag would wipe the keys a row
+    // written by an older client never had. Losing someone's manual
+    // portfolios because their stored row predates that feature is invisible
+    // until it is permanent.
+    const portfolios = [{ id: 'p1', name: 'Sandbox', startingCash: 1000 }];
+    const current = pickPersisted({ ...initial, watchlist: ['NVDA'], manualPortfolios: portfolios });
+    const next = adoptRemote(current, { watchlist: ['ORCL'] });
+    expect(next?.watchlist).toEqual(['ORCL']);
+    expect(next?.manualPortfolios).toEqual(portfolios);
+  });
+
+  it('still normalises what it adopts', () => {
+    const current = pickPersisted(initial);
+    expect(adoptRemote(current, { watchlist: [...LEGACY_SEED_WATCHLIST] })).toBeNull();
+    expect(adoptRemote(current, { watchlist: [' orcl ', 'ORCL'] })?.watchlist).toEqual(['ORCL']);
   });
 });
