@@ -5,6 +5,7 @@ import { Tag } from '../../components/Tag';
 import { useT, type TFn } from '../../i18n/useT';
 import { sentimentTag } from './sentimentTag';
 import { useTheme } from '../../theme/ThemeProvider';
+import { useDispatch } from '../../state/appState';
 import { useLoadable } from '../../data/useLoadable';
 import { fetchMarketNews, fetchStockNews, publishedAtMs } from '../../data/stockNews';
 import { isoDate } from '../../lib/format';
@@ -185,6 +186,7 @@ function ArticleCard({
   openLabel: string;
   t: TFn;
 }) {
+  const dispatch = useDispatch();
   // Only the general feed needs the chip — on the watchlist the user already
   // knows which stocks these are, and a chip per card would be noise.
   const ticker = showTicker ? article.symbols[0] : undefined;
@@ -199,8 +201,20 @@ function ArticleCard({
         {/* Absent for a story about a sector, an index or a rate decision —
             most market news is not about one company, and inventing a ticker
             to fill the slot would be a fabrication. */}
+        {/* The chip is the way into the stock: tapping it opens that stock's
+            page, the same `openStock` every other list in the app dispatches.
+            It is deliberately the CHIP and not the whole card — the headline's
+            job is to reach the full article at its source, since the excerpt
+            is all this app is allowed to hold, and a card that did both would
+            have to pick one on a tap. */}
         {ticker && (
-          <Tag variant="accent" fontSize={15}>
+          <Tag
+            variant="accent"
+            fontSize={15}
+            onClick={() => dispatch({ type: 'openStock', ticker })}
+            // The visible text is four letters; this says where they lead.
+            label={t('news.viewTicker', { ticker })}
+          >
             {ticker}
           </Tag>
         )}
@@ -237,14 +251,39 @@ function ArticleCard({
           {article.summary}
         </span>
       )}
-      <a
-        href={article.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        style={{ fontSize: 15.5, color: 'var(--color-accent-200)', textDecoration: 'none' }}
-      >
-        {openLabel} ↗
-      </a>
+      {/* Two destinations, said plainly rather than left to a guess about what
+          a tap does: the article lives at its source, the stock lives in this
+          app. The chip above opens the same stock page; this is the version
+          that reads as an action. */}
+      <span style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <a
+          href={article.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ fontSize: 15.5, color: 'var(--color-accent-200)', textDecoration: 'none' }}
+        >
+          {openLabel} ↗
+        </a>
+        {ticker && (
+          <button
+            type="button"
+            onClick={() => dispatch({ type: 'openStock', ticker })}
+            style={{
+              // A link-shaped button: same affordance as the anchor beside it,
+              // but it navigates inside the app rather than leaving it.
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              fontFamily: 'inherit',
+              fontSize: 15.5,
+              color: 'var(--color-accent-200)',
+              cursor: 'pointer',
+            }}
+          >
+            {t('news.viewTicker', { ticker })}
+          </button>
+        )}
+      </span>
     </Card>
   );
 }
