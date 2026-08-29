@@ -1,4 +1,5 @@
 import { demoService } from '../data/demoAdapter';
+import { DEMO_FLAGS } from '../data/demoFlags';
 import { ok, unavailable, type Loadable } from '../data/types';
 import type { Holding, PortfolioSummary } from '../data/types';
 import type { ManualPortfolio, ManualTransaction } from '../state/appState';
@@ -112,20 +113,31 @@ export interface TickerPosition {
  * rather than silently treating that portfolio as empty — under the global
  * demo failure flag every call fails together, and reporting "no position"
  * from a failure would misrepresent "we don't know" as "you hold none".
+ *
+ * The demo portfolios and their holdings are read only while sample data is
+ * on. Without that check, gating the Portfolio tab would still leave the same
+ * invented positions ("Blink · 14 sh · avg $131.36") on every stock page —
+ * the same fabrication, one screen over. The flag is read here rather than
+ * passed in because this is the data layer, the same way priceHistory.ts and
+ * earnings.ts read it.
  */
 export async function fetchYourPositions(
   ticker: string,
   manualTransactions: Record<string, ManualTransaction[]>,
   manualPortfolios: ManualPortfolio[] = [],
 ): Promise<Loadable<TickerPosition[]>> {
-  const pfs = await demoService.portfolios();
+  const pfs = DEMO_FLAGS.demoData ? await demoService.portfolios() : ok<PortfolioSummary[]>([]);
   if (pfs.status !== 'ok') return pfs;
 
   // Built from the same list the Portfolio tab renders, so the index recorded
   // below addresses the same row the tab would select.
   const all = portfolioList(pfs.data, manualPortfolios);
   const eligible = all.filter((pf) => pf.kind !== 'aggregate');
-  const settled = await Promise.all(eligible.map((pf) => demoService.holdings(pf.id)));
+  const settled = await Promise.all(
+    eligible.map((pf) =>
+      DEMO_FLAGS.demoData ? demoService.holdings(pf.id) : Promise.resolve(ok<Holding[]>([])),
+    ),
+  );
   if (settled.some((r) => r.status !== 'ok')) return unavailable();
 
   const results: TickerPosition[] = [];

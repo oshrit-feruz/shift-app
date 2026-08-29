@@ -9,12 +9,15 @@ import { Chip, ChipRail } from '../components/Chip';
 import { ListRow, RowValues } from '../components/ListRow';
 import { LogoTile } from '../components/TickerTile';
 import { DataState, EmptyState } from '../components/DataState';
+import { DemoOnly } from '../components/DemoOnly';
 import { Skeleton, SkeletonCard, SkeletonList } from '../components/Skeleton';
 import { ALLOC_COLORS } from '../components/AllocationBar';
+import { useDemoMode } from '../lib/DemoModeProvider';
 import { useAppState, useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { demoService } from '../data/demoAdapter';
+import { ok, type Holding } from '../data/types';
 import { useLoadable } from '../data/useLoadable';
 import { money, pct, signalColor } from '../lib/format';
 import { TxSheet } from '../sheets/TxSheet';
@@ -36,7 +39,10 @@ export function PortfolioScreen(_: ScreenProps) {
   const { mode, language } = useTheme();
   const t = useT();
   const beg = mode === 'beginner';
-  const portfolios = useLoadable(() => demoService.portfolios(), []);
+  // In the deps so flipping the switch re-reads, and gating the fetch itself:
+  // every account this screen used to list was a demo account.
+  const demo = useDemoMode();
+  const portfolios = useLoadable(() => demoService.portfolios(), [demo]);
   const [txOpen, setTxOpen] = useState(false);
   const [newPfOpen, setNewPfOpen] = useState(false);
 
@@ -66,15 +72,39 @@ export function PortfolioScreen(_: ScreenProps) {
         }
       >
         {(pfs) => {
-          const list = portfolioList(pfs, s.manualPortfolios);
+          const list = portfolioList(demo ? pfs : [], s.manualPortfolios);
+
+          // Real, not hypothetical: with sample data off, a reader who has not
+          // created a portfolio of their own has none at all. Guarded before
+          // the index below, which would otherwise read list[-1] and throw on
+          // the first property access.
+          if (list.length === 0) {
+            return (
+              <>
+                <DemoOnly feature="connScreen.linked">
+                  <Button
+                    variant="secondary"
+                    alignSelf="flex-start"
+                    fontSize={16}
+                    minHeight={36}
+                    onClick={() => setNewPfOpen(true)}
+                  >
+                    ＋ {t('pf.portfolio')}
+                  </Button>
+                </DemoOnly>
+                <NewPortfolioSheet open={newPfOpen} onClose={() => setNewPfOpen(false)} />
+              </>
+            );
+          }
+
           const pf = list[Math.min(s.pfIndex, list.length - 1)];
           const isAgg = pf.kind === 'aggregate';
           const isManual = pf.kind === 'manual';
           const linked = list.filter((x) => x.kind === 'linked');
           const inAgg = linked.filter((x) => !s.aggExcluded[x.id]);
           const aggTotal = inAgg.reduce((a, x) => a + x.total, 0);
-          const series = demoService.series(`pf-${pf.id}`, 70, pf.dayPct >= 0 ? 0.5 : 0.16, 2.4);
-          const bench = demoService.series('bench-spy', 70, 0.22, 1.4);
+          const series = demo ? demoService.series(`pf-${pf.id}`, 70, pf.dayPct >= 0 ? 0.5 : 0.16, 2.4) : [];
+          const bench = demo ? demoService.series('bench-spy', 70, 0.22, 1.4) : [];
           const holdings = <Holdings pfId={pf.id} />;
 
           return (
@@ -246,41 +276,53 @@ export function PortfolioScreen(_: ScreenProps) {
                     <Num>{pct(pf.dayPct)}</Num> {t('pf.today')}
                   </span>
                 </div>
-                <AreaChart values={series} height={110} pad={8} benchmark={bench} />
-                <div className="text-muted" style={{ display: 'flex', gap: 14, fontSize: 15.5 }}>
-                  <span>
-                    <span style={{ color: 'var(--acc-lite)' }}>—</span>{' '}
-                    {isAgg ? t('pf.allAccounts') : pf.name}
-                  </span>
-                  <span>{t('pf.benchmark')}</span>
-                </div>
-              </Card>
-
-              <Card padding={14} gap={10}>
-                <CardTitle>{t('pf.allocation')}</CardTitle>
-                <DonutChart
-                  slices={[
-                    { label: 'NVDA', pct: 28, colorVar: ALLOC_COLORS[0] },
-                    { label: 'AMD', pct: 19, colorVar: ALLOC_COLORS[1] },
-                    { label: 'MSFT', pct: 15, colorVar: ALLOC_COLORS[2] },
-                    { label: 'AAPL', pct: 13, colorVar: 'var(--acc-pale)' },
-                    { label: 'LLY', pct: 11, colorVar: 'var(--muted)' },
-                    { label: language === 'he' ? 'מזומן' : 'Cash', pct: 14, colorVar: 'var(--line)' },
-                  ]}
-                />
-                {beg && (
-                  <p className="text-muted" style={{ fontSize: 16, margin: 0 }}>
-                    {t('pf.concentration')}
-                  </p>
+                {demo ? (
+                  <>
+                    <AreaChart values={series} height={110} pad={8} benchmark={bench} />
+                    <div className="text-muted" style={{ display: 'flex', gap: 14, fontSize: 15.5 }}>
+                      <span>
+                        <span style={{ color: 'var(--acc-lite)' }}>—</span>{' '}
+                        {isAgg ? t('pf.allAccounts') : pf.name}
+                      </span>
+                      <span>{t('pf.benchmark')}</span>
+                    </div>
+                  </>
+                ) : (
+                  // The line and its benchmark are both seeded walks; a manual
+                  // portfolio has no priced history to draw instead.
+                  <DemoOnly feature="pf.performance" card={false} />
                 )}
               </Card>
+
+              {demo ? (
+                <Card padding={14} gap={10}>
+                  <CardTitle>{t('pf.allocation')}</CardTitle>
+                  <DonutChart
+                    slices={[
+                      { label: 'NVDA', pct: 28, colorVar: ALLOC_COLORS[0] },
+                      { label: 'AMD', pct: 19, colorVar: ALLOC_COLORS[1] },
+                      { label: 'MSFT', pct: 15, colorVar: ALLOC_COLORS[2] },
+                      { label: 'AAPL', pct: 13, colorVar: 'var(--acc-pale)' },
+                      { label: 'LLY', pct: 11, colorVar: 'var(--muted)' },
+                      { label: language === 'he' ? 'מזומן' : 'Cash', pct: 14, colorVar: 'var(--line)' },
+                    ]}
+                  />
+                  {beg && (
+                    <p className="text-muted" style={{ fontSize: 16, margin: 0 }}>
+                      {t('pf.concentration')}
+                    </p>
+                  )}
+                </Card>
+              ) : (
+                <DemoOnly feature="pf.allocation" />
+              )}
 
               <Card padding="13px 13px 4px" gap={4}>
                 <CardTitle>{t('pf.holdings')}</CardTitle>
                 {holdings}
               </Card>
 
-              <LongTermSavings />
+              {demo ? <LongTermSavings /> : <DemoOnly feature="pf.longTerm" />}
               <TxSheet open={txOpen} onClose={() => setTxOpen(false)} pfId={pf.id} pfName={pf.name} />
               <NewPortfolioSheet open={newPfOpen} onClose={() => setNewPfOpen(false)} />
             </>
@@ -299,7 +341,14 @@ export function PortfolioScreen(_: ScreenProps) {
 function Holdings({ pfId }: { pfId: string }) {
   const s = useAppState();
   const dispatch = useDispatch();
-  const holdings = useLoadable(() => demoService.holdings(pfId), [pfId]);
+  // No message here: the card keeps its title and its real half. With sample
+  // data off the service rows are simply empty, so what remains is exactly the
+  // transactions the user logged — and EmptyState when there are none.
+  const demo = useDemoMode();
+  const holdings = useLoadable(
+    () => (demo ? demoService.holdings(pfId) : Promise.resolve(ok<Holding[]>([]))),
+    [pfId, demo],
+  );
   const transactions = s.manualTransactions[pfId] ?? [];
 
   return (

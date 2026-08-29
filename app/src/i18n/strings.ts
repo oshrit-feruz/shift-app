@@ -25,7 +25,9 @@ export const STRINGS = {
   'title.homeAnon': p('Good morning', 'בוקר טוב'),
   'kicker.home': p('Overview', 'סקירה'),
   'title.pf': p('Portfolios', 'תיקים'),
-  'kicker.pf': p('Four accounts', 'ארבעה חשבונות'),
+  // Count-free: with sample data off there may be no accounts at all, and a
+  // header that names a number the screen does not show is its own small lie.
+  'kicker.pf': p('Your accounts', 'החשבונות שלך'),
   'title.watch': p('Watchlist', 'ווטצ׳ליסט'),
   'kicker.watch': p('Alerts', 'התראות'),
   'title.movers': p('Market movers', 'מובילי שוק'),
@@ -420,9 +422,13 @@ export const STRINGS = {
   // intraday move, so the percentage beside every price is still invented.
   'more.demoData': p('Sample data', 'נתוני דמו'),
   'more.demoDataHelp': p(
-    'Draws charts from generated price action and fills the earnings screens with illustrative figures, so nothing is ever empty. Turn it off to use real market data.',
-    'מצייר את הגרפים מנתונים מומצאים וממלא את מסכי הדוחות בנתוני הדגמה, כך ששום דבר לא נשאר ריק. כבי אותו כדי להשתמש בנתוני שוק אמיתיים.',
+    'Fills the app with sample figures: generated price charts, an illustrative earnings week, and the demo portfolio, market movers, analyst ratings, connected accounts and notifications. With it off, each of those says so in place and everything else uses real market data.',
+    'ממלא את האפליקציה בנתוני הדגמה: גרפים מומצאים, שבוע דוחות לדוגמה, וגם תיק הדמו, מובילי השוק, דירוגי האנליסטים, החשבונות המחוברים וההתראות. כשהוא כבוי, כל אחד מהם אומר זאת במקומו, וכל השאר משתמש בנתוני שוק אמיתיים.',
   ),
+  // The stand-in for a whole fabricated feature while sample data is off.
+  // Verbless in Hebrew on purpose — see the note in components/DemoOnly.tsx
+  // about agreement across the feature names.
+  'demo.only': p('{feature} is only available in demo', '{feature} — רק בדמו'),
   'earn.scheduledOnly': p(
     'The week ahead: reports still to come. Results already published appear on each stock’s own page.',
     'השבוע הקרוב: דוחות שעוד צפויים. תוצאות שכבר פורסמו מופיעות בדף של כל מניה.',
@@ -458,6 +464,7 @@ export const STRINGS = {
   'pf.portfolio': p('Portfolio', 'תיק'),
   'pf.totalValue': p('· total value', '· שווי כולל'),
   'pf.today': p('today', 'היום'),
+  'pf.performance': p('Performance', 'ביצועים'),
   'pf.allocation': p('Allocation', 'חלוקה'),
   'pf.holdings': p('Holdings', 'החזקות'),
   'pf.byAccount': p('By account', 'לפי חשבון'),
@@ -718,9 +725,11 @@ export const STRINGS = {
   'connScreen.add': p('Connect an institution', 'לחבר מוסד'),
   'connScreen.live': p('Live', 'מחובר'),
   'connScreen.theo': p('Theoretical portfolios', 'תיקים תיאורטיים'),
+  // Names no portfolio: Sandbox is a demo account, so with sample data off it
+  // is not there to be described.
   'connScreen.theoHelp': p(
-    'Sandbox has no broker behind it — you record its transactions yourself. Useful for testing an idea before it costs anything.',
-    'ל-Sandbox אין ברוקר מאחוריו — את רושמת בו את העסקאות בעצמך. שימושי לבדוק רעיון לפני שהוא עולה כסף.',
+    'A theoretical portfolio has no broker behind it — you record its transactions yourself. Useful for testing an idea before it costs anything.',
+    'לתיק תיאורטי אין ברוקר מאחוריו — את רושמת בו את העסקאות בעצמך. שימושי לבדוק רעיון לפני שהוא עולה כסף.',
   ),
   'connScreen.newTheo': p('New theoretical portfolio', 'תיק תיאורטי חדש'),
   'connScreen.freq': p('Frequency', 'תדירות'),

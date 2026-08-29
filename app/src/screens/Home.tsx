@@ -12,6 +12,7 @@ import { TickerTile } from '../components/TickerTile';
 import { DataState, EmptyState } from '../components/DataState';
 import { Skeleton, SkeletonChart, SkeletonLine, SkeletonList, SkeletonText } from '../components/Skeleton';
 import { ProgressTrack } from '../components/Progress';
+import { DemoOnly } from '../components/DemoOnly';
 import { useAppState, useDispatch, setupProgress } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
@@ -29,107 +30,16 @@ export function HomeScreen({ openSearch }: ScreenProps) {
   const { mode, language } = useTheme();
   const t = useT();
   const beg = mode === 'beginner';
-  const symbols = useLoadable(() => demoService.symbols(), []);
-  const portfolios = useLoadable(() => demoService.portfolios(), []);
   // The preview shows the user's own list — the same rows the watchlist tab
   // does, capped. It used to show the top of the sample symbol table, which
   // looked identical whether or not the user had followed anything.
   const watched = useLoadable(() => demoService.watchRows(s.watchlist), [s.watchlist.join(',')]);
   const setup = setupProgress(s);
-  // Deterministic for a given key, so compute the walk once, not per render.
-  const pfSeries = useMemo(() => demoService.series('home-pf', 60, 0.42, 2.2), []);
+  const demo = useDemoMode();
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {beg && (
-        <DataState
-          state={portfolios.state}
-          onRetry={portfolios.retry}
-          skeleton={
-            <Card padding={15} gap={0}>
-              {/* Mirrors the loaded hero: 18px label, 42px/1.05 total,
-                  15px change line, chart block, two 14px blurb lines. */}
-              <SkeletonLine width={96} fontSize={19} bar={11} />
-              <SkeletonLine width="66%" fontSize={43} lineHeight={1.05} bar={34} />
-              <SkeletonLine width={172} fontSize={18} bar={13} />
-              {/* 83, not the chart's 76: the AreaChart's inline SVG adds a
-                  descender line box to its wrapper. Measured, not assumed. */}
-              <SkeletonChart height={83} style={{ marginTop: 10 }} />
-              <div style={{ marginTop: 10 }}>
-                <SkeletonText lines={2} fontSize={17} />
-              </div>
-            </Card>
-          }
-        >
-          {(pfs) => {
-            const main = pfs.find((x) => x.id === 'blink');
-            if (!main) {
-              return (
-                <Card padding={18} gap={8} style={{ textAlign: 'center', alignItems: 'center' }}>
-                  <span style={{ fontFamily: 'var(--font-heading)', fontSize: 19 }}>
-                    {t('home.noPfTitle')}
-                  </span>
-                  <p className="text-muted" style={{ fontSize: 17, margin: 0, lineHeight: 1.5 }}>
-                    {t('home.noPfHelp')}
-                  </p>
-                  <Button
-                    onClick={() =>
-                      dispatch({
-                        type: 'advGoto',
-                        screen: 'advConnect',
-                        solo: true,
-                      })
-                    }
-                    style={{ marginTop: 6 }}
-                  >
-                    {t('rec.chooseBroker')}
-                  </Button>
-                </Card>
-              );
-            }
-            return (
-              <Card padding={15} gap={0}>
-                <div style={{ fontSize: 19, opacity: 0.75, fontWeight: 600 }}>{t('home.pfToday')}</div>
-                <div
-                  style={{
-                    fontFamily: 'var(--font-heading)',
-                    fontSize: 43,
-                    lineHeight: 1.05,
-                    fontWeight: 700,
-                  }}
-                >
-                  <Num>{money(main.total)}</Num>
-                </div>
-                <div
-                  style={{
-                    color: signalColor(main.dayPct),
-                    fontSize: 18,
-                    fontWeight: 600,
-                  }}
-                >
-                  <Num
-                    weight={600}
-                  >{`${main.dayPct >= 0 ? '+' : '−'}${money(Math.abs((main.total * main.dayPct) / 100))} · ${pct(main.dayPct)}`}</Num>
-                </div>
-                <div style={{ marginTop: 10 }}>
-                  <AreaChart values={pfSeries} height={76} />
-                </div>
-                <p
-                  style={{
-                    fontSize: 17,
-                    lineHeight: 1.5,
-                    margin: '10px 0 0',
-                    opacity: 0.85,
-                    fontWeight: 500,
-                  }}
-                >
-                  {t('home.pfBlurb')}
-                </p>
-              </Card>
-            );
-          }}
-        </DataState>
-      )}
+      {beg && (demo ? <HeroPortfolio /> : <DemoOnly feature="home.pfToday" />)}
 
       {setup.showBanner && (
         <Card
@@ -269,30 +179,7 @@ export function HomeScreen({ openSearch }: ScreenProps) {
         </Card>
       )}
 
-      {!beg && (
-        <MetricStrip
-          metrics={[
-            { label: language === 'he' ? 'שווי' : 'Value', value: '$48,214' },
-            {
-              label: language === 'he' ? 'יומי' : 'Day',
-              value: '+0.86%',
-              color: 'var(--up)',
-            },
-            {
-              label: language === 'he' ? 'רווח פתוח' : 'Open P/L',
-              value: '+$11.5k',
-              color: 'var(--up)',
-            },
-            { label: 'Beta', value: '1.34' },
-            { label: language === 'he' ? 'מזומן' : 'Cash', value: '14%' },
-            {
-              label: language === 'he' ? 'סיכון' : 'Risk',
-              value: language === 'he' ? 'גבוה' : 'High',
-              color: 'var(--color-accent-300)',
-            },
-          ]}
-        />
-      )}
+      {!beg && (demo ? <MetricStripDemo /> : <DemoOnly feature="home.pfToday" />)}
 
       {/* Watchlist preview */}
       <Card padding="13px 13px 4px" gap={6}>
@@ -342,83 +229,7 @@ export function HomeScreen({ openSearch }: ScreenProps) {
         </DataState>
       </Card>
 
-      {/* Movers preview */}
-      <Card padding={13} gap={8}>
-        <CardTitle>{beg ? t('home.moversBeg') : t('home.moversAdv')}</CardTitle>
-        {beg && (
-          <p className="text-muted" style={{ fontSize: 17, margin: 0 }}>
-            {t('home.moversHelp')}
-          </p>
-        )}
-        <DataState
-          state={symbols.state}
-          onRetry={symbols.retry}
-          skeleton={
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {Array.from({ length: beg ? 3 : 5 }, (_, i) => (
-                <Skeleton key={i} height={44} radius="var(--radius-md)" />
-              ))}
-            </div>
-          }
-        >
-          {(syms) => (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {syms
-                .slice()
-                .sort((a, b) => Math.abs(b.demo.changePct) - Math.abs(a.demo.changePct))
-                .slice(0, beg ? 3 : 5)
-                .map((x) => (
-                  <button
-                    key={x.ticker}
-                    type="button"
-                    onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 9,
-                      minHeight: 44,
-                      padding: '8px 11px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--color-divider)',
-                      background: 'transparent',
-                      color: 'inherit',
-                      font: 'inherit',
-                      cursor: 'pointer',
-                      textAlign: 'start',
-                    }}
-                  >
-                    <Num size={17} weight={600} style={{ width: 48 }}>
-                      {x.ticker}
-                    </Num>
-                    <span
-                      style={{
-                        flex: 1,
-                        fontSize: 18,
-                        opacity: 0.8,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {beg ? x.why[language] : `${moneyOrDash(x.quote?.price)} · vol ${x.demo.volume}`}
-                    </span>
-                    <Num size={18} style={{ color: signalColor(x.demo.changePct) }}>
-                      {pct(x.demo.changePct)}
-                    </Num>
-                  </button>
-                ))}
-            </div>
-          )}
-        </DataState>
-        <Button
-          variant="ghost"
-          fontSize={16}
-          alignSelf="flex-start"
-          onClick={() => dispatch({ type: 'go', screen: 'movers' })}
-        >
-          {t('home.allMovers')}
-        </Button>
-      </Card>
+      {demo ? <MoversPreview beg={beg} /> : <DemoOnly feature="title.movers" />}
 
       {/* Earnings ahead — the same live source as the calendar tab.
           This card used to render a hard-coded list of three companies with
@@ -565,4 +376,233 @@ function monthLabel(iso: string, language: 'en' | 'he'): string {
     month: 'short',
     timeZone: 'UTC',
   });
+}
+
+/**
+ * The beginner hero: total, day change, value line and the blurb under it.
+ * Every figure is invented — the total is the demo Blink account, the line a
+ * seeded walk — so it sits behind the switch, in its own component so the
+ * fetch does not run at all when the switch is off.
+ */
+function HeroPortfolio() {
+  const dispatch = useDispatch();
+  const t = useT();
+  const portfolios = useLoadable(() => demoService.portfolios(), []);
+  // Deterministic for a given key, so compute the walk once, not per render.
+  const pfSeries = useMemo(() => demoService.series('home-pf', 60, 0.42, 2.2), []);
+
+  return (
+    <>
+      <DataState
+        state={portfolios.state}
+        onRetry={portfolios.retry}
+        skeleton={
+          <Card padding={15} gap={0}>
+            {/* Mirrors the loaded hero: 18px label, 42px/1.05 total,
+                  15px change line, chart block, two 14px blurb lines. */}
+            <SkeletonLine width={96} fontSize={19} bar={11} />
+            <SkeletonLine width="66%" fontSize={43} lineHeight={1.05} bar={34} />
+            <SkeletonLine width={172} fontSize={18} bar={13} />
+            {/* 83, not the chart's 76: the AreaChart's inline SVG adds a
+                  descender line box to its wrapper. Measured, not assumed. */}
+            <SkeletonChart height={83} style={{ marginTop: 10 }} />
+            <div style={{ marginTop: 10 }}>
+              <SkeletonText lines={2} fontSize={17} />
+            </div>
+          </Card>
+        }
+      >
+        {(pfs) => {
+          const main = pfs.find((x) => x.id === 'blink');
+          if (!main) {
+            return (
+              <Card padding={18} gap={8} style={{ textAlign: 'center', alignItems: 'center' }}>
+                <span style={{ fontFamily: 'var(--font-heading)', fontSize: 19 }}>{t('home.noPfTitle')}</span>
+                <p className="text-muted" style={{ fontSize: 17, margin: 0, lineHeight: 1.5 }}>
+                  {t('home.noPfHelp')}
+                </p>
+                <Button
+                  onClick={() =>
+                    dispatch({
+                      type: 'advGoto',
+                      screen: 'advConnect',
+                      solo: true,
+                    })
+                  }
+                  style={{ marginTop: 6 }}
+                >
+                  {t('rec.chooseBroker')}
+                </Button>
+              </Card>
+            );
+          }
+          return (
+            <Card padding={15} gap={0}>
+              <div style={{ fontSize: 19, opacity: 0.75, fontWeight: 600 }}>{t('home.pfToday')}</div>
+              <div
+                style={{
+                  fontFamily: 'var(--font-heading)',
+                  fontSize: 43,
+                  lineHeight: 1.05,
+                  fontWeight: 700,
+                }}
+              >
+                <Num>{money(main.total)}</Num>
+              </div>
+              <div
+                style={{
+                  color: signalColor(main.dayPct),
+                  fontSize: 18,
+                  fontWeight: 600,
+                }}
+              >
+                <Num
+                  weight={600}
+                >{`${main.dayPct >= 0 ? '+' : '−'}${money(Math.abs((main.total * main.dayPct) / 100))} · ${pct(main.dayPct)}`}</Num>
+              </div>
+              <div style={{ marginTop: 10 }}>
+                <AreaChart values={pfSeries} height={76} />
+              </div>
+              <p
+                style={{
+                  fontSize: 17,
+                  lineHeight: 1.5,
+                  margin: '10px 0 0',
+                  opacity: 0.85,
+                  fontWeight: 500,
+                }}
+              >
+                {t('home.pfBlurb')}
+              </p>
+            </Card>
+          );
+        }}
+      </DataState>
+    </>
+  );
+}
+
+/** The advanced-mode counterpart of the hero — six hard-coded figures. */
+function MetricStripDemo() {
+  const { language } = useTheme();
+
+  return (
+    <>
+      <MetricStrip
+        metrics={[
+          { label: language === 'he' ? 'שווי' : 'Value', value: '$48,214' },
+          {
+            label: language === 'he' ? 'יומי' : 'Day',
+            value: '+0.86%',
+            color: 'var(--up)',
+          },
+          {
+            label: language === 'he' ? 'רווח פתוח' : 'Open P/L',
+            value: '+$11.5k',
+            color: 'var(--up)',
+          },
+          { label: 'Beta', value: '1.34' },
+          { label: language === 'he' ? 'מזומן' : 'Cash', value: '14%' },
+          {
+            label: language === 'he' ? 'סיכון' : 'Risk',
+            value: language === 'he' ? 'גבוה' : 'High',
+            color: 'var(--color-accent-300)',
+          },
+        ]}
+      />
+    </>
+  );
+}
+
+/**
+ * The movers preview. Ordered and populated by `demo.changePct` and
+ * `demo.volume` — the same fabricated ranking the Movers screen shows.
+ */
+function MoversPreview({ beg }: { beg: boolean }) {
+  const dispatch = useDispatch();
+  const { language } = useTheme();
+  const t = useT();
+  const symbols = useLoadable(() => demoService.symbols(), []);
+
+  return (
+    <>
+      {/* Movers preview */}
+      <Card padding={13} gap={8}>
+        <CardTitle>{beg ? t('home.moversBeg') : t('home.moversAdv')}</CardTitle>
+        {beg && (
+          <p className="text-muted" style={{ fontSize: 17, margin: 0 }}>
+            {t('home.moversHelp')}
+          </p>
+        )}
+        <DataState
+          state={symbols.state}
+          onRetry={symbols.retry}
+          skeleton={
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {Array.from({ length: beg ? 3 : 5 }, (_, i) => (
+                <Skeleton key={i} height={44} radius="var(--radius-md)" />
+              ))}
+            </div>
+          }
+        >
+          {(syms) => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {syms
+                .slice()
+                .sort((a, b) => Math.abs(b.demo.changePct) - Math.abs(a.demo.changePct))
+                .slice(0, beg ? 3 : 5)
+                .map((x) => (
+                  <button
+                    key={x.ticker}
+                    type="button"
+                    onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 9,
+                      minHeight: 44,
+                      padding: '8px 11px',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--color-divider)',
+                      background: 'transparent',
+                      color: 'inherit',
+                      font: 'inherit',
+                      cursor: 'pointer',
+                      textAlign: 'start',
+                    }}
+                  >
+                    <Num size={17} weight={600} style={{ width: 48 }}>
+                      {x.ticker}
+                    </Num>
+                    <span
+                      style={{
+                        flex: 1,
+                        fontSize: 18,
+                        opacity: 0.8,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {beg ? x.why[language] : `${moneyOrDash(x.quote?.price)} · vol ${x.demo.volume}`}
+                    </span>
+                    <Num size={18} style={{ color: signalColor(x.demo.changePct) }}>
+                      {pct(x.demo.changePct)}
+                    </Num>
+                  </button>
+                ))}
+            </div>
+          )}
+        </DataState>
+        <Button
+          variant="ghost"
+          fontSize={16}
+          alignSelf="flex-start"
+          onClick={() => dispatch({ type: 'go', screen: 'movers' })}
+        >
+          {t('home.allMovers')}
+        </Button>
+      </Card>
+    </>
+  );
 }

@@ -8,6 +8,8 @@ import { InstitutionRows } from './advisory/InstitutionRows';
 import { NewPortfolioSheet } from '../sheets/NewPortfolioSheet';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
+import { DemoOnly } from '../components/DemoOnly';
+import { useDemoMode } from '../lib/DemoModeProvider';
 import type { ScreenProps } from '../App';
 
 const LINKED = [
@@ -38,67 +40,74 @@ export function ConnectionsScreen(_: ScreenProps) {
   const { language } = useTheme();
   const t = useT();
   const [newPfOpen, setNewPfOpen] = useState(false);
+  const demo = useDemoMode();
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-      <Card padding={13} gap={5}>
-        <CardTitle>{t('connScreen.linked')}</CardTitle>
-        <p className="text-muted" style={{ fontSize: 15.5, margin: 0 }}>
-          {t('connScreen.linkedHelp')}
-        </p>
-      </Card>
+      {demo ? (
+        <>
+          <Card padding={13} gap={5}>
+            <CardTitle>{t('connScreen.linked')}</CardTitle>
+            <p className="text-muted" style={{ fontSize: 15.5, margin: 0 }}>
+              {t('connScreen.linkedHelp')}
+            </p>
+          </Card>
 
-      <Card padding="4px 0" gap={0}>
-        {LINKED.map((c, i) => (
-          <div
-            key={i}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '11px 13px',
-              borderTop: '1px solid var(--color-divider)',
-            }}
-          >
-            <LogoTile src={c.logo} />
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontSize: 17 }}>
-                {c.broker}{' '}
-                <span className="text-muted" style={{ fontSize: 16 }}>
-                  <Num>{c.acct}</Num>
-                </span>
-              </span>
-              <span
-                className="text-muted"
+          <Card padding="4px 0" gap={0}>
+            {LINKED.map((c, i) => (
+              <div
+                key={i}
                 style={{
-                  display: 'block',
-                  fontSize: 15.5,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '11px 13px',
+                  borderTop: '1px solid var(--color-divider)',
                 }}
               >
-                {c.detail[language]}
-              </span>
-            </span>
-            <span
-              style={{
-                textAlign: 'end',
-                whiteSpace: 'nowrap',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 3,
-                alignItems: 'flex-end',
-              }}
-            >
-              <Num size={17}>{c.value}</Num>
-              <Tag variant="accent" fontSize={14}>
-                {t('connScreen.live')}
-              </Tag>
-            </span>
-          </div>
-        ))}
-      </Card>
+                <LogoTile src={c.logo} />
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: 'block', fontSize: 17 }}>
+                    {c.broker}{' '}
+                    <span className="text-muted" style={{ fontSize: 16 }}>
+                      <Num>{c.acct}</Num>
+                    </span>
+                  </span>
+                  <span
+                    className="text-muted"
+                    style={{
+                      display: 'block',
+                      fontSize: 15.5,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {c.detail[language]}
+                  </span>
+                </span>
+                <span
+                  style={{
+                    textAlign: 'end',
+                    whiteSpace: 'nowrap',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 3,
+                    alignItems: 'flex-end',
+                  }}
+                >
+                  <Num size={17}>{c.value}</Num>
+                  <Tag variant="accent" fontSize={14}>
+                    {t('connScreen.live')}
+                  </Tag>
+                </span>
+              </div>
+            ))}
+          </Card>
+        </>
+      ) : (
+        <DemoOnly feature="connScreen.linked" />
+      )}
 
       <Card padding="4px 0" gap={0}>
         <CardTitle>
