@@ -26,12 +26,22 @@
  *   has no US tape for it), not a failure, and the chart says so plainly.
  * - Any other failure — network, timeout, non-2xx, unparseable body, a shape
  *   we do not recognise, a series too stale to trust — is 'unavailable'.
- *   There is no demo fallback: a seeded random walk drawn where real price
+ *   There is no demo FALLBACK: a seeded random walk drawn where real price
  *   action should be is the exact lie this file exists to remove.
  * - Nothing is interpolated. A gap in the sessions is drawn as the gap it is.
+ *
+ * THE ONE EXCEPTION, and why it is not a hole in the above: demo mode. When
+ * the reader turns on "sample data" in the More tab, this returns a generated
+ * series (data/demoBars.ts) without asking the mirror at all. That is not a
+ * fallback — it never triggers on failure, only on an explicit switch — and
+ * the distinction is the whole point. The lie the contract forbids is an
+ * invented number the reader takes for a real one; a reader who turned sample
+ * data on is not taking it for anything.
  */
 
 import { cachedLoadable } from './loadableCache';
+import { DEMO_FLAGS } from './demoFlags';
+import { demoBars } from './demoBars';
 import { ok, unavailable, type Bar, type Loadable } from './types';
 import covered from './coveredTickers.json';
 
@@ -154,6 +164,10 @@ export async function fetchDailySeries(
   fetchImpl: typeof fetch = fetch,
   now: Date = new Date(),
 ): Promise<Loadable<Bar[] | null>> {
+  // Demo mode short-circuits before the request, and only on the real fetch
+  // path: an injected fetchImpl means a test, which asserts the mirror's own
+  // behaviour and must not be handed a generated series instead.
+  if (fetchImpl === fetch && DEMO_FLAGS.demoData) return ok(demoBars(ticker, now));
   // Only the default fetch is cached; an injected test fetchImpl goes straight
   // through, so tests keep their isolation without touching cache state. The
   // key carries the ticker because each one has its own file.

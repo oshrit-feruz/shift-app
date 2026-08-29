@@ -2,14 +2,13 @@ import { useState } from 'react';
 import { Card, CardTitle } from '../../components/Card';
 import { Chip, ChipRail } from '../../components/Chip';
 import { DataState, EmptyState } from '../../components/DataState';
-import { DemoBanner } from '../../components/DemoBanner';
 import { Skeleton } from '../../components/Skeleton';
 import { Num } from '../../components/Num';
 import { Tag } from '../../components/Tag';
 import { useT } from '../../i18n/useT';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useLoadable } from '../../data/useLoadable';
-import { DEMO_FLAGS } from '../../data/demoAdapter';
+import { useDemoMode } from '../../lib/DemoModeProvider';
 import { useDispatch } from '../../state/appState';
 import { fetchWeekEarnings } from '../../data/earnings';
 import { isoDate, pct, signalColor } from '../../lib/format';
@@ -34,7 +33,10 @@ export function CalendarTab({ watchlist }: { watchlist: string[] }) {
   const { language } = useTheme();
   const [onlyWatchlist, setOnlyWatchlist] = useState(false);
   const [day, setDay] = useState<string | null>(null);
-  const cal = useLoadable(() => fetchWeekEarnings(), []);
+  const demo = useDemoMode();
+  // `demo` is in the deps so flipping the switch re-reads at once, rather
+  // than leaving the previous week's rows on screen until the next visit.
+  const cal = useLoadable(() => fetchWeekEarnings(), [demo]);
 
   return (
     <DataState
@@ -140,19 +142,17 @@ export function CalendarTab({ watchlist }: { watchlist: string[] }) {
               </ChipRail>
             )}
 
-            <DemoBanner />
-
             {/* The provider's market-wide feed carries only reports that
                 have not happened yet. Left unsaid, a reader who knows a
                 company reported on Monday would read its absence — or a
                 "scheduled" row — as the app being wrong rather than the feed
                 being forward-looking.
 
-                Not in showcase mode: there the rows deliberately include
+                Not in demo mode: there the rows deliberately include
                 reported results, so this sentence would be false — and a
                 caveat that does not match what is on screen teaches a reader
                 to stop reading the caveats. */}
-            {!DEMO_FLAGS.showcase && (
+            {!demo && (
               <span className="text-muted" style={{ fontSize: 15.5, padding: '0 2px' }}>
                 {t('earn.scheduledOnly')}
               </span>

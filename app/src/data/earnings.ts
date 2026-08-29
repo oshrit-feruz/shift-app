@@ -17,7 +17,7 @@
  * distinct all the way to the UI.
  */
 
-import { DEMO_FLAGS } from './demoAdapter';
+import { DEMO_FLAGS } from './demoFlags';
 import { cachedLoadable } from './loadableCache';
 import { reasonFromResponse } from './providerReason';
 import { showcaseHistory, showcaseWeek } from './showcase';
@@ -206,11 +206,11 @@ export async function fetchWeekEarnings(
   fetchImpl: typeof fetch = fetch,
   now: Date = new Date(),
 ): Promise<Loadable<EarningsPage>> {
-  // Showcase mode short-circuits before the request: it is a deliberate
-  // illustration of what a paid plan renders, turned on by hand in Settings
-  // and labelled on every screen that shows it. It is never a fallback — a
-  // live failure below still reports itself as a failure.
-  if (DEMO_FLAGS.showcase) return ok(showcaseWeek(now));
+  // Demo mode short-circuits before the request: it is a deliberate
+  // illustration of what a paid plan renders, turned on by hand by the reader
+  // in the More tab. It is never a fallback — with the switch off, a live
+  // failure below still reports itself as a failure.
+  if (DEMO_FLAGS.demoData) return ok(showcaseWeek(now));
   const { from, to } = weekAheadWindow(now);
   return readCached(`${EARNINGS_URL}?from=${from}&to=${to}`, fetchImpl);
 }
@@ -227,11 +227,8 @@ export async function fetchTickerEarnings(
 ): Promise<Loadable<EarningsPage>> {
   const clean = ticker.trim().toUpperCase();
   if (!clean) return unavailable(UNAVAILABLE);
-  if (DEMO_FLAGS.showcase) return ok(showcaseHistory(clean, now));
+  if (DEMO_FLAGS.demoData) return ok(showcaseHistory(clean, now));
   const from = isoDay(new Date(now.getTime() - HISTORY_QUARTERS * DAYS_PER_QUARTER * 86_400_000));
   const to = isoDay(new Date(now.getTime() + LOOKAHEAD_DAYS * 86_400_000));
-  return readCached(
-    `${EARNINGS_URL}?ticker=${encodeURIComponent(clean)}&from=${from}&to=${to}`,
-    fetchImpl,
-  );
+  return readCached(`${EARNINGS_URL}?ticker=${encodeURIComponent(clean)}&from=${from}&to=${to}`, fetchImpl);
 }

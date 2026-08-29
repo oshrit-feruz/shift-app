@@ -414,14 +414,17 @@ export const STRINGS = {
     'Prices and charts are real, from daily market data. Day change, market cap and portfolio figures on this screen are still sample data.',
     'המחירים והגרפים אמיתיים, מנתוני שוק יומיים. שינוי יומי, שווי שוק ונתוני תיק במסך הזה הם עדיין נתוני דוגמה.',
   ),
-  'demo.showcase': p(
-    'Illustrative data — this is how these screens look on a paid data plan that includes reported results.',
-    'נתוני הדגמה — כך המסכים נראים עם מנוי נתונים בתשלום שכולל גם תוצאות שדווחו.',
+  // What the standing note says instead once sample data is on. The switch
+  // makes the charts generated as well, so the usual sentence — which
+  // promises real prices and real charts — would be false.
+  'demo.allSample': p(
+    'Sample data is on: every figure and chart on this screen is illustrative, not real market data.',
+    'נתוני דמו פעילים: כל הנתונים והגרפים במסך הזה הם להמחשה, לא נתוני שוק אמיתיים.',
   ),
-  'set.showcaseRow': p('Demo: full earnings data', 'הדגמה: נתוני דוחות מלאים'),
-  'set.showcaseHelp': p(
-    'Fills the calendar and each stock’s history with illustrative figures, to show what a paid data plan adds. Clearly marked wherever it shows, and never used when live data fails.',
-    'ממלא את היומן ואת ההיסטוריה של כל מניה בנתוני הדגמה, כדי להראות מה מנוי בתשלום מוסיף. מסומן בבירור בכל מקום שהוא מופיע, ולעולם לא משמש כשנתונים חיים נכשלים.',
+  'more.demoData': p('Sample data', 'נתוני דמו'),
+  'more.demoDataHelp': p(
+    'Draws charts from generated price action and fills the earnings screens with illustrative figures, so nothing is ever empty. Turn it off to use real market data.',
+    'מצייר את הגרפים מנתונים מומצאים וממלא את מסכי הדוחות בנתוני הדגמה, כך ששום דבר לא נשאר ריק. כבי אותו כדי להשתמש בנתוני שוק אמיתיים.',
   ),
   'earn.scheduledOnly': p(
     'The week ahead: reports still to come. Results already published appear on each stock’s own page.',

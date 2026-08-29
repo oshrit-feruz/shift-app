@@ -8,9 +8,9 @@ import { useTheme } from '../../theme/ThemeProvider';
 import { useLoadable } from '../../data/useLoadable';
 import { fetchFundamentals } from '../../data/fundamentals';
 import { fetchTickerEarnings } from '../../data/earnings';
+import { useDemoMode } from '../../lib/DemoModeProvider';
 import { EmptyState } from '../../components/DataState';
 import { Tag } from '../../components/Tag';
-import { DemoBanner } from '../../components/DemoBanner';
 import type { EarningsRow } from '../../data/types';
 import { compactMoney, isoDate, pct, signalColor } from '../../lib/format';
 
@@ -114,8 +114,9 @@ export function ReportsTab({ ticker }: { ticker: string }) {
  */
 export function EarningsHistory({ ticker }: { ticker: string }) {
   const t = useT();
+  const demo = useDemoMode();
   const { language } = useTheme();
-  const e = useLoadable(() => fetchTickerEarnings(ticker), [ticker]);
+  const e = useLoadable(() => fetchTickerEarnings(ticker), [ticker, demo]);
 
   return (
     <DataState state={e.state} onRetry={e.retry} skeleton={<SkeletonCard height={190} lines={4} />}>
@@ -127,7 +128,6 @@ export function EarningsHistory({ ticker }: { ticker: string }) {
         return (
           <Card padding={12} gap={8}>
             <CardTitle>{t('stock.history')}</CardTitle>
-            <DemoBanner />
             {sorted.length === 0 ? (
               <EmptyState>{t('stock.historyEmpty')}</EmptyState>
             ) : (

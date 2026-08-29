@@ -1,4 +1,5 @@
 import { useT } from '../i18n/useT';
+import { useDemoMode } from '../lib/DemoModeProvider';
 
 /**
  * The standing label on screens whose figures are sample data.
@@ -20,12 +21,19 @@ import { useT } from '../i18n/useT';
  * and permanent, not alarming — but it is never omitted, because a plausible
  * number that a reader takes for a real one is the failure this app is built
  * to avoid.
+ *
+ * In demo mode the sentence swaps rather than disappears. Sample data makes
+ * the charts generated too, which turns "prices and charts are real" into a
+ * plain falsehood — the one thing this line exists to prevent. It is the same
+ * note, saying what is true at the time, not a second disclaimer stacked on
+ * top of the switch the reader already threw.
  */
 export function DemoDataNote() {
   const t = useT();
+  const demo = useDemoMode();
   return (
     <p className="text-muted" style={{ fontSize: 15, margin: 0, padding: '0 2px', lineHeight: 1.45 }}>
-      {t('demo.pricesNote')}
+      {t(demo ? 'demo.allSample' : 'demo.pricesNote')}
     </p>
   );
 }

@@ -9,9 +9,9 @@ const NOW = new Date('2026-08-28T09:00:00Z'); // a Friday
  * itself the assertion for the "off" cases below. This installs a minimal one
  * for the cases that need the flag on.
  */
-function withShowcase(on: boolean) {
+function withDemoData(on: boolean) {
   const store = new Map<string, string>();
-  if (on) store.set('shift.demo.showcase', '1');
+  if (on) store.set('shift.demo.data', '1');
   vi.stubGlobal('localStorage', {
     getItem: (k: string) => store.get(k) ?? null,
     setItem: (k: string, v: string) => void store.set(k, v),
@@ -66,9 +66,9 @@ describe('showcaseHistory', () => {
   });
 });
 
-describe('showcase mode never leaks into live data', () => {
+describe('demo mode never leaks into live data', () => {
   it('does not touch the network when the mode is on', async () => {
-    withShowcase(true);
+    withDemoData(true);
     const spy = vi.fn();
     const week = await fetchWeekEarnings(spy as unknown as typeof fetch, NOW);
     const hist = await fetchTickerEarnings('NVDA', spy as unknown as typeof fetch, NOW);
@@ -80,14 +80,14 @@ describe('showcase mode never leaks into live data', () => {
   // The property that matters most: illustrative figures are a deliberate
   // mode, never a soft landing for a failure. An outage stays an outage.
   it('is NOT used as a fallback when the mode is off and the request fails', async () => {
-    withShowcase(false);
+    withDemoData(false);
     const failing = (async () => new Response('nope', { status: 502 })) as unknown as typeof fetch;
     expect((await fetchWeekEarnings(failing, NOW)).status).toBe('unavailable');
     expect((await fetchTickerEarnings('NVDA', failing, NOW)).status).toBe('unavailable');
   });
 
   it('reads live data when the mode is off', async () => {
-    withShowcase(false);
+    withDemoData(false);
     const spy = vi.fn(async () => new Response(JSON.stringify({ earnings: [] }), { status: 200 }));
     await fetchWeekEarnings(spy as unknown as typeof fetch, NOW);
     expect(spy).toHaveBeenCalledOnce();

@@ -18,7 +18,7 @@ import { useT } from '../i18n/useT';
 import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
 import { fetchWeekEarnings } from '../data/earnings';
-import { DemoBanner } from '../components/DemoBanner';
+import { useDemoMode } from '../lib/DemoModeProvider';
 import { money, moneyOrDash, pct, signalColor } from '../lib/format';
 import { ROW_BUTTON_STYLE } from '../lib/rowButton';
 import type { ScreenProps } from '../App';
@@ -421,16 +421,16 @@ export function HomeScreen(_: ScreenProps) {
  * Deliberately bounded to three: the home screen is a summary, and the
  * calendar tab is where the whole week lives. Loading and failure are the
  * shared DataState, so an outage reads as an outage rather than as a quiet
- * week — and showcase mode carries its label, like every other surface that
- * can render illustrative figures.
+ * week.
  */
 const HOME_EARNINGS_SHOWN = 3;
 
 function EarningsAhead() {
   const t = useT();
+  const demo = useDemoMode();
   const { language } = useTheme();
   const dispatch = useDispatch();
-  const cal = useLoadable(() => fetchWeekEarnings(), []);
+  const cal = useLoadable(() => fetchWeekEarnings(), [demo]);
 
   return (
     <Card padding={13} gap={7}>
@@ -448,7 +448,6 @@ function EarningsAhead() {
                     in the payload. */}
                 <Tag variant="neutral">{String(page.truncated ? page.totalAvailable : page.rows.length)}</Tag>
               </div>
-              <DemoBanner />
               {next.length === 0 ? (
                 <p className="text-muted" style={{ fontSize: 16, margin: 0 }}>
                   {t('earn.weekEmpty')}
