@@ -13,13 +13,15 @@ import { DemoOnly } from '../components/DemoOnly';
 import { Skeleton, SkeletonCard, SkeletonList } from '../components/Skeleton';
 import { ALLOC_COLORS } from '../components/AllocationBar';
 import { useDemoMode } from '../lib/DemoModeProvider';
-import { useAppState, useDispatch } from '../state/appState';
+import { useAppState, useDispatch, type TransactionSide } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
+import { useToast } from '../components/Toast';
+import { useLedger } from '../state/useLedgerSync';
 import { demoService } from '../data/demoAdapter';
 import type { Holding } from '../data/types';
 import { useLoadable } from '../data/useLoadable';
-import { money, moneyOrDash, pctOrDash, signalColor } from '../lib/format';
+import { isoDate, money, moneyOrDash, pctOrDash, signalColor } from '../lib/format';
 import { TxSheet } from '../sheets/TxSheet';
 import { NewPortfolioSheet } from '../sheets/NewPortfolioSheet';
 import { fetchPortfolioHoldings, portfolioList, sumTotals } from '../lib/holdings';
@@ -44,6 +46,12 @@ export function PortfolioScreen(_: ScreenProps) {
   const demo = useDemoMode();
   const portfolios = useLoadable(() => demoService.portfolios(), [demo]);
   const [txOpen, setTxOpen] = useState(false);
+  const ledger = useLedger();
+  const toast = useToast();
+  const removePortfolio = (pf: { id: string; name: string }) => {
+    ledger.removePortfolio(pf.id);
+    toast(t('pf.deleted', { name: pf.name }));
+  };
   const [newPfOpen, setNewPfOpen] = useState(false);
 
   return (
@@ -193,13 +201,25 @@ export function PortfolioScreen(_: ScreenProps) {
                         : t('pf.synced', { when: pf.syncedAgo?.[language] ?? '' })}
                   </span>
                 </span>
-                <Button
-                  variant="ghost"
-                  fontSize={15.5}
-                  onClick={() => dispatch({ type: 'go', screen: 'connections' })}
-                >
-                  {isAgg || pf.kind === 'linked' ? t('pf.manage') : t('pf.link')}
-                </Button>
+                {/* Hidden for the default portfolio, matching the RLS
+                    predicate in 0005_ledger.sql (`and not is_default`) rather
+                    than the UI merely declining to offer it — so the button a
+                    user can see is exactly the one the database will allow.
+                    Sandbox is where a trade can always be recorded, so it
+                    cannot be deleted out from under that. */}
+                {isManual && !isSandbox(pf.id) ? (
+                  <Button variant="ghost" fontSize={15.5} onClick={() => removePortfolio(pf)}>
+                    {t('pf.delete')}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    fontSize={15.5}
+                    onClick={() => dispatch({ type: 'go', screen: 'connections' })}
+                  >
+                    {isAgg || pf.kind === 'linked' ? t('pf.manage') : t('pf.link')}
+                  </Button>
+                )}
               </Card>
 
               {isAgg && (
@@ -349,6 +369,13 @@ export function PortfolioScreen(_: ScreenProps) {
                 {holdings}
               </Card>
 
+              {/* The log itself, because there is nowhere else to delete from:
+                  the Holdings card lists POSITIONS, each derived from any
+                  number of transactions, so a row there has no single record
+                  behind it to remove. Manual portfolios only — a linked
+                  account's history is the broker's, not ours to edit. */}
+              {isManual && <Transactions pfId={pf.id} />}
+
               {demo ? <LongTermSavings /> : <DemoOnly feature="pf.longTerm" />}
               <TxSheet open={txOpen} onClose={() => setTxOpen(false)} pfId={pf.id} pfName={pf.name} />
               <NewPortfolioSheet open={newPfOpen} onClose={() => setNewPfOpen(false)} />
@@ -491,6 +518,105 @@ function usePortfolioHoldings(pfId: string) {
   // at once rather than after the next visit.
   const key = transactions.map((tx) => tx.id).join(',');
   return useLoadable(() => fetchPortfolioHoldings(pfId, transactions), [pfId, demo, key]);
+}
+
+/**
+ * A portfolio's own transaction log, newest first, each row removable.
+ *
+ * Transactions are immutable — there is no edit, in the client or in the
+ * database (0005_ledger.sql grants no update policy on this table at all). An
+ * edit is a delete and a re-add, one extra tap, and that immutability is
+ * exactly what makes the sync commutative: operations replay in any order
+ * without changing the result.
+ */
+function Transactions({ pfId }: { pfId: string }) {
+  const s = useAppState();
+  const t = useT();
+  const { language } = useTheme();
+  const ledger = useLedger();
+  const toast = useToast();
+  const rows = s.manualTransactions[pfId] ?? [];
+
+  return (
+    <Card padding="13px 13px 4px" gap={4}>
+      <CardTitle>{t('tx.transactions')}</CardTitle>
+      {rows.length === 0 ? (
+        <EmptyState>{t('tx.none')}</EmptyState>
+      ) : (
+        [...rows]
+          // Newest first: the row someone is most likely to have mistyped is
+          // the one they just entered.
+          .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+          .map((tx, i) => (
+            <ListRow
+              key={tx.id}
+              divider={i > 0}
+              title={`${t(sideKey(tx.side))} ${tx.ticker}`}
+              subtitle={<Num>{`${tx.shares} × ${money(tx.price)} · ${isoDate(tx.date, language)}`}</Num>}
+              trailing={
+                <RowIconButton
+                  label={t('tx.removeAria', { ticker: tx.ticker })}
+                  onClick={() => {
+                    ledger.removeTransaction(pfId, tx.id);
+                    toast(t('tx.removed'));
+                  }}
+                >
+                  ✕
+                </RowIconButton>
+              }
+              minHeight={46}
+            />
+          ))
+      )}
+    </Card>
+  );
+}
+
+/** The small square delete button at the end of a transaction row — the same
+ *  idiom as the watchlist's, so removing a thing looks the same everywhere. */
+function RowIconButton({
+  label,
+  onClick,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  children: string;
+}) {
+  return (
+    <button
+      type="button"
+      className="row-icon-btn"
+      onClick={onClick}
+      aria-label={label}
+      style={{
+        width: 34,
+        height: 34,
+        flex: 'none',
+        borderRadius: 'var(--radius-sm)',
+        border: '1px solid var(--color-divider)',
+        color: 'var(--muted)',
+        fontSize: 'var(--text-title)',
+        cursor: 'pointer',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function sideKey(side: TransactionSide): 'tx.buy' | 'tx.sell' | 'tx.div' {
+  return side === 'sell' ? 'tx.sell' : side === 'div' ? 'tx.div' : 'tx.buy';
+}
+
+/**
+ * Whether this is the user's Sandbox — the one portfolio that cannot be
+ * deleted. Recognised by the id the SQL trigger and the client's self-heal
+ * both generate, which is the same string on purpose so neither can create a
+ * second one.
+ */
+function isSandbox(id: string): boolean {
+  return id.startsWith('pf-sandbox-');
 }
 
 /**

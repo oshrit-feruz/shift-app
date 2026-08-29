@@ -493,6 +493,8 @@ export const STRINGS = {
   // Used for any manual portfolio, not only Sandbox.
   'pf.manualDetail': p('No broker — you record the transactions', 'בלי ברוקר — את רושמת את העסקאות'),
   'pf.manage': p('Manage', 'לנהל'),
+  'pf.delete': p('Delete', 'למחוק'),
+  'pf.deleted': p('{name} deleted', '{name} נמחק'),
   'pf.link': p('Link', 'לחבר'),
   'pf.concentration': p(
     'Two thirds of this portfolio sits in semiconductors. Concentration amplifies good days and bad ones alike.',
@@ -759,6 +761,31 @@ export const STRINGS = {
   'tx.shares': p('Shares', 'מניות'),
   'tx.price': p('Price / share', 'מחיר למניה'),
   'tx.date': p('Date', 'תאריך'),
+  'tx.symbolPlaceholder': p('e.g. NVDA', 'למשל NVDA'),
+  'tx.saved': p('{ticker} transaction saved', 'העסקה ב-{ticker} נשמרה'),
+  'tx.removed': p('Transaction removed', 'העסקה נמחקה'),
+  // Says what a valid symbol looks like rather than only that this one is
+  // not — a reader who typed "brk b" needs to know about the dot.
+  'tx.badTicker': p(
+    'Enter a symbol like NVDA or BRK.B — letters, digits, dots and hyphens.',
+    'הזיני סימבול כמו NVDA או BRK.B — אותיות, ספרות, נקודות ומקפים.',
+  ),
+  'tx.badShares': p('Enter how many shares, as a number above zero.', 'הזיני כמה מניות, מספר גדול מאפס.'),
+  'tx.badPrice': p('Enter the price per share you paid.', 'הזיני את המחיר למניה ששילמת.'),
+  'tx.badDate': p(
+    'Pick a date — a trade cannot be in the future.',
+    'בחרי תאריך — עסקה לא יכולה להיות בעתיד.',
+  ),
+  // The number matters: "you cannot sell that many" leaves the reader
+  // guessing how many they can.
+  'tx.oversell': p(
+    'You hold {held} {ticker} in this portfolio — you cannot sell more than that.',
+    'יש לך {held} {ticker} בתיק הזה — אי אפשר למכור יותר מזה.',
+  ),
+  'tx.none': p('No transactions yet', 'עדיין אין עסקאות'),
+  'tx.transactions': p('Transactions', 'עסקאות'),
+  'tx.removeAria': p('Remove {ticker} transaction', 'למחוק את העסקה ב-{ticker}'),
+  'tx.pending': p('Not saved to your account yet', 'עדיין לא נשמר לחשבון'),
 
   // ── Onboarding: first-run overlay ─────────────────────────────────────
   'firstRun.kicker': p('First run', 'הפעלה ראשונה'),
