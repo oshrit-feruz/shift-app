@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { Card, CardTitle, Divider } from '../components/Card';
-import { DemoDataNote } from '../components/DemoDataNote';
 import { Button } from '../components/Button';
 import { Tag } from '../components/Tag';
 import { Icon } from '../components/Icon';
@@ -37,7 +36,6 @@ export function HomeScreen(_: ScreenProps) {
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <DemoDataNote />
       {beg && (
         <DataState
           state={portfolios.state}

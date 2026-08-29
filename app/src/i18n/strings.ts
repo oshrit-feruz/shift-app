@@ -410,10 +410,6 @@ export const STRINGS = {
   // Charts came off this list when they started drawing published sessions.
   // Day change is the one that has to stay: no source in the app carries an
   // intraday move, so the percentage beside every price is still invented.
-  'demo.pricesNote': p(
-    'Prices and charts are real, from daily market data. Day change, market cap and portfolio figures on this screen are still sample data.',
-    'המחירים והגרפים אמיתיים, מנתוני שוק יומיים. שינוי יומי, שווי שוק ונתוני תיק במסך הזה הם עדיין נתוני דוגמה.',
-  ),
   'more.demoData': p('Sample data', 'נתוני דמו'),
   'more.demoDataHelp': p(
     'Draws charts from generated price action and fills the earnings screens with illustrative figures, so nothing is ever empty. Turn it off to use real market data.',

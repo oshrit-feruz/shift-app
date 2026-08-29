@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { DemoDataNote } from '../components/DemoDataNote';
 import { Card, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Icon } from '../components/Icon';
@@ -158,7 +157,6 @@ export function StockScreen({ openAlert }: ScreenProps) {
     >
       {(x) => (
         <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <DemoDataNote />
           <div>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 9 }}>
               <Num size={28} style={{ fontFamily: 'var(--font-heading)', lineHeight: 1 }}>
@@ -418,7 +416,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
 
 const BEG_STATS = (price: number | null, mc: string, vol: number | null, pe: number) => [
   // Price and traded volume are real; market cap and P/E are still demo
-  // stats, which is what <DemoDataNote /> at the top of the screen says.
+  // stats — see the `demo` key they are read from in data/types.ts.
   { k: 'Price', v: moneyOrDash(price), help: 'What one share costs right now' },
   { k: 'Company size', v: mc, help: 'Every share added together — market cap' },
   {
