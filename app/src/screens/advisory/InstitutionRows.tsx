@@ -115,15 +115,15 @@ export function InstitutionRows() {
                   color: 'var(--color-accent-200)',
                   display: 'grid',
                   placeItems: 'center',
-                  fontSize: 17,
+                  fontSize: 'var(--text-row)',
                   fontWeight: 600,
                 }}
               >
                 {inst.initial[language]}
               </span>
               <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block', fontSize: 16.5 }}>{t(inst.label)}</span>
-                <span className="text-muted" style={{ display: 'block', fontSize: 15.5 }}>
+                <span style={{ display: 'block', fontSize: 'var(--text-body)' }}>{t(inst.label)}</span>
+                <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-caption)' }}>
                   {chosen ?? t('conn.choose')}
                 </span>
               </span>
@@ -133,7 +133,7 @@ export function InstitutionRows() {
                   whiteSpace: 'nowrap',
                   padding: '7px 13px',
                   borderRadius: 999,
-                  fontSize: 15.5,
+                  fontSize: 'var(--text-caption)',
                   ...(chosen
                     ? {
                         border: '1px solid var(--color-accent)',
@@ -170,7 +170,7 @@ export function InstitutionRows() {
                         padding: '8px 13px',
                         borderRadius: 999,
                         font: 'inherit',
-                        fontSize: 16,
+                        fontSize: 'var(--text-body)',
                         cursor: 'pointer',
                         ...(selected
                           ? {

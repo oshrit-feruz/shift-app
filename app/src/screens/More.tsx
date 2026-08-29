@@ -47,7 +47,7 @@ export function MoreScreen(_: ScreenProps) {
             onClick={() => setMode('advanced')}
           />
         </div>
-        <p className="text-muted" style={{ fontSize: 15, margin: 0 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0 }}>
           {t('more.switchNote')}
         </p>
       </Card>
@@ -61,11 +61,11 @@ export function MoreScreen(_: ScreenProps) {
       <Card padding="10px 12px" gap={6}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ flex: 1 }}>
-            <span style={{ display: 'block', fontSize: 17, fontWeight: 500 }}>{t('more.demoData')}</span>
+            <span style={{ display: 'block', fontSize: 'var(--text-row)', fontWeight: 500 }}>{t('more.demoData')}</span>
           </span>
           <Toggle label={t('more.demoData')} on={demo} onChange={setDemo} />
         </div>
-        <p className="text-muted" style={{ fontSize: 15, margin: 0, lineHeight: 1.45 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.45 }}>
           {t('more.demoDataHelp')}
         </p>
       </Card>
@@ -107,19 +107,19 @@ export function MoreScreen(_: ScreenProps) {
               <Icon name={r.icon} size={19} strokeWidth={1.7} />
             </span>
             <span style={{ flex: 1 }}>
-              <span style={{ display: 'block', fontSize: 17.5, fontWeight: 500 }}>{t(r.label)}</span>
-              <span className="text-muted" style={{ display: 'block', fontSize: 16 }}>
+              <span style={{ display: 'block', fontSize: 'var(--text-row)', fontWeight: 500 }}>{t(r.label)}</span>
+              <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-body)' }}>
                 {t(r.help)}
               </span>
             </span>
-            <span style={{ opacity: 0.4, fontSize: 18 }}>›</span>
+            <span style={{ opacity: 0.4, fontSize: 'var(--text-title)' }}>›</span>
           </button>
         ))}
       </Card>
 
       <Card padding={13} gap={4}>
         <CardTitle>{t('more.screener')}</CardTitle>
-        <p className="text-muted" style={{ fontSize: 16, margin: 0 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0 }}>
           {t('more.screenerHelp')}
         </p>
       </Card>
@@ -158,12 +158,12 @@ function ModeCard({
       }}
     >
       <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 17, fontWeight: 600 }}>{name}</span>
+        <span style={{ fontSize: 'var(--text-row)', fontWeight: 600 }}>{name}</span>
         <Tag variant="outline" fontSize={15}>
           {badge}
         </Tag>
       </span>
-      <span style={{ display: 'block', fontSize: 16, opacity: 0.78, marginTop: 3 }}>{blurb}</span>
+      <span style={{ display: 'block', fontSize: 'var(--text-body)', opacity: 0.78, marginTop: 3 }}>{blurb}</span>
     </button>
   );
 }

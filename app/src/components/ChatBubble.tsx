@@ -8,7 +8,7 @@ export function ChatBubble({ who, children }: { who: 'bot' | 'me'; children: Rea
         style={{
           maxWidth: '82%',
           padding: '10px 13px',
-          fontSize: 17,
+          fontSize: 'var(--text-row)',
           lineHeight: 1.5,
           borderRadius: 14,
           ...(who === 'me'

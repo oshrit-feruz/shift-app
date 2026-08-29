@@ -53,7 +53,7 @@ export function ReportsTab({ ticker }: { ticker: string }) {
               </Num>
             )}
           </div>
-          <div className="text-muted" style={{ fontSize: 15.5, marginTop: -4 }}>
+          <div className="text-muted" style={{ fontSize: 'var(--text-caption)', marginTop: -4 }}>
             {t('stock.revenue')}
             {d.yoyPct !== null ? ` · ${t('stock.yoy')}` : ''}
           </div>
@@ -89,7 +89,7 @@ export function ReportsTab({ ticker }: { ticker: string }) {
             ))}
           </div>
 
-          <p className="text-muted" style={{ fontSize: 15, lineHeight: 1.5, margin: 0 }}>
+          <p className="text-muted" style={{ fontSize: 'var(--text-caption)', lineHeight: 1.5, margin: 0 }}>
             {t('stock.reportsNote')}
             {d.source ? ` · ${d.source}` : ''}
           </p>
@@ -164,7 +164,7 @@ function QuarterRow({
   return (
     <div style={{ paddingTop: 7, borderTop: '1px solid var(--color-divider)' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 16 }}>{isoDate(row.reportDate, language)}</span>
+        <span style={{ fontSize: 'var(--text-body)' }}>{isoDate(row.reportDate, language)}</span>
         {row.timing && (
           <Num size={14.5} style={{ color: 'var(--muted)' }}>
             {row.timing}
@@ -189,7 +189,7 @@ function QuarterRow({
           </Num>
         )}
       </div>
-      <div className="text-muted" style={{ fontSize: 15.5, marginTop: 2, display: 'flex', gap: 6 }}>
+      <div className="text-muted" style={{ fontSize: 'var(--text-caption)', marginTop: 2, display: 'flex', gap: 6 }}>
         <Num>{reported ? row.actual!.toFixed(2) : '—'}</Num>
         <span>·</span>
         <span>

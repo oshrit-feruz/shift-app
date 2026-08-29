@@ -66,10 +66,10 @@ export function HomeScreen({ openSearch }: ScreenProps) {
             if (!main) {
               return (
                 <Card padding={18} gap={8} style={{ textAlign: 'center', alignItems: 'center' }}>
-                  <span style={{ fontFamily: 'var(--font-heading)', fontSize: 19 }}>
+                  <span style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-title)' }}>
                     {t('home.noPfTitle')}
                   </span>
-                  <p className="text-muted" style={{ fontSize: 17, margin: 0, lineHeight: 1.5 }}>
+                  <p className="text-muted" style={{ fontSize: 'var(--text-row)', margin: 0, lineHeight: 1.5 }}>
                     {t('home.noPfHelp')}
                   </p>
                   <Button
@@ -89,11 +89,11 @@ export function HomeScreen({ openSearch }: ScreenProps) {
             }
             return (
               <Card padding={15} gap={0}>
-                <div style={{ fontSize: 19, opacity: 0.75, fontWeight: 600 }}>{t('home.pfToday')}</div>
+                <div style={{ fontSize: 'var(--text-title)', opacity: 0.75, fontWeight: 600 }}>{t('home.pfToday')}</div>
                 <div
                   style={{
                     fontFamily: 'var(--font-heading)',
-                    fontSize: 43,
+                    fontSize: 'var(--text-hero)',
                     lineHeight: 1.05,
                     fontWeight: 700,
                   }}
@@ -103,7 +103,7 @@ export function HomeScreen({ openSearch }: ScreenProps) {
                 <div
                   style={{
                     color: signalColor(main.dayPct),
-                    fontSize: 18,
+                    fontSize: 'var(--text-title)',
                     fontWeight: 600,
                   }}
                 >
@@ -116,7 +116,7 @@ export function HomeScreen({ openSearch }: ScreenProps) {
                 </div>
                 <p
                   style={{
-                    fontSize: 17,
+                    fontSize: 'var(--text-row)',
                     lineHeight: 1.5,
                     margin: '10px 0 0',
                     opacity: 0.85,
@@ -145,9 +145,9 @@ export function HomeScreen({ openSearch }: ScreenProps) {
           }
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 18, fontWeight: 600 }}>{t('setup.banner')}</span>
+            <span style={{ fontSize: 'var(--text-title)', fontWeight: 600 }}>{t('setup.banner')}</span>
             <span style={{ flex: 1 }} />
-            <span style={{ color: 'var(--color-accent-200)', fontSize: 17 }}>{t('setup.resume')} ›</span>
+            <span style={{ color: 'var(--color-accent-200)', fontSize: 'var(--text-row)' }}>{t('setup.resume')} ›</span>
           </div>
           <ProgressTrack pct={setup.pct} label={t('setup.stepOf', { n: setup.stepLabel })} />
         </Card>
@@ -171,10 +171,10 @@ export function HomeScreen({ openSearch }: ScreenProps) {
           >
             <Icon name="trend" size={14} />
           </span>
-          <span style={{ fontSize: 18, fontWeight: 600, flex: 1 }}>{t('home.trackSelf')}</span>
+          <span style={{ fontSize: 'var(--text-title)', fontWeight: 600, flex: 1 }}>{t('home.trackSelf')}</span>
           <Tag variant="outline">{t('home.trackHere')}</Tag>
         </div>
-        <p className="text-muted" style={{ fontSize: 17, margin: 0, lineHeight: 1.5 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--text-row)', margin: 0, lineHeight: 1.5 }}>
           {t('home.trackSelfSub')}
         </p>
         <Divider />
@@ -226,7 +226,7 @@ export function HomeScreen({ openSearch }: ScreenProps) {
             </span>
             <span
               style={{
-                fontSize: 18,
+                fontSize: 'var(--text-title)',
                 fontWeight: 600,
                 flex: 1,
                 color: 'var(--color-accent-300)',
@@ -236,7 +236,7 @@ export function HomeScreen({ openSearch }: ScreenProps) {
             </span>
             <Tag variant="accent">{t('adv.tag')}</Tag>
           </div>
-          <p className="text-muted" style={{ fontSize: 17, margin: 0, lineHeight: 1.5 }}>
+          <p className="text-muted" style={{ fontSize: 'var(--text-row)', margin: 0, lineHeight: 1.5 }}>
             {t('home.trackAdvisorSub')}
           </p>
         </button>
@@ -254,18 +254,18 @@ export function HomeScreen({ openSearch }: ScreenProps) {
               color: 'var(--color-accent-200)',
               display: 'grid',
               placeItems: 'center',
-              fontSize: 18,
+              fontSize: 'var(--text-title)',
             }}
           >
             ◉
           </span>
           <span style={{ flex: 1 }}>
-            <span style={{ display: 'block', fontSize: 19.5 }}>{t('home.startHere')}</span>
-            <span className="text-muted" style={{ display: 'block', fontSize: 17.5, marginTop: 2 }}>
+            <span style={{ display: 'block', fontSize: 'var(--text-title)' }}>{t('home.startHere')}</span>
+            <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-row)', marginTop: 2 }}>
               {t('home.startHereSub')}
             </span>
           </span>
-          <span style={{ opacity: 0.5, fontSize: 19 }}>›</span>
+          <span style={{ opacity: 0.5, fontSize: 'var(--text-title)' }}>›</span>
         </Card>
       )}
 
@@ -311,7 +311,7 @@ export function HomeScreen({ openSearch }: ScreenProps) {
           {(rows) =>
             rows.length === 0 ? (
               <EmptyState>
-                <div style={{ fontSize: 16.5 }}>{t('home.watchlistEmpty')}</div>
+                <div style={{ fontSize: 'var(--text-body)' }}>{t('home.watchlistEmpty')}</div>
                 <Button
                   variant="ghost"
                   fontSize={16}
@@ -346,7 +346,7 @@ export function HomeScreen({ openSearch }: ScreenProps) {
       <Card padding={13} gap={8}>
         <CardTitle>{beg ? t('home.moversBeg') : t('home.moversAdv')}</CardTitle>
         {beg && (
-          <p className="text-muted" style={{ fontSize: 17, margin: 0 }}>
+          <p className="text-muted" style={{ fontSize: 'var(--text-row)', margin: 0 }}>
             {t('home.moversHelp')}
           </p>
         )}
@@ -393,7 +393,7 @@ export function HomeScreen({ openSearch }: ScreenProps) {
                     <span
                       style={{
                         flex: 1,
-                        fontSize: 18,
+                        fontSize: 'var(--text-title)',
                         opacity: 0.8,
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
@@ -463,7 +463,7 @@ function EarningsAhead() {
                 <Tag variant="neutral">{String(page.truncated ? page.totalAvailable : page.rows.length)}</Tag>
               </div>
               {next.length === 0 ? (
-                <p className="text-muted" style={{ fontSize: 16, margin: 0 }}>
+                <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0 }}>
                   {t('earn.weekEmpty')}
                 </p>
               ) : (
@@ -491,7 +491,7 @@ function EarningsAhead() {
                     >
                       <div
                         style={{
-                          fontSize: 15.5,
+                          fontSize: 'var(--text-caption)',
                           letterSpacing: '.06em',
                           textTransform: 'uppercase',
                           color: 'var(--acc-lite)',
@@ -514,7 +514,7 @@ function EarningsAhead() {
                     <div
                       style={{
                         flex: 1,
-                        fontSize: 17,
+                        fontSize: 'var(--text-row)',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: 3,
@@ -522,7 +522,7 @@ function EarningsAhead() {
                     >
                       <span>{e.ticker}</span>
                       {e.estimate !== null && (
-                        <span className="text-muted" style={{ fontSize: 15.5 }}>
+                        <span className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
                           {t('stock.epsEst')} <Num>{e.estimate.toFixed(2)}</Num>
                         </span>
                       )}

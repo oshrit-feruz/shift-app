@@ -162,7 +162,7 @@ export function OpenAccountScreen(_: ScreenProps) {
         <div
           style={{
             fontFamily: 'var(--font-heading)',
-            fontSize: 23,
+            fontSize: 'var(--text-heading)',
             lineHeight: 1.25,
             marginTop: 5,
             whiteSpace: 'normal',
@@ -170,7 +170,7 @@ export function OpenAccountScreen(_: ScreenProps) {
         >
           {title}
         </div>
-        <p style={{ fontSize: 17, lineHeight: 1.55, margin: '8px 0 0', opacity: 0.85 }}>{body}</p>
+        <p style={{ fontSize: 'var(--text-row)', lineHeight: 1.55, margin: '8px 0 0', opacity: 0.85 }}>{body}</p>
       </div>
 
       {step === 0 && (
@@ -180,8 +180,8 @@ export function OpenAccountScreen(_: ScreenProps) {
               <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <RadioDot on={kind === k} />
                 <span style={{ flex: 1 }}>
-                  <span style={{ display: 'block', fontSize: 17 }}>{name}</span>
-                  <span className="text-muted" style={{ display: 'block', fontSize: 16, marginTop: 2 }}>
+                  <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>{name}</span>
+                  <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-body)', marginTop: 2 }}>
                     {note}
                   </span>
                 </span>
@@ -210,7 +210,7 @@ export function OpenAccountScreen(_: ScreenProps) {
                     borderRadius: 6,
                     display: 'grid',
                     placeItems: 'center',
-                    fontSize: 16,
+                    fontSize: 'var(--text-body)',
                     border: `1px solid ${on ? 'transparent' : 'var(--color-divider)'}`,
                     background: on ? 'var(--color-accent)' : 'transparent',
                     color: 'var(--g2)',
@@ -219,15 +219,15 @@ export function OpenAccountScreen(_: ScreenProps) {
                   {on ? '✓' : ''}
                 </span>
                 <span style={{ flex: 1, textAlign: 'start' }}>
-                  <span style={{ display: 'block', fontSize: 17 }}>{name}</span>
-                  <span className="text-muted" style={{ display: 'block', fontSize: 16, marginTop: 2 }}>
+                  <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>{name}</span>
+                  <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-body)', marginTop: 2 }}>
                     {note}
                   </span>
                 </span>
               </button>
             );
           })}
-          <div className="text-muted" style={{ fontSize: 16 }}>
+          <div className="text-muted" style={{ fontSize: 'var(--text-body)' }}>
             {t('open.docsReady', { n: docsReady })}
           </div>
         </div>
@@ -237,10 +237,10 @@ export function OpenAccountScreen(_: ScreenProps) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {ACCTS[language].map(([k, name, note]) => (
             <button key={k} type="button" style={pickStyle(acct === k)} onClick={() => setAcct(k)}>
-              <span style={{ display: 'block', fontSize: 17 }}>{name}</span>
+              <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>{name}</span>
               <span
                 className="text-muted"
-                style={{ display: 'block', fontSize: 16, marginTop: 3, lineHeight: 1.45 }}
+                style={{ display: 'block', fontSize: 'var(--text-body)', marginTop: 3, lineHeight: 1.45 }}
               >
                 {note}
               </span>
@@ -255,7 +255,7 @@ export function OpenAccountScreen(_: ScreenProps) {
             <Num size={31} style={{ fontFamily: 'var(--font-heading)' }}>
               {'$' + fund.toLocaleString('en-US')}
             </Num>
-            <span className="text-muted" style={{ fontSize: 16 }}>
+            <span className="text-muted" style={{ fontSize: 'var(--text-body)' }}>
               {t('open.toStart')}
             </span>
           </div>
@@ -276,7 +276,7 @@ export function OpenAccountScreen(_: ScreenProps) {
               {t('open.moreLater')}
             </text>
           </svg>
-          <p className="text-muted" style={{ fontSize: 16, margin: 0 }}>
+          <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0 }}>
             {language === 'he'
               ? 'העברה בנקאית נכנסת בדרך כלל בתוך יום עד שלושה ימי עסקים. כסף שיושב בחשבון הוא עדיין שלך ועדיין לא מושקע, עד שתקני משהו.'
               : 'A bank transfer usually lands in one to three working days. Money sitting in the account is still yours and still uninvested until you buy something.'}
@@ -291,10 +291,10 @@ export function OpenAccountScreen(_: ScreenProps) {
               <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <RadioDot on={firstBuy === k} />
                 <span style={{ flex: 1 }}>
-                  <span style={{ display: 'block', fontSize: 17 }}>{name}</span>
+                  <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>{name}</span>
                   <span
                     className="text-muted"
-                    style={{ display: 'block', fontSize: 16, marginTop: 2, lineHeight: 1.45 }}
+                    style={{ display: 'block', fontSize: 'var(--text-body)', marginTop: 2, lineHeight: 1.45 }}
                   >
                     {note}
                   </span>
@@ -306,7 +306,7 @@ export function OpenAccountScreen(_: ScreenProps) {
             <CardTitle size={17}>
               {language === 'he' ? 'מה קורה אחרי שלוחצים קנייה' : 'What happens after you press buy'}
             </CardTitle>
-            <p className="text-muted" style={{ fontSize: 16, margin: 0, lineHeight: 1.5 }}>
+            <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0, lineHeight: 1.5 }}>
               {language === 'he'
                 ? 'הפקודה מתבצעת בשניות בשעות המסחר. תראי אותה בפוזיציות, ומשם התפקיד היחיד הוא לא לגעת.'
                 : 'The order fills in seconds during market hours. You will see it in your positions, and from then on the only job is leaving it alone.'}

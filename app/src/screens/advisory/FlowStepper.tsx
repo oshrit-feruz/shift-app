@@ -20,7 +20,7 @@ export function FlowStepper() {
     border: '1px solid var(--color-divider)',
     background: 'var(--sunk)',
     font: 'inherit',
-    fontSize: 15.5,
+    fontSize: 'var(--text-caption)',
     cursor: on ? 'pointer' : 'default',
     color: 'inherit',
     opacity: on ? 1 : 0.3,

@@ -42,7 +42,7 @@ export function WatchlistScreen({ openAlert, openSearch }: ScreenProps) {
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <span className="text-muted" style={{ fontSize: 16, flex: 1 }}>
+        <span className="text-muted" style={{ fontSize: 'var(--text-body)', flex: 1 }}>
           {`${t('watch.alertsCount', { n: s.savedAlerts.length })} · ${t('watch.trackedCount', {
             n: s.watchlist.length,
           })}`}
@@ -91,10 +91,10 @@ export function WatchlistScreen({ openAlert, openSearch }: ScreenProps) {
           {(list) =>
             list.length === 0 ? (
               <div style={{ padding: '10px 0 16px', textAlign: 'center' }}>
-                <div style={{ fontSize: 17 }}>{t('watch.empty')}</div>
+                <div style={{ fontSize: 'var(--text-row)' }}>{t('watch.empty')}</div>
                 <p
                   className="text-muted"
-                  style={{ fontSize: 15.5, margin: '4px auto 12px', maxWidth: 300, lineHeight: 1.45 }}
+                  style={{ fontSize: 'var(--text-caption)', margin: '4px auto 12px', maxWidth: 300, lineHeight: 1.45 }}
                 >
                   {t('watch.emptyHelp')}
                 </p>
@@ -171,10 +171,10 @@ export function WatchlistScreen({ openAlert, openSearch }: ScreenProps) {
         </div>
         {s.savedAlerts.length === 0 ? (
           <EmptyState>
-            <div style={{ fontSize: 17 }}>{t('watch.noAlerts')}</div>
+            <div style={{ fontSize: 'var(--text-row)' }}>{t('watch.noAlerts')}</div>
             <p
               className="text-muted"
-              style={{ fontSize: 15.5, margin: '4px auto 0', maxWidth: 300, lineHeight: 1.45 }}
+              style={{ fontSize: 'var(--text-caption)', margin: '4px auto 0', maxWidth: 300, lineHeight: 1.45 }}
             >
               {t('watch.noAlertsHelp')}
             </p>
@@ -202,15 +202,15 @@ export function WatchlistScreen({ openAlert, openSearch }: ScreenProps) {
                     color: 'var(--color-accent-300)',
                     display: 'grid',
                     placeItems: 'center',
-                    fontSize: 15,
+                    fontSize: 'var(--text-caption)',
                   }}
                 >
                   {line.glyph}
                 </span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 17 }}>{line.title}</div>
+                  <div style={{ fontSize: 'var(--text-row)' }}>{line.title}</div>
                   {line.detail && (
-                    <div className="text-muted" style={{ fontSize: 15.5 }}>
+                    <div className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
                       {line.detail}
                     </div>
                   )}
@@ -228,7 +228,7 @@ export function WatchlistScreen({ openAlert, openSearch }: ScreenProps) {
           })
         )}
         {beg && s.savedAlerts.length > 0 && (
-          <p className="text-muted" style={{ fontSize: 15.5, margin: '4px 0 0' }}>
+          <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: '4px 0 0' }}>
             {t('watch.alertNudge')}
           </p>
         )}
@@ -265,7 +265,7 @@ function RowIconButton({
         border: '1px solid var(--color-divider)',
         background: 'transparent',
         color: muted ? 'var(--muted)' : 'var(--color-accent)',
-        fontSize: 18,
+        fontSize: 'var(--text-title)',
         cursor: 'pointer',
       }}
       aria-label={label}

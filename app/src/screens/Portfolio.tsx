@@ -111,13 +111,13 @@ export function PortfolioScreen(_: ScreenProps) {
                 {/* Add transaction exists ONLY on the theoretical portfolio — linked
                     accounts are read-only synced (product rule). */}
                 {isManual && (
-                  <Button style={{ flex: 1, fontSize: 16, minHeight: 36 }} onClick={() => setTxOpen(true)}>
+                  <Button style={{ flex: 1, fontSize: 'var(--text-body)', minHeight: 36 }} onClick={() => setTxOpen(true)}>
                     ＋ {t('pf.addTx')}
                   </Button>
                 )}
                 <Button
                   variant="secondary"
-                  style={{ fontSize: 16, minHeight: 36 }}
+                  style={{ fontSize: 'var(--text-body)', minHeight: 36 }}
                   onClick={() => setNewPfOpen(true)}
                 >
                   ＋ {t('pf.portfolio')}
@@ -147,10 +147,10 @@ export function PortfolioScreen(_: ScreenProps) {
                   <LogoTile src={null} dashed label={pf.name.slice(0, 2).toUpperCase()} size={28} />
                 )}
                 <span style={{ flex: 1, minWidth: 0, marginInlineStart: 10 }}>
-                  <span style={{ display: 'block', fontSize: 17 }}>
+                  <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>
                     {isAgg ? t('pf.allLinked') : isManual ? pf.name : `${pf.broker} ${pf.acct}`}
                   </span>
-                  <span className="text-muted" style={{ display: 'block', fontSize: 15.5 }}>
+                  <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-caption)' }}>
                     {isAgg
                       ? t('pf.aggDetail')
                       : isManual
@@ -172,7 +172,7 @@ export function PortfolioScreen(_: ScreenProps) {
                   <CardTitle size={17}>
                     <span style={{ padding: '9px 13px 2px', display: 'block' }}>{t('pf.byAccount')}</span>
                   </CardTitle>
-                  <div className="text-muted" style={{ fontSize: 15.5, padding: '0 13px 6px' }}>
+                  <div className="text-muted" style={{ fontSize: 'var(--text-caption)', padding: '0 13px 6px' }}>
                     {t('pf.aggPickHelp')}
                   </div>
                   {linked.map((x) => {
@@ -206,7 +206,7 @@ export function PortfolioScreen(_: ScreenProps) {
                             borderRadius: '50%',
                             display: 'grid',
                             placeItems: 'center',
-                            fontSize: 15,
+                            fontSize: 'var(--text-caption)',
                             ...(on
                               ? { background: 'var(--color-accent)', color: 'var(--g2)' }
                               : { border: '1px solid var(--color-divider)', color: 'transparent' }),
@@ -216,8 +216,8 @@ export function PortfolioScreen(_: ScreenProps) {
                         </span>
                         <LogoTile src={x.logo} size={26} />
                         <span style={{ flex: 1, minWidth: 0 }}>
-                          <span style={{ display: 'block', fontSize: 17 }}>{x.name}</span>
-                          <span className="text-muted" style={{ display: 'block', fontSize: 15.5 }}>
+                          <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>{x.name}</span>
+                          <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-caption)' }}>
                             {on ? `${((x.total / aggTotal) * 100).toFixed(1)}%` : t('pf.excluded')}
                           </span>
                         </span>
@@ -235,19 +235,19 @@ export function PortfolioScreen(_: ScreenProps) {
               )}
 
               <Card padding={14} gap={8}>
-                <div className="text-muted" style={{ fontSize: 15.5 }}>
+                <div className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
                   {isAgg ? t('pf.allAccounts') : pf.name} {t('pf.totalValue')}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: 9 }}>
                   <Num size={28} style={{ fontFamily: 'var(--font-heading)', lineHeight: 1.1 }}>
                     {money(isAgg ? aggTotal : pf.total)}
                   </Num>
-                  <span style={{ fontSize: 16, color: signalColor(pf.dayPct), paddingBottom: 3 }}>
+                  <span style={{ fontSize: 'var(--text-body)', color: signalColor(pf.dayPct), paddingBottom: 3 }}>
                     <Num>{pct(pf.dayPct)}</Num> {t('pf.today')}
                   </span>
                 </div>
                 <AreaChart values={series} height={110} pad={8} benchmark={bench} />
-                <div className="text-muted" style={{ display: 'flex', gap: 14, fontSize: 15.5 }}>
+                <div className="text-muted" style={{ display: 'flex', gap: 14, fontSize: 'var(--text-caption)' }}>
                   <span>
                     <span style={{ color: 'var(--acc-lite)' }}>—</span>{' '}
                     {isAgg ? t('pf.allAccounts') : pf.name}
@@ -269,7 +269,7 @@ export function PortfolioScreen(_: ScreenProps) {
                   ]}
                 />
                 {beg && (
-                  <p className="text-muted" style={{ fontSize: 16, margin: 0 }}>
+                  <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0 }}>
                     {t('pf.concentration')}
                   </p>
                 )}
@@ -358,7 +358,7 @@ export function LongTermSavings() {
       </div>
       {rows.length === 0 ? (
         <div style={{ padding: '4px 0 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <p className="text-muted" style={{ fontSize: 16, margin: 0, lineHeight: 1.5 }}>
+          <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0, lineHeight: 1.5 }}>
             {t('pf.longTermEmpty')}
           </p>
           <Button
@@ -386,7 +386,7 @@ export function LongTermSavings() {
                   color: 'var(--color-accent-200)',
                   display: 'grid',
                   placeItems: 'center',
-                  fontSize: 16,
+                  fontSize: 'var(--text-body)',
                   fontWeight: 600,
                 }}
               >

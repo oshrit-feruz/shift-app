@@ -34,7 +34,7 @@ export function TickerTile({ ticker, size = 34 }: { ticker: string; size?: numbe
     borderRadius: 'var(--radius-sm)',
     display: 'grid',
     placeItems: 'center' as const,
-    fontSize: size < 30 ? 12 : 13.5,
+    fontSize: size < 30 ? 12 : 'var(--text-micro)',
     fontWeight: 600,
   };
   if (url) {
@@ -84,7 +84,7 @@ export function LogoTile({
           color: dashed ? 'var(--muted)' : 'var(--color-accent-200)',
           display: 'grid',
           placeItems: 'center',
-          fontSize: 14,
+          fontSize: 'var(--text-micro)',
           fontWeight: 600,
         }}
       >

@@ -67,13 +67,13 @@ export function SignInScreen() {
           className="anim-fade-up"
           style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 10 }}
         >
-          <span className="text-muted" style={{ fontSize: 16, fontWeight: 600, letterSpacing: 0.4 }}>
+          <span className="text-muted" style={{ fontSize: 'var(--text-body)', fontWeight: 600, letterSpacing: 0.4 }}>
             {t('auth.kicker')}
           </span>
-          <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: 29, lineHeight: 1.2 }}>
+          <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: 'var(--text-display)', lineHeight: 1.2 }}>
             {t('auth.title')}
           </h1>
-          <p className="text-muted" style={{ margin: '0 0 18px', fontSize: 17, lineHeight: 1.5 }}>
+          <p className="text-muted" style={{ margin: '0 0 18px', fontSize: 'var(--text-row)', lineHeight: 1.5 }}>
             {t('auth.sub')}
           </p>
 
@@ -114,14 +114,14 @@ export function SignInScreen() {
             {busy === 'apple' ? t('auth.redirecting') : t('auth.apple')}
           </Button>
           {!isAppleEnabled && !notConfigured && (
-            <span className="text-muted" style={{ fontSize: 15.5, textAlign: 'center' }}>
+            <span className="text-muted" style={{ fontSize: 'var(--text-caption)', textAlign: 'center' }}>
               {t('auth.appleSoon')}
             </span>
           )}
 
           {/* Why the buttons are dead — shown instead of letting them fail. */}
           {notConfigured && (
-            <span className="text-muted" style={{ fontSize: 15.5, textAlign: 'center', lineHeight: 1.5 }}>
+            <span className="text-muted" style={{ fontSize: 'var(--text-caption)', textAlign: 'center', lineHeight: 1.5 }}>
               {session.status === 'unavailable' && session.reason
                 ? session.reason[language]
                 : t('data.unavailableHelp')}
@@ -138,8 +138,8 @@ export function SignInScreen() {
                 gap: 6,
               }}
             >
-              <span style={{ fontSize: 17 }}>{t('auth.errorTitle')}</span>
-              <span className="text-muted" style={{ fontSize: 15.5, lineHeight: 1.5 }}>
+              <span style={{ fontSize: 'var(--text-row)' }}>{t('auth.errorTitle')}</span>
+              <span className="text-muted" style={{ fontSize: 'var(--text-caption)', lineHeight: 1.5 }}>
                 {signInError[language]}
               </span>
               <Button variant="ghost" onClick={clearSignInError} alignSelf="center" fontSize={16}>

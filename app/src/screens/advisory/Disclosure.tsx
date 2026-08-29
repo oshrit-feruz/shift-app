@@ -17,7 +17,7 @@ export function AdvisoryDisclosure(_: ScreenProps) {
       <FlowStepper />
       <Card padding={14} gap={6}>
         <CardTitle>{t('disc.title')}</CardTitle>
-        <p className="text-muted" style={{ fontSize: 16, margin: 0, lineHeight: 1.55 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0, lineHeight: 1.55 }}>
           {t('disc.lead')}
         </p>
       </Card>
@@ -42,12 +42,12 @@ export function AdvisoryDisclosure(_: ScreenProps) {
                 color: 'var(--color-accent-200)',
                 display: 'grid',
                 placeItems: 'center',
-                fontSize: 15,
+                fontSize: 'var(--text-caption)',
               }}
             >
               {i + 1}
             </span>
-            <span style={{ flex: 1, fontSize: 16.5, lineHeight: 1.5 }}>{t(k)}</span>
+            <span style={{ flex: 1, fontSize: 'var(--text-body)', lineHeight: 1.5 }}>{t(k)}</span>
           </div>
         ))}
       </Card>

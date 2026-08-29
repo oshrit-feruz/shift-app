@@ -52,7 +52,7 @@ export function AdvisoryRecommendation(_: ScreenProps) {
           </Tag>
         </div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 24 }}>
+          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-heading)' }}>
             {t(`profile.${profileKey}` as StringKey)}
           </div>
           <span style={{ marginInlineStart: 'auto' }}>
@@ -66,7 +66,7 @@ export function AdvisoryRecommendation(_: ScreenProps) {
             </Button>
           </span>
         </div>
-        <p style={{ fontSize: 16.5, lineHeight: 1.55, margin: 0, opacity: 0.85 }}>{t('rec.coreSatIntro')}</p>
+        <p style={{ fontSize: 'var(--text-body)', lineHeight: 1.55, margin: 0, opacity: 0.85 }}>{t('rec.coreSatIntro')}</p>
       </Card>
 
       {/* Core — specific fund per category, not just a percentage. Fund names
@@ -78,7 +78,7 @@ export function AdvisoryRecommendation(_: ScreenProps) {
             {100 - profile.satellitePct}%
           </Num>
         </div>
-        <p className="text-muted" style={{ fontSize: 15.5, margin: 0, lineHeight: 1.5 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
           {t('rec.coreHelp')}
         </p>
         <div
@@ -94,7 +94,7 @@ export function AdvisoryRecommendation(_: ScreenProps) {
           <Tag variant="neutral" fontSize={15}>
             {t('adv.fromLibrary')}
           </Tag>
-          <span className="text-muted" style={{ fontSize: 15.5, lineHeight: 1.5 }}>
+          <span className="text-muted" style={{ fontSize: 'var(--text-caption)', lineHeight: 1.5 }}>
             {t('rec.eduCoreBody')}
           </span>
         </div>
@@ -121,7 +121,7 @@ export function AdvisoryRecommendation(_: ScreenProps) {
             <Num size={15.5} style={{ color: 'var(--muted)' }}>
               {profile.satellitePct}%
             </Num>
-            <span className="text-muted" style={{ fontSize: 15.5 }}>
+            <span className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
               {t('rec.ofPortfolio')}
             </span>
             <span style={{ marginInlineStart: 'auto' }}>
@@ -130,12 +130,12 @@ export function AdvisoryRecommendation(_: ScreenProps) {
               </Tag>
             </span>
           </div>
-          <p className="text-muted" style={{ fontSize: 15.5, margin: 0, lineHeight: 1.5 }}>
+          <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
             {t('rec.satHelp')}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
             {SAT_RULES.map((k) => (
-              <div key={k} style={{ display: 'flex', gap: 8, fontSize: 15.5, lineHeight: 1.45 }}>
+              <div key={k} style={{ display: 'flex', gap: 8, fontSize: 'var(--text-caption)', lineHeight: 1.45 }}>
                 <span style={{ color: 'var(--color-accent-200)', flex: 'none' }}>·</span>
                 <span className="text-muted" style={{ flex: 1 }}>
                   {t(k)}
@@ -161,14 +161,14 @@ export function AdvisoryRecommendation(_: ScreenProps) {
         {/* With no satellite sleeve the engine's picks are not advice for
             this profile, so say so rather than letting the list imply it. */}
         {profile.satellitePct === 0 && (
-          <p className="text-muted" style={{ fontSize: 15.5, margin: 0, lineHeight: 1.5 }}>
+          <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
             {t('rec.satInfoOnly')}
           </p>
         )}
         {/* Says plainly who executes, and — while no per-symbol link is
             configured — what the button will actually do. */}
         {s.advBroker && (
-          <p className="text-muted" style={{ fontSize: 15, margin: 0, lineHeight: 1.5 }}>
+          <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
             {t('buy.handoffNote')}
             {!hasAnyTradeDeepLink() && ` ${t('buy.noDeepLink')}`}
           </p>
@@ -214,7 +214,7 @@ export function AdvisoryRecommendation(_: ScreenProps) {
 
       <Card padding={13} gap={8}>
         <CardTitle>{t('rec.nextStep')}</CardTitle>
-        <p className="text-muted" style={{ fontSize: 16, margin: 0, lineHeight: 1.5 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0, lineHeight: 1.5 }}>
           {t('rec.nextStepHelp')}
         </p>
         <Button

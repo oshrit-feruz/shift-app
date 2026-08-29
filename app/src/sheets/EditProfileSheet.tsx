@@ -101,7 +101,7 @@ export function EditProfileSheet({ open, onClose }: { open: boolean; onClose: ()
               </Button>
             )}
           </div>
-          <span className="text-muted" style={{ fontSize: 15 }}>
+          <span className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
             {t('set.photoHelp')}
           </span>
         </div>
@@ -117,7 +117,7 @@ export function EditProfileSheet({ open, onClose }: { open: boolean; onClose: ()
 
       {/* Display name */}
       <div className="field">
-        <label htmlFor="display-name" style={{ fontSize: 16 }}>
+        <label htmlFor="display-name" style={{ fontSize: 'var(--text-body)' }}>
           {t('set.displayName')}
         </label>
         <input
@@ -128,7 +128,7 @@ export function EditProfileSheet({ open, onClose }: { open: boolean; onClose: ()
           placeholder={t('set.namePlaceholder')}
           onChange={(e) => setName(e.target.value)}
         />
-        {!nameValid && <span style={{ fontSize: 15, color: 'var(--down)' }}>{t('set.nameInvalid')}</span>}
+        {!nameValid && <span style={{ fontSize: 'var(--text-caption)', color: 'var(--down)' }}>{t('set.nameInvalid')}</span>}
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <Button
@@ -165,22 +165,22 @@ export function EditProfileSheet({ open, onClose }: { open: boolean; onClose: ()
           paddingTop: 10,
         }}
       >
-        <span style={{ fontSize: 16.5 }}>{profile.email}</span>
-        <span className="text-muted" style={{ fontSize: 15, lineHeight: 1.5 }}>
+        <span style={{ fontSize: 'var(--text-body)' }}>{profile.email}</span>
+        <span className="text-muted" style={{ fontSize: 'var(--text-caption)', lineHeight: 1.5 }}>
           {t('set.emailFixed')}
         </span>
       </div>
 
       {error && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <span style={{ fontSize: 16.5 }}>{t('set.saveFailedTitle')}</span>
-          <span className="text-muted" style={{ fontSize: 15.5, lineHeight: 1.5 }}>
+          <span style={{ fontSize: 'var(--text-body)' }}>{t('set.saveFailedTitle')}</span>
+          <span className="text-muted" style={{ fontSize: 'var(--text-caption)', lineHeight: 1.5 }}>
             {error[language]}
           </span>
         </div>
       )}
       {saved && !error && (
-        <span role="status" className="text-muted" style={{ fontSize: 15.5 }}>
+        <span role="status" className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
           {t('set.saved')}
         </span>
       )}

@@ -93,7 +93,7 @@ export function AlertSheet({
           subject is already decided and re-asking would be noise. */}
       {!ticker &&
         (s.watchlist.length === 0 ? (
-          <p className="text-muted" style={{ fontSize: 16, margin: 0, lineHeight: 1.45 }}>
+          <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0, lineHeight: 1.45 }}>
             {t('alert.noStock')}
           </p>
         ) : (
@@ -149,18 +149,18 @@ export function AlertSheet({
                 color: 'var(--color-accent-300)',
                 display: 'grid',
                 placeItems: 'center',
-                fontSize: 16,
+                fontSize: 'var(--text-body)',
               }}
             >
               {a.glyph}
             </span>
             <span style={{ flex: 1 }}>
-              <span style={{ display: 'block', fontSize: 16.5 }}>{a.title}</span>
-              <span className="text-muted" style={{ display: 'block', fontSize: 15.5 }}>
+              <span style={{ display: 'block', fontSize: 'var(--text-body)' }}>{a.title}</span>
+              <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-caption)' }}>
                 {a.help}
               </span>
             </span>
-            <span style={{ color: 'var(--color-accent)', fontSize: 17 }}>{kind === a.k ? '✓' : ''}</span>
+            <span style={{ color: 'var(--color-accent)', fontSize: 'var(--text-row)' }}>{kind === a.k ? '✓' : ''}</span>
           </button>
         ))}
       </div>
@@ -181,7 +181,7 @@ export function AlertSheet({
           </div>
           <Field label={t('alert.price')} value={value} onChange={(e) => setValue(e.target.value)} />
           {beg && (
-            <p className="text-muted" style={{ fontSize: 15.5, margin: 0 }}>
+            <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0 }}>
               {t('alert.priceHint')}
             </p>
           )}
@@ -192,7 +192,7 @@ export function AlertSheet({
           <Field label={t('alert.mentions')} value={keywords} onChange={(e) => setKeywords(e.target.value)} />
           <div className="field">
             <label>{t('alert.sources')}</label>
-            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 16 }}>
+            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 'var(--text-body)' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <input
                   type="checkbox"
@@ -231,7 +231,7 @@ export function AlertSheet({
 
       <div className="field">
         <label>{t('alert.notifyBy')}</label>
-        <div style={{ display: 'flex', gap: 14, fontSize: 16 }}>
+        <div style={{ display: 'flex', gap: 14, fontSize: 'var(--text-body)' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <input
               type="checkbox"

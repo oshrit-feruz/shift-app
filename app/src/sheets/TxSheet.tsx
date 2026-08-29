@@ -92,7 +92,7 @@ export function TxSheet({
           background: 'var(--sunk)',
         }}
       >
-        <span className="text-muted" style={{ fontSize: 16, flex: 1 }}>
+        <span className="text-muted" style={{ fontSize: 'var(--text-body)', flex: 1 }}>
           {verb} <Num>{`${sh} × ${ticker}`}</Num> <Num>{`@ $${px.toFixed(2)}`}</Num>
         </span>
         <Num size={20}>
@@ -102,7 +102,7 @@ export function TxSheet({
         </Num>
       </div>
       {mode === 'beginner' && (
-        <p className="text-muted" style={{ fontSize: 15.5, margin: 0 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0 }}>
           {t('pf.theoretical')}
         </p>
       )}

@@ -107,6 +107,20 @@
   --font-heading: 'Rubik', system-ui, sans-serif;
   --font-body: 'Rubik', system-ui, sans-serif;
 
+  /* Type scale — one set of sizes named by role, not by pixel. Six of the
+   * raw literals this replaces sat inside a 2.5px band (15–17.5px) meaning
+   * three or four different things by accident: a "row title" was 17 in one
+   * screen, 17.5 in another, 18 in a third. Picking one number per role is
+   * what makes them the same size again. */
+  --text-micro: 14px; /* eyebrow labels, tiny meta */
+  --text-caption: 15.5px; /* secondary/muted line under a title */
+  --text-body: 16px; /* paragraph copy, ordinary row text */
+  --text-row: 17px; /* list-row title, primary label */
+  --text-title: 18px; /* section/card title, header-row emphasis */
+  --text-heading: 23px; /* onboarding/overlay heading */
+  --text-display: 29px; /* sign-in / large display heading */
+  --text-hero: 43px; /* the one hero number (Home's portfolio total) */
+
   /* Motion — durations and easings base.css's animation classes share with
    * useDismissAnimation, so there is one source of truth for how long an
    * exit actually plays instead of a CSS duration and a JS timeout each

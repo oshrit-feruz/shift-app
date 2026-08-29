@@ -51,7 +51,7 @@ export function DesignSystemPage() {
           >
             The tokens and parts behind Shift
           </h1>
-          <p style={{ margin: 0, maxWidth: '60ch', fontSize: 19, lineHeight: 1.6, color: 'var(--muted)' }}>
+          <p style={{ margin: 0, maxWidth: '60ch', fontSize: 'var(--text-title)', lineHeight: 1.6, color: 'var(--muted)' }}>
             Every value here is read live from tokens.css and rendered with the shipping component library —
             the same code the app itself composes from. Dark is the default surface; light mode swaps the ramp
             but keeps cards dark on purpose, so contrast against the page stays high in both.
@@ -64,7 +64,7 @@ export function DesignSystemPage() {
                 borderRadius: 10,
                 border: '1px solid var(--color-divider)',
                 color: 'var(--acc-pale)',
-                fontSize: 17,
+                fontSize: 'var(--text-row)',
                 fontWeight: 500,
               }}
             >
@@ -123,7 +123,7 @@ export function DesignSystemPage() {
               >
                 <span
                   style={{
-                    fontSize: 15.5,
+                    fontSize: 'var(--text-caption)',
                     fontWeight: 600,
                     color: label === '200' || label === '300' ? '#1E293B' : '#fff',
                   }}
@@ -132,7 +132,7 @@ export function DesignSystemPage() {
                 </span>
                 <span
                   style={{
-                    fontSize: 15,
+                    fontSize: 'var(--text-caption)',
                     fontFamily: 'ui-monospace, monospace',
                     color: label === '200' || label === '300' ? '#4C1D95' : '#DDD6FE',
                   }}
@@ -196,14 +196,14 @@ export function DesignSystemPage() {
               ],
               [
                 '22 / 1.2 / −.01em',
-                <span key="b" style={{ fontSize: 23, lineHeight: 1.2, letterSpacing: '-.01em' }}>
+                <span key="b" style={{ fontSize: 'var(--text-heading)', lineHeight: 1.2, letterSpacing: '-.01em' }}>
                   Watchlist
                 </span>,
                 'Screen title',
               ],
               [
                 '16 / 600',
-                <span key="c" style={{ fontSize: 19, fontWeight: 600 }}>
+                <span key="c" style={{ fontSize: 'var(--text-title)', fontWeight: 600 }}>
                   Track it yourself
                 </span>,
                 'Card title, row label',
@@ -213,7 +213,7 @@ export function DesignSystemPage() {
                 <span
                   key="d"
                   style={{
-                    fontSize: 17,
+                    fontSize: 'var(--text-row)',
                     lineHeight: 1.5,
                     color: 'var(--muted)',
                     maxWidth: '46ch',
@@ -231,7 +231,7 @@ export function DesignSystemPage() {
                 <span
                   key="e"
                   style={{
-                    fontSize: 18,
+                    fontSize: 'var(--text-title)',
                     letterSpacing: '.08em',
                     textTransform: 'uppercase',
                     fontWeight: 600,
@@ -244,7 +244,7 @@ export function DesignSystemPage() {
               ],
               [
                 '12 / 500',
-                <span key="f" style={{ fontSize: 15, fontWeight: 500, color: 'var(--muted-2)' }}>
+                <span key="f" style={{ fontSize: 'var(--text-caption)', fontWeight: 500, color: 'var(--muted-2)' }}>
                   NASDAQ · Delayed 15m
                 </span>,
                 'Meta, tags',
@@ -265,7 +265,7 @@ export function DesignSystemPage() {
                 style={{
                   width: 150,
                   flex: 'none',
-                  fontSize: 15.5,
+                  fontSize: 'var(--text-caption)',
                   fontFamily: 'ui-monospace, monospace',
                   color: 'var(--muted-2)',
                 }}
@@ -273,7 +273,7 @@ export function DesignSystemPage() {
                 {spec}
               </span>
               {sample}
-              <span style={{ fontSize: 16, color: 'var(--muted-2)', marginLeft: 'auto' }}>{label}</span>
+              <span style={{ fontSize: 'var(--text-body)', color: 'var(--muted-2)', marginLeft: 'auto' }}>{label}</span>
             </div>
           ))}
           <Note>
@@ -294,7 +294,7 @@ export function DesignSystemPage() {
                   <span
                     style={{
                       width: 46,
-                      fontSize: 15.5,
+                      fontSize: 'var(--text-caption)',
                       fontFamily: 'ui-monospace, monospace',
                       color: 'var(--muted-2)',
                     }}
@@ -333,7 +333,7 @@ export function DesignSystemPage() {
                       }}
                     />
                     <span
-                      style={{ fontSize: 15, color: 'var(--muted-2)', fontFamily: 'ui-monospace, monospace' }}
+                      style={{ fontSize: 'var(--text-caption)', color: 'var(--muted-2)', fontFamily: 'ui-monospace, monospace' }}
                     >
                       {label}
                     </span>
@@ -349,7 +349,7 @@ export function DesignSystemPage() {
                     height: 66,
                     display: 'grid',
                     placeItems: 'center',
-                    fontSize: 15.5,
+                    fontSize: 'var(--text-caption)',
                     color: 'var(--muted)',
                   }}
                 >
@@ -362,7 +362,7 @@ export function DesignSystemPage() {
                     height: 66,
                     display: 'grid',
                     placeItems: 'center',
-                    fontSize: 15.5,
+                    fontSize: 'var(--text-caption)',
                     color: 'var(--muted)',
                   }}
                 >
@@ -384,7 +384,7 @@ export function DesignSystemPage() {
                     height: 66,
                     display: 'grid',
                     placeItems: 'center',
-                    fontSize: 15.5,
+                    fontSize: 'var(--text-caption)',
                     color: 'var(--muted)',
                   }}
                 >
@@ -398,7 +398,7 @@ export function DesignSystemPage() {
                     borderRadius: 999,
                     display: 'grid',
                     placeItems: 'center',
-                    fontSize: 15.5,
+                    fontSize: 'var(--text-caption)',
                     color: 'var(--muted)',
                   }}
                 >
@@ -412,7 +412,7 @@ export function DesignSystemPage() {
                     borderRadius: 20,
                     display: 'grid',
                     placeItems: 'center',
-                    fontSize: 15.5,
+                    fontSize: 'var(--text-caption)',
                     color: 'var(--muted)',
                   }}
                 >
@@ -531,18 +531,18 @@ export function DesignSystemPage() {
                     color: 'var(--color-accent-200)',
                     display: 'grid',
                     placeItems: 'center',
-                    fontSize: 18,
+                    fontSize: 'var(--text-title)',
                   }}
                 >
                   ◉
                 </span>
                 <span style={{ flex: 1 }}>
-                  <span style={{ display: 'block', fontSize: 16.5 }}>Start here</span>
-                  <span style={{ display: 'block', fontSize: 15.5, color: 'var(--muted-2)', marginTop: 2 }}>
+                  <span style={{ display: 'block', fontSize: 'var(--text-body)' }}>Start here</span>
+                  <span style={{ display: 'block', fontSize: 'var(--text-caption)', color: 'var(--muted-2)', marginTop: 2 }}>
                     Five short lessons · 2 of 5
                   </span>
                 </span>
-                <span style={{ opacity: 0.5, fontSize: 18 }}>›</span>
+                <span style={{ opacity: 0.5, fontSize: 'var(--text-title)' }}>›</span>
               </div>
               <Note>
                 The accent border plus the 14%-alpha fill is the only "look at this" treatment in the system.
@@ -616,7 +616,7 @@ function Section({
         <h2
           style={{
             margin: 0,
-            fontSize: 16,
+            fontSize: 'var(--text-body)',
             letterSpacing: '.16em',
             textTransform: 'uppercase',
             color: 'var(--muted-2)',
@@ -625,7 +625,7 @@ function Section({
         >
           {n} — {title}
         </h2>
-        {note && <span style={{ fontSize: 17, color: 'var(--muted-2)' }}>{note}</span>}
+        {note && <span style={{ fontSize: 'var(--text-row)', color: 'var(--muted-2)' }}>{note}</span>}
       </div>
       {children}
     </div>
@@ -633,14 +633,14 @@ function Section({
 }
 
 function SubTitle({ children }: { children: React.ReactNode }) {
-  return <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--muted)' }}>{children}</div>;
+  return <div style={{ fontSize: 'var(--text-title)', fontWeight: 600, color: 'var(--muted)' }}>{children}</div>;
 }
 
 function Kicker({ children }: { children: React.ReactNode }) {
   return (
     <div
       style={{
-        fontSize: 16,
+        fontSize: 'var(--text-body)',
         letterSpacing: '.16em',
         textTransform: 'uppercase',
         color: 'var(--muted-2)',
@@ -654,7 +654,7 @@ function Kicker({ children }: { children: React.ReactNode }) {
 
 function Note({ children }: { children: React.ReactNode }) {
   return (
-    <p style={{ margin: 0, fontSize: 16.5, lineHeight: 1.6, color: 'var(--muted-2)', maxWidth: '70ch' }}>
+    <p style={{ margin: 0, fontSize: 'var(--text-body)', lineHeight: 1.6, color: 'var(--muted-2)', maxWidth: '70ch' }}>
       {children}
     </p>
   );
@@ -673,8 +673,8 @@ function Swatch({ varName, hexNote }: { varName: string; hexNote: string }) {
           gap: 2,
         }}
       >
-        <span style={{ fontSize: 16, fontWeight: 600, color: '#fff' }}>{varName}</span>
-        <span style={{ fontSize: 15.5, color: 'var(--muted-2)', fontFamily: 'ui-monospace, monospace' }}>
+        <span style={{ fontSize: 'var(--text-body)', fontWeight: 600, color: '#fff' }}>{varName}</span>
+        <span style={{ fontSize: 'var(--text-caption)', color: 'var(--muted-2)', fontFamily: 'ui-monospace, monospace' }}>
           {hexNote}
         </span>
       </div>
@@ -694,8 +694,8 @@ function Cell({ title, children }: { title: string; children: React.ReactNode })
 function Rule({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-      <span style={{ fontSize: 19, fontWeight: 600 }}>{title}</span>
-      <p style={{ margin: 0, fontSize: 17, lineHeight: 1.6, color: 'var(--muted)' }}>{children}</p>
+      <span style={{ fontSize: 'var(--text-title)', fontWeight: 600 }}>{title}</span>
+      <p style={{ margin: 0, fontSize: 'var(--text-row)', lineHeight: 1.6, color: 'var(--muted)' }}>{children}</p>
     </div>
   );
 }

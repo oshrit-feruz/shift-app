@@ -198,7 +198,7 @@ export function TabBar({
               )}
               <span
                 style={{
-                  fontSize: 13.5,
+                  fontSize: 'var(--text-micro)',
                   lineHeight: 1,
                   fontWeight: active ? 600 : 400,
                 }}

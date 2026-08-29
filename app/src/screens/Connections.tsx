@@ -43,7 +43,7 @@ export function ConnectionsScreen(_: ScreenProps) {
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
       <Card padding={13} gap={5}>
         <CardTitle>{t('connScreen.linked')}</CardTitle>
-        <p className="text-muted" style={{ fontSize: 15.5, margin: 0 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0 }}>
           {t('connScreen.linkedHelp')}
         </p>
       </Card>
@@ -62,9 +62,9 @@ export function ConnectionsScreen(_: ScreenProps) {
           >
             <LogoTile src={c.logo} />
             <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontSize: 17 }}>
+              <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>
                 {c.broker}{' '}
-                <span className="text-muted" style={{ fontSize: 16 }}>
+                <span className="text-muted" style={{ fontSize: 'var(--text-body)' }}>
                   <Num>{c.acct}</Num>
                 </span>
               </span>
@@ -72,7 +72,7 @@ export function ConnectionsScreen(_: ScreenProps) {
                 className="text-muted"
                 style={{
                   display: 'block',
-                  fontSize: 15.5,
+                  fontSize: 'var(--text-caption)',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
@@ -102,7 +102,7 @@ export function ConnectionsScreen(_: ScreenProps) {
 
       <Card padding="4px 0" gap={0}>
         <CardTitle>
-          <span style={{ display: 'block', padding: '9px 13px 2px', fontSize: 18 }}>
+          <span style={{ display: 'block', padding: '9px 13px 2px', fontSize: 'var(--text-title)' }}>
             {t('connScreen.add')}
           </span>
         </CardTitle>
@@ -111,7 +111,7 @@ export function ConnectionsScreen(_: ScreenProps) {
 
       <Card padding={13} gap={7}>
         <CardTitle>{t('connScreen.theo')}</CardTitle>
-        <p className="text-muted" style={{ fontSize: 15.5, margin: 0 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0 }}>
           {t('connScreen.theoHelp')}
         </p>
         <Button variant="secondary" block fontSize={16} minHeight={40} onClick={() => setNewPfOpen(true)}>
@@ -133,7 +133,7 @@ export function ConnectionsScreen(_: ScreenProps) {
               display: 'flex',
               justifyContent: 'space-between',
               gap: 10,
-              fontSize: 16,
+              fontSize: 'var(--text-body)',
               padding: '11px 13px',
               borderTop: '1px solid var(--color-divider)',
             }}
