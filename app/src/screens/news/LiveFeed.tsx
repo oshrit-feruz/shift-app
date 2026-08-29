@@ -2,7 +2,8 @@ import { Card, CardTitle } from '../../components/Card';
 import { DataState, EmptyState } from '../../components/DataState';
 import { SkeletonCard } from '../../components/Skeleton';
 import { Tag } from '../../components/Tag';
-import { useT } from '../../i18n/useT';
+import { useT, type TFn } from '../../i18n/useT';
+import { sentimentTag } from './sentimentTag';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useLoadable } from '../../data/useLoadable';
 import { fetchMarketNews, fetchStockNews, publishedAtMs } from '../../data/stockNews';
@@ -161,6 +162,7 @@ function FeedBody({
                 language={language}
                 showTicker={showTicker}
                 openLabel={t('news.openSource')}
+                t={t}
               />
             ))}
           </div>
@@ -175,16 +177,21 @@ function ArticleCard({
   language,
   showTicker,
   openLabel,
+  t,
 }: {
   article: StockNewsArticle;
   language: 'en' | 'he';
   showTicker: boolean;
   openLabel: string;
+  t: TFn;
 }) {
   // Only the general feed needs the chip — on the watchlist the user already
   // knows which stocks these are, and a chip per card would be noise.
   const ticker = showTicker ? article.symbols[0] : undefined;
   const date = article.publishedAt ? isoDate(article.publishedAt.slice(0, 10), language) : '';
+  // Absent whenever the provider sent no score — no chip rather than a
+  // guessed one. See sentimentTag.
+  const tone = sentimentTag(article.sentiment);
 
   return (
     <Card padding={14} gap={5}>
@@ -195,6 +202,11 @@ function ArticleCard({
         {ticker && (
           <Tag variant="accent" fontSize={15}>
             {ticker}
+          </Tag>
+        )}
+        {tone && (
+          <Tag variant={tone.variant} fontSize={15}>
+            {t(tone.key)}
           </Tag>
         )}
         <span className="text-muted" style={{ fontSize: 15.5, display: 'flex', gap: 5 }}>

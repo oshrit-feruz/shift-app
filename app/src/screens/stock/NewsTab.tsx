@@ -1,7 +1,9 @@
 import { Card, CardTitle } from '../../components/Card';
 import { DataState, EmptyState } from '../../components/DataState';
 import { SkeletonCard } from '../../components/Skeleton';
-import { useT } from '../../i18n/useT';
+import { Tag } from '../../components/Tag';
+import { useT, type TFn } from '../../i18n/useT';
+import { sentimentTag } from '../news/sentimentTag';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useLoadable } from '../../data/useLoadable';
 import { fetchStockNews } from '../../data/stockNews';
@@ -45,7 +47,7 @@ export function NewsTab({ ticker }: { ticker: string }) {
           <Card padding={12} gap={8}>
             <CardTitle>{t('stock.tabNews')}</CardTitle>
             {articles.map((a) => (
-              <Article key={a.url} article={a} language={language} readLabel={t('stock.newsRead')} />
+              <Article key={a.url} article={a} language={language} readLabel={t('stock.newsRead')} t={t} />
             ))}
             <p className="text-muted" style={{ fontSize: 15, lineHeight: 1.5, margin: '2px 0 0' }}>
               {t('stock.newsExcerptNote')}
@@ -71,12 +73,16 @@ function Article({
   article,
   language,
   readLabel,
+  t,
 }: {
   article: StockNewsArticle;
   language: 'en' | 'he';
   readLabel: string;
+  t: TFn;
 }) {
   const published = publishedLabel(article.publishedAt, language);
+  // The provider's tone score, or nothing at all when it did not send one.
+  const tone = sentimentTag(article.sentiment);
 
   return (
     <div style={{ paddingTop: 8, borderTop: '1px solid var(--color-divider)' }}>
@@ -85,11 +91,19 @@ function Article({
           a single mixed run gets reordered by bidi and renders as
           "2026 באוג׳ Reuters · 26". Isolating the source keeps each part
           intact and the separator where it was written. */}
-      {(article.source || published) && (
-        <div className="text-muted" style={{ fontSize: 15.5, display: 'flex', gap: 5 }}>
+      {(article.source || published || tone) && (
+        <div
+          className="text-muted"
+          style={{ fontSize: 15.5, display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}
+        >
           {article.source && <bdi>{article.source}</bdi>}
           {article.source && published && <span>·</span>}
           {published && <span>{published}</span>}
+          {tone && (
+            <Tag variant={tone.variant} fontSize={14.5}>
+              {t(tone.key)}
+            </Tag>
+          )}
         </div>
       )}
       {/* dir="auto" on the provider's own text: headlines and summaries come

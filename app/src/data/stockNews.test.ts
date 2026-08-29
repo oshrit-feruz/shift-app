@@ -28,7 +28,18 @@ const res = (body: unknown, status = 200): Response =>
 
 describe('mapNewsArticle', () => {
   it('maps a full article', () => {
-    expect(mapNewsArticle(ARTICLE)).toEqual({ ...ARTICLE, symbols: [] });
+    expect(mapNewsArticle(ARTICLE)).toEqual({ ...ARTICLE, symbols: [], sentiment: null });
+  });
+
+  it('keeps a sentiment the function recognises, and nothing else', () => {
+    for (const v of ['positive', 'negative', 'neutral']) {
+      expect(mapNewsArticle({ ...ARTICLE, sentiment: v })?.sentiment, v).toBe(v);
+    }
+    // A value we do not recognise is no tag at all: the chip is a claim about
+    // the story, so it is only made from something we actually understood.
+    for (const v of [undefined, null, '', 'bullish', 'POSITIVE', 1, {}]) {
+      expect(mapNewsArticle({ ...ARTICLE, sentiment: v })?.sentiment, String(v)).toBeNull();
+    }
   });
 
   it("carries the feed's tagged symbols, dropping unusable entries", () => {
@@ -58,6 +69,7 @@ describe('mapNewsArticle', () => {
       publishedAt: '',
       summary: '',
       symbols: [],
+      sentiment: null,
     });
   });
 

@@ -30,7 +30,7 @@
 
 import { cachedLoadable } from './loadableCache';
 import { reasonFromResponse } from './providerReason';
-import { ok, unavailable, type Loadable, type StockNewsArticle } from './types';
+import { ok, unavailable, type Loadable, type NewsSentiment, type StockNewsArticle } from './types';
 
 /** Same-origin: the function is deployed alongside the app on Vercel. */
 export const STOCK_NEWS_URL = '/api/news';
@@ -123,6 +123,7 @@ export function mapNewsArticle(raw: unknown): StockNewsArticle | null {
     symbols: Array.isArray(row.symbols)
       ? row.symbols.filter((x): x is string => typeof x === 'string' && x.trim() !== '')
       : [],
+    sentiment: sentiment(row.sentiment),
   };
 }
 
@@ -154,6 +155,17 @@ export function publishedAtMs(iso: string | null | undefined): number {
   const leap = /^(.*[T ]\d{2}:\d{2}):60(.*)$/.exec(iso);
   const ms = leap === null ? Date.parse(iso) : Date.parse(`${leap[1]}:59${leap[2]}`) + 1_000;
   return Number.isNaN(ms) ? UNDATED : ms;
+}
+
+/**
+ * Keep the provider's tone score only if it is one of the three buckets the
+ * function documents. Anything else — a missing field, a typo, a new value a
+ * later provider version invents — is null, which renders as no tag at all.
+ * A tag is a claim about the article, so it is made only from a value we
+ * actually recognise.
+ */
+function sentiment(v: unknown): NewsSentiment | null {
+  return v === 'positive' || v === 'negative' || v === 'neutral' ? v : null;
 }
 
 const UNAVAILABLE = {

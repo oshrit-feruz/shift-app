@@ -266,6 +266,16 @@ for the same reason. Second, an invalid or missing ticker is rejected
 tests by the absence of the call, not just the status code, since the status
 alone would keep passing if the guard drifted below the fetch.
 
+**Tone tags.** EODHD scores some rows with its own `sentiment` object, and
+`mapSentiment` (`app/api/_lib/news.ts`) buckets that `polarity` into
+positive / negative / neutral, rendered as a green / red / grey chip in both
+languages (`app/src/screens/news/sentimentTag.ts`). The threshold is ±0.05,
+the VADER-style model's own documented cut-off rather than a number we picked.
+A row the provider did not score carries **no tag at all** — not a "neutral"
+one. "We were not told" and "the provider called this neutral" are different
+claims, and only one of them is ours to make; sentiment ships on some EODHD
+plans and some rows only, so this is the common case, not an edge case.
+
 **Hebrew headlines.** The app is Hebrew-first but EODHD's feed is English, so
 `GET /api/news?lang=he` translates each `headline` and `summary` to Hebrew
 through DeepL before answering (`app/api/_lib/translate.ts`). `source`, `url`,

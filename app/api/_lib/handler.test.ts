@@ -144,6 +144,9 @@ describe('handler', () => {
           // Empty for a per-ticker response: the caller already knows the
           // stock, so there is nothing for the tags to disambiguate.
           symbols: [],
+          // EODHD sent no sentiment for this row, so the article carries no
+          // tone tag rather than a neutral one.
+          sentiment: null,
         },
       ],
     });
@@ -329,6 +332,27 @@ describe('handler translation', () => {
           url: 'https://www.reuters.com/tech/nvidia',
         },
       ],
+    });
+  });
+
+  it('keeps the provider’s sentiment through translation', async () => {
+    // The tone score is EODHD's, not the translator's: a Hebrew response must
+    // carry the same score the English one would, untouched by DeepL.
+    process.env.DEEPL_API_KEY = 'deepl-key:fx';
+    globalThis.fetch = vi.fn(async (url: URL | string, init?: RequestInit) => {
+      if (String(url).includes('deepl.com')) {
+        return translateOk(JSON.parse(String(init?.body)).text as string[]);
+      }
+      return new Response(
+        JSON.stringify([{ ...ARTICLE, sentiment: { polarity: -0.8, neg: 0.9, neu: 0.1, pos: 0 } }]),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const res = makeRes();
+    await handler({ method: 'GET', query: { ticker: 'NVDA', lang: 'he' } }, res);
+    expect(res._body).toMatchObject({
+      articles: [{ headline: 'HE:NVIDIA lifts outlook', sentiment: 'negative' }],
     });
   });
 
