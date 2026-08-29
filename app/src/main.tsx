@@ -6,6 +6,7 @@ import { ThemeProvider } from './theme/ThemeProvider';
 import { AuthProvider } from './auth/AuthProvider';
 import { ProfileProvider } from './auth/ProfileProvider';
 import { AppStateProvider } from './state/appState';
+import { ToastProvider } from './components/Toast';
 import { App } from './App';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -18,7 +19,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             knows nothing about the user's profile. */}
         <ProfileProvider>
           <AppStateProvider>
-            <App />
+            {/* Inside app state so any screen can raise a toast, and outside
+                the shell so a toast survives a screen change. */}
+            <ToastProvider>
+              <App />
+            </ToastProvider>
           </AppStateProvider>
         </ProfileProvider>
       </AuthProvider>

@@ -15,6 +15,7 @@ import { ListRow, RowValues } from '../components/ListRow';
 import { useAppState, useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
+import { useToast } from '../components/Toast';
 import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
 import { fetchYourPositions } from '../lib/holdings';
@@ -93,6 +94,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
   const dispatch = useDispatch();
   const { mode } = useTheme();
   const t = useT();
+  const toast = useToast();
   const beg = mode === 'beginner';
   // The sub-tab is scoped to its ticker AT RENDER TIME, not reset in an
   // effect: openStock can change the ticker while this screen stays mounted
@@ -190,7 +192,10 @@ export function StockScreen({ openAlert }: ScreenProps) {
                     }
                   : {}),
               }}
-              onClick={() => dispatch({ type: 'toggleWatch', ticker: s.ticker })}
+              onClick={() => {
+                dispatch({ type: 'toggleWatch', ticker: s.ticker });
+                toast(t(inWl ? 'toast.removed' : 'toast.added', { ticker: s.ticker }));
+              }}
             >
               {inWl ? `✓ ${t('stock.inWatchlist')}` : `＋ ${t('stock.toWatchlist')}`}
             </Button>
@@ -555,6 +560,7 @@ function NextEarnings({ ticker }: { ticker: string }) {
  */
 function LiveOnlyStock({ ticker }: { ticker: string }) {
   const t = useT();
+  const toast = useToast();
   const dispatch = useDispatch();
   const s = useAppState();
   const [tab, setTab] = useState<'reports' | 'news'>('reports');
@@ -579,7 +585,10 @@ function LiveOnlyStock({ ticker }: { ticker: string }) {
               }
             : {}),
         }}
-        onClick={() => dispatch({ type: 'toggleWatch', ticker })}
+        onClick={() => {
+          dispatch({ type: 'toggleWatch', ticker });
+          toast(t(inWl ? 'toast.removed' : 'toast.added', { ticker }));
+        }}
       >
         {inWl ? `✓ ${t('stock.inWatchlist')}` : `＋ ${t('stock.toWatchlist')}`}
       </Button>

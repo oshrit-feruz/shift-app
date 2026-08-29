@@ -81,6 +81,13 @@ export function ListRow({
     // `...style, border: 0, borderTop: style.borderTop` left borderTop at its
     // original (earlier) position and `border: 0` won — every clickable row
     // silently lost its divider. Destructured out, it lands after the reset.
+    //
+    // It is also spread conditionally rather than written as
+    // `borderTop: <value or undefined>`. React treats an explicit `undefined`
+    // as "clear this property", which does not mean "leave the 0 from the
+    // shorthand" — it resets border-top to the UA default, and a <button>'s
+    // UA default is `2px outset`. That drew a black line across the top of
+    // every clickable row that had no divider of its own.
     const { borderTop, ...base } = style;
     const button = (
       <button
@@ -94,7 +101,9 @@ export function ListRow({
           ...(trailing != null ? { minHeight: undefined, padding: 0 } : {}),
           background: 'transparent',
           border: 0,
-          borderTop: trailing != null ? undefined : borderTop,
+          // A row with a trailing slot wears its divider on the wrapper below,
+          // so the button must keep none at all.
+          ...(trailing == null && borderTop ? { borderTop } : {}),
           color: 'inherit',
           font: 'inherit',
           cursor: 'pointer',

@@ -9,6 +9,7 @@ import { DataState } from '../components/DataState';
 import { SkeletonList } from '../components/Skeleton';
 import { useAppState, useDispatch } from '../state/appState';
 import { useT } from '../i18n/useT';
+import { useToast } from '../components/Toast';
 import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
 import type { WatchRow } from '../data/types';
@@ -50,6 +51,7 @@ function SearchOverlayBody({ closing, onClose }: { closing: boolean; onClose: ()
   const dispatch = useDispatch();
   const s = useAppState();
   const t = useT();
+  const toast = useToast();
   const [q, setQ] = useState('');
   // The watchlist is passed in so a followed ticker the daily ranking has
   // since dropped is still listed here — search is where someone goes to take
@@ -162,6 +164,9 @@ function SearchOverlayBody({ closing, onClose }: { closing: boolean; onClose: ()
                           onClick={(e) => {
                             e.stopPropagation();
                             dispatch({ type: 'toggleWatch', ticker: x.ticker });
+                            // The overlay covers the watchlist, so the row it
+                            // just changed is not on screen to speak for itself.
+                            toast(t(watched ? 'toast.removed' : 'toast.added', { ticker: x.ticker }));
                           }}
                           aria-pressed={watched}
                           aria-label={t(watched ? 'search.removeAria' : 'search.addAria', {

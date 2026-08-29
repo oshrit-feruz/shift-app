@@ -10,6 +10,7 @@ import { Skeleton, SkeletonLine } from '../components/Skeleton';
 import { useAppState, useDispatch, type SavedAlert } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT, type TFn } from '../i18n/useT';
+import { useToast } from '../components/Toast';
 import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
 import type { ScreenProps } from '../App';
@@ -33,6 +34,7 @@ export function WatchlistScreen({ openAlert, openSearch }: ScreenProps) {
   const dispatch = useDispatch();
   const { mode } = useTheme();
   const t = useT();
+  const toast = useToast();
   const beg = mode === 'beginner';
   // Keyed on the list's contents, so adding or removing a stock refetches the
   // rows; the quote map behind it is cached, so this costs no extra request.
@@ -139,7 +141,10 @@ export function WatchlistScreen({ openAlert, openSearch }: ScreenProps) {
                           <RowIconButton
                             label={t('watch.removeAria', { ticker: x.ticker })}
                             muted
-                            onClick={() => dispatch({ type: 'removeWatch', ticker: x.ticker })}
+                            onClick={() => {
+                              dispatch({ type: 'removeWatch', ticker: x.ticker });
+                              toast(t('toast.removed', { ticker: x.ticker }));
+                            }}
                           >
                             ✕
                           </RowIconButton>
