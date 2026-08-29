@@ -171,6 +171,15 @@ function ConnectionCard({ connection }: { connection: ConnectedConnection }) {
       <span className="text-muted" style={{ fontSize: 12.5, lineHeight: 1.55 }}>
         {t('live.connectedNoAccountsHelp')}
       </span>
+      {/* A delayed connection is answered from a cache, so "no accounts" may
+          mean "the cache was never filled" rather than "the account is
+          empty". Said only when SnapTrade actually reports that mode — it is
+          not something to infer from the plan. */}
+      {connection.dataFreshnessMode === 'delayed' && (
+        <span className="text-muted" style={{ fontSize: 12.5, lineHeight: 1.55 }}>
+          {t('live.connectedNoAccountsDelayed')}
+        </span>
+      )}
       {state && (
         <span className="text-muted" style={{ fontSize: 12 }}>
           {t('live.connState', { state })}

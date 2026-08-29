@@ -275,11 +275,15 @@ export function createHandler(timeoutMs: number) {
         // indistinguishable from the response: SnapTrade may see no
         // CONNECTION for this key at all, or it may see a live connection
         // whose brokerage reports no accounts. `connections` separates them
-        // and names the brokerage, so the screen can state which. Note the
-        // second case is NOT a sync waiting to happen: Personal is a
-        // real-time plan, so SnapTrade queries the brokerage during the call
-        // and an empty list is the brokerage's current answer. States and
-        // counts only; nothing here identifies an account.
+        // and names the brokerage, so the screen can state which. Whether
+        // the second case is "the brokerage has nothing" or "the cache was
+        // never filled" depends on the connection's own
+        // `data_freshness_mode`, which is why it is reported too: `realtime`
+        // means SnapTrade asked the brokerage during this call, `delayed`
+        // means it answered from a cache that a manual refresh can populate
+        // (scripts/snaptrade-refresh.mjs). Do not infer it from the plan —
+        // a Personal connection can be either, and IBKR's is delayed.
+        // States and counts only; nothing here identifies an account.
         console.warn(
           `${ROUTE}: no accounts. /authorizations reported ${connections.length} connection(s): ` +
             connections.map((c) => `${c.brokerage ?? c.id} disabled=${c.disabled}`).join(', '),

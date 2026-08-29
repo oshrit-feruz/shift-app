@@ -355,18 +355,28 @@ route. `source` in the response says which one answered, and the demo screen
 shows it along with SnapTrade's own `data_freshness.as_of`, so the freshness
 of what is on screen is stated rather than implied.
 
-**The manual-refresh endpoint is not called, and could not help.** Besides
-being a `POST` and billed per call, the spec states it "is disabled for
-Real-time plans (Personal and Pay as you go) unless the connection is
-delayed… Real-time connections do not benefit from this feature since data is
-refreshed when calls are made." Personal is a real-time plan, so there is no
-cached account list sitting stale behind a refresh — SnapTrade queries the
-brokerage during the call.
+**Read `data_freshness_mode`; do not infer it from the plan.** The spec says
+manual refresh "is disabled for Real-time plans (Personal and Pay as you go)
+**unless the connection is delayed**… Refer to the `data_freshness_mode` field
+on a connection to determine this." It is tempting to read that as "Personal is
+real-time, therefore refresh never applies" — and that is wrong. The mode is a
+property of the *connection*, not the plan, and is `delayed` when the
+brokerage forces it. The real IBKR connection here reports **`delayed`**: its
+data comes from a cache, and manual refresh does apply to it.
 
-**Three empty states, not one.** That last point matters for how an empty
-answer is read. Because the connection is real-time, an empty account list on
-a live connection is *the brokerage's current answer*, not a sync still
-running, and it is a different fact from having no connection at all:
+The route still never issues that `POST` — `/api/snaptrade` is public and
+unauthenticated and stays GET-only. Refresh lives in
+`app/scripts/snaptrade-refresh.mjs`, an operator script run by hand with the
+credentials in the environment. It lists connections and stops unless given
+`--refresh`, because SnapTrade bills per refresh call. It imports the signing
+helpers from `api/_lib/snaptrade.ts` rather than copying them, so it cannot
+drift from what the route sends.
+
+**Three empty states, not one.** How an empty answer should be read depends on
+that same field: on a `realtime` connection it is the brokerage's current
+answer, while on a `delayed` one it may just be a cache that was never filled.
+The screen says which. And an empty list is a different fact again from having
+no connection at all:
 
 | What SnapTrade reports | What the screen says |
 | --- | --- |
