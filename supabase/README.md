@@ -17,6 +17,21 @@ with an honest "not configured" note — there is no local-only fallback.
 Dashboard → SQL Editor → paste `migrations/0001_auth.sql` → Run.
 Creates `profiles` + `user_state`, RLS policies, and the signup trigger.
 
+### Later migrations
+
+Run each in the same place, in order, once per project. They are not applied
+by any build — `vercel deploy` never touches the database — so a migration
+that has not been pasted into the SQL editor is not live, however green CI is.
+
+- `0002_profile_identity.sql`, `0003_profile_overrides.sql` — profile fields.
+- `0004_rls_initplan.sql` — performance-only RLS rewrite.
+- `0005_ledger.sql` — **the holdings ledger.** Creates `portfolios` and
+  `transactions`, their RLS policies, and extends the signup trigger to give
+  every user a Sandbox portfolio (backfilling existing users in the same
+  file). Must be run *before* deploying the client release that reads them;
+  until it is, the client falls back to the legacy `user_state` jsonb copy of
+  the ledger rather than showing an empty portfolio.
+
 ## 3. Google sign-in (now)
 
 1. [Google Cloud Console](https://console.cloud.google.com) → APIs & Services
