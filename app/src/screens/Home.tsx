@@ -7,7 +7,8 @@ import { Icon } from '../components/Icon';
 import { Num } from '../components/Num';
 import { AreaChart } from '../components/AreaChart';
 import { MetricStrip } from '../components/MetricStrip';
-import { ListRow, RowValues } from '../components/ListRow';
+import { ListRow } from '../components/ListRow';
+import { WatchRowValues } from '../components/WatchRowValues';
 import { TickerTile } from '../components/TickerTile';
 import { DataState, EmptyState } from '../components/DataState';
 import { Skeleton, SkeletonChart, SkeletonLine, SkeletonList, SkeletonText } from '../components/Skeleton';
@@ -333,13 +334,7 @@ export function HomeScreen({ openSearch }: ScreenProps) {
                     subtitle={
                       beg ? (x.plain?.[language] ?? x.name ?? undefined) : (x.name ?? x.sector ?? undefined)
                     }
-                    right={
-                      <RowValues
-                        main={moneyOrDash(x.quote?.price)}
-                        sub={x.demoChangePct === null ? undefined : pct(x.demoChangePct)}
-                        subColor={x.demoChangePct === null ? undefined : signalColor(x.demoChangePct)}
-                      />
-                    }
+                    right={<WatchRowValues row={x} />}
                     onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}
                   />
                 ))}

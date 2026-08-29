@@ -2,7 +2,8 @@ import { Card, CardTitle } from '../components/Card';
 import { DemoDataNote } from '../components/DemoDataNote';
 import { Button } from '../components/Button';
 import { Tag } from '../components/Tag';
-import { ListRow, RowValues } from '../components/ListRow';
+import { ListRow } from '../components/ListRow';
+import { WatchRowValues } from '../components/WatchRowValues';
 import { TickerTile } from '../components/TickerTile';
 import { DataState, EmptyState } from '../components/DataState';
 import { Skeleton, SkeletonLine } from '../components/Skeleton';
@@ -11,7 +12,6 @@ import { useTheme } from '../theme/ThemeProvider';
 import { useT, type TFn } from '../i18n/useT';
 import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
-import { moneyOrDash, pct, signalColor } from '../lib/format';
 import type { ScreenProps } from '../App';
 
 /**
@@ -127,13 +127,7 @@ export function WatchlistScreen({ openAlert, openSearch }: ScreenProps) {
                           (x.name ?? t('watch.symbolOnly'))
                         )
                       }
-                      right={
-                        <RowValues
-                          main={moneyOrDash(x.quote?.price)}
-                          sub={x.demoChangePct === null ? '—' : pct(x.demoChangePct)}
-                          subColor={x.demoChangePct === null ? undefined : signalColor(x.demoChangePct)}
-                        />
-                      }
+                      right={<WatchRowValues row={x} />}
                       trailing={
                         <span style={{ display: 'flex', gap: 4, flex: 'none' }}>
                           <RowIconButton

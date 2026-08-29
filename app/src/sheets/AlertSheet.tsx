@@ -7,6 +7,7 @@ import { SegmentedControl } from '../components/SegmentedControl';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { moneyOrDash } from '../lib/format';
+import { newId } from '../lib/ids';
 import { useAppState, useDispatch, type AlertKind } from '../state/appState';
 import type { SymbolInfo } from '../data/types';
 
@@ -59,7 +60,7 @@ export function AlertSheet({
     dispatch({
       type: 'addAlert',
       alert: {
-        id: `alert-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        id: newId('alert'),
         ticker: target,
         kind,
         condition: cond,

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useDismissAnimation } from '../lib/useDismissAnimation';
 import { Button } from '../components/Button';
 import { Icon } from '../components/Icon';
-import { ListRow, RowValues } from '../components/ListRow';
+import { ListRow } from '../components/ListRow';
+import { WatchRowValues } from '../components/WatchRowValues';
 import { TickerTile } from '../components/TickerTile';
 import { DataState } from '../components/DataState';
 import { SkeletonList } from '../components/Skeleton';
@@ -10,7 +11,6 @@ import { useAppState, useDispatch } from '../state/appState';
 import { useT } from '../i18n/useT';
 import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
-import { moneyOrDash, pct, signalColor } from '../lib/format';
 
 /**
  * Full-screen ticker search — and the app's one way onto the watchlist.
@@ -141,13 +141,7 @@ function SearchOverlayBody({ closing, onClose }: { closing: boolean; onClose: ()
                       leading={<TickerTile ticker={x.ticker} size={26} />}
                       title={x.ticker}
                       subtitle={x.name ? `${x.name} · ${x.sector}` : t('search.rankedOnly')}
-                      right={
-                        <RowValues
-                          main={moneyOrDash(x.quote?.price)}
-                          sub={x.demoChangePct === null ? undefined : pct(x.demoChangePct)}
-                          subColor={x.demoChangePct === null ? undefined : signalColor(x.demoChangePct)}
-                        />
-                      }
+                      right={<WatchRowValues row={x} />}
                       trailing={
                         <button
                           type="button"
