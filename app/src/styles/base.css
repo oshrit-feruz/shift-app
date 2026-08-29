@@ -293,8 +293,8 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
  * .card elements. Animating `transform` here (the original translateY) gives
  * the ancestor a transform for the animation's duration, which makes it a
  * containing block — in Chromium that detaches descendant backdrop-filter
- * blur from the real page background for those 220ms, so cards flash opaque
- * on every screen transition instead of reading as glass immediately. */
+ * blur from the real page background for the fade's duration, so cards flash
+ * opaque on every screen transition instead of reading as glass immediately. */
 @keyframes fadeUp {
   from { opacity: 0; }
   to { opacity: 1; }

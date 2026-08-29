@@ -135,7 +135,7 @@ export function TabBar({
             height: indicator.height + 4,
             borderRadius: 99,
             background: 'var(--fill-selected)',
-            transition: 'left .32s cubic-bezier(.34, 1.1, .4, 1), width .32s cubic-bezier(.34, 1.1, .4, 1)',
+            transition: 'left var(--dur-nav) cubic-bezier(.3, 1.05, .4, 1), width var(--dur-nav) cubic-bezier(.3, 1.05, .4, 1)',
             pointerEvents: 'none',
           }}
         />
@@ -172,7 +172,7 @@ export function TabBar({
                 gap: 3,
                 padding: '7px 13px',
                 borderRadius: 999,
-                transition: 'color .2s ease',
+                transition: 'color var(--dur-nav) ease',
                 color: active
                   ? 'var(--color-accent-200)'
                   : 'color-mix(in srgb, var(--color-text) 45%, transparent)',
