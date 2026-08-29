@@ -21,7 +21,7 @@ import { useLoadable } from '../data/useLoadable';
 import { fetchYourPositions } from '../lib/holdings';
 import { fetchTickerEarnings } from '../data/earnings';
 import { useDemoMode } from '../lib/DemoModeProvider';
-import { compactCount, money, moneyOrDash, pct, signalColor } from '../lib/format';
+import { compactCount, money, moneyOrDash, pct, pctOrDash, signalColor } from '../lib/format';
 import { ReportsTab, EarningsHistory } from './stock/ReportsTab';
 import { NewsTab } from './stock/NewsTab';
 import { TabPanel } from '../components/TabPanel';
@@ -323,8 +323,8 @@ export function StockScreen({ openAlert }: ScreenProps) {
                         subtitle={<Num>{`${holding.shares} sh · avg ${money(holding.avgCost)}`}</Num>}
                         right={
                           <RowValues
-                            main={money(holding.value, 0)}
-                            sub={pct(holding.plPct)}
+                            main={moneyOrDash(holding.value, 0)}
+                            sub={pctOrDash(holding.plPct)}
                             subColor={signalColor(holding.plPct)}
                           />
                         }

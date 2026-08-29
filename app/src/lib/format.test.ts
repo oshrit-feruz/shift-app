@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compactMoney, isoDate, moneyOrDash } from './format';
+import { compactMoney, isoDate, moneyOrDash, pctOrDash, signalColor } from './format';
 
 describe('compactMoney', () => {
   it('compacts at each scale, keeping one decimal', () => {
@@ -95,5 +95,25 @@ describe('moneyOrDash — a price, or an honest dash', () => {
     // $0.00 is a strange price but it is a number the source sent; only a
     // missing one becomes a dash.
     expect(moneyOrDash(0)).toBe('$0.00');
+  });
+});
+
+describe('pctOrDash / signalColor with nothing to report', () => {
+  it('renders a percentage it has', () => {
+    expect(pctOrDash(1.5)).toBe('+1.50%');
+    expect(pctOrDash(-1.5)).toBe('-1.50%');
+  });
+
+  it('renders an em dash rather than a green +0.00%', () => {
+    expect(pctOrDash(null)).toBe('—');
+    expect(pctOrDash(undefined)).toBe('—');
+  });
+
+  it('colours an unknown value muted, not up', () => {
+    // Green is a claim the number is not negative, and there is no number.
+    expect(signalColor(null)).toBe('var(--muted)');
+    expect(signalColor(undefined)).toBe('var(--muted)');
+    expect(signalColor(0)).toBe('var(--up)');
+    expect(signalColor(-1)).toBe('var(--down)');
   });
 });

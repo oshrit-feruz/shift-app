@@ -458,7 +458,7 @@ function HeroPortfolio() {
                   fontWeight: 700,
                 }}
               >
-                <Num>{money(main.total)}</Num>
+                <Num>{moneyOrDash(main.total)}</Num>
               </div>
               <div
                 style={{
@@ -467,9 +467,11 @@ function HeroPortfolio() {
                   fontWeight: 600,
                 }}
               >
-                <Num
-                  weight={600}
-                >{`${main.dayPct >= 0 ? '+' : '−'}${money(Math.abs((main.total * main.dayPct) / 100))} · ${pct(main.dayPct)}`}</Num>
+                {/* The change line needs both halves: a day percentage with
+                    no total behind it has no currency figure to put beside
+                    it, and inventing one from a total we do not have is the
+                    thing this app exists not to do. */}
+                <Num weight={600}>{dayChangeLine(main.total, main.dayPct)}</Num>
               </div>
               <div style={{ marginTop: 10 }}>
                 <AreaChart values={pfSeries} height={76} />
@@ -616,4 +618,17 @@ function MoversPreview({ beg }: { beg: boolean }) {
       </Card>
     </>
   );
+}
+
+/**
+ * "+$412.18 · +0.86%" for the hero, or "—" when either half is unknown.
+ *
+ * Both are needed: the currency figure is derived from the total, so a day
+ * percentage without one cannot be turned into money without inventing the
+ * portfolio's size.
+ */
+function dayChangeLine(total: number | null, dayPct: number | null): string {
+  if (dayPct === null) return '—';
+  if (total === null) return pct(dayPct);
+  return `${dayPct >= 0 ? '+' : '−'}${money(Math.abs((total * dayPct) / 100))} · ${pct(dayPct)}`;
 }

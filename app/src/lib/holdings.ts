@@ -1,7 +1,9 @@
 import { demoService } from '../data/demoAdapter';
+import { fetchQuotes } from '../data/recoveryDetector';
 import { DEMO_FLAGS } from '../data/demoFlags';
 import { ok, unavailable, type Loadable } from '../data/types';
-import type { Holding, PortfolioSummary } from '../data/types';
+import type { Holding, PortfolioSummary, Quote } from '../data/types';
+import { buildPositions, valuePositions, type PortfolioValuation } from './positions';
 import type { ManualPortfolio, ManualTransaction } from '../state/appState';
 
 /**
@@ -11,8 +13,12 @@ import type { ManualPortfolio, ManualTransaction } from '../state/appState';
  * differently, the same portfolio would be named or totalled differently
  * depending on which screen you were looking at.
  *
- * dayPct/allTimePct are 0 because a manual portfolio has no priced history to
- * derive them from; that is a real "no data", not a computed zero.
+ * total/dayPct/allTimePct are null, not numbers: a manual portfolio's value
+ * is its positions valued at live prices, which this function does not have,
+ * and its starting cash is not its worth. dayPct and allTimePct have no source
+ * at all — a hand-kept ledger has no priced history behind it. Rendering any
+ * of the three as a number here is exactly the invented "+0.00%" this change
+ * exists to remove; the screens render "—".
  */
 export function manualPortfolioSummaries(manualPortfolios: ManualPortfolio[]): PortfolioSummary[] {
   return manualPortfolios.map((x) => ({
@@ -23,9 +29,9 @@ export function manualPortfolioSummaries(manualPortfolios: ManualPortfolio[]): P
     logo: null,
     acct: 'manual entry',
     syncedAgo: null,
-    total: x.startingCash,
-    dayPct: 0,
-    allTimePct: 0,
+    total: null,
+    dayPct: null,
+    allTimePct: null,
   }));
 }
 
@@ -35,32 +41,35 @@ export function manualPortfolioSummaries(manualPortfolios: ManualPortfolio[]): P
  * per-ticker "your holdings" card, so the two screens can never compute a
  * different position for the same portfolio.
  *
- * Dividends (side 'div') carry no share count and don't affect a position,
- * so they're skipped here.
+ * The arithmetic lives in lib/positions.ts, which folds the log into average
+ * cost, realised P/L and dividends. This function's remaining job is joining
+ * that to whatever the service reported and to live prices:
+ *
+ *  - a ticker the user has logged is theirs, valued from `quotes`. Held
+ *    positions and closed ones both come back — a position that vanishes the
+ *    moment it is sold looks like data loss;
+ *  - a ticker only the service reported (the demo brokers) passes through
+ *    untouched, since it is already valued at the demo prices it belongs to.
+ *
+ * `quotes` is fetchQuotes()'s map, or null when that read was unavailable, in
+ * which case the logged positions render "—" rather than 0.
  */
-export function mergeManualTransactions(rows: Holding[], transactions: ManualTransaction[]): Holding[] {
-  const merged = new Map(rows.map((row) => [row.ticker, { ...row }]));
-  for (const tx of transactions) {
-    if (tx.side === 'div') continue;
-    const current = merged.get(tx.ticker) ?? {
-      ticker: tx.ticker,
-      shares: 0,
-      avgCost: 0,
-      value: 0,
-      plPct: 0,
-    };
-    if (tx.side === 'buy') {
-      const shares = current.shares + tx.shares;
-      current.avgCost = shares > 0 ? (current.avgCost * current.shares + tx.price * tx.shares) / shares : 0;
-      current.shares = shares;
-      current.value += tx.price * tx.shares;
-    } else {
-      current.shares = Math.max(0, current.shares - tx.shares);
-      current.value = Math.max(0, current.value - tx.price * tx.shares);
-    }
-    merged.set(tx.ticker, current);
-  }
-  return [...merged.values()].filter((row) => row.shares > 0);
+export function mergeManualTransactions(
+  rows: Holding[],
+  transactions: ManualTransaction[],
+  quotes: Record<string, Quote> | null = null,
+): Holding[] {
+  const logged = valuePositions(buildPositions(transactions), quotes).positions;
+  const own = new Set(logged.map((x) => x.ticker));
+  const service = rows.filter((row) => !own.has(row.ticker));
+  const mine: Holding[] = logged.map((x) => ({
+    ticker: x.ticker,
+    shares: x.shares,
+    avgCost: x.avgCost,
+    value: x.value,
+    plPct: x.plPct,
+  }));
+  return [...service, ...mine];
 }
 
 /**
@@ -140,14 +149,67 @@ export async function fetchYourPositions(
   );
   if (settled.some((r) => r.status !== 'ok')) return unavailable();
 
+  // Live prices for the user's own positions. A failed quote read is not
+  // fatal: the shares they logged are still theirs to see, and the row simply
+  // renders "—" where its worth would go.
+  const quotes = await fetchQuotes();
+  const map = quotes.status === 'ok' ? quotes.data : null;
+
   const results: TickerPosition[] = [];
   eligible.forEach((pf, i) => {
     const rows = (settled[i] as { status: 'ok'; data: Holding[] }).data;
-    const merged = mergeManualTransactions(rows, manualTransactions[pf.id] ?? []);
-    const match = merged.find((row) => row.ticker === ticker);
+    const merged = mergeManualTransactions(rows, manualTransactions[pf.id] ?? [], map);
+    // Held only. A position sold out is kept by the fold so the Portfolio tab
+    // can show what it earned, but "your holdings" on a stock page is a claim
+    // about what the reader owns right now, and 0 shares is not one.
+    const match = merged.find((row) => row.ticker === ticker && row.shares > 0);
     if (match) {
       results.push({ portfolio: pf, holding: match, index: all.findIndex((x) => x.id === pf.id) });
     }
   });
   return ok(results);
+}
+
+/**
+ * Everything one portfolio's screen needs about its holdings, from one read.
+ *
+ * The card's rows and the header's total come from here together on purpose.
+ * They used to be computed in two places — the header from
+ * `PortfolioSummary.total`, the rows from the transaction log — which is how a
+ * header could show a confident dollar figure above a list of positions the
+ * app had just failed to price.
+ *
+ * Quote failure is not fatal here: the positions are still the user's own
+ * facts about what they hold, so the rows render with "—" where a price
+ * belongs and the total reports itself unknown, rather than the whole card
+ * going 'unavailable' and hiding the shares they logged.
+ */
+export interface PortfolioHoldings {
+  rows: Holding[];
+  valuation: PortfolioValuation;
+}
+
+export async function fetchPortfolioHoldings(
+  portfolioId: string,
+  transactions: ManualTransaction[],
+): Promise<Loadable<PortfolioHoldings>> {
+  const service = DEMO_FLAGS.demoData ? await demoService.holdings(portfolioId) : ok<Holding[]>([]);
+  if (service.status !== 'ok') return service;
+
+  const quotes = await fetchQuotes();
+  const map = quotes.status === 'ok' ? quotes.data : null;
+  const valuation = valuePositions(buildPositions(transactions), map);
+  return ok({ rows: mergeManualTransactions(service.data, transactions, map), valuation });
+}
+
+/**
+ * The aggregate's total across the accounts included in it.
+ *
+ * `null` the moment any included account's own total is unknown, for the same
+ * reason a portfolio total is null when a leg is unpriced: a sum that quietly
+ * drops what it could not read is not a smaller number, it is a wrong one.
+ */
+export function sumTotals(portfolios: PortfolioSummary[]): number | null {
+  if (portfolios.some((pf) => pf.total === null)) return null;
+  return portfolios.reduce((sum, pf) => sum + (pf.total ?? 0), 0);
 }

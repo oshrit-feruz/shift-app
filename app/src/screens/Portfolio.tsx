@@ -17,12 +17,12 @@ import { useAppState, useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { demoService } from '../data/demoAdapter';
-import { ok, type Holding } from '../data/types';
+import type { Holding } from '../data/types';
 import { useLoadable } from '../data/useLoadable';
-import { money, pct, signalColor } from '../lib/format';
+import { money, moneyOrDash, pctOrDash, signalColor } from '../lib/format';
 import { TxSheet } from '../sheets/TxSheet';
 import { NewPortfolioSheet } from '../sheets/NewPortfolioSheet';
-import { mergeManualTransactions, portfolioList } from '../lib/holdings';
+import { fetchPortfolioHoldings, portfolioList, sumTotals } from '../lib/holdings';
 import type { ScreenProps } from '../App';
 
 /**
@@ -102,8 +102,10 @@ export function PortfolioScreen(_: ScreenProps) {
           const isManual = pf.kind === 'manual';
           const linked = list.filter((x) => x.kind === 'linked');
           const inAgg = linked.filter((x) => !s.aggExcluded[x.id]);
-          const aggTotal = inAgg.reduce((a, x) => a + x.total, 0);
-          const series = demo ? demoService.series(`pf-${pf.id}`, 70, pf.dayPct >= 0 ? 0.5 : 0.16, 2.4) : [];
+          const aggTotal = sumTotals(inAgg);
+          const series = demo
+            ? demoService.series(`pf-${pf.id}`, 70, (pf.dayPct ?? 0) >= 0 ? 0.5 : 0.16, 2.4)
+            : [];
           const bench = demo ? demoService.series('bench-spy', 70, 0.22, 1.4) : [];
           const holdings = <Holdings pfId={pf.id} />;
 
@@ -257,13 +259,13 @@ export function PortfolioScreen(_: ScreenProps) {
                             className="text-muted"
                             style={{ display: 'block', fontSize: 'var(--text-caption)' }}
                           >
-                            {on ? `${((x.total / aggTotal) * 100).toFixed(1)}%` : t('pf.excluded')}
+                            {on ? sharePct(x.total, aggTotal) : t('pf.excluded')}
                           </span>
                         </span>
                         <span style={{ textAlign: 'end', whiteSpace: 'nowrap' }}>
                           <RowValues
-                            main={money(x.total)}
-                            sub={pct(x.dayPct)}
+                            main={moneyOrDash(x.total)}
+                            sub={pctOrDash(x.dayPct)}
                             subColor={signalColor(x.dayPct)}
                           />
                         </span>
@@ -277,16 +279,27 @@ export function PortfolioScreen(_: ScreenProps) {
                 <div className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
                   {isAgg ? t('pf.allAccounts') : pf.name} {t('pf.totalValue')}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 9 }}>
-                  <Num size={28} style={{ fontFamily: 'var(--font-heading)', lineHeight: 1.1 }}>
-                    {money(isAgg ? aggTotal : pf.total)}
-                  </Num>
-                  <span
-                    style={{ fontSize: 'var(--text-body)', color: signalColor(pf.dayPct), paddingBottom: 3 }}
-                  >
-                    <Num>{pct(pf.dayPct)}</Num> {t('pf.today')}
-                  </span>
-                </div>
+                {/* A manual portfolio's worth is its own positions valued at
+                    live prices, so it is read here rather than taken from the
+                    summary row — which has no way to know it. */}
+                {isManual ? (
+                  <ManualValue pfId={pf.id} />
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: 9 }}>
+                    <Num size={28} style={{ fontFamily: 'var(--font-heading)', lineHeight: 1.1 }}>
+                      {moneyOrDash(isAgg ? aggTotal : pf.total)}
+                    </Num>
+                    <span
+                      style={{
+                        fontSize: 'var(--text-body)',
+                        color: signalColor(pf.dayPct),
+                        paddingBottom: 3,
+                      }}
+                    >
+                      <Num>{pctOrDash(pf.dayPct)}</Num> {t('pf.today')}
+                    </span>
+                  </div>
+                )}
                 {demo ? (
                   <>
                     <AreaChart values={series} height={110} pad={8} benchmark={bench} />
@@ -353,47 +366,140 @@ export function PortfolioScreen(_: ScreenProps) {
  * entered by hand reads the same as a synced one.
  */
 function Holdings({ pfId }: { pfId: string }) {
-  const s = useAppState();
   const dispatch = useDispatch();
-  // No message here: the card keeps its title and its real half. With sample
-  // data off the service rows are simply empty, so what remains is exactly the
-  // transactions the user logged — and EmptyState when there are none.
-  const demo = useDemoMode();
-  const holdings = useLoadable(
-    () => (demo ? demoService.holdings(pfId) : Promise.resolve(ok<Holding[]>([]))),
-    [pfId, demo],
-  );
-  const transactions = s.manualTransactions[pfId] ?? [];
+  const t = useT();
+  const { state, retry } = usePortfolioHoldings(pfId);
 
   return (
     <DataState
-      state={holdings.state}
-      onRetry={holdings.retry}
+      state={state}
+      onRetry={retry}
       skeleton={<SkeletonList count={4} leading={false} minHeight={46} />}
     >
-      {(rows) => {
-        const mergedRows = mergeManualTransactions(rows, transactions);
-        return mergedRows.length === 0 ? (
-          <EmptyState>—</EmptyState>
-        ) : (
+      {({ rows }) => {
+        // Held first, then anything sold out — a closed position is history,
+        // and history belongs under what is still open rather than mixed into
+        // it where it reads as a live holding of zero shares.
+        const held = rows.filter((h) => h.shares > 0);
+        const closed = rows.filter((h) => h.shares === 0);
+        if (rows.length === 0) return <EmptyState>—</EmptyState>;
+        return (
           <>
-            {mergedRows.map((h) => (
-              <ListRow
+            {held.map((h) => (
+              <HoldingRow
                 key={h.ticker}
-                title={h.ticker}
-                subtitle={<Num>{`${h.shares} sh · avg ${money(h.avgCost)}`}</Num>}
-                right={
-                  <RowValues main={money(h.value, 0)} sub={pct(h.plPct)} subColor={signalColor(h.plPct)} />
-                }
-                minHeight={46}
-                onClick={() => dispatch({ type: 'openStock', ticker: h.ticker })}
+                h={h}
+                onOpen={() => dispatch({ type: 'openStock', ticker: h.ticker })}
               />
             ))}
+            {closed.length > 0 && (
+              <>
+                <div
+                  className="text-muted"
+                  style={{ fontSize: 'var(--text-caption)', padding: '10px 0 2px' }}
+                >
+                  {t('pf.closed')}
+                </div>
+                {closed.map((h) => (
+                  <HoldingRow
+                    key={h.ticker}
+                    h={h}
+                    closed
+                    onOpen={() => dispatch({ type: 'openStock', ticker: h.ticker })}
+                  />
+                ))}
+              </>
+            )}
           </>
         );
       }}
     </DataState>
   );
+}
+
+/**
+ * One holdings row. `value` and `plPct` are nullable and render as "—": a
+ * position in a ticker the price mirror does not cover has no worth we can
+ * state, and the old code's green "+0.00%" said it was flat instead.
+ */
+function HoldingRow({ h, closed, onOpen }: { h: Holding; closed?: boolean; onOpen: () => void }) {
+  const t = useT();
+  return (
+    <ListRow
+      title={h.ticker}
+      subtitle={<Num>{closed ? t('pf.soldOut') : `${h.shares} sh · avg ${money(h.avgCost)}`}</Num>}
+      right={
+        <RowValues
+          main={closed ? '—' : moneyOrDash(h.value, 0)}
+          sub={pctOrDash(h.plPct)}
+          subColor={signalColor(h.plPct)}
+        />
+      }
+      minHeight={46}
+      onClick={onOpen}
+    />
+  );
+}
+
+/**
+ * A manual portfolio's total, and — when it cannot be stated — which holdings
+ * are the reason.
+ *
+ * Reads through the same function the holdings card does, so the figure here
+ * and the rows below it can never disagree about what was priced.
+ */
+function ManualValue({ pfId }: { pfId: string }) {
+  const t = useT();
+  const { state } = usePortfolioHoldings(pfId);
+  const valuation = state.status === 'ok' ? state.data.valuation : null;
+
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 9 }}>
+        <Num size={28} style={{ fontFamily: 'var(--font-heading)', lineHeight: 1.1 }}>
+          {moneyOrDash(valuation?.total ?? null)}
+        </Num>
+      </div>
+      {/* Why the total is an em dash, said where the reader is looking when
+          they wonder. A silent "—" over a list of real positions reads as a
+          broken app; naming what could not be priced is the difference
+          between "we don't know" and "something went wrong". */}
+      {valuation && valuation.unpriced.length > 0 && (
+        <div className="text-muted" style={{ fontSize: 'var(--text-caption)', lineHeight: 1.45 }}>
+          {t('pf.partiallyPriced', {
+            priced: valuation.priced,
+            held: valuation.held,
+            tickers: valuation.unpriced.join(', '),
+          })}
+        </div>
+      )}
+    </>
+  );
+}
+
+/**
+ * One portfolio's holdings and valuation. Both the total above the chart and
+ * the holdings card read through this, which is the point: they used to be
+ * computed separately, which is how a confident dollar total could sit above
+ * a list of positions the app had just failed to price.
+ */
+function usePortfolioHoldings(pfId: string) {
+  const s = useAppState();
+  const demo = useDemoMode();
+  const transactions = s.manualTransactions[pfId] ?? [];
+  // Keyed on the log's identity, so a transaction added or removed re-values
+  // at once rather than after the next visit.
+  const key = transactions.map((tx) => tx.id).join(',');
+  return useLoadable(() => fetchPortfolioHoldings(pfId, transactions), [pfId, demo, key]);
+}
+
+/**
+ * One account's share of the aggregate. Both halves have to be known: a
+ * percentage of a total we could not compute is not a percentage of anything.
+ */
+function sharePct(total: number | null, aggTotal: number | null): string {
+  if (total === null || aggTotal === null || aggTotal === 0) return '—';
+  return `${((total / aggTotal) * 100).toFixed(1)}%`;
 }
 
 /** Pension / hishtalmut / bank — totals by provider only, never merged into the

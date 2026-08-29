@@ -479,6 +479,17 @@ export const STRINGS = {
   // sentence naming one of them goes stale the moment they rename or add.
   'pf.aggDetail': p('Pick below which accounts are included', 'בחרי למטה אילו חשבונות נכללים'),
   'pf.synced': p('Synced {when} · read-only', 'סונכרן {when} · לקריאה בלבד'),
+  /**
+   * Why a portfolio total reads "—". Named holdings, not a count alone: a
+   * reader who can see WHICH position is unpriced can judge how much of their
+   * portfolio the missing figure represents, and can act on it.
+   */
+  'pf.partiallyPriced': p(
+    '{priced} of {held} holdings priced · no price for {tickers}',
+    '{priced} מתוך {held} החזקות תומחרו · אין מחיר ל-{tickers}',
+  ),
+  'pf.closed': p('Closed positions', 'פוזיציות שנסגרו'),
+  'pf.soldOut': p('sold out', 'נמכרה במלואה'),
   // Used for any manual portfolio, not only Sandbox.
   'pf.manualDetail': p('No broker — you record the transactions', 'בלי ברוקר — את רושמת את העסקאות'),
   'pf.manage': p('Manage', 'לנהל'),

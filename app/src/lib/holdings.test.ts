@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchYourPositions, manualPortfolioSummaries, portfolioList } from './holdings';
+import {
+  fetchYourPositions,
+  manualPortfolioSummaries,
+  mergeManualTransactions,
+  portfolioList,
+  sumTotals,
+} from './holdings';
+import type { PortfolioSummary, Quote } from '../data/types';
 import { withDemoData } from '../data/demoFlagsStub';
 import { demoService } from '../data/demoAdapter';
 import type { ManualPortfolio, ManualTransaction } from '../state/appState';
@@ -30,14 +37,20 @@ describe('portfolioList', () => {
     expect(list).toHaveLength(1);
     expect(list[0].id).toBe('mine');
     expect(list[0].kind).toBe('manual');
-    expect(list[0].total).toBe(5000);
+    // Not the starting cash: what a manual portfolio is worth is its own
+    // positions valued at live prices, which this list has no access to, and
+    // the cash it was opened with is not its value.
+    expect(list[0].total).toBeNull();
   });
 });
 
 describe('manualPortfolioSummaries', () => {
   it('reports no day change rather than a computed zero', () => {
     const [row] = manualPortfolioSummaries([manualPf]);
-    expect(row.dayPct).toBe(0);
+    // null, not 0. A hand-kept ledger has no priced history behind it, and a
+    // zero renders as a measured flat day the app never measured.
+    expect(row.dayPct).toBeNull();
+    expect(row.allTimePct).toBeNull();
     expect(row.broker).toBeNull();
   });
 });
@@ -117,5 +130,67 @@ describe('the fabricated holdings table is the demo brokers’ alone', () => {
     expect(mine).toHaveLength(1);
     expect(mine[0].holding.shares).toBe(3);
     expect(mine[0].holding.avgCost).toBe(100);
+  });
+});
+
+const summary = (id: string, total: number | null): PortfolioSummary => ({
+  id,
+  kind: 'linked',
+  name: id,
+  broker: id,
+  logo: null,
+  acct: '',
+  syncedAgo: null,
+  total,
+  dayPct: 0,
+  allTimePct: 0,
+});
+
+describe('sumTotals', () => {
+  it('adds the accounts it was given', () => {
+    expect(sumTotals([summary('a', 100), summary('b', 50)])).toBe(150);
+  });
+
+  it('is null when any account’s own total is unknown', () => {
+    // Not 100. A sum that drops the account it could not read is not a
+    // smaller total, it is a wrong one — and wrong low, which flatters.
+    expect(sumTotals([summary('a', 100), summary('b', null)])).toBeNull();
+  });
+
+  it('is 0 for no accounts at all, which is a real answer', () => {
+    expect(sumTotals([])).toBe(0);
+  });
+});
+
+describe('mergeManualTransactions', () => {
+  const quote = (price: number | null): Quote => ({ price, high52w: null, drawdownPct: null });
+
+  it('values the user’s own position at the live price, not at cost', () => {
+    const [row] = mergeManualTransactions([], [buy('NVDA', 10, 100)], { NVDA: quote(150) });
+    expect(row.value).toBe(1500);
+    expect(row.avgCost).toBe(100);
+    expect(row.plPct).toBeCloseTo(50, 6);
+  });
+
+  it('reports "no value" rather than the old green +0.00% when unpriced', () => {
+    const [row] = mergeManualTransactions([], [buy('NVDA', 10, 100)], {});
+    expect(row.value).toBeNull();
+    expect(row.plPct).toBeNull();
+  });
+
+  it('leaves a service-reported holding the user never logged untouched', () => {
+    const service = { ticker: 'AAPL', shares: 5, avgCost: 100, value: 900, plPct: -10 };
+    const rows = mergeManualTransactions([service], [buy('NVDA', 1, 10)], { NVDA: quote(10) });
+    expect(rows.find((r) => r.ticker === 'AAPL')).toEqual(service);
+  });
+
+  it('keeps a sold-out position, with no shares left', () => {
+    const rows = mergeManualTransactions(
+      [],
+      [buy('NVDA', 10, 100), { ...buy('NVDA', 10, 130), id: 'tx-sell', side: 'sell' }],
+      { NVDA: quote(150) },
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].shares).toBe(0);
   });
 });
