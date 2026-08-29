@@ -94,7 +94,12 @@ export function WatchlistScreen({ openAlert, openSearch }: ScreenProps) {
                 <div style={{ fontSize: 'var(--text-row)' }}>{t('watch.empty')}</div>
                 <p
                   className="text-muted"
-                  style={{ fontSize: 'var(--text-caption)', margin: '4px auto 12px', maxWidth: 300, lineHeight: 1.45 }}
+                  style={{
+                    fontSize: 'var(--text-caption)',
+                    margin: '4px auto 12px',
+                    maxWidth: 300,
+                    lineHeight: 1.45,
+                  }}
                 >
                   {t('watch.emptyHelp')}
                 </p>
@@ -110,7 +115,7 @@ export function WatchlistScreen({ openAlert, openSearch }: ScreenProps) {
                     <ListRow
                       key={x.ticker}
                       divider={i > 0}
-                      leading={<TickerTile ticker={x.ticker} size={26} />}
+                      leading={<TickerTile ticker={x.ticker} size={36} />}
                       title={x.ticker}
                       subtitle={
                         tags.length > 0 ? (
@@ -174,7 +179,12 @@ export function WatchlistScreen({ openAlert, openSearch }: ScreenProps) {
             <div style={{ fontSize: 'var(--text-row)' }}>{t('watch.noAlerts')}</div>
             <p
               className="text-muted"
-              style={{ fontSize: 'var(--text-caption)', margin: '4px auto 0', maxWidth: 300, lineHeight: 1.45 }}
+              style={{
+                fontSize: 'var(--text-caption)',
+                margin: '4px auto 0',
+                maxWidth: 300,
+                lineHeight: 1.45,
+              }}
             >
               {t('watch.noAlertsHelp')}
             </p>
@@ -252,6 +262,7 @@ function RowIconButton({
   return (
     <button
       type="button"
+      className="row-icon-btn"
       onClick={(e) => {
         // The whole row navigates to the stock page; these two do not.
         e.stopPropagation();
@@ -263,7 +274,6 @@ function RowIconButton({
         flex: 'none',
         borderRadius: 'var(--radius-sm)',
         border: '1px solid var(--color-divider)',
-        background: 'transparent',
         color: muted ? 'var(--muted)' : 'var(--color-accent)',
         fontSize: 'var(--text-title)',
         cursor: 'pointer',
