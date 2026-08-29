@@ -17,6 +17,7 @@
 /** Monotonic within a session; only reached when the platform has no crypto. */
 let fallbackCounter = 0;
 
+/** A prefixed, collision-free id for one locally created row. */
 export function newId(prefix: string): string {
   const c = globalThis.crypto;
   if (typeof c?.randomUUID === 'function') return `${prefix}-${c.randomUUID()}`;
