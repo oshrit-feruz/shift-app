@@ -9,6 +9,7 @@ import {
   classifyError,
   planLegacyImport,
   portfoliosOf,
+  applyToSnapshot,
   reconcile,
   transactionsByPortfolio,
   type LedgerOp,
@@ -42,11 +43,29 @@ import { readLegacyLedger, useDispatch, type TransactionSide } from './appState'
  */
 
 const OUTBOX_PREFIX = 'shift.outbox.';
+/**
+ * The last server snapshot this device read, per user.
+ *
+ * The rest of the app already keeps an on-device cache and keeps working when
+ * the network does not (appState's localStorage effect); the ledger needs the
+ * same, and needs it more. Without it, a reload with no connection left the
+ * outbox holding a transaction whose portfolio was only ever known from a read
+ * that had not happened yet — so the screen had no portfolio to show it in and
+ * said the ledger was unavailable, hiding a row the user had just entered.
+ *
+ * Separate from the outbox because they answer different questions: this is
+ * what the server last said, that is what we still have to tell it.
+ */
+const CACHE_PREFIX = 'shift.ledger.';
 
 export interface LedgerApi {
   /** The server read. 'unavailable' while the tables or the network are not
    *  there; the rows on screen still include everything queued locally. */
   status: Loadable<LedgerSnapshot>['status'];
+  /** Why the read failed, when it did — the migration not being applied yet
+   *  reads very differently from a dropped connection, and a reader who is
+   *  told which one can tell whether waiting will help. */
+  reason: { en: string; he: string } | null;
   addPortfolio: (name: string) => void;
   removePortfolio: (id: string) => void;
   addTransaction: (
@@ -62,6 +81,7 @@ export interface LedgerApi {
 
 const NOOP: LedgerApi = {
   status: 'loading',
+  reason: null,
   addPortfolio: () => {},
   removePortfolio: () => {},
   addTransaction: () => {},
@@ -147,12 +167,24 @@ function useLedgerSync(): LedgerApi {
         const outcome = classifyError(await send(op));
         if (outcome === 'retry') break;
         if (outcome === 'failed') setRejected((prev) => [...prev, op]);
+        // A confirmed op IS a server row now, so it moves into the snapshot as
+        // it leaves the queue. Without this the two would be briefly empty at
+        // once — the op gone from the outbox and the snapshot not yet
+        // re-read — and reconcile() would correctly report that the user has
+        // nothing, which is how a freshly created portfolio vanished the
+        // moment its insert succeeded. Cheaper than a re-read, and it is the
+        // same answer the re-read would give.
+        if (outcome === 'done') {
+          serverRef.current = applyToSnapshot(serverRef.current, op);
+          writeCache(userId, serverRef.current);
+        }
         saveOutbox(outboxRef.current.slice(1));
       }
     } finally {
       flushing.current = false;
+      publish();
     }
-  }, [userId, saveOutbox]);
+  }, [userId, saveOutbox, publish]);
 
   const enqueue = useCallback(
     (op: LedgerOp) => {
@@ -193,6 +225,7 @@ function useLedgerSync(): LedgerApi {
       portfolios: (pfs.data ?? []).map(readPortfolio),
       transactions: (txs.data ?? []).map(readTransaction),
     };
+    writeCache(userId, serverRef.current);
     setState(ok(serverRef.current));
     publish();
     void flush();
@@ -276,7 +309,10 @@ function useLedgerSync(): LedgerApi {
       dispatch({ type: 'ledgerLoaded', portfolios: [], transactions: {} });
       return;
     }
-    serverRef.current = EMPTY_LEDGER;
+    // From the cache first, so a device that opens with no network shows the
+    // ledger it last saw rather than nothing. The read below replaces it the
+    // moment it lands.
+    serverRef.current = readCache(userId);
     outboxRef.current = readOutbox(userId);
     setState(loading());
     publish();
@@ -313,6 +349,7 @@ function useLedgerSync(): LedgerApi {
   return useMemo<LedgerApi>(
     () => ({
       status: state.status,
+      reason: state.status === 'unavailable' ? (state.reason ?? null) : null,
       rejected,
       addPortfolio: (name) => {
         if (!userId) return;
@@ -348,7 +385,7 @@ function useLedgerSync(): LedgerApi {
         enqueue({ kind: 'deleteTransaction', userId, id });
       },
     }),
-    [state.status, rejected, userId, enqueue],
+    [state, rejected, userId, enqueue],
   );
 }
 
@@ -384,6 +421,29 @@ async function send(op: LedgerOp): Promise<{ code?: string; message?: string } |
   } catch (err) {
     // A thrown fetch is a transport failure, which classifyError keeps queued.
     return { message: err instanceof Error ? err.message : 'network' };
+  }
+}
+
+function readCache(userId: string): LedgerSnapshot {
+  try {
+    const raw = localStorage.getItem(CACHE_PREFIX + userId);
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (!parsed || !Array.isArray(parsed.portfolios) || !Array.isArray(parsed.transactions)) {
+      return EMPTY_LEDGER;
+    }
+    return parsed as LedgerSnapshot;
+  } catch {
+    return EMPTY_LEDGER;
+  }
+}
+
+function writeCache(userId: string, snapshot: LedgerSnapshot) {
+  try {
+    localStorage.setItem(CACHE_PREFIX + userId, JSON.stringify(snapshot));
+  } catch {
+    // Best-effort, like every other cache write here. Losing it costs an
+    // offline reload its rows, not the rows themselves — those are on the
+    // server or in the outbox.
   }
 }
 

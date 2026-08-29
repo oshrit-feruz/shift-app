@@ -111,6 +111,36 @@ export function reconcile(server: LedgerSnapshot, outbox: LedgerOp[], userId: st
   };
 }
 
+/**
+ * The snapshot with one confirmed op folded in.
+ *
+ * The same set computation reconcile() does, applied to the server side —
+ * which is what makes it safe: a delete removes by id, an insert is keyed by
+ * id, so folding the same op twice changes nothing.
+ */
+export function applyToSnapshot(snapshot: LedgerSnapshot, op: LedgerOp): LedgerSnapshot {
+  if (op.kind === 'insertPortfolio') {
+    return {
+      ...snapshot,
+      portfolios: [...snapshot.portfolios.filter((x) => x.id !== op.row.id), op.row],
+    };
+  }
+  if (op.kind === 'insertTransaction') {
+    return {
+      ...snapshot,
+      transactions: [...snapshot.transactions.filter((x) => x.id !== op.row.id), op.row],
+    };
+  }
+  if (op.kind === 'deletePortfolio') {
+    return {
+      portfolios: snapshot.portfolios.filter((x) => x.id !== op.id),
+      // Cascading, as the database does.
+      transactions: snapshot.transactions.filter((x) => x.portfolioId !== op.id),
+    };
+  }
+  return { ...snapshot, transactions: snapshot.transactions.filter((x) => x.id !== op.id) };
+}
+
 /** Stable order across devices: the id breaks ties so two clients holding the
  *  same rows never disagree about their sequence. */
 function byCreatedAtThenId(a: { createdAt: string; id: string }, b: { createdAt: string; id: string }) {

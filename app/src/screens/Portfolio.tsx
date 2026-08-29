@@ -19,7 +19,7 @@ import { useT } from '../i18n/useT';
 import { useToast } from '../components/Toast';
 import { useLedger } from '../state/useLedgerSync';
 import { demoService } from '../data/demoAdapter';
-import type { Holding } from '../data/types';
+import { loading, ok, unavailable, type Holding, type Loadable } from '../data/types';
 import { useLoadable } from '../data/useLoadable';
 import { isoDate, money, moneyOrDash, pctOrDash, signalColor } from '../lib/format';
 import { TxSheet } from '../sheets/TxSheet';
@@ -87,6 +87,21 @@ export function PortfolioScreen(_: ScreenProps) {
           // the index below, which would otherwise read list[-1] and throw on
           // the first property access.
           if (list.length === 0) {
+            // An empty list and an unread one are not the same fact, and the
+            // difference is the whole reason the ledger reports a status. "You
+            // have no portfolios" over a failed read tells someone their
+            // holdings are gone; a reload that has not landed, or a migration
+            // not yet applied, must say so and offer the retry instead.
+            if (ledger.status !== 'ok') {
+              return (
+                <DataState
+                  state={ledgerState(ledger.status, ledger.reason)}
+                  onRetry={() => window.location.reload()}
+                >
+                  {() => null}
+                </DataState>
+              );
+            }
             return (
               <>
                 <DemoOnly feature="connScreen.linked">
@@ -518,6 +533,22 @@ function usePortfolioHoldings(pfId: string) {
   // at once rather than after the next visit.
   const key = transactions.map((tx) => tx.id).join(',');
   return useLoadable(() => fetchPortfolioHoldings(pfId, transactions), [pfId, demo, key]);
+}
+
+/**
+ * The ledger read as something DataState can render.
+ *
+ * The rows themselves are already in the reducer — this carries only whether
+ * the read succeeded, which is all the empty branch above needs to tell "you
+ * have none" apart from "we could not look".
+ */
+function ledgerState(
+  status: 'loading' | 'unavailable' | 'ok',
+  reason: { en: string; he: string } | null,
+): Loadable<null> {
+  if (status === 'loading') return loading();
+  if (status === 'unavailable') return unavailable(reason ?? undefined);
+  return ok(null);
 }
 
 /**

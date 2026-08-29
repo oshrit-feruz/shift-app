@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   EMPTY_LEDGER,
+  applyToSnapshot,
   classifyError,
   planLegacyImport,
   portfoliosOf,
@@ -352,5 +353,53 @@ describe('classifyError', () => {
   // recoverable costs a transaction, and only one of those is the user's data.
   it('keeps an op it does not recognise rather than discarding it', () => {
     expect(classifyError({ code: 'XX000' })).toBe('retry');
+  });
+});
+
+// The bug this fixes, caught in a browser and pinned here: a confirmed op
+// leaves the outbox, and if the server snapshot has not been re-read the two
+// are briefly empty at once — so reconcile() correctly reports the user has
+// nothing, and a freshly created portfolio vanishes the moment its insert
+// succeeds. Folding the confirmed op into the snapshot closes that window.
+describe('applyToSnapshot — a confirmed op is a server row now', () => {
+  it('adds a confirmed portfolio, so it survives leaving the outbox', () => {
+    const op: LedgerOp = { kind: 'insertPortfolio', userId: ME, row: pf('new') };
+    const after = applyToSnapshot(EMPTY_LEDGER, op);
+    expect(after.portfolios.map((x) => x.id)).toEqual(['new']);
+    // And the view still holds once the op is gone from the queue.
+    expect(reconcile(after, [], ME).portfolios).toHaveLength(1);
+  });
+
+  it('adds a confirmed transaction', () => {
+    const after = applyToSnapshot(server, {
+      kind: 'insertTransaction',
+      userId: ME,
+      row: tx('t2', 'sandbox'),
+    });
+    expect(after.transactions.map((x) => x.id)).toEqual(['t1', 't2']);
+  });
+
+  it('folds the same op twice without changing anything', () => {
+    const op: LedgerOp = { kind: 'insertTransaction', userId: ME, row: tx('t2', 'sandbox') };
+    expect(applyToSnapshot(applyToSnapshot(server, op), op)).toEqual(applyToSnapshot(server, op));
+  });
+
+  it('removes a confirmed delete', () => {
+    const after = applyToSnapshot(server, { kind: 'deleteTransaction', userId: ME, id: 't1' });
+    expect(after.transactions).toEqual([]);
+  });
+
+  it('cascades a confirmed portfolio delete, as the database does', () => {
+    const snapshot: LedgerSnapshot = {
+      portfolios: [pf('sandbox', { isDefault: true }), pf('other')],
+      transactions: [tx('t1', 'sandbox'), tx('t2', 'other')],
+    };
+    const after = applyToSnapshot(snapshot, { kind: 'deletePortfolio', userId: ME, id: 'other' });
+    expect(after.portfolios.map((x) => x.id)).toEqual(['sandbox']);
+    expect(after.transactions.map((x) => x.id)).toEqual(['t1']);
+  });
+
+  it('is a no-op for a delete of something that is not there', () => {
+    expect(applyToSnapshot(server, { kind: 'deleteTransaction', userId: ME, id: 'nope' })).toEqual(server);
   });
 });
