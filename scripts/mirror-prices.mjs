@@ -33,6 +33,22 @@
  *   remaining calls on responses that cannot succeed, and every one of them
  *   would be indistinguishable from "this symbol has no data".
  *
+ * WHY `compact`, AND WHY THE FILE ACCUMULATES:
+ * `outputsize=full` became a premium-only parameter for TIME_SERIES_DAILY, and
+ * the provider reports that with HTTP 200 and an `Information` notice reading
+ * "Thank you for using Alpha Vantage! ... is a premium feature" — which this
+ * script's own quota heuristic matched, so every scheduled run aborted on the
+ * first ticker and published nothing. Every chart in the app had been empty
+ * since.
+ *
+ * `compact` is the free size and returns the last 100 sessions, which is short
+ * of the ~252 the year window wants. So a run now MERGES what it fetched into
+ * what was already published rather than replacing it: the archive grows by
+ * the sessions each run adds, reaches MAX_BARS within a few months of daily
+ * runs, and self-heals if the job misses a week. Nothing is invented to fill
+ * the gap in the meantime — a shorter history is drawn as the shorter history
+ * it is, which is the same rule the reader keeps.
+ *
  * Usage:
  *   ALPHAVANTAGE_API_KEY=... node scripts/mirror-prices.mjs
  *   ALPHAVANTAGE_API_KEY=demo node scripts/mirror-prices.mjs --only=IBM --out=/tmp/series
@@ -52,6 +68,9 @@ const API_URL = 'https://www.alphavantage.co/query';
  * of that window. Keeping the provider's full twenty-odd years would put
  * megabytes of history nobody can see into a file the browser downloads and
  * a commit rewrites every day.
+ *
+ * The free `compact` size returns 100 sessions per call, so this ceiling is
+ * reached by accumulation over successive runs rather than by any one fetch.
  */
 const MAX_BARS = 340;
 
@@ -95,9 +114,70 @@ export function readApiError(body) {
   return null;
 }
 
-/** True for the error bodies that mean "stop", not "skip this symbol". */
-export function isQuotaError(reason) {
+/**
+ * True for the error bodies that mean "stop", not "skip this symbol".
+ *
+ * All of these are conditions the next ticker would hit identically, so the
+ * run stops rather than spending the remaining calls to learn the same thing
+ * ten more times. `premium` is in here because a parameter this key cannot use
+ * is exactly that kind of condition — see the note at the top of this file
+ * about which parameter, and what it cost when the message was reported as a
+ * spent quota instead of what it is.
+ */
+export function isFatalError(reason) {
   return /rate limit|call frequency|premium|thank you for using/i.test(reason);
+}
+
+/** Distinguishes the two so the log names the real cause. */
+export function fatalKind(reason) {
+  return /premium/i.test(reason) ? 'a parameter this key cannot use' : 'quota appears spent';
+}
+
+/**
+ * Merge freshly fetched bars over whatever was already published.
+ *
+ * The provider restates a session occasionally (a corrected close, a settled
+ * volume), so where both sides carry a date the fetched bar wins. Everything
+ * older than the fetched window is kept, which is the whole point: `compact`
+ * only reaches back 100 sessions, and the year window wants more than twice
+ * that.
+ *
+ * Returns oldest-first and capped at MAX_BARS, the same shape a fetch-only
+ * result has, so the caller cannot tell which path produced it.
+ */
+export function mergeBars(previous, fresh) {
+  const byDate = new Map();
+  for (const b of previous ?? []) byDate.set(b.d, b);
+  for (const b of fresh) byDate.set(b.d, b);
+  const merged = [...byDate.values()];
+  merged.sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
+  return merged.slice(-MAX_BARS);
+}
+
+/**
+ * The bars in the file already on disk, or [] when there is none, it cannot be
+ * read, or it is not the shape this script writes.
+ *
+ * Never throws and never partially trusts: a file that does not parse is
+ * treated as absent, so a corrupt file costs history but cannot corrupt the
+ * merge with rows that are not bars.
+ */
+export function readPublishedBars(path) {
+  try {
+    const body = JSON.parse(readFileSync(path, 'utf8'));
+    const bars = body?.bars;
+    if (!Array.isArray(bars)) return [];
+    return bars.filter(
+      (b) =>
+        b !== null &&
+        typeof b === 'object' &&
+        typeof b.d === 'string' &&
+        /^\d{4}-\d{2}-\d{2}$/.test(b.d) &&
+        [b.o, b.h, b.l, b.c, b.v].every(isNum),
+    );
+  } catch {
+    return [];
+  }
 }
 
 const isNum = (n) => typeof n === 'number' && Number.isFinite(n);
@@ -176,7 +256,7 @@ export function serialise(file) {
 }
 
 async function fetchTicker(ticker, apiKey) {
-  const url = `${API_URL}?function=TIME_SERIES_DAILY&symbol=${encodeURIComponent(ticker)}&outputsize=full&apikey=${encodeURIComponent(apiKey)}`;
+  const url = `${API_URL}?function=TIME_SERIES_DAILY&symbol=${encodeURIComponent(ticker)}&outputsize=compact&apikey=${encodeURIComponent(apiKey)}`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
@@ -184,7 +264,7 @@ async function fetchTicker(ticker, apiKey) {
     if (!res.ok) return { error: `HTTP ${res.status}` };
     const body = await res.json();
     const apiError = readApiError(body);
-    if (apiError) return { error: apiError, fatal: isQuotaError(apiError) };
+    if (apiError) return { error: apiError, fatal: isFatalError(apiError) };
     const bars = mapSeries(body);
     if (!bars) return { error: 'no usable daily bars in the response' };
     return { bars };
@@ -221,7 +301,7 @@ async function main() {
       if (result.fatal) {
         // Stop rather than spend the rest of the quota on calls that cannot
         // succeed. Whatever was published before this point stays published.
-        console.error(`::error::${ticker}: ${result.error} — aborting, quota appears spent`);
+        console.error(`::error::${ticker}: ${result.error} — aborting, ${fatalKind(result.error)}`);
         break;
       }
       // Leaves this ticker's previous file exactly as it was.
@@ -230,9 +310,14 @@ async function main() {
       continue;
     }
 
-    const file = buildFile(ticker, result.bars);
-    writeFileSync(join(outDir, `${ticker}.json`), serialise(file));
-    console.log(`ok   ${ticker}: ${file.bars.length} bars, as_of=${file.as_of}`);
+    // Merged, not replaced: `compact` reaches back 100 sessions and the
+    // year window wants more, so each run keeps what earlier runs published.
+    const path = join(outDir, `${ticker}.json`);
+    const before = readPublishedBars(path);
+    const bars = mergeBars(before, result.bars);
+    const file = buildFile(ticker, bars);
+    writeFileSync(path, serialise(file));
+    console.log(`ok   ${ticker}: ${file.bars.length} bars (+${file.bars.length - before.length}), as_of=${file.as_of}`);
     published.push(ticker);
   }
 
