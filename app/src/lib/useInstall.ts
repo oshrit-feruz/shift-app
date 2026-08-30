@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { installRoute, isMobileDevice, isStandaloneDisplay, type InstallRoute } from './install';
+import {
+  STANDALONE_MODES,
+  installRoute,
+  isMobileDevice,
+  isStandaloneDisplay,
+  type InstallRoute,
+} from './install';
 
 /**
  * The `beforeinstallprompt` event, which no TypeScript lib declares because
@@ -96,10 +102,13 @@ export function useIsStandalone(): boolean {
   const [standalone, setStandalone] = useState(() => isStandaloneDisplay());
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return;
-    const mq = window.matchMedia('(display-mode: standalone)');
+    // Every mode isStandaloneDisplay() accepts, not just `standalone`: leaving
+    // fullscreen or minimal-ui for a plain tab fires no `standalone` change,
+    // so watching that one query alone would leave the hook stuck at true.
+    const queries = STANDALONE_MODES.map((mode) => window.matchMedia(`(display-mode: ${mode})`));
     const onChange = () => setStandalone(isStandaloneDisplay());
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
+    queries.forEach((mq) => mq.addEventListener('change', onChange));
+    return () => queries.forEach((mq) => mq.removeEventListener('change', onChange));
   }, []);
   return standalone;
 }

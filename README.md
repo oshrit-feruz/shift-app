@@ -144,16 +144,20 @@ button:
   web app to the home screen — the Share sheet is the only route, by design.
   Anything here that claims otherwise would be a button that silently does
   nothing.
-- **Chrome / Firefox / Edge on iOS, and in-app webviews** (Instagram, Facebook,
-  Gmail) — they are WebKit under another name and cannot add to the home
-  screen at all, so the instruction is "open this page in Safari", with a
-  button that puts the address on the clipboard so that opening Safari is a
-  paste rather than a URL typed from memory. It deliberately does **not**
-  navigate: the obvious trick, `x-safari-https:`, means feeding the current
-  location into a redirect — a client-side open-redirect shape however narrow
-  the intent — and it was only best-effort anyway, since some hosts swallow
-  the navigation and nothing reports back. Copying is honest about what it
-  did, and no button appears at all where the clipboard is unavailable.
+- **Chrome, Firefox and Edge on iOS** — since **iOS 16.4** they carry "Add to
+  Home Screen" in their own share menu, so they get the same three steps as
+  Safari rather than being sent away to find it. They also get the copy-link
+  button below, for the older iOS versions that do not.
+- **In-app browsers** (Instagram, Facebook, Gmail, WeChat) — the one iOS case
+  with no route to the home screen at all, so the instruction is to open the
+  page in Safari, with a button that puts the address on the clipboard so that
+  opening it is a paste rather than a URL typed from memory. It deliberately
+  does **not** navigate: the obvious trick, `x-safari-https:`, means feeding
+  the current location into a redirect — a client-side open-redirect shape
+  however narrow the intent — and it was only best-effort anyway, since some
+  hosts swallow the navigation and nothing reports back. Copying is honest
+  about what it did, and no button appears at all where the clipboard is
+  unavailable.
 - **Anything else** — the browser menu carries the item under one name or
   another.
 

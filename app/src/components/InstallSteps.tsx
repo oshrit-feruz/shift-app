@@ -29,9 +29,9 @@ export function InstallSteps() {
     return <Note>{t('install.done')}</Note>;
   }
 
-  if (route === 'prompt') {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {route === 'prompt' && (
         <Button
           block
           minHeight={48}
@@ -47,40 +47,50 @@ export function InstallSteps() {
         >
           {busy ? t('install.working') : t('install.cta')}
         </Button>
-        {dismissed && <Note>{t('install.dismissed')}</Note>}
-      </div>
-    );
-  }
+      )}
 
-  if (route === 'ios-safari') {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <span className="text-muted" style={{ fontSize: 'var(--text-caption)', fontWeight: 600 }}>
-          {t('install.stepsTitle')}
-        </span>
-        <InstallDemo variant="ios" />
+      {/* Safari and the iOS browsers that borrow its Share sheet: the same
+          three taps, drawn. */}
+      {(route === 'ios-safari' || route === 'ios-browser') && (
+        <>
+          <InstallDemo variant="ios" />
+          <span className="text-muted" style={{ fontSize: 'var(--text-caption)', fontWeight: 600 }}>
+            {t('install.stepsTitle')}
+          </span>
+          <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 10 }}>
+            <Step n={1} icon="share" label={t('install.ios1')} />
+            <Step n={2} icon="addSquare" label={t('install.ios2')} />
+            <Step n={3} icon="check" label={t('install.ios3')} />
+          </ol>
+        </>
+      )}
+
+      {/* The two one-line routes get the same shape as the steps — one glyph,
+          a few words — rather than a paragraph. */}
+      {route === 'ios-webview' && (
         <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 10 }}>
-          <Step n={1} icon="share" label={t('install.ios1')} />
-          <Step n={2} icon="addSquare" label={t('install.ios2')} />
-          <Step n={3} icon="check" label={t('install.ios3')} />
+          <Step icon="share" label={t('install.iosWebview')} />
         </ol>
-      </div>
-    );
-  }
+      )}
+      {route === 'manual' && (
+        <>
+          <InstallDemo variant="menu" />
+          <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 10 }}>
+            <Step icon="dotsV" label={t('install.manual')} />
+          </ol>
+        </>
+      )}
 
-  // The two menu routes get the same shape as the steps above — one glyph,
-  // a few words — rather than a paragraph.
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {route === 'manual' && <InstallDemo variant="menu" />}
-      <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 10 }}>
-        {route === 'ios-other' ? (
-          <Step icon="share" label={t('install.iosOther')} />
-        ) : (
-          <Step icon="dotsV" label={t('install.manual')} />
-        )}
-      </ol>
-      {route === 'ios-other' && <CopyLinkButton />}
+      {/* Offered where the Share sheet may not carry "Add to Home Screen" —
+          an in-app browser, or an iOS older than 16.4 — so that opening
+          Safari is a paste rather than a URL typed from memory. */}
+      {(route === 'ios-webview' || route === 'ios-browser') && <CopyLinkButton />}
+
+      {/* Rendered outside the prompt branch on purpose: dismissing the native
+          dialog spends the event, so the very next render has already fallen
+          back to the manual route. Inside that branch this note could never
+          appear. */}
+      {dismissed && <Note>{t('install.dismissed')}</Note>}
     </div>
   );
 }
@@ -105,25 +115,23 @@ function CopyLinkButton() {
   // than one that fails silently. The written instruction above still stands.
   if (!navigator.clipboard) return null;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <Button
-        block
-        minHeight={48}
-        variant="secondary"
-        onClick={async () => {
-          try {
-            await navigator.clipboard.writeText(window.location.href);
-            setCopied(true);
-          } catch {
-            // Denied or unavailable: say nothing changed rather than claim a
-            // copy that did not happen.
-            setCopied(false);
-          }
-        }}
-      >
-        {copied ? t('install.copied') : t('install.copyLink')}
-      </Button>
-    </div>
+    <Button
+      block
+      minHeight={48}
+      variant="secondary"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(window.location.href);
+          setCopied(true);
+        } catch {
+          // Denied or unavailable: say nothing changed rather than claim a
+          // copy that did not happen.
+          setCopied(false);
+        }
+      }}
+    >
+      {copied ? t('install.copied') : t('install.copyLink')}
+    </Button>
   );
 }
 

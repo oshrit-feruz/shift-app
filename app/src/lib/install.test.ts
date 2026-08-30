@@ -3,6 +3,7 @@ import {
   installRoute,
   isIOS,
   isIOSSafari,
+  isIOSWebView,
   isMobileDevice,
   isStandaloneDisplay,
   shouldBlockUntilInstalled,
@@ -94,7 +95,9 @@ describe('isIOS / isIOSSafari', () => {
     expect(isIOSSafari(CHROME_IOS)).toBe(false);
   });
 
-  it('treats an in-app webview as not-Safari: it cannot add to the home screen', () => {
+  it('separates an in-app webview from a named browser: only the webview is stuck', () => {
+    expect(isIOSWebView(`${IPHONE} [FBAN/FBIOS]`)).toBe(true);
+    expect(isIOSWebView(CHROME_IOS)).toBe(false);
     expect(isIOSSafari(`${IPHONE} [FBAN/FBIOS]`)).toBe(false);
   });
 });
@@ -111,9 +114,15 @@ describe('installRoute', () => {
     expect(installRoute({ canPrompt: false, ua: IPHONE, maxTouchPoints: 5 })).toBe('ios-safari');
   });
 
-  it('sends other iOS browsers to Safari, since they cannot install at all', () => {
+  it('gives Chrome/Firefox/Edge on iOS the same steps: since 16.4 their share menu carries it too', () => {
     expect(installRoute({ canPrompt: false, ua: `${IPHONE} CriOS/126.0`, maxTouchPoints: 5 })).toBe(
-      'ios-other',
+      'ios-browser',
+    );
+  });
+
+  it('sends an in-app webview to Safari — the one iOS case that really cannot install', () => {
+    expect(installRoute({ canPrompt: false, ua: `${IPHONE} [FBAN/FBIOS]`, maxTouchPoints: 5 })).toBe(
+      'ios-webview',
     );
   });
 

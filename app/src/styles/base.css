@@ -591,7 +591,7 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
  * Three scenes share one 9s timeline and are offset by negative delays
  * (0s / -3s / -6s) rather than being driven from JS: no timers to start, stop
  * or leak, and every copy of the demo on screen stays in step. */
-@keyframes installScene {
+@keyframes install-scene {
   0% { opacity: 0; }
   3% { opacity: 1; }
   30% { opacity: 1; }
@@ -599,24 +599,24 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
   100% { opacity: 0; }
 }
 .install-scene {
-  animation: installScene 9s linear infinite;
+  animation: install-scene 9s linear infinite;
 }
 /* The tap: a ring expanding out of the button being pressed. */
-@keyframes installTap {
+@keyframes install-tap {
   0% { transform: scale(.5); opacity: .85; }
   75% { transform: scale(1.9); opacity: 0; }
   100% { transform: scale(1.9); opacity: 0; }
 }
 .install-tap {
-  animation: installTap 1.8s var(--ease-out) infinite;
+  animation: install-tap 1.8s var(--ease-out) infinite;
 }
 /* The sheet arriving from the bottom edge, as the real one does. */
-@keyframes installRise {
+@keyframes install-rise {
   from { transform: translateY(45%); }
   to { transform: translateY(0); }
 }
 .install-rise {
-  animation: installRise .7s var(--ease-out) both;
+  animation: install-rise .7s var(--ease-out) both;
 }
 /* Reduced motion takes the whole demo away rather than freezing it: frozen,
  * its three scenes would stack on top of each other. The numbered steps

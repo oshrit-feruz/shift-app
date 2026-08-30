@@ -40,13 +40,13 @@ export const INSTALL_GATE_ENFORCED: boolean = ((): boolean => {
  * either, and the user did add it to their home screen, which is all the gate
  * is asking about. `window-controls-overlay` is the desktop equivalent.
  */
+export const STANDALONE_MODES = ['standalone', 'minimal-ui', 'fullscreen', 'window-controls-overlay'];
+
 export function isStandaloneDisplay(win: Window = window): boolean {
   const nav = win.navigator as Navigator & { standalone?: boolean };
   if (nav.standalone === true) return true;
   if (typeof win.matchMedia !== 'function') return false;
-  return ['standalone', 'minimal-ui', 'fullscreen', 'window-controls-overlay'].some(
-    (mode) => win.matchMedia(`(display-mode: ${mode})`).matches,
-  );
+  return STANDALONE_MODES.some((mode) => win.matchMedia(`(display-mode: ${mode})`).matches);
 }
 
 /**
@@ -76,17 +76,21 @@ export function shouldBlockUntilInstalled(input: {
  * Which set of instructions to show, since only one platform can be offered
  * a one-tap install.
  *
- *  - `prompt`     — Chromium (Android, desktop Chrome/Edge): a captured
- *                   `beforeinstallprompt` event is waiting, so a button does it.
- *  - `ios-safari` — no install API at all; the Share sheet is the only route.
- *  - `ios-other`  — Chrome/Firefox/Edge on iOS. They render in WebKit but do
- *                   not offer WebKit's "Add to Home Screen", so the honest
- *                   instruction is "open this page in Safari".
- *  - `manual`     — anything else (Firefox Android, Samsung Internet, a
- *                   Chromium that has not fired the event yet): the browser
- *                   menu carries an install item under one name or another.
+ *  - `prompt`      — Chromium (Android, desktop Chrome/Edge): a captured
+ *                    `beforeinstallprompt` event is waiting, so a button does it.
+ *  - `ios-safari`  — no install API at all; the Share sheet is the only route.
+ *  - `ios-browser` — Chrome, Firefox or Edge on iOS. Since iOS 16.4 they carry
+ *                    "Add to Home Screen" in their own share menu, so they get
+ *                    the same three steps as Safari — plus the copy-link
+ *                    fallback, for the older iOS versions that do not.
+ *  - `ios-webview` — an in-app browser (Instagram, Facebook, Gmail). These
+ *                    cannot add to the home screen at all, so the only honest
+ *                    instruction is to open the page in Safari.
+ *  - `manual`      — anything else (Firefox Android, Samsung Internet, a
+ *                    Chromium that has not fired the event yet): the browser
+ *                    menu carries an install item under one name or another.
  */
-export type InstallRoute = 'prompt' | 'ios-safari' | 'ios-other' | 'manual';
+export type InstallRoute = 'prompt' | 'ios-safari' | 'ios-browser' | 'ios-webview' | 'manual';
 
 export function installRoute(input: {
   canPrompt: boolean;
@@ -94,8 +98,9 @@ export function installRoute(input: {
   maxTouchPoints: number;
 }): InstallRoute {
   if (input.canPrompt) return 'prompt';
-  if (isIOS(input.ua, input.maxTouchPoints)) return isIOSSafari(input.ua) ? 'ios-safari' : 'ios-other';
-  return 'manual';
+  if (!isIOS(input.ua, input.maxTouchPoints)) return 'manual';
+  if (isIOSWebView(input.ua)) return 'ios-webview';
+  return isIOSSafari(input.ua) ? 'ios-safari' : 'ios-browser';
 }
 
 /** iPhone/iPod/iPad — including the iPad that claims to be a Mac, which is
@@ -105,11 +110,25 @@ export function isIOS(ua: string, maxTouchPoints: number): boolean {
   return /Macintosh/.test(ua) && maxTouchPoints > 1;
 }
 
-/** Safari, as opposed to the other iOS browsers, which are WebKit wearing a
- *  different name: Chrome is `CriOS`, Firefox `FxiOS`, Edge `EdgiOS`, Opera
- *  `OPiOS`, and in-app webviews (Instagram, Facebook, Gmail) name themselves. */
+/**
+ * A page opened inside another app rather than in a browser — Instagram,
+ * Facebook, Gmail, WeChat and friends, each of which names itself in the UA.
+ *
+ * This is the only iOS case with no route to the home screen at all. A named
+ * third-party *browser* is a different thing: since iOS 16.4 Chrome, Firefox
+ * and Edge all carry "Add to Home Screen" in their share menu, so telling
+ * their users to go and find Safari would be sending them somewhere they do
+ * not need to go.
+ */
+export function isIOSWebView(ua: string): boolean {
+  return /FBAN|FBAV|Instagram|Line\/|Twitter|GSA\/|MicroMessenger|Snapchat/.test(ua);
+}
+
+/** Safari itself, as opposed to the other iOS browsers, which are WebKit
+ *  wearing a different name: Chrome is `CriOS`, Firefox `FxiOS`, Edge
+ *  `EdgiOS`, Opera `OPiOS`. */
 export function isIOSSafari(ua: string): boolean {
+  if (isIOSWebView(ua)) return false;
   if (/CriOS|FxiOS|EdgiOS|OPiOS|YaBrowser|DuckDuckGo/.test(ua)) return false;
-  if (/FBAN|FBAV|Instagram|Line\/|Twitter|GSA\//.test(ua)) return false;
   return /Safari/.test(ua);
 }
