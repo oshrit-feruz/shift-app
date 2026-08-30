@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { installRoute, isMobileDevice, isStandaloneDisplay, type InstallRoute } from './install';
 
 /**
@@ -21,7 +21,7 @@ interface BeforeInstallPromptEvent extends Event {
  * event object, which is why it is kept rather than just a boolean.
  */
 let deferred: BeforeInstallPromptEvent | null = null;
-let installed = false;
+let installedFlag = false;
 const listeners = new Set<() => void>();
 const notify = () => listeners.forEach((fn) => fn());
 
@@ -38,7 +38,7 @@ export function startInstallPromptCapture(win: Window = window): void {
     // A used prompt cannot be re-fired: drop it so nothing offers a button
     // that would now do nothing.
     deferred = null;
-    installed = true;
+    installedFlag = true;
     notify();
   });
 }
@@ -60,8 +60,12 @@ export interface InstallPrompt {
 
 /** The install prompt, as React state. */
 export function useInstallPrompt(): InstallPrompt {
-  const [, force] = useState(0);
-  useEffect(() => subscribe(() => force((n) => n + 1)), []);
+  // useSyncExternalStore rather than an effect that forces a re-render: the
+  // prompt lives outside React (it has to — it arrives before React mounts),
+  // and this is the API for exactly that, tearing-free and with no state to
+  // keep in step with the module.
+  const canPrompt = useSyncExternalStore(subscribe, () => deferred != null);
+  const installed = useSyncExternalStore(subscribe, () => installedFlag);
 
   const promptInstall = useCallback(async () => {
     const evt = deferred;
@@ -77,7 +81,7 @@ export function useInstallPrompt(): InstallPrompt {
     return outcome;
   }, []);
 
-  return { canPrompt: deferred != null, installed, promptInstall };
+  return { canPrompt, installed, promptInstall };
 }
 
 /**
@@ -112,6 +116,5 @@ export function useInstallRoute(): InstallRoute {
 
 /** Phone or tablet, evaluated once — a device does not grow a mouse mid-session. */
 export function useIsMobileDevice(): boolean {
-  const [mobile] = useState(() => isMobileDevice());
-  return mobile;
+  return useMemo(() => isMobileDevice(), []);
 }

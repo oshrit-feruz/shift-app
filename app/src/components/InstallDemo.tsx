@@ -19,7 +19,7 @@ import { useT } from '../i18n/useT';
  * no JS timer. `aria-hidden`: the numbered steps beside it say the same thing
  * to a screen reader, and a looping animation is not something to announce.
  */
-export function InstallDemo({ variant }: { variant: 'ios' | 'menu' }) {
+export function InstallDemo({ variant }: Readonly<{ variant: 'ios' | 'menu' }>) {
   const t = useT();
   return (
     <div
@@ -67,7 +67,11 @@ export function InstallDemo({ variant }: { variant: 'ios' | 'menu' }) {
 }
 
 /** One frame of the loop: the phone, its screen, and a caption under it. */
-function Scene({ delay, caption, children }: { delay: string; caption: string; children: React.ReactNode }) {
+function Scene({
+  delay,
+  caption,
+  children,
+}: Readonly<{ delay: string; caption: string; children: React.ReactNode }>) {
   return (
     <div
       className="install-scene"
@@ -117,7 +121,11 @@ function PageLines() {
 
 /** The browser bar: grey pills for every button except the one to press,
  *  which is drawn properly and wears the tap ring. */
-function Toolbar({ side, glyph, tap = true }: { side: 'top' | 'bottom'; glyph: IconName; tap?: boolean }) {
+function Toolbar({
+  side,
+  glyph,
+  tap = true,
+}: Readonly<{ side: 'top' | 'bottom'; glyph: IconName; tap?: boolean }>) {
   const pill = (
     <span style={{ width: 12, height: 4, borderRadius: 2, background: 'var(--muted)', opacity: 0.35 }} />
   );
@@ -156,7 +164,7 @@ function Toolbar({ side, glyph, tap = true }: { side: 'top' | 'bottom'; glyph: I
 }
 
 /** The button being pressed: the glyph, lit, inside an expanding ring. */
-function PressedGlyph({ glyph, tap }: { glyph: IconName; tap: boolean }) {
+function PressedGlyph({ glyph, tap }: Readonly<{ glyph: IconName; tap: boolean }>) {
   return (
     <span style={{ position: 'relative', display: 'inline-flex', color: 'var(--color-accent-300)' }}>
       {tap && (
@@ -176,7 +184,7 @@ function PressedGlyph({ glyph, tap }: { glyph: IconName; tap: boolean }) {
 }
 
 /** The share sheet, rising, with the row to choose highlighted. */
-function Sheet({ rows, pick }: { rows: number; pick: { icon: IconName; label: string } }) {
+function Sheet({ rows, pick }: Readonly<{ rows: number; pick: { icon: IconName; label: string } }>) {
   return (
     <div
       className="install-rise"
@@ -204,7 +212,7 @@ function Sheet({ rows, pick }: { rows: number; pick: { icon: IconName; label: st
 }
 
 /** The Chromium menu, same idea as the sheet but hanging from the top. */
-function Menu({ pick }: { pick: { icon: IconName; label: string } }) {
+function Menu({ pick }: Readonly<{ pick: { icon: IconName; label: string } }>) {
   return (
     <div
       style={{
@@ -228,7 +236,7 @@ function Menu({ pick }: { pick: { icon: IconName; label: string } }) {
 }
 
 /** The one row that matters, named and lit. */
-function Row({ icon, label }: { icon: IconName; label: string }) {
+function Row({ icon, label }: Readonly<{ icon: IconName; label: string }>) {
   return (
     <span
       style={{
@@ -251,7 +259,7 @@ function Row({ icon, label }: { icon: IconName; label: string }) {
 }
 
 /** The confirm bar at the top of iOS's "Add to Home Screen" sheet. */
-function ConfirmBar({ label }: { label: string }) {
+function ConfirmBar({ label }: Readonly<{ label: string }>) {
   return (
     <div
       style={{

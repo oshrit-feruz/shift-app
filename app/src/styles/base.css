@@ -506,6 +506,10 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
   position: relative;
   width: min(62vw, 260px);
   line-height: 0;
+  /* The signal-lost flicker, defined below with the rest of the splash
+   * keyframes. Declared here rather than in a second .splash-logo rule
+   * further down: two rules for one selector is one place too many to look. */
+  animation: splash-flicker 1.9s ease-in-out infinite;
 }
 .splash-logo img {
   display: block;
@@ -540,7 +544,6 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
   92% { opacity: 0.85; }
   93% { opacity: 1; }
 }
-.splash-logo { animation: splash-flicker 1.9s ease-in-out infinite; }
 .splash-caption {
   position: relative;
   font-size: var(--text-body);

@@ -80,42 +80,55 @@ export function InstallSteps() {
           <Step icon="dotsV" label={t('install.manual')} />
         )}
       </ol>
-      {route === 'ios-other' && <OpenInSafariButton />}
+      {route === 'ios-other' && <CopyLinkButton />}
     </div>
   );
 }
 
 /**
- * The one shortcut available to a user stuck in Chrome, Firefox or an in-app
- * webview on iOS: `x-safari-https:`, the scheme Safari registers, which hands
- * the current URL to Safari where the Share sheet actually carries "Add to
- * Home Screen".
+ * The one thing that helps a user stuck in Chrome, Firefox or an in-app
+ * webview on iOS, where "Add to Home Screen" does not exist: put the address
+ * on the clipboard, so opening Safari is a paste rather than typing a URL
+ * from memory.
  *
- * It is a best-effort hop, not a guarantee — some hosts swallow the
- * navigation, and nothing reports back either way — which is why the written
- * instruction above it stays put rather than being replaced by the button. It
- * is offered only over https: the scheme mirrors the page's own, and there is
- * no `x-safari-http:` worth sending anyone to.
+ * It deliberately does NOT navigate anywhere. The obvious trick —
+ * `x-safari-https:`, the scheme Safari registers — means feeding the current
+ * location straight into a redirect, which is a client-side open-redirect
+ * shape however narrow the intent, and it was only ever best-effort: some
+ * hosts swallow the navigation and nothing reports back either way. Copying
+ * is honest about what it did, and the user stays in control of where they go.
  */
-function OpenInSafariButton() {
+function CopyLinkButton() {
   const t = useT();
-  if (window.location.protocol !== 'https:') return null;
+  const [copied, setCopied] = useState(false);
+  // No clipboard (an old webview, a permissions policy) → no button, rather
+  // than one that fails silently. The written instruction above still stands.
+  if (!navigator.clipboard) return null;
   return (
-    <Button
-      block
-      minHeight={48}
-      onClick={() => {
-        const { host, pathname, search } = window.location;
-        window.location.href = `x-safari-https://${host}${pathname}${search}`;
-      }}
-    >
-      {t('install.openSafari')}
-    </Button>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <Button
+        block
+        minHeight={48}
+        variant="secondary"
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(window.location.href);
+            setCopied(true);
+          } catch {
+            // Denied or unavailable: say nothing changed rather than claim a
+            // copy that did not happen.
+            setCopied(false);
+          }
+        }}
+      >
+        {copied ? t('install.copied') : t('install.copyLink')}
+      </Button>
+    </div>
   );
 }
 
 /** One step: its number, the glyph to look for, and its name. */
-function Step({ n, icon, label }: { n?: number; icon: IconName; label: string }) {
+function Step({ n, icon, label }: Readonly<{ n?: number; icon: IconName; label: string }>) {
   return (
     <li style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
       {n != null && (
@@ -158,7 +171,7 @@ function Step({ n, icon, label }: { n?: number; icon: IconName; label: string })
   );
 }
 
-function Note({ children }: { children: string }) {
+function Note({ children }: Readonly<{ children: string }>) {
   return (
     <p className="text-muted" style={{ margin: 0, fontSize: 'var(--text-row)', lineHeight: 1.5 }}>
       {children}

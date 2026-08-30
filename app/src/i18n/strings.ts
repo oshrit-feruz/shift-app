@@ -1013,7 +1013,8 @@ export const STRINGS = {
   'install.demoMenu': p('Menu', 'תפריט'),
   'install.demoInstall': p('Install app', 'התקנת אפליקציה'),
   'install.demoDone': p('Open it from the icon', 'פתיחה מהאייקון'),
-  'install.openSafari': p('Open in Safari', 'פתחי ב-Safari'),
+  'install.copyLink': p('Copy the link', 'העתקת הקישור'),
+  'install.copied': p('Copied — now paste it in Safari', 'הועתק — כעת להדביק ב-Safari'),
   'install.already': p('Already added it? Open Shift from the icon.', 'כבר הוספת? פתחי את Shift מהאייקון.'),
   // The optional card in Settings → More, for a browser that is not gated
   // (desktop, or a preview build) but can still install.

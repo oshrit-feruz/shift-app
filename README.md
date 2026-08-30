@@ -147,10 +147,13 @@ button:
 - **Chrome / Firefox / Edge on iOS, and in-app webviews** (Instagram, Facebook,
   Gmail) — they are WebKit under another name and cannot add to the home
   screen at all, so the instruction is "open this page in Safari", with a
-  button that tries it: `x-safari-https:`, the scheme Safari registers. It is
-  a best-effort hop — some hosts swallow the navigation and nothing reports
-  back — which is why the written instruction stays beside it rather than
-  being replaced by it, and why it is offered only over https.
+  button that puts the address on the clipboard so that opening Safari is a
+  paste rather than a URL typed from memory. It deliberately does **not**
+  navigate: the obvious trick, `x-safari-https:`, means feeding the current
+  location into a redirect — a client-side open-redirect shape however narrow
+  the intent — and it was only best-effort anyway, since some hosts swallow
+  the navigation and nothing reports back. Copying is honest about what it
+  did, and no button appears at all where the clipboard is unavailable.
 - **Anything else** — the browser menu carries the item under one name or
   another.
 

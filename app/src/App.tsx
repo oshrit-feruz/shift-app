@@ -146,16 +146,7 @@ export function App() {
   // which would make the auth gate silently vanish on a misconfigured
   // deploy. Once signed in, the existing firstRunSeen/steps flow already
   // routes new users to onboarding and returning users to the dashboard.
-  const content =
-    session.status === 'loading' || splashHeld ? (
-      <AuthSplash />
-    ) : blockedUntilInstalled ? (
-      <InstallGateScreen />
-    ) : session.status === 'unavailable' || session.data == null ? (
-      <SignInScreen />
-    ) : (
-      <AppShell />
-    );
+  const content = gateContent({ session, splashHeld, blockedUntilInstalled });
   return (
     <>
       {/* Always mounted, whatever the gate shows: the sync hook is also what
@@ -169,6 +160,25 @@ export function App() {
       <LedgerProvider>{content}</LedgerProvider>
     </>
   );
+}
+
+/**
+ * Which of the four things the app can show right now — read top to bottom,
+ * each gate before the one it protects. A chain of ternaries said the same
+ * thing but had to be read inside out. */
+function gateContent({
+  session,
+  splashHeld,
+  blockedUntilInstalled,
+}: Readonly<{
+  session: ReturnType<typeof useAuth>['session'];
+  splashHeld: boolean;
+  blockedUntilInstalled: boolean;
+}>) {
+  if (session.status === 'loading' || splashHeld) return <AuthSplash />;
+  if (blockedUntilInstalled) return <InstallGateScreen />;
+  if (session.status === 'unavailable' || session.data == null) return <SignInScreen />;
+  return <AppShell />;
 }
 
 /** How long the splash stays up at minimum. Long enough for the wordmark to
@@ -198,7 +208,7 @@ function useSplashHold() {
 function AuthSplash() {
   const t = useT();
   return (
-    <div role="status" className="splash">
+    <output className="splash">
       <div className="splash-logo">
         <img src="/assets/shift-lockup.png" alt="Shift" width={1687} height={578} />
         {/* Decorative duplicate: the torn slice. Hidden from assistive tech so
@@ -213,7 +223,7 @@ function AuthSplash() {
         />
       </div>
       <span className="splash-caption">{t('data.loading')}</span>
-    </div>
+    </output>
   );
 }
 
