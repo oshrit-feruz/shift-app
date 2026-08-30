@@ -1,0 +1,15 @@
+{
+  "name": "Shift",
+  "short_name": "Shift",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0B1224",
+  "theme_color": "#0B1224",
+  "icons": [
+    { "src": "/assets/shift-icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/assets/shift-icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/assets/shift-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/assets/shift-mark.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

@@ -149,36 +149,32 @@ export function App() {
 }
 
 /** Boot state while the stored session is restored (or the OAuth redirect is
- *  consumed) — same gradient backdrop as SignInScreen so the brand mark
- *  doesn't pop in on top of a plain background once the real screen mounts.
- *  Usually sub-second, so the mark itself (rather than a spinner) carries the
- *  "this is Shift, please wait" message. */
+ *  consumed): the brand splash — the glitch wordmark on its dark plate, full
+ *  bleed. Usually sub-second, so the wordmark (rather than a spinner) carries
+ *  the "this is Shift, please wait" message; the glitch animation is what
+ *  says the screen is alive.
+ *
+ *  It does not follow the theme. The lockup is light-on-dark artwork, so a
+ *  light-theme splash would leave it floating on the wrong ground — every
+ *  other surface in the app is themed, this one is the brand's. */
 function AuthSplash() {
   const t = useT();
   return (
-    <div
-      role="status"
-      style={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 14,
-        background: 'radial-gradient(120% 60% at 15% -6%, var(--g1) 0%, var(--g2) 55%)',
-      }}
-    >
-      <img
-        src="/assets/shift-mark.svg"
-        alt="Shift"
-        width={64}
-        height={64}
-        className="anim-mark-breathe"
-        style={{ borderRadius: '50%', boxShadow: 'var(--shadow-lg)' }}
-      />
-      <span className="text-muted" style={{ fontSize: 'var(--text-body)' }}>
-        {t('data.loading')}
-      </span>
+    <div role="status" className="splash">
+      <div className="splash-logo">
+        <img src="/assets/shift-wordmark-bare.svg" alt="Shift" width={856} height={320} />
+        {/* Decorative duplicate: the torn slice. Hidden from assistive tech so
+            the wordmark is not announced twice. */}
+        <img
+          src="/assets/shift-wordmark-bare.svg"
+          alt=""
+          aria-hidden="true"
+          width={856}
+          height={320}
+          className="splash-tear"
+        />
+      </div>
+      <span className="splash-caption">{t('data.loading')}</span>
     </div>
   );
 }
