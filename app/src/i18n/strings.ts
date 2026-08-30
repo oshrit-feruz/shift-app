@@ -1010,7 +1010,9 @@ export const STRINGS = {
   ),
   // Anything else: the item exists but each browser names it differently.
   'install.manual': p('Browser menu → “Install app”', 'תפריט הדפדפן ← ״התקנת אפליקציה״'),
-  'install.pointer': p('The Share button is down here', 'כפתור השיתוף כאן למטה'),
+  'install.demoMenu': p('Menu', 'תפריט'),
+  'install.demoInstall': p('Install app', 'התקנת אפליקציה'),
+  'install.demoDone': p('Open it from the icon', 'פתיחה מהאייקון'),
   'install.openSafari': p('Open in Safari', 'פתחי ב-Safari'),
   'install.already': p('Already added it? Open Shift from the icon.', 'כבר הוספת? פתחי את Shift מהאייקון.'),
   // The optional card in Settings → More, for a browser that is not gated

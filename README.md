@@ -125,10 +125,19 @@ button:
   is looking for on their own screen (Safari's Share box-with-an-arrow, the
   plus-in-a-screen of "Add to Home Screen", a check) with two words beside it.
   A paragraph explaining where a button is takes longer to read than the
-  button takes to find. An arrow bobs at the bottom edge of the gate screen,
-  just above where Safari's toolbar physically is, so the first step points at
-  something real; it is drawn for this route only, since anywhere else it
-  would point at nothing.
+  button takes to find. Above the list, `components/InstallDemo.tsx` plays the
+  sequence on a small phone: the Share button lighting up under a tap ring,
+  the sheet that arrives, the row to choose in it, and the icon landing on a
+  home screen. An arrow was tried first and was the wrong instrument — it can
+  point at a toolbar, but a toolbar has five buttons, and it cannot show what
+  the next screen looks like. Every other button in the drawn toolbar is an
+  abstract grey pill, so the one glyph that is drawn properly is the one to
+  press. It is CSS on one shared 9s timeline with negative delays, not a JS
+  timer or a screenshot: a screenshot of iOS ages with every release and would
+  have to exist twice for the two languages. Under
+  `prefers-reduced-motion` the demo is removed rather than frozen — frozen,
+  its three scenes would stack — and the numbered list carries the
+  instruction, which is also why the demo is `aria-hidden`.
 
   **There is no shortcut past this on iOS, and none can be written.** Apple
   exposes no install API, no URL scheme and no Shortcuts action that adds a

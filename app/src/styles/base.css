@@ -580,17 +580,44 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
   border-top: 0 !important;
 }
 
-/* The install screen's nudge: an arrow that hangs above Safari's own toolbar,
- * where the Share button physically is on an iPhone. It bobs because a static
- * arrow beside a paragraph reads as decoration — the movement is what makes
- * it point. Translate only, on an element with no glass descendants. */
-@keyframes installNudge {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(7px); }
+
+/* The install demo (components/InstallDemo.tsx): a small phone that plays the
+ * tap sequence on a loop, because an arrow can only point at a toolbar — it
+ * cannot say which of its buttons, or what the next screen looks like.
+ *
+ * Three scenes share one 9s timeline and are offset by negative delays
+ * (0s / -3s / -6s) rather than being driven from JS: no timers to start, stop
+ * or leak, and every copy of the demo on screen stays in step. */
+@keyframes installScene {
+  0% { opacity: 0; }
+  3% { opacity: 1; }
+  30% { opacity: 1; }
+  33% { opacity: 0; }
+  100% { opacity: 0; }
 }
-.install-nudge {
-  animation: installNudge 1.6s var(--ease-out) infinite;
+.install-scene {
+  animation: installScene 9s linear infinite;
 }
+/* The tap: a ring expanding out of the button being pressed. */
+@keyframes installTap {
+  0% { transform: scale(.5); opacity: .85; }
+  75% { transform: scale(1.9); opacity: 0; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+.install-tap {
+  animation: installTap 1.8s var(--ease-out) infinite;
+}
+/* The sheet arriving from the bottom edge, as the real one does. */
+@keyframes installRise {
+  from { transform: translateY(45%); }
+  to { transform: translateY(0); }
+}
+.install-rise {
+  animation: installRise .7s var(--ease-out) both;
+}
+/* Reduced motion takes the whole demo away rather than freezing it: frozen,
+ * its three scenes would stack on top of each other. The numbered steps
+ * beside it carry the same instruction and stay. */
 @media (prefers-reduced-motion: reduce) {
-  .install-nudge { animation: none; }
+  .install-demo { display: none; }
 }

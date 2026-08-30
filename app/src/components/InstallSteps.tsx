@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button } from './Button';
 import { Icon, type IconName } from './Icon';
+import { InstallDemo } from './InstallDemo';
 import { useInstallPrompt, useInstallRoute } from '../lib/useInstall';
 import { useT } from '../i18n/useT';
 
@@ -57,6 +58,7 @@ export function InstallSteps() {
         <span className="text-muted" style={{ fontSize: 'var(--text-caption)', fontWeight: 600 }}>
           {t('install.stepsTitle')}
         </span>
+        <InstallDemo variant="ios" />
         <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 10 }}>
           <Step n={1} icon="share" label={t('install.ios1')} />
           <Step n={2} icon="addSquare" label={t('install.ios2')} />
@@ -70,6 +72,7 @@ export function InstallSteps() {
   // a few words — rather than a paragraph.
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {route === 'manual' && <InstallDemo variant="menu" />}
       <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 10 }}>
         {route === 'ios-other' ? (
           <Step icon="share" label={t('install.iosOther')} />

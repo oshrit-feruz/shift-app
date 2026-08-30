@@ -21,8 +21,7 @@ export type IconName =
   | 'calendar'
   | 'share'
   | 'dotsV'
-  | 'addSquare'
-  | 'arrowDown';
+  | 'addSquare';
 
 const PATHS: Record<IconName, string> = {
   home: 'M4 11l8-7 8 7v8a1 1 0 01-1 1h-5v-6h-4v6H5a1 1 0 01-1-1z',
@@ -49,7 +48,6 @@ const PATHS: Record<IconName, string> = {
   dotsV: 'M12 5h.01M12 12h.01M12 19h.01',
   // "Add to Home Screen": a plus inside a screen.
   addSquare: 'M4 4h16v16H4zM12 8.5v7M8.5 12h7',
-  arrowDown: 'M12 4v15M6 13l6 6 6-6',
 };
 
 export function Icon({
