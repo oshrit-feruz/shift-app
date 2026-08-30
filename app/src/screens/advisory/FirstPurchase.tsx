@@ -14,7 +14,7 @@ import { BuyAtBrokerButton } from '../../components/BuyAtBrokerButton';
 import { fundTicker, hasAnyTradeDeepLink } from '../../lib/brokerLinks';
 import { demoService } from '../../data/demoAdapter';
 import { useLoadable } from '../../data/useLoadable';
-import { money, pct, signalColor } from '../../lib/format';
+import { money } from '../../lib/format';
 import { CORE_FUNDS, mapProfile, PROFILES } from '../../lib/advisory';
 import type { StringKey } from '../../i18n/strings';
 import type { ScreenProps } from '../../App';
@@ -83,9 +83,9 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
               }}
             >
               <Tag variant="accent" fontSize={15}>
-                Recovery Detector
+                {t('rec.dailyTag')}
               </Tag>
-              <span style={{ flex: 1 }}>Satellite</span>
+              <span style={{ flex: 1 }}>{t('rec.satellite')}</span>
               <Num size={16} style={{ color: 'var(--muted)' }}>
                 {'$' + (profile.satellitePct * 100).toLocaleString('en-US')}
               </Num>
@@ -95,8 +95,8 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
         </div>
       </Card>
 
-      {/* The satellite side of the same order list. Gated exactly like the
-          recommendation screen: with no satellite sleeve these are shown as
+      {/* The individual-stock side of the same order list. Gated exactly like
+          the recommendation screen: with no such sleeve these are shown as
           information, never as part of this profile's purchase. */}
       <Card padding="13px 13px 4px" gap={7}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
@@ -107,6 +107,9 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
             </Tag>
           </span>
         </div>
+        <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
+          {t('rec.updatedDaily')}
+        </p>
         {profile.satellitePct === 0 && (
           <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
             {t('rec.satInfoOnly')}
@@ -125,21 +128,16 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
             ) : (
               <>
                 {signals.map((x) => {
+                  // Ticker and price only: the engine's own figures (score,
+                  // drawdown from the 52-week high) are internal and are not
+                  // shown to the client here or on the recommendation screen.
                   const priceStr = x.price === null ? DASH : money(x.price);
-                  const ddStr = x.drawdownPct === null ? DASH : pct(-x.drawdownPct, 1);
                   return (
                     <ListRow
                       key={x.ticker}
                       leading={<TickerTile ticker={x.ticker} />}
                       title={x.ticker}
-                      subtitle={<Num>{`${t('rec.fromHigh')} ${ddStr}`}</Num>}
-                      right={
-                        <RowValues
-                          main={priceStr}
-                          sub={ddStr}
-                          subColor={x.drawdownPct === null ? 'var(--muted)' : signalColor(-x.drawdownPct)}
-                        />
-                      }
+                      right={<RowValues main={priceStr} />}
                       trailing={<BuyAtBrokerButton ticker={x.ticker} />}
                       minHeight={52}
                       onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}

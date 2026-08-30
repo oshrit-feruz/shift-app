@@ -15,22 +15,17 @@ import { useT } from '../../i18n/useT';
 import { CORE_FUNDS, mapProfile, PROFILES } from '../../lib/advisory';
 import { demoService } from '../../data/demoAdapter';
 import { useLoadable } from '../../data/useLoadable';
-import { money, pct, signalColor } from '../../lib/format';
+import { money } from '../../lib/format';
 import type { StringKey } from '../../i18n/strings';
 import type { ScreenProps } from '../../App';
 
-const SAT_RULES: StringKey[] = [
-  'rec.satRule1',
-  'rec.satRule2',
-  'rec.satRule3',
-  'rec.satRule4',
-  'rec.satRule5',
-];
+const SAT_RULES: StringKey[] = ['rec.satRule1', 'rec.satRule2', 'rec.satRule3', 'rec.satRule4'];
 
 /** Rendered in place of any numeric the live engine did not supply. */
 const DASH = '—';
 
-/** The Core-Satellite recommendation dashboard. */
+/** The recommendation dashboard: an index core plus, where the profile
+ *  allows it, a small rules-based sleeve of individual stocks. */
 export function AdvisoryRecommendation(_: ScreenProps) {
   const s = useAppState();
   const dispatch = useDispatch();
@@ -115,7 +110,7 @@ export function AdvisoryRecommendation(_: ScreenProps) {
       </Card>
 
       {/* The allocation card is advice, so it stays gated on the profile
-          actually having a satellite sleeve. */}
+          actually having a sleeve of individual stocks. */}
       {profile.satellitePct > 0 && (
         <Card padding={13} gap={9} outlined>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
@@ -128,7 +123,7 @@ export function AdvisoryRecommendation(_: ScreenProps) {
             </span>
             <span style={{ marginInlineStart: 'auto' }}>
               <Tag variant="accent" fontSize={15}>
-                Recovery Detector
+                {t('rec.dailyTag')}
               </Tag>
             </span>
           </div>
@@ -151,9 +146,10 @@ export function AdvisoryRecommendation(_: ScreenProps) {
         </Card>
       )}
 
-      {/* Live screener output: the engine's BUY candidates for today —
-          ticker, price, drawdown from the 52-week high, composite score.
-          Honest empty state when the engine picks nothing. */}
+      {/* Live screener output: today's candidates — ticker and price only.
+          The engine's internal figures (composite score, drawdown from the
+          52-week high) are deliberately not shown: they read as precision a
+          client cannot act on. Honest empty state when nothing is picked. */}
       <Card padding="13px 13px 4px" gap={7}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
           <CardTitle>{t('rec.satPositions')}</CardTitle>
@@ -163,8 +159,12 @@ export function AdvisoryRecommendation(_: ScreenProps) {
             </Tag>
           </span>
         </div>
-        {/* With no satellite sleeve the engine's picks are not advice for
-            this profile, so say so rather than letting the list imply it. */}
+        {/* Says plainly that this list is a daily output of the rules. */}
+        <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
+          {t('rec.updatedDaily')}
+        </p>
+        {/* With no individual-stock sleeve the picks are not advice for this
+            profile, so say so rather than letting the list imply it. */}
         {profile.satellitePct === 0 && (
           <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
             {t('rec.satInfoOnly')}
@@ -187,24 +187,14 @@ export function AdvisoryRecommendation(_: ScreenProps) {
                 {signals.map((x) => {
                   // Live rows may omit any number. A missing value renders
                   // as "—"; it is never guessed, defaulted to zero, or
-                  // back-filled. Drawdown is how far the ticker sits below
-                  // its 52-week high, so it is shown as a negative move.
+                  // back-filled.
                   const priceStr = x.price === null ? DASH : money(x.price);
-                  const ddStr = x.drawdownPct === null ? DASH : pct(-x.drawdownPct, 1);
-                  const scoreStr = x.compositeScore === null ? DASH : x.compositeScore.toFixed(2);
                   return (
                     <ListRow
                       key={x.ticker}
                       leading={<TickerTile ticker={x.ticker} />}
                       title={x.ticker}
-                      subtitle={<Num>{`${t('rec.fromHigh')} ${ddStr} · ${t('rec.score')} ${scoreStr}`}</Num>}
-                      right={
-                        <RowValues
-                          main={priceStr}
-                          sub={ddStr}
-                          subColor={x.drawdownPct === null ? 'var(--muted)' : signalColor(-x.drawdownPct)}
-                        />
-                      }
+                      right={<RowValues main={priceStr} />}
                       trailing={<BuyAtBrokerButton ticker={x.ticker} />}
                       minHeight={52}
                       onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}

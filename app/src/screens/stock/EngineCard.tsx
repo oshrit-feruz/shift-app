@@ -7,20 +7,29 @@ import { Tag } from '../../components/Tag';
 import { useT } from '../../i18n/useT';
 import { useLoadable } from '../../data/useLoadable';
 import { fetchRankingRow } from '../../data/recoveryDetector';
-import { money, pct } from '../../lib/format';
+import { money } from '../../lib/format';
 import type { TagVariant } from '../../components/Tag';
+import type { StringKey } from '../../i18n/strings';
 
-/** The engine's verdict as a tag tone. A lookup rather than chained
- *  ternaries so an added verdict is one line here and cannot silently fall
- *  through to the wrong colour. */
+/** The engine's verdict as a tag tone and a plain-language label. A lookup
+ *  rather than chained ternaries so an added verdict is one line here and
+ *  cannot silently fall through to the wrong colour. The raw BUY/WATCH/SKIP
+ *  words are engine vocabulary and never reach the screen: "BUY" in
+ *  particular would read as an instruction, which this is not. */
 const SIGNAL_TONE: Record<'BUY' | 'WATCH' | 'SKIP', TagVariant> = {
   BUY: 'up',
   WATCH: 'neutral',
   SKIP: 'down',
 };
 
+const SIGNAL_LABEL: Record<'BUY' | 'WATCH' | 'SKIP', StringKey> = {
+  BUY: 'stock.sigBuy',
+  WATCH: 'stock.sigWatch',
+  SKIP: 'stock.sigSkip',
+};
+
 /**
- * The engine's own view of this ticker, read from the daily mirrored ranking
+ * Today's rules check for this ticker, read from the daily mirrored ranking
  * (no Render round trip — see data/recoveryDetector.ts).
  *
  * Three outcomes, and the middle one is the reason this is a card rather
@@ -48,22 +57,26 @@ export function EngineCard({ ticker }: { ticker: string }) {
         <Card padding={12} gap={8}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <CardTitle>{t('stock.engineTitle')}</CardTitle>
-            {r?.signal && <Tag variant={SIGNAL_TONE[r.signal]}>{r.signal}</Tag>}
+            {r?.signal && <Tag variant={SIGNAL_TONE[r.signal]}>{t(SIGNAL_LABEL[r.signal])}</Tag>}
           </div>
 
           {r === null ? (
             <EmptyState>{t('stock.notRanked')}</EmptyState>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {(
-                [
-                  [t('stock.drawdown'), r.drawdownPct === null ? '—' : pct(-Math.abs(r.drawdownPct), 1)],
-                  [t('stock.high52w'), r.high52w === null ? '—' : money(r.high52w)],
-                  [t('stock.score'), r.compositeScore === null ? '—' : r.compositeScore.toFixed(3)],
-                ] as const
-              ).map(([k, v]) => (
-                <DetailRow key={k} label={k} value={<Num>{v}</Num>} />
-              ))}
+              {/* Only figures a reader can place. The engine's drawdown and
+                  composite score are deliberately left out: they look precise
+                  without telling anyone what to do with them. */}
+              <DetailRow
+                label={t('stock.high52w')}
+                value={<Num>{r.high52w === null ? '—' : money(r.high52w)}</Num>}
+              />
+              <p
+                className="text-muted"
+                style={{ fontSize: 'var(--text-caption)', margin: '4px 0 0', lineHeight: 1.5 }}
+              >
+                {t('stock.checkedDaily')}
+              </p>
             </div>
           )}
         </Card>
