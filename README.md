@@ -120,9 +120,12 @@ button:
   at boot in `main.tsx` (`startInstallPromptCapture`) and held outside React;
   a listener registered in a component effect misses it and the button never
   appears.
-- **iOS Safari** — there is no install API whatsoever. The screen lists the
-  literal tap sequence (Share → Add to Home Screen → Add) rather than a button
-  that would have to pretend.
+- **iOS Safari** — there is no install API whatsoever. The screen draws the
+  tap sequence instead of describing it: three rows, each the glyph the user
+  is looking for on their own screen (Safari's Share box-with-an-arrow, the
+  plus-in-a-screen of "Add to Home Screen", a check) with two words beside it.
+  A paragraph explaining where a button is takes longer to read than the
+  button takes to find.
 - **Chrome / Firefox / Edge on iOS, and in-app webviews** (Instagram, Facebook,
   Gmail) — they are WebKit under another name and cannot add to the home
   screen at all, so the honest instruction is "open this page in Safari".
