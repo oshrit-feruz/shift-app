@@ -253,8 +253,8 @@ export const STRINGS = {
     'בכל יום מסחר עוברות 100 חברות גדולות ממדד S&P 500 את אותן בדיקות — כמה עמוקה וממושכת הייתה הירידה במחיר המניה, לאן המחיר מתקדם, ובאיזה היקף נסחרת המניה. אלה השמות הבודדים שעברו היום את כל הבדיקות.',
   ),
   'rec.notAnOrder': p(
-    'A shortlist to look into yourself — not an instruction to buy. Tomorrow it can look different.',
-    'זו רשימה קצרה להתעמק בה בעצמך — לא הוראת קנייה. מחר היא יכולה להיראות אחרת.',
+    'A shortlist to look into yourself — not an instruction to buy. After the next trading day it can look different.',
+    'זו רשימה קצרה להתעמק בה בעצמך — לא הוראת קנייה. ביום המסחר הבא היא יכולה להיראות אחרת.',
   ),
   'rec.satInfoOnly': p(
     'Shown for information only: your profile holds no individual stocks, so none of this is part of your recommendation.',
@@ -372,8 +372,8 @@ export const STRINGS = {
   'stock.engineTitle': p("Today's rules check", 'הבדיקה של היום לפי הכללים'),
   'stock.high52w': p('52-week high', 'שיא 52 שבועות'),
   'stock.checkedDaily': p(
-    'This stock goes through the same checks every trading day, so the result can change tomorrow.',
-    'המניה הזו עוברת את אותן בדיקות בכל יום מסחר, ולכן התוצאה יכולה להשתנות מחר.',
+    'This stock goes through the same checks every trading day, so the result can change at the next one.',
+    'המניה הזו עוברת את אותן בדיקות בכל יום מסחר, ולכן התוצאה יכולה להשתנות בבדיקה הבאה.',
   ),
   'stock.sigBuy': p('A candidate today', 'מועמדת היום'),
   'stock.sigWatch': p('Being watched', 'במעקב'),
