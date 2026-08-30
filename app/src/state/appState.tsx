@@ -52,13 +52,20 @@ export interface SavedAlert {
  * second identical row that would fire twice.
  */
 export function alertKey(a: Omit<SavedAlert, 'id'>): string {
-  const detail =
-    a.kind === 'price'
-      ? `${a.condition}|${a.value.trim()}`
-      : a.kind === 'news'
-        ? `${a.value.trim().toLowerCase()}|${a.sources.wires}|${a.sources.filings}`
-        : a.remind;
-  return `${a.ticker}|${a.kind}|${detail}`;
+  return `${a.ticker}|${a.kind}|${alertDetailKey(a)}`;
+}
+
+/** The part of the key that differs per kind: the threshold, the keywords and
+ *  where they are watched for, or when the earnings reminder lands. */
+function alertDetailKey(a: Omit<SavedAlert, 'id'>): string {
+  switch (a.kind) {
+    case 'price':
+      return `${a.condition}|${a.value.trim()}`;
+    case 'news':
+      return `${a.value.trim().toLowerCase()}|${a.sources.wires}|${a.sources.filings}`;
+    default:
+      return a.remind;
+  }
 }
 
 /**
@@ -388,7 +395,12 @@ export function readPersisted(saved: Record<string, unknown>): Partial<AppState>
     // that filed the same alert four times would otherwise keep all four (and
     // fire four notifications) forever. Reading them through the same collapse
     // heals that list once, on the next boot.
-    picked.savedAlerts = picked.savedAlerts.filter(isSavedAlert).reduce<SavedAlert[]>(addAlert, []);
+    picked.savedAlerts = picked.savedAlerts
+      .filter(isSavedAlert)
+      // Wrapped rather than passed straight to reduce: the callback is handed
+      // an index and the source array too, and addAlert must not be reading a
+      // third and fourth argument it never declared.
+      .reduce<SavedAlert[]>((kept, alert) => addAlert(kept, alert), []);
   }
   return picked;
 }
