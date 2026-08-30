@@ -8,6 +8,8 @@ export function Field({
   placeholder,
   type = 'text',
   height = 40,
+  max,
+  inputMode,
 }: {
   label: string;
   value?: string;
@@ -16,6 +18,10 @@ export function Field({
   placeholder?: string;
   type?: string;
   height?: number;
+  /** Upper bound for date/number inputs — the browser enforces it too, so a
+   *  future trade cannot be picked in the first place. */
+  max?: string;
+  inputMode?: 'decimal' | 'numeric' | 'text';
 }) {
   const inputId = useId();
   return (
@@ -29,6 +35,8 @@ export function Field({
         defaultValue={defaultValue}
         onChange={onChange}
         placeholder={placeholder}
+        max={max}
+        inputMode={inputMode}
         style={{ height, minHeight: height }}
       />
     </div>

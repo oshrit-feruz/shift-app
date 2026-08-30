@@ -189,14 +189,25 @@ describe('adoptRemote — what the foreground re-read applies', () => {
   it('keeps local values for keys an incomplete row does not carry', () => {
     // The failure this guards: replaceState fills every omitted key from
     // `initial`, so adopting a bare server bag would wipe the keys a row
-    // written by an older client never had. Losing someone's manual
-    // portfolios because their stored row predates that feature is invisible
-    // until it is permanent.
-    const portfolios = [{ id: 'p1', name: 'Sandbox', startingCash: 1000 }];
-    const current = pickPersisted({ ...initial, watchlist: ['NVDA'], manualPortfolios: portfolios });
+    // written by an older client never had. Losing someone's saved alerts
+    // because their stored row predates that feature is invisible until it
+    // is permanent.
+    const alerts = [
+      {
+        id: 'a1',
+        ticker: 'NVDA',
+        kind: 'price' as const,
+        condition: 'rise' as const,
+        value: '200',
+        remind: 'day' as const,
+        sources: { wires: true, filings: true },
+        notifyBy: { push: true, email: false },
+      },
+    ];
+    const current = pickPersisted({ ...initial, watchlist: ['NVDA'], savedAlerts: alerts });
     const next = adoptRemote(current, { watchlist: ['ORCL'] });
     expect(next?.watchlist).toEqual(['ORCL']);
-    expect(next?.manualPortfolios).toEqual(portfolios);
+    expect(next?.savedAlerts).toEqual(alerts);
   });
 
   it('still normalises what it adopts', () => {

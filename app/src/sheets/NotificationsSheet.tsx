@@ -1,5 +1,7 @@
 import { Sheet } from '../components/Sheet';
 import { Button } from '../components/Button';
+import { DemoOnly } from '../components/DemoOnly';
+import { useDemoMode } from '../lib/DemoModeProvider';
 import { useAppState, useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
@@ -49,12 +51,27 @@ const NOTIFS: AppNotification[] = [
   },
 ];
 
+/**
+ * How many unread notifications to claim, for the header badge and this
+ * sheet's own meta line.
+ *
+ * Exported because App.tsx used to hard-code the number 2 while this list
+ * happened to hold two unread rows — a coincidence, not a derivation, and one
+ * that would have left the badge claiming 2 over an empty sheet the moment
+ * the list was gated. One function, so the two cannot disagree again.
+ */
+export function unreadNotifications(read: boolean, demo: boolean): number {
+  if (read || !demo) return 0;
+  return NOTIFS.filter((n) => n.unread).length;
+}
+
 export function NotificationsSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const s = useAppState();
   const dispatch = useDispatch();
   const { language } = useTheme();
   const t = useT();
-  const unread = s.notificationsRead ? 0 : NOTIFS.filter((n) => n.unread).length;
+  const demo = useDemoMode();
+  const unread = unreadNotifications(s.notificationsRead, demo);
 
   return (
     <Sheet
@@ -64,91 +81,98 @@ export function NotificationsSheet({ open, onClose }: { open: boolean; onClose: 
       meta={unread ? t('notif.new', { n: unread }) : t('notif.caughtUp')}
       maxHeight="80%"
     >
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <Button variant="ghost" fontSize={16} onClick={() => dispatch({ type: 'markNotificationsRead' })}>
-          {t('notif.markAll')}
-        </Button>
-      </div>
-      {NOTIFS.map((n, i) => (
-        <div
-          key={i}
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 6,
-            padding: 9,
-            borderRadius: 'var(--radius-sm)',
-            background: n.unread && !s.notificationsRead ? 'var(--sunk)' : 'transparent',
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => {
-              if (!n.isThresholdAlert) {
-                dispatch({ type: 'openStock', ticker: n.ticker });
-                onClose();
-              }
-            }}
+      {demo && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Button variant="ghost" fontSize={16} onClick={() => dispatch({ type: 'markNotificationsRead' })}>
+            {t('notif.markAll')}
+          </Button>
+        </div>
+      )}
+      {!demo && <DemoOnly feature="notif.title" card={false} />}
+      {demo &&
+        NOTIFS.map((n, i) => (
+          <div
+            key={i}
             style={{
               display: 'flex',
-              alignItems: 'flex-start',
-              gap: 10,
-              minHeight: 40,
-              border: 0,
-              textAlign: 'start',
-              font: 'inherit',
-              color: 'inherit',
-              cursor: n.isThresholdAlert ? 'default' : 'pointer',
-              background: 'transparent',
-              padding: 0,
+              flexDirection: 'column',
+              gap: 6,
+              padding: 9,
+              borderRadius: 'var(--radius-sm)',
+              background: n.unread && !s.notificationsRead ? 'var(--sunk)' : 'transparent',
             }}
           >
-            <span
+            <button
+              type="button"
+              onClick={() => {
+                if (!n.isThresholdAlert) {
+                  dispatch({ type: 'openStock', ticker: n.ticker });
+                  onClose();
+                }
+              }}
               style={{
-                width: 26,
-                height: 26,
-                flex: 'none',
-                borderRadius: 8,
-                background: 'var(--fill-selected)',
-                color: 'var(--color-accent-300)',
-                display: 'grid',
-                placeItems: 'center',
-                fontSize: 'var(--text-body)',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 10,
+                minHeight: 40,
+                border: 0,
+                textAlign: 'start',
+                font: 'inherit',
+                color: 'inherit',
+                cursor: n.isThresholdAlert ? 'default' : 'pointer',
+                background: 'transparent',
+                padding: 0,
               }}
             >
-              {n.glyph}
-            </span>
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>
-                {n.title[language]}
-              </span>
-              <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-caption)', marginTop: 1 }}>
-                {n.detail[language]}
-              </span>
-            </span>
-            <span className="text-muted" style={{ fontSize: 'var(--text-caption)', whiteSpace: 'nowrap' }}>
-              {n.ago[language]}
-            </span>
-          </button>
-          {n.isThresholdAlert && (
-            <>
-              {/* Equal-prominence disclaimer: same size as the title, not fine print. */}
-              <p style={{ fontSize: 'var(--text-row)', lineHeight: 1.5, margin: 0 }}>
-                {t('thresh.disclaimer')}
-              </p>
-              <Button
-                variant="secondary"
-                fontSize={16}
-                minHeight={36}
-                alignSelf="flex-start"
-                onClick={() => dispatch({ type: 'markNotificationsRead' })}
+              <span
+                style={{
+                  width: 26,
+                  height: 26,
+                  flex: 'none',
+                  borderRadius: 8,
+                  background: 'var(--fill-selected)',
+                  color: 'var(--color-accent-300)',
+                  display: 'grid',
+                  placeItems: 'center',
+                  fontSize: 'var(--text-body)',
+                }}
               >
-                {t('thresh.markRead')}
-              </Button>
-            </>
-          )}
-        </div>
-      ))}
+                {n.glyph}
+              </span>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: 'block', fontSize: 'var(--text-row)', whiteSpace: 'normal' }}>
+                  {n.title[language]}
+                </span>
+                <span
+                  className="text-muted"
+                  style={{ display: 'block', fontSize: 'var(--text-caption)', marginTop: 1 }}
+                >
+                  {n.detail[language]}
+                </span>
+              </span>
+              <span className="text-muted" style={{ fontSize: 'var(--text-caption)', whiteSpace: 'nowrap' }}>
+                {n.ago[language]}
+              </span>
+            </button>
+            {n.isThresholdAlert && (
+              <>
+                {/* Equal-prominence disclaimer: same size as the title, not fine print. */}
+                <p style={{ fontSize: 'var(--text-row)', lineHeight: 1.5, margin: 0, whiteSpace: 'normal' }}>
+                  {t('thresh.disclaimer')}
+                </p>
+                <Button
+                  variant="secondary"
+                  fontSize={16}
+                  minHeight={36}
+                  alignSelf="flex-start"
+                  onClick={() => dispatch({ type: 'markNotificationsRead' })}
+                >
+                  {t('thresh.markRead')}
+                </Button>
+              </>
+            )}
+          </div>
+        ))}
       <Button
         variant="secondary"
         block

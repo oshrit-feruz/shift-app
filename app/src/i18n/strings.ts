@@ -25,7 +25,9 @@ export const STRINGS = {
   'title.homeAnon': p('Good morning', 'בוקר טוב'),
   'kicker.home': p('Overview', 'סקירה'),
   'title.pf': p('Portfolios', 'תיקים'),
-  'kicker.pf': p('Four accounts', 'ארבעה חשבונות'),
+  // Count-free: with sample data off there may be no accounts at all, and a
+  // header that names a number the screen does not show is its own small lie.
+  'kicker.pf': p('Your accounts', 'החשבונות שלך'),
   'title.watch': p('Watchlist', 'ווטצ׳ליסט'),
   'kicker.watch': p('Alerts', 'התראות'),
   'title.movers': p('Market movers', 'מובילי שוק'),
@@ -420,9 +422,13 @@ export const STRINGS = {
   // intraday move, so the percentage beside every price is still invented.
   'more.demoData': p('Sample data', 'נתוני דמו'),
   'more.demoDataHelp': p(
-    'Draws charts from generated price action and fills the earnings screens with illustrative figures, so nothing is ever empty. Turn it off to use real market data.',
-    'מצייר את הגרפים מנתונים מומצאים וממלא את מסכי הדוחות בנתוני הדגמה, כך ששום דבר לא נשאר ריק. כבי אותו כדי להשתמש בנתוני שוק אמיתיים.',
+    'Fills the app with sample figures: generated price charts, an illustrative earnings week, and the demo portfolio, market movers, analyst ratings, connected accounts and notifications. With it off, each of those says so in place and everything else uses real market data.',
+    'ממלא את האפליקציה בנתוני הדגמה: גרפים מומצאים, שבוע דוחות לדוגמה, וגם תיק הדמו, מובילי השוק, דירוגי האנליסטים, החשבונות המחוברים וההתראות. כשהוא כבוי, כל אחד מהם אומר זאת במקומו, וכל השאר משתמש בנתוני שוק אמיתיים.',
   ),
+  // The stand-in for a whole fabricated feature while sample data is off.
+  // Verbless in Hebrew on purpose — see the note in components/DemoOnly.tsx
+  // about agreement across the feature names.
+  'demo.only': p('{feature} is only available in demo', '{feature} — רק בדמו'),
   'earn.scheduledOnly': p(
     'The week ahead: reports still to come. Results already published appear on each stock’s own page.',
     'השבוע הקרוב: דוחות שעוד צפויים. תוצאות שכבר פורסמו מופיעות בדף של כל מניה.',
@@ -458,6 +464,7 @@ export const STRINGS = {
   'pf.portfolio': p('Portfolio', 'תיק'),
   'pf.totalValue': p('· total value', '· שווי כולל'),
   'pf.today': p('today', 'היום'),
+  'pf.performance': p('Performance', 'ביצועים'),
   'pf.allocation': p('Allocation', 'חלוקה'),
   'pf.holdings': p('Holdings', 'החזקות'),
   'pf.byAccount': p('By account', 'לפי חשבון'),
@@ -468,14 +475,26 @@ export const STRINGS = {
   'pf.excluded': p('excluded', 'לא נכלל'),
   'pf.allAccounts': p('All accounts', 'כל החשבונות'),
   'pf.allLinked': p('All linked accounts', 'כל החשבונות המחוברים'),
-  'pf.aggDetail': p(
-    'Pick below which accounts are included — Sandbox stays out',
-    'בחרי למטה אילו חשבונות נכללים — Sandbox נשאר בחוץ',
-  ),
+  // Names no account: which portfolios exist is now up to the user, so a
+  // sentence naming one of them goes stale the moment they rename or add.
+  'pf.aggDetail': p('Pick below which accounts are included', 'בחרי למטה אילו חשבונות נכללים'),
   'pf.synced': p('Synced {when} · read-only', 'סונכרן {when} · לקריאה בלבד'),
-  'pf.sandboxTitle': p('Sandbox · theoretical', 'Sandbox · תיאורטי'),
-  'pf.sandboxDetail': p('No broker — you record the transactions', 'בלי ברוקר — את רושמת את העסקאות'),
+  /**
+   * Why a portfolio total reads "—". Named holdings, not a count alone: a
+   * reader who can see WHICH position is unpriced can judge how much of their
+   * portfolio the missing figure represents, and can act on it.
+   */
+  'pf.partiallyPriced': p(
+    '{priced} of {held} holdings priced · no price for {tickers}',
+    '{priced} מתוך {held} החזקות תומחרו · אין מחיר ל-{tickers}',
+  ),
+  'pf.closed': p('Closed positions', 'פוזיציות שנסגרו'),
+  'pf.soldOut': p('sold out', 'נמכרה במלואה'),
+  // Used for any manual portfolio, not only Sandbox.
+  'pf.manualDetail': p('No broker — you record the transactions', 'בלי ברוקר — את רושמת את העסקאות'),
   'pf.manage': p('Manage', 'לנהל'),
+  'pf.delete': p('Delete', 'למחוק'),
+  'pf.deleted': p('{name} deleted', '{name} נמחק'),
   'pf.link': p('Link', 'לחבר'),
   'pf.concentration': p(
     'Two thirds of this portfolio sits in semiconductors. Concentration amplifies good days and bad ones alike.',
@@ -496,8 +515,9 @@ export const STRINGS = {
     'התיקים האלה תיאורטיים — שום פקודה לא נשלחת לאף מקום.',
   ),
   'pf.name': p('Name', 'שם'),
-  'pf.startCash': p('Starting cash', 'מזומן פתיחה'),
-  'pf.divIncome': p('Dividend income', 'הכנסה מדיבידנדים'),
+  // Placeholder, not a default value: it shows what a name could be without
+  // filling the field with one nobody chose.
+  'pf.namePlaceholder': p('e.g. Dividend income', 'למשל: הכנסה מדיבידנדים'),
   'pf.syncedAgo': p('synced 12 min ago', 'סונכרן לפני 12 דק׳'),
   'pf.benchmark': p('- - S&P 500', '- - S&P 500'),
 
@@ -718,9 +738,11 @@ export const STRINGS = {
   'connScreen.add': p('Connect an institution', 'לחבר מוסד'),
   'connScreen.live': p('Live', 'מחובר'),
   'connScreen.theo': p('Theoretical portfolios', 'תיקים תיאורטיים'),
+  // Names no portfolio: Sandbox is a demo account, so with sample data off it
+  // is not there to be described.
   'connScreen.theoHelp': p(
-    'Sandbox has no broker behind it — you record its transactions yourself. Useful for testing an idea before it costs anything.',
-    'ל-Sandbox אין ברוקר מאחוריו — את רושמת בו את העסקאות בעצמך. שימושי לבדוק רעיון לפני שהוא עולה כסף.',
+    'A theoretical portfolio has no broker behind it — you record its transactions yourself. Useful for testing an idea before it costs anything.',
+    'לתיק תיאורטי אין ברוקר מאחוריו — את רושמת בו את העסקאות בעצמך. שימושי לבדוק רעיון לפני שהוא עולה כסף.',
   ),
   'connScreen.newTheo': p('New theoretical portfolio', 'תיק תיאורטי חדש'),
   'connScreen.freq': p('Frequency', 'תדירות'),
@@ -739,6 +761,31 @@ export const STRINGS = {
   'tx.shares': p('Shares', 'מניות'),
   'tx.price': p('Price / share', 'מחיר למניה'),
   'tx.date': p('Date', 'תאריך'),
+  'tx.symbolPlaceholder': p('e.g. NVDA', 'למשל NVDA'),
+  'tx.saved': p('{ticker} transaction saved', 'העסקה ב-{ticker} נשמרה'),
+  'tx.removed': p('Transaction removed', 'העסקה נמחקה'),
+  // Says what a valid symbol looks like rather than only that this one is
+  // not — a reader who typed "brk b" needs to know about the dot.
+  'tx.badTicker': p(
+    'Enter a symbol like NVDA or BRK.B — letters, digits, dots and hyphens.',
+    'הזיני סימבול כמו NVDA או BRK.B — אותיות, ספרות, נקודות ומקפים.',
+  ),
+  'tx.badShares': p('Enter how many shares, as a number above zero.', 'הזיני כמה מניות, מספר גדול מאפס.'),
+  'tx.badPrice': p('Enter the price per share you paid.', 'הזיני את המחיר למניה ששילמת.'),
+  'tx.badDate': p(
+    'Pick a date — a trade cannot be in the future.',
+    'בחרי תאריך — עסקה לא יכולה להיות בעתיד.',
+  ),
+  // The number matters: "you cannot sell that many" leaves the reader
+  // guessing how many they can.
+  'tx.oversell': p(
+    'You hold {held} {ticker} in this portfolio — you cannot sell more than that.',
+    'יש לך {held} {ticker} בתיק הזה — אי אפשר למכור יותר מזה.',
+  ),
+  'tx.none': p('No transactions yet', 'עדיין אין עסקאות'),
+  'tx.transactions': p('Transactions', 'עסקאות'),
+  'tx.removeAria': p('Remove {ticker} transaction', 'למחוק את העסקה ב-{ticker}'),
+  'tx.pending': p('Not saved to your account yet', 'עדיין לא נשמר לחשבון'),
 
   // ── Onboarding: first-run overlay ─────────────────────────────────────
   'firstRun.kicker': p('First run', 'הפעלה ראשונה'),

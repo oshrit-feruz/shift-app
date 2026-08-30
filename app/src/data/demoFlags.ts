@@ -48,7 +48,11 @@ export const DEMO_FLAGS = {
    *
    * Price charts draw a generated series instead of the published sessions,
    * and the earnings surfaces render a full illustrative week and quarterly
-   * history rather than only what the free data plan carries.
+   * history rather than only what the free data plan carries. Every whole
+   * feature with nothing real behind it reads this too — the portfolio,
+   * market movers, analyst ratings, connected accounts, notifications — and
+   * with the switch off each says so in place (components/DemoOnly.tsx)
+   * rather than rendering invented money.
    *
    * This is the one thing that may substitute invented numbers for real ones,
    * and it is allowed to because the reader turned it on themselves: the

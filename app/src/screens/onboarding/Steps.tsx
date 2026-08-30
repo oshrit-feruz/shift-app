@@ -69,11 +69,14 @@ const STEPS: Step[] = [
     key: 'paper',
     target: 'pf',
     title: { en: 'Practise with no money', he: 'להתאמן בלי כסף' },
+    // Names no specific portfolio. Sandbox is no longer a fixture that is
+    // simply there — a theoretical portfolio is something the reader creates,
+    // and copy promising one that does not exist yet reads as a broken app.
     how: {
-      en: 'The Sandbox portfolio records the trades you would have made. Give it a few weeks and see how it did before anything is real.',
-      he: 'תיק ה-Sandbox רושם את העסקאות שהיית עושה. תני לזה כמה שבועות ותראי מה יצא, לפני שמשהו אמיתי.',
+      en: 'A theoretical portfolio records the trades you would have made. Give it a few weeks and see how it did before anything is real.',
+      he: 'תיק תיאורטי רושם את העסקאות שהיית עושה. תני לזה כמה שבועות ותראי מה יצא, לפני שמשהו אמיתי.',
     },
-    cta: { en: 'Open Sandbox', he: 'לפתוח את Sandbox' },
+    cta: { en: 'Open a theoretical portfolio', he: 'לפתוח תיק תיאורטי' },
   },
   {
     key: 'open',
@@ -155,7 +158,10 @@ export function StepsScreen(_: ScreenProps) {
         <CardTitle size={17}>{t('steps.howItWorks')}</CardTitle>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {HOW_IT_WORKS.map((x, i) => (
-            <div key={i} style={{ display: 'flex', gap: 8, fontSize: 'var(--text-caption)', lineHeight: 1.45 }}>
+            <div
+              key={i}
+              style={{ display: 'flex', gap: 8, fontSize: 'var(--text-caption)', lineHeight: 1.45 }}
+            >
               <span style={{ color: 'var(--color-accent-200)', flex: 'none' }}>·</span>
               <span className="text-muted" style={{ flex: 1 }}>
                 {x[language]}
@@ -233,7 +239,9 @@ export function StepsScreen(_: ScreenProps) {
         </Card>
       ) : (
         <Card padding={18} gap={8} highlight>
-          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-heading)' }}>{t('steps.allDone')}</div>
+          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-heading)' }}>
+            {t('steps.allDone')}
+          </div>
           <p style={{ fontSize: 'var(--text-body)', margin: 0, opacity: 0.85 }}>{t('steps.allDoneBody')}</p>
           <Button
             block

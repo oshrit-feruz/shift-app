@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button } from '../../components/Button';
+import { Icon } from '../../components/Icon';
 import { Chip, ChipRail } from '../../components/Chip';
 import { useDispatch } from '../../state/appState';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -126,7 +127,7 @@ export function LearnScreen(_: ScreenProps) {
           {t('learn.sub')}
         </span>
         <Button variant="ghost" fontSize={17} onClick={() => dispatch({ type: 'go', screen: 'home' })}>
-          ✕
+          <Icon name="close" size={16} strokeWidth={2} />
         </Button>
       </div>
 
