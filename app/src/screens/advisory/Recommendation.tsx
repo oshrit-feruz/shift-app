@@ -3,26 +3,17 @@ import { Button } from '../../components/Button';
 import { Tag } from '../../components/Tag';
 import { Num } from '../../components/Num';
 import { AllocationBar, ALLOC_COLORS } from '../../components/AllocationBar';
-import { ListRow, RowValues } from '../../components/ListRow';
-import { TickerTile } from '../../components/TickerTile';
-import { DataState, EmptyState } from '../../components/DataState';
-import { SkeletonList } from '../../components/Skeleton';
 import { BuyAtBrokerButton } from '../../components/BuyAtBrokerButton';
-import { fundTicker, hasAnyTradeDeepLink } from '../../lib/brokerLinks';
+import { fundTicker } from '../../lib/brokerLinks';
 import { FlowStepper } from './FlowStepper';
+import { CandidatesCard } from './CandidatesCard';
 import { useAppState, useDispatch } from '../../state/appState';
 import { useT } from '../../i18n/useT';
 import { CORE_FUNDS, mapProfile, PROFILES } from '../../lib/advisory';
-import { demoService } from '../../data/demoAdapter';
-import { useLoadable } from '../../data/useLoadable';
-import { money } from '../../lib/format';
 import type { StringKey } from '../../i18n/strings';
 import type { ScreenProps } from '../../App';
 
 const SAT_RULES: StringKey[] = ['rec.satRule1', 'rec.satRule2', 'rec.satRule3', 'rec.satRule4'];
-
-/** Rendered in place of any numeric the live engine did not supply. */
-const DASH = '—';
 
 /** The recommendation dashboard: an index core plus, where the profile
  *  allows it, a small rules-based sleeve of individual stocks. */
@@ -32,7 +23,6 @@ export function AdvisoryRecommendation(_: ScreenProps) {
   const t = useT();
   const profileKey = mapProfile(s.advAnswers) ?? 'bal';
   const profile = PROFILES[profileKey];
-  const sat = useLoadable(() => demoService.satelliteSignals(), []);
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
@@ -146,69 +136,7 @@ export function AdvisoryRecommendation(_: ScreenProps) {
         </Card>
       )}
 
-      {/* Live screener output: today's candidates — ticker and price only.
-          The engine's internal figures (composite score, drawdown from the
-          52-week high) are deliberately not shown: they read as precision a
-          client cannot act on. Honest empty state when nothing is picked. */}
-      <Card padding="13px 13px 4px" gap={7}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <CardTitle>{t('rec.satPositions')}</CardTitle>
-          <span style={{ marginInlineStart: 'auto' }}>
-            <Tag variant="outline" fontSize={15}>
-              {t('rec.livePrices')}
-            </Tag>
-          </span>
-        </div>
-        {/* Says plainly that this list is a daily output of the rules. */}
-        <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
-          {t('rec.updatedDaily')}
-        </p>
-        <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
-          {t('rec.notAnOrder')}
-        </p>
-        {/* With no individual-stock sleeve the picks are not advice for this
-            profile, so say so rather than letting the list imply it. */}
-        {profile.satellitePct === 0 && (
-          <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
-            {t('rec.satInfoOnly')}
-          </p>
-        )}
-        {/* Says plainly who executes, and — while no per-symbol link is
-            configured — what the button will actually do. */}
-        {s.advBroker && (
-          <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
-            {t('buy.handoffNote')}
-            {!hasAnyTradeDeepLink() && ` ${t('buy.noDeepLink')}`}
-          </p>
-        )}
-        <DataState state={sat.state} onRetry={sat.retry} skeleton={<SkeletonList count={3} minHeight={52} />}>
-          {(signals) =>
-            signals.length === 0 ? (
-              <EmptyState>{t('rec.noPositions')}</EmptyState>
-            ) : (
-              <>
-                {signals.map((x) => {
-                  // Live rows may omit any number. A missing value renders
-                  // as "—"; it is never guessed, defaulted to zero, or
-                  // back-filled.
-                  const priceStr = x.price === null ? DASH : money(x.price);
-                  return (
-                    <ListRow
-                      key={x.ticker}
-                      leading={<TickerTile ticker={x.ticker} />}
-                      title={x.ticker}
-                      right={<RowValues main={priceStr} />}
-                      trailing={<BuyAtBrokerButton ticker={x.ticker} />}
-                      minHeight={52}
-                      onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}
-                    />
-                  );
-                })}
-              </>
-            )
-          }
-        </DataState>
-      </Card>
+      <CandidatesCard />
 
       <Card padding={13} gap={8}>
         <CardTitle>{t('rec.nextStep')}</CardTitle>
