@@ -544,6 +544,11 @@ export const STRINGS = {
     'התראה מודיעה לך כשמניה שאת עוקבת אחריה חוצה מחיר, מוזכרת בחדשות או מפרסמת דוח.',
   ),
   'watch.symbolOnly': p('Symbol only', 'סימבול בלבד'),
+  // A row names its one alert, or counts them when there are several, so a
+  // stock with nine alerts is one line like every other row.
+  'watch.alertsForAria': p('{n} alerts for {ticker}', '{n} התראות על {ticker}'),
+  'watch.alertCount': p('{n} alerts', '{n} התראות'),
+  'watch.oneAlert': p('1 alert', 'התראה אחת'),
   'watch.alertNudge': p(
     'An alert is just a nudge — it never buys or sells anything.',
     'התראה היא רק תזכורת — היא לא קונה ולא מוכרת כלום.',
@@ -551,6 +556,13 @@ export const STRINGS = {
 
   // ── Alert sheet ───────────────────────────────────────────────────────
   'alert.create': p('Create alert', 'ליצור התראה'),
+  'alert.update': p('Update alert', 'לעדכן התראה'),
+  'alert.created': p('Alert saved for {ticker}', 'נשמרה התראה על {ticker}'),
+  'alert.already': p('{ticker} already had that alert — updated', 'כבר הייתה התראה כזו על {ticker} — עודכנה'),
+  'alert.duplicateHint': p(
+    'You already have this exact alert. Saving updates how it reaches you instead of adding a second one.',
+    'כבר יש לך בדיוק את ההתראה הזו. שמירה תעדכן איך היא מגיעה אליך, במקום להוסיף עוד אחת.',
+  ),
   'alert.priceType': p('Price threshold', 'רף מחיר'),
   'alert.priceHelp': p('When it crosses a level you set', 'כשהמחיר חוצה רף שקבעת'),
   'alert.newsType': p('News mention', 'אזכור בחדשות'),

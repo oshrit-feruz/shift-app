@@ -41,6 +41,38 @@ export interface SavedAlert {
   notifyBy: { push: boolean; email: boolean };
 }
 
+/**
+ * What makes two alerts the same alert.
+ *
+ * Everything the alert *watches for* is in the key; the delivery channels are
+ * not. Asking twice for "tell me when MSFT falls below $200" is one alert the
+ * second time as much as the first — the user wants that notification, not two
+ * of it — while asking for it by email as well is a change to how the same
+ * alert reaches them, so it edits the one that exists rather than filing a
+ * second identical row that would fire twice.
+ */
+export function alertKey(a: Omit<SavedAlert, 'id'>): string {
+  const detail =
+    a.kind === 'price'
+      ? `${a.condition}|${a.value.trim()}`
+      : a.kind === 'news'
+        ? `${a.value.trim().toLowerCase()}|${a.sources.wires}|${a.sources.filings}`
+        : a.remind;
+  return `${a.ticker}|${a.kind}|${detail}`;
+}
+
+/**
+ * Adds an alert unless the list already watches for exactly that, in which
+ * case the existing one keeps its id and place and takes the new alert's
+ * notification channels.
+ */
+export function addAlert(alerts: SavedAlert[], alert: SavedAlert): SavedAlert[] {
+  const key = alertKey(alert);
+  const at = alerts.findIndex((x) => alertKey(x) === key);
+  if (at < 0) return [...alerts, alert];
+  return alerts.map((x, i) => (i === at ? { ...x, notifyBy: alert.notifyBy } : x));
+}
+
 export interface ManualPortfolio {
   id: string;
   name: string;
@@ -204,7 +236,7 @@ export function reducer(s: AppState, a: Action): AppState {
     case 'toggleAggAccount':
       return { ...s, aggExcluded: { ...s.aggExcluded, [a.id]: !s.aggExcluded[a.id] } };
     case 'addAlert':
-      return { ...s, savedAlerts: [...s.savedAlerts, a.alert] };
+      return { ...s, savedAlerts: addAlert(s.savedAlerts, a.alert) };
     case 'removeAlert':
       return { ...s, savedAlerts: s.savedAlerts.filter((x) => x.id !== a.id) };
     case 'addManualPortfolio':
@@ -351,7 +383,30 @@ export function readPersisted(saved: Record<string, unknown>): Partial<AppState>
     }
     picked.watchlist = out;
   }
+  if (Array.isArray(picked.savedAlerts)) {
+    // Duplicates could be stored before addAlert collapsed them, and a device
+    // that filed the same alert four times would otherwise keep all four (and
+    // fire four notifications) forever. Reading them through the same collapse
+    // heals that list once, on the next boot.
+    picked.savedAlerts = picked.savedAlerts.filter(isSavedAlert).reduce<SavedAlert[]>(addAlert, []);
+  }
   return picked;
+}
+
+/** A stored row shaped like an alert; anything else is dropped on read. */
+function isSavedAlert(value: unknown): value is SavedAlert {
+  if (value === null || typeof value !== 'object') return false;
+  const a = value as Partial<SavedAlert>;
+  return (
+    typeof a.id === 'string' &&
+    typeof a.ticker === 'string' &&
+    typeof a.value === 'string' &&
+    (a.kind === 'price' || a.kind === 'news' || a.kind === 'earn') &&
+    typeof a.sources === 'object' &&
+    a.sources !== null &&
+    typeof a.notifyBy === 'object' &&
+    a.notifyBy !== null
+  );
 }
 
 function hydrate(): AppState {
