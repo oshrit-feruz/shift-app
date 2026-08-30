@@ -33,7 +33,7 @@ export function DesignSystemPage() {
         {/* Header */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <img
-            src="/assets/shift-wordmark.svg"
+            src="/assets/shift-wordmark.png"
             alt="Shift"
             style={{ height: 30, width: 'auto', display: 'block' }}
           />

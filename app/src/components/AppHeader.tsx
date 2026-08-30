@@ -34,7 +34,7 @@ export function AppHeader({
               flex: 'none',
               borderRadius: 7,
               backgroundColor: 'var(--color-surface)',
-              backgroundImage: 'url(/assets/shift-mark.svg)',
+              backgroundImage: 'url(/assets/shift-mark.png)',
               backgroundSize: 'contain',
               backgroundRepeat: 'no-repeat',
               backgroundPosition: 'center',
