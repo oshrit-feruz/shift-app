@@ -184,15 +184,15 @@ function AuthSplash() {
   return (
     <div role="status" className="splash">
       <div className="splash-logo">
-        <img src="/assets/shift-wordmark-bare.svg" alt="Shift" width={856} height={320} />
+        <img src="/assets/shift-lockup.png" alt="Shift" width={1687} height={578} />
         {/* Decorative duplicate: the torn slice. Hidden from assistive tech so
             the wordmark is not announced twice. */}
         <img
-          src="/assets/shift-wordmark-bare.svg"
+          src="/assets/shift-lockup.png"
           alt=""
           aria-hidden="true"
-          width={856}
-          height={320}
+          width={1687}
+          height={578}
           className="splash-tear"
         />
       </div>
