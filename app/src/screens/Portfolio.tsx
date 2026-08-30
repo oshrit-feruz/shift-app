@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { Card, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
+import { Icon } from '../components/Icon';
 import { Tag } from '../components/Tag';
 import { Num } from '../components/Num';
 import { AreaChart } from '../components/AreaChart';
@@ -592,7 +594,7 @@ function Transactions({ pfId }: { pfId: string }) {
                     toast(t('tx.removed'));
                   }}
                 >
-                  ✕
+                  <Icon name="close" size={16} strokeWidth={2} />
                 </RowIconButton>
               }
               minHeight={46}
@@ -612,7 +614,7 @@ function RowIconButton({
 }: {
   label: string;
   onClick: () => void;
-  children: string;
+  children: ReactNode;
 }) {
   return (
     <button
@@ -624,10 +626,11 @@ function RowIconButton({
         width: 34,
         height: 34,
         flex: 'none',
+        display: 'grid',
+        placeItems: 'center',
         borderRadius: 'var(--radius-sm)',
         border: '1px solid var(--color-divider)',
         color: 'var(--muted)',
-        fontSize: 'var(--text-title)',
         cursor: 'pointer',
       }}
     >

@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { Icon } from './Icon';
 import { useDismissAnimation } from '../lib/useDismissAnimation';
 
 /** The phone-frame element sheets mount into (set in App.tsx). */
@@ -94,11 +95,11 @@ export function Sheet({
           <button
             type="button"
             className="btn btn-ghost"
-            style={{ padding: 0, fontSize: 'var(--text-title)', opacity: 0.6 }}
+            style={{ padding: 0, opacity: 0.6 }}
             onClick={onClose}
             aria-label="Close"
           >
-            ✕
+            <Icon name="close" size={18} strokeWidth={2} />
           </button>
         </div>
         {children}

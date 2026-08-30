@@ -14,6 +14,7 @@ export type IconName =
   | 'settings'
   | 'check'
   | 'plus'
+  | 'close'
   | 'steps'
   | 'library'
   | 'grid'
@@ -32,6 +33,7 @@ const PATHS: Record<IconName, string> = {
   settings: 'M12 15a3 3 0 100-6 3 3 0 000 6M4 12h2M18 12h2M12 4v2M12 18v2',
   check: 'M5 12l4 4 10-10',
   plus: 'M12 5v14M5 12h14',
+  close: 'M6 6l12 12M18 6L6 18',
   steps: 'M5 12l4 4 10-10',
   library: 'M12 4v16M6 8h12M6 16h8',
   grid: 'M8 12h8M12 8v8M4 4h16v16H4z',

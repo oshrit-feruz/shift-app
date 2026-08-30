@@ -1,5 +1,7 @@
+import type { ReactNode } from 'react';
 import { Card, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
+import { Icon } from '../components/Icon';
 import { Tag } from '../components/Tag';
 import { ListRow } from '../components/ListRow';
 import { WatchRowValues } from '../components/WatchRowValues';
@@ -139,7 +141,7 @@ export function WatchlistScreen({ openAlert, openSearch }: ScreenProps) {
                             label={t('watch.alertAria', { ticker: x.ticker })}
                             onClick={() => openAlert(x.ticker)}
                           >
-                            ＋
+                            <Icon name="plus" size={16} strokeWidth={2} />
                           </RowIconButton>
                           <RowIconButton
                             label={t('watch.removeAria', { ticker: x.ticker })}
@@ -149,7 +151,7 @@ export function WatchlistScreen({ openAlert, openSearch }: ScreenProps) {
                               toast(t('toast.removed', { ticker: x.ticker }));
                             }}
                           >
-                            ✕
+                            <Icon name="close" size={16} strokeWidth={2} />
                           </RowIconButton>
                         </span>
                       }
@@ -257,7 +259,7 @@ function RowIconButton({
   label: string;
   muted?: boolean;
   onClick: () => void;
-  children: string;
+  children: ReactNode;
 }) {
   return (
     <button
@@ -272,10 +274,11 @@ function RowIconButton({
         width: 34,
         height: 34,
         flex: 'none',
+        display: 'grid',
+        placeItems: 'center',
         borderRadius: 'var(--radius-sm)',
         border: '1px solid var(--color-divider)',
         color: muted ? 'var(--muted)' : 'var(--color-accent)',
-        fontSize: 'var(--text-title)',
         cursor: 'pointer',
       }}
       aria-label={label}
