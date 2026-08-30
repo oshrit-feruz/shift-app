@@ -1,4 +1,5 @@
 import { demoService } from '../data/demoAdapter';
+import { appService } from '../data/appService';
 import { fetchQuotes } from '../data/recoveryDetector';
 import { DEMO_FLAGS } from '../data/demoFlags';
 import { ok, unavailable, type Loadable } from '../data/types';
@@ -112,7 +113,7 @@ export interface TickerPosition {
  * definition regardless of what the demo numbers happen to show.
  *
  * The user's own manual portfolios are included alongside the service-reported
- * ones. They have no service holdings — demoService.holdings() returns an
+ * ones. They have no service holdings — appService.holdings() returns an
  * empty list for an id it doesn't know — so their positions come entirely from
  * the manual transaction log, exactly as the Portfolio tab builds them. Leaving
  * them out would mean a ticker you logged yourself showed up on the Portfolio
@@ -135,7 +136,13 @@ export async function fetchYourPositions(
   manualTransactions: Record<string, ManualTransaction[]>,
   manualPortfolios: ManualPortfolio[] = [],
 ): Promise<Loadable<TickerPosition[]>> {
-  const pfs = DEMO_FLAGS.demoData ? await demoService.portfolios() : ok<PortfolioSummary[]>([]);
+  // A real connected account outranks both demo paths: it is the one source
+  // here that is neither sample data nor absent.
+  const pfs = DEMO_FLAGS.liveAccount
+    ? await appService.portfolios()
+    : DEMO_FLAGS.demoData
+      ? await demoService.portfolios()
+      : ok<PortfolioSummary[]>([]);
   if (pfs.status !== 'ok') return pfs;
 
   // Built from the same list the Portfolio tab renders, so the index recorded
@@ -144,7 +151,11 @@ export async function fetchYourPositions(
   const eligible = all.filter((pf) => pf.kind !== 'aggregate');
   const settled = await Promise.all(
     eligible.map((pf) =>
-      DEMO_FLAGS.demoData ? demoService.holdings(pf.id) : Promise.resolve(ok<Holding[]>([])),
+      DEMO_FLAGS.liveAccount
+        ? appService.holdings(pf.id)
+        : DEMO_FLAGS.demoData
+          ? demoService.holdings(pf.id)
+          : Promise.resolve(ok<Holding[]>([])),
     ),
   );
   if (settled.some((r) => r.status !== 'ok')) return unavailable();
@@ -162,7 +173,10 @@ export async function fetchYourPositions(
     // Held only. A position sold out is kept by the fold so the Portfolio tab
     // can show what it earned, but "your holdings" on a stock page is a claim
     // about what the reader owns right now, and 0 shares is not one.
-    const match = merged.find((row) => row.ticker === ticker && row.shares > 0);
+    // `!== 0`, not `> 0`: a short is a real position with a negative share
+    // count, and `> 0` hid it from its own stock page. The manual ledger
+    // cannot go negative, so nothing else changes.
+    const match = merged.find((row) => row.ticker === ticker && row.shares !== 0);
     if (match) {
       results.push({ portfolio: pf, holding: match, index: all.findIndex((x) => x.id === pf.id) });
     }

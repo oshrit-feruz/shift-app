@@ -128,7 +128,11 @@ export function EditProfileSheet({ open, onClose }: { open: boolean; onClose: ()
           placeholder={t('set.namePlaceholder')}
           onChange={(e) => setName(e.target.value)}
         />
-        {!nameValid && <span style={{ fontSize: 'var(--text-caption)', color: 'var(--down)' }}>{t('set.nameInvalid')}</span>}
+        {!nameValid && (
+          <span style={{ fontSize: 'var(--text-caption)', color: 'var(--down)' }}>
+            {t('set.nameInvalid')}
+          </span>
+        )}
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <Button

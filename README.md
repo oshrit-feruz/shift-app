@@ -473,6 +473,212 @@ request/response pair to test. The `api/` directory has its own
 `tsconfig.json` (`npm run typecheck:api`) since it's excluded from the main
 app's `src`-scoped one and isn't bundled into the client build.
 
+## Connected account — founder demo only (SnapTrade Personal)
+
+**A third live surface, and the only one that is deliberately not a product
+feature.** `app/api/snaptrade.ts` reads **one real brokerage account**,
+read-only, through [SnapTrade's](https://docs.snaptrade.com) free **Personal**
+tier, so the "connect your real portfolio" concept can be shown with actual
+data instead of a mockup.
+
+**This is not the architecture for real end users, and must not be mistaken
+for one.** SnapTrade Personal issues a single free `clientId`/`consumerKey`
+pair for one person's own account. It has no notion of multiple users: the
+Personal key *is* the identity, which is exactly why requests omit `userId`
+and `userSecret` (a Personal user has no `userSecret` to send — see
+[Personal vs Commercial](https://docs.snaptrade.com/docs/personal-vs-commercial)).
+Letting real users link their own accounts would require SnapTrade's
+**Commercial** tier — per-user registration, `userSecret` storage, connection
+lifecycle and reconnection handling, webhooks, KYC and billing. That is a
+separate product and compliance decision that **has not been made**. Nothing
+in this integration scales to it, and nothing here should be read as a
+prototype of it.
+
+**Read-only, structurally.** The function can reach exactly five upstream
+paths, all `GET`, listed in one `READ_ONLY_PATHS` constant: `/accounts`,
+`/accounts/{id}/balances`, `/accounts/{id}/positions/all`, `/authorizations`
+and `/authorizations/{id}/accounts`. Ids come from SnapTrade's own responses,
+never from the caller, so no request to `/api/snaptrade` can steer it at
+another path.
+
+**Why two account routes.** `/accounts` is documented as *daily* data —
+"cached and refreshed once a day" — so a brokerage connected today
+legitimately answers an empty list there while the connection is live and
+active in SnapTrade's dashboard. When that happens the function walks
+`/authorizations` and asks each connection directly, which is the real-time
+route. `source` in the response says which one answered, and the demo screen
+shows it along with SnapTrade's own `data_freshness.as_of`, so the freshness
+of what is on screen is stated rather than implied.
+
+**Read `data_freshness_mode`; do not infer it from the plan.** The spec says
+manual refresh "is disabled for Real-time plans (Personal and Pay as you go)
+**unless the connection is delayed**… Refer to the `data_freshness_mode` field
+on a connection to determine this." It is tempting to read that as "Personal is
+real-time, therefore refresh never applies" — and that is wrong. The mode is a
+property of the *connection*, not the plan, and is `delayed` when the
+brokerage forces it. The real IBKR connection here reports **`delayed`**: its
+data comes from a cache, and manual refresh does apply to it.
+
+The route still never issues that `POST` — `/api/snaptrade` is public and
+unauthenticated and stays GET-only. Refresh lives in
+`app/scripts/snaptrade-refresh.mjs`, an operator script run by hand with the
+credentials in the environment. It lists connections and stops unless given
+`--refresh`, because SnapTrade bills per refresh call. It imports the signing
+helpers from `api/_lib/snaptrade.ts` rather than copying them, so it cannot
+drift from what the route sends.
+
+**Three empty states, not one.** How an empty answer should be read depends on
+that same field: on a `realtime` connection it is the brokerage's current
+answer, while on a `delayed` one it may just be a cache that was never filled.
+The screen says which. And an empty list is a different fact again from having
+no connection at all:
+
+| What SnapTrade reports | What the screen says |
+| --- | --- |
+| no connections | "עדיין לא מקושר חשבון ברוקר" — nothing has been linked in the portal |
+| a live connection, zero accounts | names the brokerage and says it is connected but reporting no accounts, with the connection's state (read/trade, realtime/delayed) |
+| a **disabled** connection | says so, and shows none of its figures — see below |
+| accounts | the real balances and positions |
+
+**A disabled connection is never served.** SnapTrade's docs are explicit that a
+disabled connection "can no longer access the latest data from the brokerage,
+but will continue to return the last available cached state" — it answers 200
+with holdings of entirely unknown age. So the route lists `/authorizations`
+first, on every request, and excludes any disabled connection from account
+discovery: its balances and positions are never even requested. The connection
+is still reported, so the screen says the connection is dead rather than
+implying nothing was ever linked. Showing those cached figures would be the
+same lie as serving a stale screener snapshot, except denominated in money.
+A connection whose `disabled` flag is absent is treated as live — the field is
+documented and normally present, and hiding a real account over one missing
+boolean would be its own dishonesty.
+
+The middle row is the state a freshly linked Interactive Brokers connection
+sat in during development, on a real, funded, actively traded account — so it
+is worth recording why, because the obvious guesses are wrong.
+
+**SnapTrade does not reach IBKR over a live API.** Per SnapTrade's own
+integration page it uses an **IBKR Flex Query**: the account holder enables
+SnapTrade under IBKR's *Performance & Reports → Third-Party Reports*, and
+hands SnapTrade a Query ID and Token. That is a scheduled report feed, not a
+request-time call. So a connection can be genuinely Active — the token is
+valid — while no report has been delivered yet, and the account list is
+legitimately empty. Delta, another SnapTrade-based app, documents a 24–48 hour
+wait before data appears when the service is first enabled; SnapTrade's own
+page does not state a figure.
+
+That is also why the real-time/delayed distinction above does not rescue it:
+`data_freshness_mode: realtime` describes how SnapTrade answers, not how fast
+IBKR's report feed starts.
+
+Reporting this as "nothing connected" sent us hunting for a connection that
+already existed, which is why the response now carries the connection list
+(states and counts only; nothing identifying). Nothing in this repo can
+resolve it — the app's job is to say precisely which state it is in. SnapTrade's trading endpoints
+appear nowhere in the codebase, and a unit test asserts that no upstream path
+ever matches a trading route.
+
+**Off by default.** Settings → Data & display carries the
+`הדגמה: חשבון מקושר אמיתי` switch (`DEMO_FLAGS.liveAccount`). With it **off**,
+the app is exactly what it was before this integration existed — the demo
+adapter backs every account, and the connected-account screen is not listed
+anywhere. With it **on**, `app/src/data/appService.ts` swaps the demo
+adapter's `portfolios()` and `holdings()` for the real account, so the Home
+hero, the Portfolio tab and the Connections list all show it, and the
+dedicated `חשבון מקושר (הדגמה)` screen appears under "עוד". The switch exists
+so the before/after can be shown side by side in one session; it is read
+through `useDemoFlag()` so flipping it re-renders immediately rather than on
+the next mount. Nothing else — Core-Satellite, Satellite recommendations,
+news, fundamentals — changes in either position.
+
+**Where invented numbers were removed rather than shown over real ones.** Two
+demo-derived visuals cannot honestly sit above a real account, so with the
+switch on they are replaced by a statement of what is known, not redrawn:
+
+| Surface | With the switch on |
+| --- | --- |
+| Home hero + Portfolio day change and performance chart | Replaced by an explicit "no performance history" note — those come from a seeded pseudo-random walk, and SnapTrade reports no day change or priced history here |
+| Portfolio allocation donut | Computed from the account's **real** position values; positions the brokerage did not price are excluded, and if none are priced the card says so |
+| Any unreported field | Renders `—`. `null` is never coerced to `0`, and a total is never summed from partially-priced positions — if the total cannot be determined the account reports `unavailable` with that reason |
+| Open P&L | SnapTrade's position schema carries no such field. It is derived as `units × (price − cost_basis)` from three numbers the brokerage did report, and is `—` the moment any of them is missing — never estimated |
+| Return % | `openPnl / **abs**(units × avgCost)` — see below |
+| Day change on a connected account | `—`, not `+0.00%`. The brokerage reports no day change, and a green zero states a return we do not have |
+| A short position in the allocation ring | Excluded and **named**. A short is a negative holding with no share of a total; dropping it silently made a two-position account read as "ORCL 100%" |
+
+**The short-position sign bug, recorded because only real data found it.** The
+first live payload contained a short: 77 shares of ALB at −$10,454. Every test
+fixture until then had been long. `units` is negative for a short, so
+`units × avgCost` is negative, and the return `openPnl / basis` came out
+**positive** — a position down $480.67 rendered as **+4.82%, in green**. The
+fix is one shared `positionReturnPct()` in `lib/format.ts` taking the
+magnitude of the basis and the sign from the P&L alone; both the portfolio
+list and the connected-account screen call it, so they cannot drift.
+`lib/positionReturn.test.ts` pins it with the real numbers.
+
+**One shape worth knowing about, because getting it wrong is silent.**
+`/accounts/{id}/positions/all` answers an *object* —
+`{ results: [...], data_freshness: { as_of } }` — not a bare array. Reading it
+as an array yields zero positions with no error at all, which would render a
+real account full of holdings as "no positions": invented emptiness presented
+as fact. An envelope the function cannot read is reported as `bad_response`
+instead, and a test guards it. The same rule covers the account list: rows
+present but none mappable is a `bad_response`, not an account-less user.
+
+Same honesty contract as the screener mirror and `/api/news` — and the same
+machinery: the route's transport is the shared `_lib/upstream.ts`
+`fetchUpstreamJson()`, so its timeout budget, abort wiring and failure
+taxonomy (`upstream_unauthorized`, `upstream_forbidden`,
+`upstream_rate_limited`, `upstream_timeout`, `bad_response`) are the ones
+`/api/news` and `/api/earnings` already answer with, rather than a third
+hand-rolled copy that could drift. SnapTrade authenticates with a `Signature`
+header instead of a query parameter, which is the one thing that helper
+gained (an optional `headers` argument) to serve this route. Any failure —
+network, timeout, non-2xx, unparseable or unexpected-shape body — surfaces as
+the honest "unavailable" state **with a specific reason** ("SnapTrade rejected
+the demo credentials", "SnapTrade did not answer in time"), and never falls
+back to the demo adapter's numbers. **Zero connected accounts is a success,
+not an error**: before a brokerage is linked the call legitimately returns
+`ok([])` and the screen says "עדיין לא מקושר חשבון ברוקר" — it never invents a
+holding to fill the space.
+
+### One-time setup
+
+**Required environment variables** — `SNAPTRADE_PERSONAL_CLIENT_ID` and
+`SNAPTRADE_PERSONAL_CONSUMER_KEY`, added in the Vercel dashboard under
+**Project → Settings → Environment Variables**, scoped to Production, Preview
+and Development so PR previews and local `vercel dev` work too. Both are read
+only server-side (`process.env.…`) and neither may ever be given a `VITE_`
+prefix, which would bundle the secret into the client build. The consumer key
+is used only as an HMAC key and never appears in a URL or a response body.
+
+Then, once deployed:
+
+1. Create the free Personal account at [snaptrade.com](https://snaptrade.com)
+   and copy the `clientId` and `consumerKey` from its dashboard.
+2. Add both to Vercel as above and redeploy (environment variables are read at
+   invocation, but a redeploy is the reliable way to pick them up everywhere).
+3. In **SnapTrade's own dashboard**, open the hosted **Connection Portal** and
+   link the brokerage account. The app deliberately cannot do this: it issues
+   no non-`GET` SnapTrade call, so it can read connections but never create
+   one.
+4. In the app: Settings → Data & display → turn on `הדגמה: חשבון מקושר אמיתי`,
+   then open **עוד → חשבון מקושר (הדגמה)**.
+
+**The endpoint is public and unauthenticated**, exactly like `/api/news`.
+Anyone who knows the deployment URL can `GET /api/snaptrade` and see this
+account's holdings and balances. The account number is masked to its last four
+digits server-side before it is ever sent, and no other identifying field is
+returned, but the positions and totals themselves are real. That is an
+accepted, deliberate trade-off for a founder demo on a demo deployment — it is
+**not** acceptable for anything carrying real users, and is a second reason
+this integration cannot simply be promoted to production.
+
+Request signing lives in `app/api/_lib/snaptrade.ts` (unit-tested in
+`snaptrade.test.ts`, handler behaviour in `snaptradeHandler.test.ts`), split
+from the handler for the same reason `_lib/news.ts` is: the canonical-JSON
+signature rule and the defensive upstream field mapping are testable without a
+request/response pair or a mocked `fetch`.
+
 ## ⚠ Needs product sign-off before production
 
 - **Core fund names** (VOO / IEFA / LQD / VMFXX / EEM in

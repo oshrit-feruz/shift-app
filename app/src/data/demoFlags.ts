@@ -11,7 +11,7 @@
  * provider is the only writer, which keeps the two in step.
  */
 
-export type DemoFlag = 'unavailable' | 'demoData';
+export type DemoFlag = 'unavailable' | 'demoData' | 'liveAccount';
 
 /**
  * What the flags read when localStorage cannot be reached.
@@ -24,8 +24,22 @@ export type DemoFlag = 'unavailable' | 'demoData';
  */
 const memory = new Map<DemoFlag, boolean>();
 
+/**
+ * Subscribers notified when any flag flips — see data/useDemoFlag.ts.
+ *
+ * DemoModeProvider mirrors `demoData` into React state and is its only
+ * writer, which covers that flag. `liveAccount` is read straight out of
+ * storage by useDemoFlag() instead, so it needs a change signal of its own;
+ * this is it. Both go through `set` below, so neither can drift.
+ */
+const listeners = new Set<() => void>();
+
 export const DEMO_FLAGS = {
-  key: { unavailable: 'shift.demo.unavailable', demoData: 'shift.demo.data' } as Record<DemoFlag, string>,
+  key: {
+    unavailable: 'shift.demo.unavailable',
+    demoData: 'shift.demo.data',
+    liveAccount: 'shift.demo.liveAccount',
+  } as Record<DemoFlag, string>,
   read(flag: DemoFlag): boolean {
     try {
       const raw = localStorage.getItem(this.key[flag]);
@@ -64,6 +78,19 @@ export const DEMO_FLAGS = {
   get demoData(): boolean {
     return this.read('demoData');
   },
+  /**
+   * Founder-demo switch: replace the demo adapter's accounts and holdings
+   * with the one real brokerage account read through SnapTrade Personal
+   * (see data/snaptradeAccount.ts). Off by default, and off means the app
+   * behaves exactly as it did before this flag existed — every surface it
+   * touches falls straight back to the demo adapter.
+   *
+   * Unlike demoData this never substitutes invented numbers: it swaps one
+   * real source in. A failure behind it still reports itself as a failure.
+   */
+  get liveAccount(): boolean {
+    return this.read('liveAccount');
+  },
   set(flag: DemoFlag, on: boolean) {
     // Recorded before the write, so the flag still answers correctly for this
     // session when the write below throws.
@@ -74,5 +101,12 @@ export const DEMO_FLAGS = {
     } catch {
       /* no storage — the flag holds for this session but does not persist */
     }
+    // After the write, and regardless of whether it threw: the flag is in
+    // effect for this session either way, so readers must re-render either way.
+    for (const listener of listeners) listener();
+  },
+  subscribe(listener: () => void): () => void {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
   },
 };

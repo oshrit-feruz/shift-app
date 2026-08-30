@@ -170,7 +170,9 @@ export function OpenAccountScreen(_: ScreenProps) {
         >
           {title}
         </div>
-        <p style={{ fontSize: 'var(--text-row)', lineHeight: 1.55, margin: '8px 0 0', opacity: 0.85 }}>{body}</p>
+        <p style={{ fontSize: 'var(--text-row)', lineHeight: 1.55, margin: '8px 0 0', opacity: 0.85 }}>
+          {body}
+        </p>
       </div>
 
       {step === 0 && (
@@ -181,7 +183,10 @@ export function OpenAccountScreen(_: ScreenProps) {
                 <RadioDot on={kind === k} />
                 <span style={{ flex: 1 }}>
                   <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>{name}</span>
-                  <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-body)', marginTop: 2 }}>
+                  <span
+                    className="text-muted"
+                    style={{ display: 'block', fontSize: 'var(--text-body)', marginTop: 2 }}
+                  >
                     {note}
                   </span>
                 </span>
@@ -220,7 +225,10 @@ export function OpenAccountScreen(_: ScreenProps) {
                 </span>
                 <span style={{ flex: 1, textAlign: 'start' }}>
                   <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>{name}</span>
-                  <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-body)', marginTop: 2 }}>
+                  <span
+                    className="text-muted"
+                    style={{ display: 'block', fontSize: 'var(--text-body)', marginTop: 2 }}
+                  >
                     {note}
                   </span>
                 </span>

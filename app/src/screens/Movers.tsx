@@ -133,7 +133,9 @@ function MoversBody(_: ScreenProps) {
                       </Num>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 'var(--text-body)', opacity: 0.76, flex: 1 }}>{x.why[language]}</span>
+                      <span style={{ fontSize: 'var(--text-body)', opacity: 0.76, flex: 1 }}>
+                        {x.why[language]}
+                      </span>
                       <TickerSparkline ticker={x.ticker} />
                     </div>
                   </Card>

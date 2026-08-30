@@ -93,12 +93,19 @@ export function AdvisoryConnect(_: ScreenProps) {
               >
                 <LogoTile src={b.logo} size={34} />
                 <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: 'block', fontSize: 'var(--text-row)', fontWeight: 600 }}>{b.name}</span>
-                  <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-caption)', lineHeight: 1.45 }}>
+                  <span style={{ display: 'block', fontSize: 'var(--text-row)', fontWeight: 600 }}>
+                    {b.name}
+                  </span>
+                  <span
+                    className="text-muted"
+                    style={{ display: 'block', fontSize: 'var(--text-caption)', lineHeight: 1.45 }}
+                  >
                     {b.help[language]}
                   </span>
                 </span>
-                <span style={{ color: 'var(--color-accent)', fontSize: 'var(--text-row)' }}>{selected ? '✓' : ''}</span>
+                <span style={{ color: 'var(--color-accent)', fontSize: 'var(--text-row)' }}>
+                  {selected ? '✓' : ''}
+                </span>
               </button>
             );
           })}

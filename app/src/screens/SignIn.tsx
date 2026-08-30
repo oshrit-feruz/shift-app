@@ -67,13 +67,26 @@ export function SignInScreen() {
           className="anim-fade-up"
           style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 10 }}
         >
-          <span className="text-muted" style={{ fontSize: 'var(--text-body)', fontWeight: 600, letterSpacing: 0.4 }}>
+          <span
+            className="text-muted"
+            style={{ fontSize: 'var(--text-body)', fontWeight: 600, letterSpacing: 0.4 }}
+          >
             {t('auth.kicker')}
           </span>
-          <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: 'var(--text-display)', lineHeight: 1.2 }}>
+          <h1
+            style={{
+              margin: 0,
+              fontFamily: 'var(--font-heading)',
+              fontSize: 'var(--text-display)',
+              lineHeight: 1.2,
+            }}
+          >
             {t('auth.title')}
           </h1>
-          <p className="text-muted" style={{ margin: '0 0 18px', fontSize: 'var(--text-row)', lineHeight: 1.5 }}>
+          <p
+            className="text-muted"
+            style={{ margin: '0 0 18px', fontSize: 'var(--text-row)', lineHeight: 1.5 }}
+          >
             {t('auth.sub')}
           </p>
 
@@ -121,7 +134,10 @@ export function SignInScreen() {
 
           {/* Why the buttons are dead — shown instead of letting them fail. */}
           {notConfigured && (
-            <span className="text-muted" style={{ fontSize: 'var(--text-caption)', textAlign: 'center', lineHeight: 1.5 }}>
+            <span
+              className="text-muted"
+              style={{ fontSize: 'var(--text-caption)', textAlign: 'center', lineHeight: 1.5 }}
+            >
               {session.status === 'unavailable' && session.reason
                 ? session.reason[language]
                 : t('data.unavailableHelp')}

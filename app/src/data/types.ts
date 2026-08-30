@@ -372,3 +372,78 @@ export const unavailable = <T>(reason?: { en: string; he: string }): Loadable<T>
 
 /** Create a successful state for a Loadable with the given data. */
 export const ok = <T>(data: T): Loadable<T> => ({ status: 'ok', data });
+
+/**
+ * One real brokerage position as /api/snaptrade reports it. Every number is
+ * nullable for the same reason SatelliteSignal's are: this comes from a live
+ * brokerage via SnapTrade, whose coverage of any given field varies by broker,
+ * and an absent number renders as "—" rather than being guessed or zeroed.
+ */
+export interface ConnectedPosition {
+  ticker: string;
+  description: string | null;
+  units: number | null;
+  price: number | null;
+  marketValue: number | null;
+  avgCost: number | null;
+  openPnl: number | null;
+  currency: string | null;
+}
+
+export interface ConnectedBalance {
+  currency: string | null;
+  cash: number | null;
+  buyingPower: number | null;
+}
+
+/**
+ * One real, read-only brokerage account pulled through the founder-demo
+ * SnapTrade Personal integration. The account number arrives already masked —
+ * the full number never leaves the server.
+ */
+export interface ConnectedAccount {
+  id: string;
+  name: string | null;
+  numberMasked: string | null;
+  institution: string | null;
+  currency: string | null;
+  totalValue: number | null;
+  balances: ConnectedBalance[];
+  positions: ConnectedPosition[];
+  /**
+   * When the brokerage data behind these positions was fetched, from
+   * SnapTrade's `data_freshness.as_of`. Null when it did not say — the screen
+   * then shows no freshness claim at all rather than implying "live".
+   */
+  asOf: string | null;
+  /**
+   * Which route answered: the daily cache, or the per-connection real-time
+   * one used when the cache had nothing yet.
+   */
+  source: 'daily' | 'realtime';
+}
+
+/**
+ * One SnapTrade connection, reported so a zero-account answer can say which
+ * state it is in. A live connection whose brokerage reports no accounts and
+ * no connection at all are different facts; both used to render identically.
+ */
+export interface ConnectedConnection {
+  id: string;
+  brokerage: string | null;
+  disabled: boolean | null;
+  type: string | null;
+  dataFreshnessMode: string | null;
+  accountCount: number;
+}
+
+/**
+ * What /api/snaptrade reports: the accounts it could read, plus the
+ * connections behind them. `connections` is only populated when the accounts
+ * list came back empty and the real-time route was walked — it is what the
+ * screen uses to tell "nothing connected" from "connected, reporting nothing".
+ */
+export interface ConnectedAccountsResult {
+  accounts: ConnectedAccount[];
+  connections: ConnectedConnection[];
+}

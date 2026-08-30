@@ -6,6 +6,7 @@ import { useDemoMode, useSetDemoMode } from '../lib/DemoModeProvider';
 import { useDispatch, type Screen } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
+import { useDemoFlag } from '../data/useDemoFlag';
 import type { StringKey } from '../i18n/strings';
 import type { ScreenProps } from '../App';
 
@@ -19,6 +20,19 @@ const LINKS: Array<{ screen: Screen; icon: IconName; label: StringKey; help: Str
   { screen: 'settings', icon: 'settings', label: 'more.settings', help: 'more.settingsHelp' },
 ];
 
+/**
+ * The founder-demo connected-account screen. Kept out of LINKS because it is
+ * listed only while the Settings switch is on — with the switch off the app
+ * shows no trace of it, which is what makes the before/after comparison a
+ * real comparison.
+ */
+const LIVE_LINK: (typeof LINKS)[number] = {
+  screen: 'snaptrade',
+  icon: 'grid',
+  label: 'more.snaptrade',
+  help: 'more.snaptradeHelp',
+};
+
 export function MoreScreen(_: ScreenProps) {
   const dispatch = useDispatch();
   const { mode, setMode } = useTheme();
@@ -26,6 +40,8 @@ export function MoreScreen(_: ScreenProps) {
   const beg = mode === 'beginner';
   const demo = useDemoMode();
   const setDemo = useSetDemoMode();
+  const live = useDemoFlag('liveAccount');
+  const links = live ? [...LINKS, LIVE_LINK] : LINKS;
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -61,7 +77,9 @@ export function MoreScreen(_: ScreenProps) {
       <Card padding="10px 12px" gap={6}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ flex: 1 }}>
-            <span style={{ display: 'block', fontSize: 'var(--text-row)', fontWeight: 500 }}>{t('more.demoData')}</span>
+            <span style={{ display: 'block', fontSize: 'var(--text-row)', fontWeight: 500 }}>
+              {t('more.demoData')}
+            </span>
           </span>
           <Toggle label={t('more.demoData')} on={demo} onChange={setDemo} />
         </div>
@@ -71,7 +89,7 @@ export function MoreScreen(_: ScreenProps) {
       </Card>
 
       <Card padding="6px 0" gap={0}>
-        {LINKS.map((r) => (
+        {links.map((r) => (
           <button
             key={r.screen}
             type="button"
@@ -107,7 +125,9 @@ export function MoreScreen(_: ScreenProps) {
               <Icon name={r.icon} size={19} strokeWidth={1.7} />
             </span>
             <span style={{ flex: 1 }}>
-              <span style={{ display: 'block', fontSize: 'var(--text-row)', fontWeight: 500 }}>{t(r.label)}</span>
+              <span style={{ display: 'block', fontSize: 'var(--text-row)', fontWeight: 500 }}>
+                {t(r.label)}
+              </span>
               <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-body)' }}>
                 {t(r.help)}
               </span>
@@ -164,7 +184,9 @@ function ModeCard({
           {badge}
         </Tag>
       </span>
-      <span style={{ display: 'block', fontSize: 'var(--text-body)', opacity: 0.78, marginTop: 3 }}>{blurb}</span>
+      <span style={{ display: 'block', fontSize: 'var(--text-body)', opacity: 0.78, marginTop: 3 }}>
+        {blurb}
+      </span>
     </button>
   );
 }

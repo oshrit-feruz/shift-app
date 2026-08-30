@@ -90,6 +90,48 @@ describe('fetchYourPositions respects the sample-data switch', () => {
     const res = await fetchYourPositions('AMD', { mine: [buy('NVDA', 3, 100)] }, [manualPf]);
     expect(res).toEqual({ status: 'ok', data: [] });
   });
+
+  it('finds a SHORT position rather than treating it as no position', async () => {
+    // The lookup used to require `shares > 0`, so a short — a real holding
+    // with a negative share count — was invisible on its own stock page. The
+    // first live brokerage account read held 77 ALB short.
+    const portfoliosSpy = vi.spyOn(demoService, 'portfolios').mockResolvedValue({
+      status: 'ok',
+      data: [
+        {
+          id: 'ibkr',
+          kind: 'linked',
+          name: 'Interactive Brokers',
+          broker: 'Interactive Brokers',
+          logo: null,
+          acct: '••6048',
+          syncedAgo: null,
+          total: 22064.94,
+          dayPct: null,
+          allTimePct: null,
+        } as PortfolioSummary,
+      ],
+    });
+    const holdingsSpy = vi.spyOn(demoService, 'holdings').mockResolvedValue({
+      status: 'ok',
+      data: [{ ticker: 'ALB', shares: -77, avgCost: 129.53, value: -10454.29, plPct: -4.82 }],
+    });
+    withDemoData(true);
+
+    try {
+      const res = await fetchYourPositions('ALB', {}, []);
+      expect(res.status).toBe('ok');
+      if (res.status !== 'ok') return;
+      expect(res.data).toHaveLength(1);
+      expect(res.data[0].holding.shares).toBe(-77);
+    } finally {
+      // This suite's afterEach only unstubs globals, so a spy left in place
+      // would follow the module into the next test — which is exactly what
+      // it did the first time this was written.
+      portfoliosSpy.mockRestore();
+      holdingsSpy.mockRestore();
+    }
+  });
 });
 
 // The demo Sandbox is gone: it was a hard-coded 'manual' portfolio served the

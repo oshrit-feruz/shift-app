@@ -135,7 +135,8 @@ export function TabBar({
             height: indicator.height + 4,
             borderRadius: 99,
             background: 'var(--fill-selected)',
-            transition: 'left var(--dur-nav) cubic-bezier(.3, 1.05, .4, 1), width var(--dur-nav) cubic-bezier(.3, 1.05, .4, 1)',
+            transition:
+              'left var(--dur-nav) cubic-bezier(.3, 1.05, .4, 1), width var(--dur-nav) cubic-bezier(.3, 1.05, .4, 1)',
             pointerEvents: 'none',
           }}
         />

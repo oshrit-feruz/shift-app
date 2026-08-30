@@ -127,7 +127,11 @@ export function CalendarTab({ watchlist }: { watchlist: string[] }) {
                   >
                     <div
                       className="text-muted"
-                      style={{ fontSize: 'var(--text-micro)', textTransform: 'uppercase', letterSpacing: '.06em' }}
+                      style={{
+                        fontSize: 'var(--text-micro)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '.06em',
+                      }}
                     >
                       {weekdayLabel(d, language)}
                     </div>

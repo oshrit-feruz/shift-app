@@ -69,7 +69,14 @@ export function FirstRunOverlay() {
           >
             Language · שפה
           </div>
-          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-heading)', lineHeight: 1.25, marginTop: 6 }}>
+          <div
+            style={{
+              fontFamily: 'var(--font-heading)',
+              fontSize: 'var(--text-heading)',
+              lineHeight: 1.25,
+              marginTop: 6,
+            }}
+          >
             בחרי שפה · Choose your language
           </div>
         </div>
@@ -95,7 +102,10 @@ export function FirstRunOverlay() {
             }}
           >
             <span style={{ fontSize: 'var(--text-title)', fontWeight: 600 }}>{name}</span>
-            <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-caption)', marginTop: 3 }}>
+            <span
+              className="text-muted"
+              style={{ display: 'block', fontSize: 'var(--text-caption)', marginTop: 3 }}
+            >
               {sub}
             </span>
           </button>
@@ -155,7 +165,9 @@ export function FirstRunOverlay() {
               {badge}
             </Tag>
           </span>
-          <span style={{ display: 'block', fontSize: 'var(--text-body)', opacity: 0.78, marginTop: 5 }}>{blurb}</span>
+          <span style={{ display: 'block', fontSize: 'var(--text-body)', opacity: 0.78, marginTop: 5 }}>
+            {blurb}
+          </span>
           {/* density sketch */}
           <svg viewBox="0 0 260 44" style={{ width: '100%', height: 40, marginTop: 9 }} aria-hidden="true">
             {Array.from({ length: dense ? 9 : 4 }, (_, i) => (

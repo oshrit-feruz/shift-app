@@ -51,7 +51,15 @@ export function DesignSystemPage() {
           >
             The tokens and parts behind Shift
           </h1>
-          <p style={{ margin: 0, maxWidth: '60ch', fontSize: 'var(--text-title)', lineHeight: 1.6, color: 'var(--muted)' }}>
+          <p
+            style={{
+              margin: 0,
+              maxWidth: '60ch',
+              fontSize: 'var(--text-title)',
+              lineHeight: 1.6,
+              color: 'var(--muted)',
+            }}
+          >
             Every value here is read live from tokens.css and rendered with the shipping component library —
             the same code the app itself composes from. Dark is the default surface; light mode swaps the ramp
             but keeps cards dark on purpose, so contrast against the page stays high in both.
@@ -143,8 +151,8 @@ export function DesignSystemPage() {
             ))}
           </div>
           <Note>
-            800 backs icon tiles and pills. 300 carries interactive text. --fill-selected is the accent at
-            14% alpha for selected/active fills; --tile-ground is the same faint violet for a monogram tile's
+            800 backs icon tiles and pills. 300 carries interactive text. --fill-selected is the accent at 14%
+            alpha for selected/active fills; --tile-ground is the same faint violet for a monogram tile's
             ground, next to real logo tiles' white.
           </Note>
           <SubTitle>Signal — up / down</SubTitle>
@@ -196,7 +204,10 @@ export function DesignSystemPage() {
               ],
               [
                 '22 / 1.2 / −.01em',
-                <span key="b" style={{ fontSize: 'var(--text-heading)', lineHeight: 1.2, letterSpacing: '-.01em' }}>
+                <span
+                  key="b"
+                  style={{ fontSize: 'var(--text-heading)', lineHeight: 1.2, letterSpacing: '-.01em' }}
+                >
                   Watchlist
                 </span>,
                 'Screen title',
@@ -244,7 +255,10 @@ export function DesignSystemPage() {
               ],
               [
                 '12 / 500',
-                <span key="f" style={{ fontSize: 'var(--text-caption)', fontWeight: 500, color: 'var(--muted-2)' }}>
+                <span
+                  key="f"
+                  style={{ fontSize: 'var(--text-caption)', fontWeight: 500, color: 'var(--muted-2)' }}
+                >
                   NASDAQ · Delayed 15m
                 </span>,
                 'Meta, tags',
@@ -273,7 +287,9 @@ export function DesignSystemPage() {
                 {spec}
               </span>
               {sample}
-              <span style={{ fontSize: 'var(--text-body)', color: 'var(--muted-2)', marginLeft: 'auto' }}>{label}</span>
+              <span style={{ fontSize: 'var(--text-body)', color: 'var(--muted-2)', marginLeft: 'auto' }}>
+                {label}
+              </span>
             </div>
           ))}
           <Note>
@@ -333,7 +349,11 @@ export function DesignSystemPage() {
                       }}
                     />
                     <span
-                      style={{ fontSize: 'var(--text-caption)', color: 'var(--muted-2)', fontFamily: 'ui-monospace, monospace' }}
+                      style={{
+                        fontSize: 'var(--text-caption)',
+                        color: 'var(--muted-2)',
+                        fontFamily: 'ui-monospace, monospace',
+                      }}
                     >
                       {label}
                     </span>
@@ -538,7 +558,14 @@ export function DesignSystemPage() {
                 </span>
                 <span style={{ flex: 1 }}>
                   <span style={{ display: 'block', fontSize: 'var(--text-body)' }}>Start here</span>
-                  <span style={{ display: 'block', fontSize: 'var(--text-caption)', color: 'var(--muted-2)', marginTop: 2 }}>
+                  <span
+                    style={{
+                      display: 'block',
+                      fontSize: 'var(--text-caption)',
+                      color: 'var(--muted-2)',
+                      marginTop: 2,
+                    }}
+                  >
                     Five short lessons · 2 of 5
                   </span>
                 </span>
@@ -633,7 +660,9 @@ function Section({
 }
 
 function SubTitle({ children }: { children: React.ReactNode }) {
-  return <div style={{ fontSize: 'var(--text-title)', fontWeight: 600, color: 'var(--muted)' }}>{children}</div>;
+  return (
+    <div style={{ fontSize: 'var(--text-title)', fontWeight: 600, color: 'var(--muted)' }}>{children}</div>
+  );
 }
 
 function Kicker({ children }: { children: React.ReactNode }) {
@@ -654,7 +683,15 @@ function Kicker({ children }: { children: React.ReactNode }) {
 
 function Note({ children }: { children: React.ReactNode }) {
   return (
-    <p style={{ margin: 0, fontSize: 'var(--text-body)', lineHeight: 1.6, color: 'var(--muted-2)', maxWidth: '70ch' }}>
+    <p
+      style={{
+        margin: 0,
+        fontSize: 'var(--text-body)',
+        lineHeight: 1.6,
+        color: 'var(--muted-2)',
+        maxWidth: '70ch',
+      }}
+    >
       {children}
     </p>
   );
@@ -674,7 +711,13 @@ function Swatch({ varName, hexNote }: { varName: string; hexNote: string }) {
         }}
       >
         <span style={{ fontSize: 'var(--text-body)', fontWeight: 600, color: '#fff' }}>{varName}</span>
-        <span style={{ fontSize: 'var(--text-caption)', color: 'var(--muted-2)', fontFamily: 'ui-monospace, monospace' }}>
+        <span
+          style={{
+            fontSize: 'var(--text-caption)',
+            color: 'var(--muted-2)',
+            fontFamily: 'ui-monospace, monospace',
+          }}
+        >
           {hexNote}
         </span>
       </div>
@@ -695,7 +738,9 @@ function Rule({ title, children }: { title: string; children: React.ReactNode })
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
       <span style={{ fontSize: 'var(--text-title)', fontWeight: 600 }}>{title}</span>
-      <p style={{ margin: 0, fontSize: 'var(--text-row)', lineHeight: 1.6, color: 'var(--muted)' }}>{children}</p>
+      <p style={{ margin: 0, fontSize: 'var(--text-row)', lineHeight: 1.6, color: 'var(--muted)' }}>
+        {children}
+      </p>
     </div>
   );
 }

@@ -27,6 +27,8 @@ export const STRINGS = {
   'title.pf': p('Portfolios', 'תיקים'),
   // Count-free: with sample data off there may be no accounts at all, and a
   // header that names a number the screen does not show is its own small lie.
+  // This also retires the live-account variant this branch used to carry —
+  // main solved the same false-count problem for every case at once.
   'kicker.pf': p('Your accounts', 'החשבונות שלך'),
   'title.watch': p('Watchlist', 'ווטצ׳ליסט'),
   'kicker.watch': p('Alerts', 'התראות'),
@@ -886,6 +888,88 @@ export const STRINGS = {
   'set.deleteCancel': p('Cancel', 'ביטול'),
   'set.deleting': p('Deleting…', 'מוחק…'),
   'set.deleteFailedTitle': p('The account was not deleted', 'החשבון לא נמחק'),
+  // ── Connected account (founder demo, SnapTrade Personal) ──────────────
+  // A demo-only, single-account, read-only integration. Every string here is
+  // written to make that scope unmistakable — nothing may read as a feature
+  // an end user can use today.
+  'title.snaptrade': p('Connected account', 'חשבון מקושר'),
+  'kicker.snaptrade': p('Demo · read-only', 'הדגמה · קריאה בלבד'),
+  'live.title': p('Connected account (demo)', 'חשבון מקושר (הדגמה)'),
+  'live.badge': p('Real data', 'נתונים אמיתיים'),
+  'live.intro': p(
+    "One real brokerage account, read live and read-only through SnapTrade. This is a founder demo on SnapTrade's free Personal tier — a single account, not account linking for users.",
+    'חשבון ברוקר אמיתי אחד, נקרא בזמן אמת ובקריאה בלבד דרך SnapTrade. זו הדגמה של המייסדת בשכבת Personal החינמית של SnapTrade — חשבון בודד, לא חיבור חשבונות למשתמשות.',
+  ),
+  'live.notForUsers': p(
+    "Not available to users. Multi-user account linking would need SnapTrade's Commercial tier with KYC and billing — a separate decision that has not been made.",
+    'לא זמין למשתמשות. חיבור חשבונות לריבוי משתמשות ידרוש את שכבת Commercial של SnapTrade עם KYC וחיוב — החלטה נפרדת שטרם התקבלה.',
+  ),
+  'live.readOnly': p(
+    'Read-only: balances and positions only. No trading endpoint is ever called.',
+    'קריאה בלבד: יתרות ופוזיציות בלבד. לא מתבצעת שום קריאה לממשק מסחר.',
+  ),
+  'live.none': p('No brokerage account connected yet.', 'עדיין לא מקושר חשבון ברוקר.'),
+  'live.noneHelp': p(
+    "Connect one in SnapTrade's own Connection Portal and it will appear here. Nothing is shown until a real account is linked.",
+    'אפשר לקשר חשבון בפורטל החיבורים של SnapTrade והוא יופיע כאן. עד שיקושר חשבון אמיתי לא יוצג דבר.',
+  ),
+  'live.balances': p('Balances', 'יתרות'),
+  'live.positions': p('Positions', 'פוזיציות'),
+  'live.noPositions': p('This account holds no positions.', 'בחשבון הזה אין פוזיציות.'),
+  'live.cash': p('Cash', 'מזומן'),
+  'live.buyingPower': p('Buying power', 'כוח קנייה'),
+  'live.total': p('Total value', 'שווי כולל'),
+  'live.units': p('Units', 'יחידות'),
+  'live.price': p('Price', 'מחיר'),
+  'live.value': p('Value', 'שווי'),
+  'live.avgCost': p('Avg cost', 'עלות ממוצעת'),
+  'live.openPnl': p('Open P&L', 'רווח/הפסד פתוח'),
+  'live.unknownFields': p(
+    'A dash means the brokerage did not report that field. Nothing here is estimated or filled in.',
+    'מקף פירושו שהברוקר לא דיווח על השדה הזה. שום נתון כאן אינו משוער או מושלם מעצמנו.',
+  ),
+  'live.noHistory': p(
+    "No performance history: this is a live read of the account's current state, and the brokerage reports no day change or priced history through this integration.",
+    'אין היסטוריית ביצועים: זו קריאה חיה של מצב החשבון כרגע, והברוקר אינו מדווח שינוי יומי או היסטוריה מתומחרת דרך החיבור הזה.',
+  ),
+  'live.shortExcluded': p(
+    'Short positions are left out of the ring: a negative holding has no share of a total. Not shown here: {tickers}.',
+    'פוזיציות שורט אינן נכללות בטבעת: להחזקה שלילית אין נתח מתוך סך הכול. לא מוצגות כאן: {tickers}.',
+  ),
+  'live.noAllocation': p(
+    'The brokerage did not price these positions, so no allocation can be shown.',
+    'הברוקר לא תמחר את הפוזיציות, ולכן לא ניתן להציג פילוח.',
+  ),
+  'live.setting': p('Demo: real connected account', 'הדגמה: חשבון מקושר אמיתי'),
+  'live.settingHelp': p(
+    'Off shows the app exactly as it is today, with demo accounts. On replaces them with the one real brokerage account read through SnapTrade. Founder demo only.',
+    'כבוי מציג את האפליקציה בדיוק כפי שהיא היום, עם חשבונות הדגמה. דלוק מחליף אותם בחשבון הברוקר האמיתי היחיד שנקרא דרך SnapTrade. להדגמת המייסדת בלבד.',
+  ),
+  'live.freshRealtime': p('Read from the brokerage just now', 'נקרא מהברוקר ממש עכשיו'),
+  'live.freshDaily': p("SnapTrade's daily snapshot", 'תמונת המצב היומית של SnapTrade'),
+  'live.asOf': p('Brokerage data fetched {when}', 'נתוני הברוקר נקראו {when}'),
+  'live.connectedNoAccounts': p(
+    'Connected to {broker}, but the brokerage is reporting no accounts.',
+    'מקושר ל-{broker}, אך הברוקר אינו מדווח על אף חשבון.',
+  ),
+  'live.connectedNoAccountsHelp': p(
+    'The connection is live, so this is what SnapTrade currently holds for it. Some brokerages — Interactive Brokers among them — deliver data through a scheduled report feed rather than a live API, and that feed can take a day or two to start after it is first enabled. Check that the reporting service is switched on at the broker.',
+    'החיבור פעיל, ולכן זה מה ש-SnapTrade מחזיקה עבורו כרגע. חלק מהברוקרים — ובהם Interactive Brokers — מעבירים נתונים דרך דוח מתוזמן ולא דרך API חי, והזנת הדוח הזו יכולה להתחיל רק יום-יומיים אחרי שמפעילים אותה לראשונה. כדאי לוודא ששירות הדיווח מופעל אצל הברוקר.',
+  ),
+  'live.connectedNoAccountsDelayed': p(
+    'This connection is served from a cache (delayed), not queried live — so an empty list can mean the cache has not been filled yet rather than that the account is empty. A manual refresh can populate it.',
+    'החיבור הזה מוגש ממטמון (delayed) ולא נשאל בזמן אמת — ולכן רשימה ריקה יכולה להעיד שהמטמון טרם התמלא, ולא שהחשבון ריק. רענון ידני יכול למלא אותו.',
+  ),
+  'live.connDisabledTitle': p('The connection to {broker} is disabled.', 'החיבור ל-{broker} מושבת.'),
+  'live.connDisabledHelp': p(
+    'Nothing from it is shown. A disabled connection keeps returning its last cached figures, and there is no way to tell how old they are — so showing them would be presenting stale holdings as current. Reconnect it in SnapTrade to restore it.',
+    'שום נתון ממנו אינו מוצג. חיבור מושבת ממשיך להחזיר את הנתונים האחרונים שנשמרו במטמון, ואין דרך לדעת בני כמה הם — כך שהצגתם פירושה להציג החזקות ישנות כאילו הן עדכניות. אפשר לחבר מחדש ב-SnapTrade כדי לשחזר אותו.',
+  ),
+  'live.connState': p('Connection: {state}', 'החיבור: {state}'),
+  'live.connActive': p('active', 'פעיל'),
+  'live.connDisabled': p('disabled', 'מושבת'),
+  'more.snaptrade': p('Connected account (demo)', 'חשבון מקושר (הדגמה)'),
+  'more.snaptradeHelp': p('One real account, read-only', 'חשבון אמיתי אחד, קריאה בלבד'),
 } as const;
 
 export type StringKey = keyof typeof STRINGS;

@@ -80,7 +80,9 @@ export function DataState<T>({
 /** Honest empty state for ok-but-empty lists (e.g. no open satellite positions). */
 export function EmptyState({ children }: { children: ReactNode }) {
   return (
-    <div style={{ textAlign: 'center', padding: '14px 0', color: 'var(--muted)', fontSize: 'var(--text-row)' }}>
+    <div
+      style={{ textAlign: 'center', padding: '14px 0', color: 'var(--muted)', fontSize: 'var(--text-row)' }}
+    >
       {children}
     </div>
   );

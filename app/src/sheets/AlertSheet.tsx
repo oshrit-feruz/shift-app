@@ -161,7 +161,9 @@ export function AlertSheet({
                 {a.help}
               </span>
             </span>
-            <span style={{ color: 'var(--color-accent)', fontSize: 'var(--text-row)' }}>{kind === a.k ? '✓' : ''}</span>
+            <span style={{ color: 'var(--color-accent)', fontSize: 'var(--text-row)' }}>
+              {kind === a.k ? '✓' : ''}
+            </span>
           </button>
         ))}
       </div>

@@ -137,7 +137,10 @@ export function RowValues({ main, sub, subColor }: { main: ReactNode; sub?: Reac
         {main}
       </span>
       {sub != null && (
-        <span data-num="" style={{ display: 'block', fontSize: 'var(--text-caption)', fontWeight: 600, color: subColor }}>
+        <span
+          data-num=""
+          style={{ display: 'block', fontSize: 'var(--text-caption)', fontWeight: 600, color: subColor }}
+        >
           {sub}
         </span>
       )}

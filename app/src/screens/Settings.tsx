@@ -11,6 +11,7 @@ import { DeleteAccountSheet } from '../sheets/DeleteAccountSheet';
 import { useTheme, type Signal, type Theme, type Language } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { DEMO_FLAGS } from '../data/demoFlags';
+import { resetConnectedAccountCache } from '../data/appService';
 import { useState } from 'react';
 import type { ScreenProps } from '../App';
 
@@ -26,7 +27,13 @@ export function SettingsScreen(_: ScreenProps) {
   const { profile } = useProfile();
   const user = session.status === 'ok' ? session.data?.user : undefined;
   const provider = user?.app_metadata?.provider;
-  const [flags, setFlags] = useState({ unavailable: DEMO_FLAGS.unavailable });
+  // `showcase` is gone from main — it became the `demoData` switch, which
+  // DemoModeProvider owns. Only the two flags this screen still writes
+  // directly are mirrored here.
+  const [flags, setFlags] = useState({
+    unavailable: DEMO_FLAGS.unavailable,
+    liveAccount: DEMO_FLAGS.liveAccount,
+  });
   const [notif, setNotif] = useState({ push: true, email: true, sms: false, digest: true, movers: false });
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -89,7 +96,12 @@ export function SettingsScreen(_: ScreenProps) {
               {(provider === 'google' || provider === 'apple') && (
                 <span
                   className="text-muted"
-                  style={{ fontSize: 'var(--text-caption)', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                  style={{
+                    fontSize: 'var(--text-caption)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                  }}
                 >
                   {provider === 'google' ? (
                     <img src="/assets/logo-google.svg" alt="" width={12} height={12} />
@@ -292,6 +304,28 @@ export function SettingsScreen(_: ScreenProps) {
             setFlags({ ...flags, unavailable: v });
           }}
         />
+        {/* Founder demo only. Off is the app exactly as it is today; on
+            swaps the demo accounts for the one real brokerage account read
+            through SnapTrade Personal, so the two can be shown side by side.
+            The cache reset makes the flip immediate rather than serving the
+            previous source's answer for the next few seconds. */}
+        <DemoFlagRow
+          label={t('live.setting')}
+          help={t('live.settingHelp')}
+          on={flags.liveAccount}
+          onChange={(v) => {
+            resetConnectedAccountCache();
+            DEMO_FLAGS.set('liveAccount', v);
+            setFlags({ ...flags, liveAccount: v });
+          }}
+        />
+        {flags.liveAccount && (
+          <SettingsLink
+            accent
+            label={t('more.snaptrade')}
+            onClick={() => dispatch({ type: 'go', screen: 'snaptrade' })}
+          />
+        )}
       </Card>
 
       {/* Setup */}
@@ -357,7 +391,13 @@ function SettingsLink({
         textAlign: 'start',
       }}
     >
-      <span style={{ flex: 1, fontSize: 'var(--text-row)', color: accent ? 'var(--color-accent-200)' : undefined }}>
+      <span
+        style={{
+          flex: 1,
+          fontSize: 'var(--text-row)',
+          color: accent ? 'var(--color-accent-200)' : undefined,
+        }}
+      >
         {label}
       </span>
       {meta != null && (

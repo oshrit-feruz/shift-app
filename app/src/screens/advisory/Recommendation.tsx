@@ -66,7 +66,9 @@ export function AdvisoryRecommendation(_: ScreenProps) {
             </Button>
           </span>
         </div>
-        <p style={{ fontSize: 'var(--text-body)', lineHeight: 1.55, margin: 0, opacity: 0.85 }}>{t('rec.coreSatIntro')}</p>
+        <p style={{ fontSize: 'var(--text-body)', lineHeight: 1.55, margin: 0, opacity: 0.85 }}>
+          {t('rec.coreSatIntro')}
+        </p>
       </Card>
 
       {/* Core — specific fund per category, not just a percentage. Fund names
@@ -135,7 +137,10 @@ export function AdvisoryRecommendation(_: ScreenProps) {
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
             {SAT_RULES.map((k) => (
-              <div key={k} style={{ display: 'flex', gap: 8, fontSize: 'var(--text-caption)', lineHeight: 1.45 }}>
+              <div
+                key={k}
+                style={{ display: 'flex', gap: 8, fontSize: 'var(--text-caption)', lineHeight: 1.45 }}
+              >
                 <span style={{ color: 'var(--color-accent-200)', flex: 'none' }}>·</span>
                 <span className="text-muted" style={{ flex: 1 }}>
                   {t(k)}

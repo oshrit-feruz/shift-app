@@ -133,11 +133,18 @@ export async function fetchUpstreamJson(
   fetchImpl: typeof fetch = fetch,
   /** 'text' for a provider that answers CSV; the body then comes back as a string. */
   as: 'json' | 'text' = 'json',
+  /**
+   * Extra request headers, for a provider that authenticates with one rather
+   * than with a query parameter — SnapTrade signs each request and sends the
+   * signature in a `Signature` header. Optional so the two query-authenticated
+   * routes are unaffected.
+   */
+  headers?: Record<string, string>,
 ): Promise<UpstreamResult> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetchImpl(url, { signal: controller.signal });
+    const res = await fetchImpl(url, { signal: controller.signal, ...(headers ? { headers } : {}) });
     if (!res.ok) {
       console.error(`${route}: upstream returned ${res.status}`);
       return { ok: false, failure: classifyUpstreamStatus(res.status, provider) };

@@ -189,7 +189,10 @@ function QuarterRow({
           </Num>
         )}
       </div>
-      <div className="text-muted" style={{ fontSize: 'var(--text-caption)', marginTop: 2, display: 'flex', gap: 6 }}>
+      <div
+        className="text-muted"
+        style={{ fontSize: 'var(--text-caption)', marginTop: 2, display: 'flex', gap: 6 }}
+      >
         <Num>{reported ? row.actual!.toFixed(2) : '—'}</Num>
         <span>·</span>
         <span>

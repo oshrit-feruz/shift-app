@@ -42,11 +42,24 @@ export function ArticleSheet({ item, onClose }: { item: NewsItem | null; onClose
             </Num>
           </span>
           <span
-            style={{ display: 'block', fontFamily: 'var(--font-heading)', fontSize: 'var(--text-title)', lineHeight: 1.3 }}
+            style={{
+              display: 'block',
+              fontFamily: 'var(--font-heading)',
+              fontSize: 'var(--text-title)',
+              lineHeight: 1.3,
+            }}
           >
             {item.headline}
           </span>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 'var(--text-row)', lineHeight: 1.55 }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+              fontSize: 'var(--text-row)',
+              lineHeight: 1.55,
+            }}
+          >
             {item.body.split('\n\n').map((para, i) => (
               <p key={i} style={{ margin: 0, whiteSpace: 'pre-line' }}>
                 {para}

@@ -143,8 +143,12 @@ export function LearnScreen(_: ScreenProps) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
           {GLOSSARY[language].map(([k, v]) => (
             <div key={k} style={{ display: 'flex', gap: 11, alignItems: 'baseline' }}>
-              <span style={{ width: 82, flex: 'none', fontSize: 'var(--text-row)', fontWeight: 600 }}>{k}</span>
-              <span style={{ flex: 1, fontSize: 'var(--text-body)', opacity: 0.82, lineHeight: 1.45 }}>{v}</span>
+              <span style={{ width: 82, flex: 'none', fontSize: 'var(--text-row)', fontWeight: 600 }}>
+                {k}
+              </span>
+              <span style={{ flex: 1, fontSize: 'var(--text-body)', opacity: 0.82, lineHeight: 1.45 }}>
+                {v}
+              </span>
             </div>
           ))}
         </div>
@@ -153,9 +157,7 @@ export function LearnScreen(_: ScreenProps) {
       )}
 
       <div>
-        <div
-          style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-heading)', lineHeight: 1.25 }}
-        >
+        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-heading)', lineHeight: 1.25 }}>
           {page.title[language]}
         </div>
         <p style={{ fontSize: 'var(--text-row)', lineHeight: 1.55, margin: '9px 0 0', opacity: 0.85 }}>

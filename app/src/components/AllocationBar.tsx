@@ -34,7 +34,9 @@ export function AllocationBar({
       </div>
       {(fund != null || action != null) && (
         <span style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
-          {fund != null && <span style={{ flex: 1, fontSize: 'var(--text-caption)', color: 'var(--muted)' }}>{fund}</span>}
+          {fund != null && (
+            <span style={{ flex: 1, fontSize: 'var(--text-caption)', color: 'var(--muted)' }}>{fund}</span>
+          )}
           {action}
         </span>
       )}

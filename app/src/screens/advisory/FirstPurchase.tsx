@@ -44,7 +44,9 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
             {t('adv.noAction')}
           </Tag>
         </div>
-        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-heading)' }}>{t('buy.title')}</div>
+        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-heading)' }}>
+          {t('buy.title')}
+        </div>
         <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0, lineHeight: 1.5 }}>
           {t('buy.help')}
         </p>

@@ -21,6 +21,8 @@ import { useT } from '../i18n/useT';
 import { useToast } from '../components/Toast';
 import { useLedger } from '../state/useLedgerSync';
 import { demoService } from '../data/demoAdapter';
+import { appService } from '../data/appService';
+import { useDemoFlag } from '../data/useDemoFlag';
 import { loading, ok, unavailable, type Holding, type Loadable } from '../data/types';
 import { useLoadable } from '../data/useLoadable';
 import { isoDate, money, moneyOrDash, pctOrDash, signalColor } from '../lib/format';
@@ -46,7 +48,12 @@ export function PortfolioScreen(_: ScreenProps) {
   // In the deps so flipping the switch re-reads, and gating the fetch itself:
   // every account this screen used to list was a demo account.
   const demo = useDemoMode();
-  const portfolios = useLoadable(() => demoService.portfolios(), [demo]);
+  // A real connected account outranks the sample-data switch — it is not
+  // sample data. appService routes to SnapTrade when the flag is on and to
+  // the demo adapter when it is off; both flags sit in the deps so either
+  // flip re-reads.
+  const live = useDemoFlag('liveAccount');
+  const portfolios = useLoadable(() => appService.portfolios(), [demo, live]);
   const [txOpen, setTxOpen] = useState(false);
   const ledger = useLedger();
   const toast = useToast();
@@ -128,10 +135,13 @@ export function PortfolioScreen(_: ScreenProps) {
           const linked = list.filter((x) => x.kind === 'linked');
           const inAgg = linked.filter((x) => !s.aggExcluded[x.id]);
           const aggTotal = sumTotals(inAgg);
-          const series = demo
-            ? demoService.series(`pf-${pf.id}`, 70, (pf.dayPct ?? 0) >= 0 ? 0.5 : 0.16, 2.4)
-            : [];
-          const bench = demo ? demoService.series('bench-spy', 70, 0.22, 1.4) : [];
+          // No seeded walk over a real account: invented performance under a
+          // real total is the one thing this app's data contract forbids.
+          const series =
+            demo && !live
+              ? demoService.series(`pf-${pf.id}`, 70, (pf.dayPct ?? 0) >= 0 ? 0.5 : 0.16, 2.4)
+              : [];
+          const bench = demo && !live ? demoService.series('bench-spy', 70, 0.22, 1.4) : [];
           const holdings = <Holdings pfId={pf.id} />;
 
           return (
@@ -337,7 +347,14 @@ export function PortfolioScreen(_: ScreenProps) {
                     </span>
                   </div>
                 )}
-                {demo ? (
+                {live ? (
+                  <p
+                    className="text-muted"
+                    style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}
+                  >
+                    {t('live.noHistory')}
+                  </p>
+                ) : demo ? (
                   <>
                     <AreaChart values={series} height={110} pad={8} benchmark={bench} />
                     <div
@@ -358,7 +375,15 @@ export function PortfolioScreen(_: ScreenProps) {
                 )}
               </Card>
 
-              {demo ? (
+              {live ? (
+                <Card padding={14} gap={10}>
+                  <CardTitle>{t('pf.allocation')}</CardTitle>
+                  {/* Computed from the account's actual position values — an
+                      invented allocation over real holdings would misstate the
+                      concentration this card exists to show. */}
+                  <LiveAllocation pfId={pf.id} />
+                </Card>
+              ) : demo ? (
                 <Card padding={14} gap={10}>
                   <CardTitle>{t('pf.allocation')}</CardTitle>
                   <DonutChart
@@ -551,6 +576,54 @@ function ledgerState(
   if (status === 'loading') return loading();
   if (status === 'unavailable') return unavailable(reason ?? undefined);
   return ok(null);
+}
+
+/**
+ * Allocation computed from a real connected account's actual position values.
+ *
+ * Only positions the brokerage priced can be weighted. A SHORT is priced but
+ * has a negative value, and a ring draws shares of a positive total — so it
+ * is excluded and NAMED, because dropping it silently made a two-position
+ * account read as "ORCL 100%".
+ */
+function LiveAllocation({ pfId }: { pfId: string }) {
+  const t = useT();
+  const holdings = useLoadable(() => appService.holdings(pfId), [pfId]);
+
+  return (
+    <DataState
+      state={holdings.state}
+      onRetry={holdings.retry}
+      skeleton={<Skeleton height={132} radius="var(--radius-md)" />}
+    >
+      {(rows) => {
+        // A null value is a position the brokerage did not price; it is not
+        // a zero, and it cannot be given a share of a total either.
+        const shorts = rows.filter((r) => r.value !== null && r.value < 0);
+        const priced = rows.filter((r) => r.value !== null && r.value > 0);
+        const total = priced.reduce((sum, r) => sum + (r.value ?? 0), 0);
+        if (total === 0) return <EmptyState>{t('live.noAllocation')}</EmptyState>;
+        const palette = [...ALLOC_COLORS, 'var(--acc-pale)', 'var(--muted)', 'var(--line)'];
+        const slices = [...priced]
+          .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
+          .slice(0, palette.length)
+          .map((r, i) => ({ label: r.ticker, pct: ((r.value ?? 0) / total) * 100, colorVar: palette[i] }));
+        return (
+          <>
+            <DonutChart slices={slices} />
+            {shorts.length > 0 && (
+              <p
+                className="text-muted"
+                style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}
+              >
+                {t('live.shortExcluded', { tickers: shorts.map((r) => r.ticker).join(', ') })}
+              </p>
+            )}
+          </>
+        );
+      }}
+    </DataState>
+  );
 }
 
 /**

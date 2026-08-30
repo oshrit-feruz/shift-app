@@ -17,6 +17,8 @@ import { useAppState, useDispatch, setupProgress } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { demoService } from '../data/demoAdapter';
+import { appService } from '../data/appService';
+import { useDemoFlag } from '../data/useDemoFlag';
 import { useLoadable } from '../data/useLoadable';
 import { fetchWeekEarnings } from '../data/earnings';
 import { useDemoMode } from '../lib/DemoModeProvider';
@@ -36,10 +38,13 @@ export function HomeScreen({ openSearch }: ScreenProps) {
   const watched = useLoadable(() => demoService.watchRows(s.watchlist), [s.watchlist.join(',')]);
   const setup = setupProgress(s);
   const demo = useDemoMode();
+  const live = useDemoFlag('liveAccount');
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {beg && (demo ? <HeroPortfolio /> : <DemoOnly feature="home.pfToday" />)}
+      {/* A real connected account outranks the sample-data switch: it is
+          not sample data, so the hero shows even with that switch off. */}
+      {beg && (live || demo ? <HeroPortfolio /> : <DemoOnly feature="home.pfToday" />)}
 
       {setup.showBanner && (
         <Card
@@ -394,7 +399,10 @@ function monthLabel(iso: string, language: 'en' | 'he'): string {
 function HeroPortfolio() {
   const dispatch = useDispatch();
   const t = useT();
-  const portfolios = useLoadable(() => demoService.portfolios(), []);
+  // Re-fetched when the founder-demo live-account switch flips, so the
+  // headline follows the same source as the Portfolio tab.
+  const live = useDemoFlag('liveAccount');
+  const portfolios = useLoadable(() => appService.portfolios(), [live]);
   // Deterministic for a given key, so compute the walk once, not per render.
   const pfSeries = useMemo(() => demoService.series('home-pf', 60, 0.42, 2.2), []);
 
@@ -420,7 +428,12 @@ function HeroPortfolio() {
         }
       >
         {(pfs) => {
-          const main = pfs.find((x) => x.id === 'blink');
+          // The first linked account, not a hardcoded id: with the demo
+          // switch off that is still Blink (the demo adapter lists it
+          // first), and with it on it is the real connected account, so the
+          // hero follows whichever source is in effect instead of falling to
+          // the "no portfolio" state.
+          const main = pfs.find((x) => x.kind === 'linked');
           if (!main) {
             return (
               <Card padding={18} gap={8} style={{ textAlign: 'center', alignItems: 'center' }}>
@@ -460,22 +473,37 @@ function HeroPortfolio() {
               >
                 <Num>{moneyOrDash(main.total)}</Num>
               </div>
-              <div
-                style={{
-                  color: signalColor(main.dayPct),
-                  fontSize: 'var(--text-title)',
-                  fontWeight: 600,
-                }}
-              >
-                {/* The change line needs both halves: a day percentage with
-                    no total behind it has no currency figure to put beside
-                    it, and inventing one from a total we do not have is the
-                    thing this app exists not to do. */}
-                <Num weight={600}>{dayChangeLine(main.total, main.dayPct)}</Num>
-              </div>
-              <div style={{ marginTop: 10 }}>
-                <AreaChart values={pfSeries} height={76} />
-              </div>
+              {/* The day change and the chart are the demo adapter's seeded
+                  series. Over a real connected account they would be invented
+                  performance under a real total, so with the live-account
+                  switch on they give way to a statement of what is known. */}
+              {live ? (
+                <p
+                  className="text-muted"
+                  style={{ fontSize: 'var(--text-row)', lineHeight: 1.5, margin: '8px 0 0' }}
+                >
+                  {t('live.noHistory')}
+                </p>
+              ) : (
+                <>
+                  <div
+                    style={{
+                      color: signalColor(main.dayPct),
+                      fontSize: 'var(--text-title)',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {/* The change line needs both halves: a day percentage with
+                        no total behind it has no currency figure to put beside
+                        it, and inventing one from a total we do not have is the
+                        thing this app exists not to do. */}
+                    <Num weight={600}>{dayChangeLine(main.total, main.dayPct)}</Num>
+                  </div>
+                  <div style={{ marginTop: 10 }}>
+                    <AreaChart values={pfSeries} height={76} />
+                  </div>
+                </>
+              )}
               <p
                 style={{
                   fontSize: 'var(--text-row)',

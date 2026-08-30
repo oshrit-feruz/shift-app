@@ -247,7 +247,10 @@ function ArticleCard({
         {article.headline}
       </span>
       {article.summary && (
-        <span dir="auto" style={{ display: 'block', fontSize: 'var(--text-body)', opacity: 0.78, lineHeight: 1.45 }}>
+        <span
+          dir="auto"
+          style={{ display: 'block', fontSize: 'var(--text-body)', opacity: 0.78, lineHeight: 1.45 }}
+        >
           {article.summary}
         </span>
       )}
@@ -260,7 +263,11 @@ function ArticleCard({
           href={article.url}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ fontSize: 'var(--text-caption)', color: 'var(--color-accent-200)', textDecoration: 'none' }}
+          style={{
+            fontSize: 'var(--text-caption)',
+            color: 'var(--color-accent-200)',
+            textDecoration: 'none',
+          }}
         >
           {openLabel} ↗
         </a>
