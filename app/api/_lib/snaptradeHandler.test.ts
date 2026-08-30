@@ -94,6 +94,30 @@ describe('/api/snaptrade handler', () => {
     expect(res._body).toMatchObject({ accounts: [], source: 'daily', connections: [] });
   });
 
+  it('counts accounts per connection from what it returns, on the daily route too', async () => {
+    // The daily route never runs the per-connection fan-out, and counting
+    // that fan-out there produced a response claiming one account and
+    // "this connection reported 0 accounts" at the same time.
+    globalThis.fetch = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
+      const url = String(input);
+      if (url.includes('/authorizations')) return jsonResponse([CONNECTION]);
+      if (url.includes('/positions/all')) return jsonResponse({ results: [] });
+      if (url.includes('/api/v1/accounts?')) return jsonResponse([ACCOUNT]);
+      return jsonResponse([]);
+    }) as unknown as typeof fetch;
+
+    const res = makeRes();
+    await handler({ method: 'GET', query: {} }, res);
+    const body = res._body as {
+      accounts: unknown[];
+      source: string;
+      connections: Array<{ accountCount: number }>;
+    };
+    expect(body.source).toBe('daily');
+    expect(body.accounts).toHaveLength(1);
+    expect(body.connections[0].accountCount).toBe(1);
+  });
+
   it('never serves a disabled connection\'s accounts — SnapTrade keeps returning its last cached state', async () => {
     // The reason this matters: SnapTrade's docs say a disabled connection
     // "can no longer access the latest data from the brokerage, but will

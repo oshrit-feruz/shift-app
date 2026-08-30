@@ -7,6 +7,7 @@ import { useT } from './i18n/useT';
 import type { StringKey } from './i18n/strings';
 import { demoService } from './data/demoAdapter';
 import { useLoadable } from './data/useLoadable';
+import { useDemoFlag } from './data/useDemoFlag';
 import { HomeScreen } from './screens/Home';
 import { StockScreen } from './screens/Stock';
 import { PortfolioScreen } from './screens/Portfolio';
@@ -82,7 +83,13 @@ export function App() {
     symbols.state.status === 'ok' ? symbols.state.data.find((x) => x.ticker === s.ticker) : undefined;
 
   const titleKey = `title.${s.screen}` as StringKey;
-  const kickerKey = `kicker.${s.screen}` as StringKey;
+  // "ארבעה חשבונות" is fixed copy from the prototype. With a real account
+  // connected it states a count that is simply untrue, so the portfolio
+  // kicker changes with the flag — and only with the flag on.
+  const liveAccount = useDemoFlag('liveAccount');
+  const kickerKey = (
+    liveAccount && s.screen === 'pf' ? 'kicker.pfLive' : `kicker.${s.screen}`
+  ) as StringKey;
   const title = s.screen === 'stock' ? (currentSymbol?.name ?? s.ticker) : t(titleKey);
   const kicker = s.screen === 'stock' ? s.ticker : t(kickerKey);
 

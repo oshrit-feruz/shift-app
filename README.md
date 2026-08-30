@@ -446,6 +446,19 @@ switch on they are replaced by a statement of what is known, not redrawn:
 | Portfolio allocation donut | Computed from the account's **real** position values; positions the brokerage did not price are excluded, and if none are priced the card says so |
 | Any unreported field | Renders `—`. `null` is never coerced to `0`, and a total is never summed from partially-priced positions — if the total cannot be determined the account reports `unavailable` with that reason |
 | Open P&L | SnapTrade's position schema carries no such field. It is derived as `units × (price − cost_basis)` from three numbers the brokerage did report, and is `—` the moment any of them is missing — never estimated |
+| Return % | `openPnl / **abs**(units × avgCost)` — see below |
+| Day change on a connected account | `—`, not `+0.00%`. The brokerage reports no day change, and a green zero states a return we do not have |
+| A short position in the allocation ring | Excluded and **named**. A short is a negative holding with no share of a total; dropping it silently made a two-position account read as "ORCL 100%" |
+
+**The short-position sign bug, recorded because only real data found it.** The
+first live payload contained a short: 77 shares of ALB at −$10,454. Every test
+fixture until then had been long. `units` is negative for a short, so
+`units × avgCost` is negative, and the return `openPnl / basis` came out
+**positive** — a position down $480.67 rendered as **+4.82%, in green**. The
+fix is one shared `positionReturnPct()` in `lib/format.ts` taking the
+magnitude of the basis and the sign from the P&L alone; both the portfolio
+list and the connected-account screen call it, so they cannot drift.
+`lib/positionReturn.test.ts` pins it with the real numbers.
 
 **One shape worth knowing about, because getting it wrong is silent.**
 `/accounts/{id}/positions/all` answers an *object* —

@@ -209,7 +209,15 @@ export function PortfolioScreen(_: ScreenProps) {
                           </span>
                         </span>
                         <span style={{ textAlign: 'end', whiteSpace: 'nowrap' }}>
-                          <RowValues main={money(x.total)} sub={pct(x.dayPct)} subColor={signalColor(x.dayPct)} />
+                          {/* dayPct is 0 for a real connected account because
+                              the brokerage reports no day change — rendering
+                              that as a green +0.00% states a return we do not
+                              have. */}
+                          {live ? (
+                            <RowValues main={money(x.total)} sub="—" />
+                          ) : (
+                            <RowValues main={money(x.total)} sub={pct(x.dayPct)} subColor={signalColor(x.dayPct)} />
+                          )}
                         </span>
                       </button>
                     );
@@ -358,6 +366,11 @@ function LiveAllocation({ pfId }: { pfId: string }) {
       skeleton={<Skeleton height={132} radius="var(--radius-md)" />}
     >
       {(rows) => {
+        // A short is a negative holding: it has no share of a total, and a
+        // ring cannot draw one. Excluding it silently is what made a
+        // two-position account read as "ORCL 100%", so the exclusion is
+        // named instead.
+        const shorts = rows.filter((r) => r.value < 0);
         const priced = rows.filter((r) => r.value > 0);
         const total = priced.reduce((sum, r) => sum + r.value, 0);
         if (total === 0) return <EmptyState>{t('live.noAllocation')}</EmptyState>;
@@ -370,7 +383,16 @@ function LiveAllocation({ pfId }: { pfId: string }) {
             pct: (r.value / total) * 100,
             colorVar: palette[i],
           }));
-        return <DonutChart slices={slices} />;
+        return (
+          <>
+            <DonutChart slices={slices} />
+            {shorts.length > 0 && (
+              <p className="text-muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.5 }}>
+                {t('live.shortExcluded', { tickers: shorts.map((r) => r.ticker).join(', ') })}
+              </p>
+            )}
+          </>
+        );
       }}
     </DataState>
   );

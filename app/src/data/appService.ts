@@ -23,6 +23,7 @@
 
 import { demoService, DEMO_FLAGS } from './demoAdapter';
 import { fetchConnectedAccounts } from './snaptradeAccount';
+import { positionReturnPct } from '../lib/format';
 import type { DataService } from './service';
 import {
   ok,
@@ -128,8 +129,9 @@ function toPortfolioSummary(account: ConnectedAccount, total: number): Portfolio
 function toHolding(position: ConnectedAccount['positions'][number]): Holding {
   const units = position.units ?? 0;
   const avgCost = position.avgCost ?? 0;
-  const basis = units * avgCost;
-  const plPct = position.openPnl !== null && basis !== 0 ? (position.openPnl / basis) * 100 : 0;
+  // Shared with the connected-account screen so the two can never disagree
+  // about the same position — and so the short-position sign fix lives once.
+  const plPct = positionReturnPct(position.openPnl, position.units, position.avgCost) ?? 0;
   return {
     ticker: position.ticker,
     shares: units,

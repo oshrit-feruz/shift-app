@@ -9,7 +9,7 @@ import { fetchConnectedAccounts } from '../data/snaptradeAccount';
 import type { ConnectedAccount, ConnectedConnection, ConnectedPosition } from '../data/types';
 import { useT } from '../i18n/useT';
 import { useTheme } from '../theme/ThemeProvider';
-import { money, pct, signalColor } from '../lib/format';
+import { money, pct, positionReturnPct, signalColor } from '../lib/format';
 import type { ScreenProps } from '../App';
 
 /**
@@ -214,13 +214,24 @@ function formatAsOf(iso: string, language: 'en' | 'he'): string {
 function AccountCard({ account }: { account: ConnectedAccount }) {
   const t = useT();
   const { language } = useTheme();
-  const title = [account.institution, account.name].filter(Boolean).join(' · ') || account.id;
+  // The brokerage often prefixes the account name with its own name
+  // ("Interactive Brokers (Oshrit Faruz)"), and joining both produced
+  // "Interactive Brokers · Interactive Brokers (…)", which then overflowed
+  // the card.
+  const name = account.name?.trim() ?? '';
+  const institution = account.institution?.trim() ?? '';
+  const title =
+    (institution && name.toLowerCase().includes(institution.toLowerCase())
+      ? name
+      : [institution, name].filter(Boolean).join(' · ')) || account.id;
 
   return (
     <>
       <Card padding={14} gap={9}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-          <CardTitle>{title}</CardTitle>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
+          <CardTitle>
+            <span style={{ overflowWrap: 'anywhere' }}>{title}</span>
+          </CardTitle>
           {account.numberMasked && (
             <span className="text-muted" style={{ fontSize: 12.5 }}>
               <Num>{account.numberMasked}</Num>
@@ -281,10 +292,9 @@ function AccountCard({ account }: { account: ConnectedAccount }) {
 
 function PositionRow({ position }: { position: ConnectedPosition }) {
   const t = useT();
-  // Derived only from two numbers the brokerage actually reported, and only
-  // when the cost basis is non-zero. Otherwise there is no return to show.
-  const basis = position.units !== null && position.avgCost !== null ? position.units * position.avgCost : null;
-  const plPct = position.openPnl !== null && basis !== null && basis !== 0 ? (position.openPnl / basis) * 100 : null;
+  // Derived only from numbers the brokerage actually reported; null when any
+  // is missing, so an unknown return shows "—" rather than a flat 0%.
+  const plPct = positionReturnPct(position.openPnl, position.units, position.avgCost);
 
   return (
     <ListRow

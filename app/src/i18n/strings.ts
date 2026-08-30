@@ -20,6 +20,9 @@ export const STRINGS = {
   'kicker.home': p('Overview', 'סקירה'),
   'title.pf': p('Portfolios', 'תיקים'),
   'kicker.pf': p('Four accounts', 'ארבעה חשבונות'),
+  // Used in place of the above while the live-account demo is on, where the
+  // fixed count would be a false statement about a real connection.
+  'kicker.pfLive': p('Connected account', 'חשבון מקושר'),
   'title.watch': p('Watchlist', 'ווטצ׳ליסט'),
   'kicker.watch': p('Alerts', 'התראות'),
   'title.movers': p('Market movers', 'מובילי שוק'),
@@ -772,6 +775,10 @@ export const STRINGS = {
   'live.noHistory': p(
     'No performance history: this is a live read of the account\'s current state, and the brokerage reports no day change or priced history through this integration.',
     'אין היסטוריית ביצועים: זו קריאה חיה של מצב החשבון כרגע, והברוקר אינו מדווח שינוי יומי או היסטוריה מתומחרת דרך החיבור הזה.',
+  ),
+  'live.shortExcluded': p(
+    'Short positions are left out: they are a negative holding and have no share of a total. {tickers} not shown here.',
+    'פוזיציות שורט אינן נכללות: הן החזקה שלילית ואין להן נתח מתוך סך הכול. {tickers} אינן מוצגות כאן.',
   ),
   'live.noAllocation': p(
     'The brokerage did not price these positions, so no allocation can be shown.',

@@ -92,3 +92,27 @@ export function isoDate(raw: string | null, locale: 'en' | 'he'): string {
     timeZone: 'UTC',
   });
 }
+
+/**
+ * Return on a position as a percentage of the capital committed to it.
+ *
+ * The absolute cost basis is deliberate, and a real short position is why.
+ * A short holds NEGATIVE units, so `units × avgCost` is negative, and
+ * dividing a negative P&L by it flips the sign: a short that is losing money
+ * renders as a gain. The first real brokerage payload this app ever read
+ * contained exactly that — 77 shares of ALB short, down $480.67, which the
+ * naive formula reported as +4.82%.
+ *
+ * Magnitude of the basis, sign from the P&L alone. Null when either input is
+ * missing or the basis is zero, so an unknown return renders as "—" rather
+ * than as a flat 0%.
+ */
+export function positionReturnPct(
+  openPnl: number | null,
+  units: number | null,
+  avgCost: number | null,
+): number | null {
+  if (openPnl === null || units === null || avgCost === null) return null;
+  const basis = Math.abs(units * avgCost);
+  return basis === 0 ? null : (openPnl / basis) * 100;
+}

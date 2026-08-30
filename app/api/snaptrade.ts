@@ -252,21 +252,23 @@ export function createHandler(timeoutMs: number) {
       // The daily cache has nothing. That is expected for a brokerage linked
       // today, so ask the live connections directly before concluding the
       // user has no account.
-      let perConnection: MappedAccount[][] = live.map(() => []);
       if (base.length === 0 && live.length > 0) {
-        const realtime = await realtimeAccounts(live, creds, timeoutMs);
-        base = realtime.accounts;
-        perConnection = realtime.perConnection;
+        base = (await realtimeAccounts(live, creds, timeoutMs)).accounts;
         source = 'realtime';
       }
 
       // Every connection is reported, live or not, with what it returned —
       // so a zero-account answer can name the brokerage and say whether the
       // connection is dead or merely quiet.
-      const connections: ConnectedConnection[] = allConnections.map((c) => {
-        const i = live.findIndex((l) => l.id === c.id);
-        return { ...c, accountCount: i === -1 ? 0 : perConnection[i].length };
-      });
+      //
+      // Counted from the accounts actually being returned, not from the
+      // real-time fan-out: on the daily route that fan-out never runs, and
+      // counting it there produced a response that said "1 account" and
+      // "this connection reported 0 accounts" in the same breath.
+      const connections: ConnectedConnection[] = allConnections.map((c) => ({
+        ...c,
+        accountCount: base.filter((a) => a.connectionId === c.id).length,
+      }));
 
       // Nothing from either route. An honest, explicit empty answer — the demo
       // screen renders "no account connected", never a placeholder holding.
