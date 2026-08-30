@@ -12,7 +12,24 @@ npm install
 npm run dev        # app at http://localhost:5173/  ·  design system at /ds.html
 npm test           # vitest — advisory profile mapping + formatters
 npm run build      # tsc --noEmit + vite build (app + design-system page)
+npm run format     # prettier --write .
+npm run format:check
 ```
+
+**Formatting is Prettier, configured to the style the codebase already had**
+(`.prettierrc`: `singleQuote`, `printWidth: 110`) rather than to Prettier's
+defaults — so adopting it rewrapped long lines without rewriting the whole
+tree to 80 columns and double quotes. Proof that the pass changed nothing that
+ships: the production bundles it produces are byte-identical to the ones from
+before it, down to Vite's content hashes.
+
+Two things are deliberately left out of it (`.prettierignore`): **Markdown**,
+because wrapping prose churns the docs on every edit, and **CSS**, because
+Prettier lowercases hex colours and `tokens.css` carries the palette lifted
+verbatim from the design file, where it is uppercase. A few hand-formatted
+data literals in `demoAdapter.ts` carry `// prettier-ignore`: they are laid out
+one row per record so they read as a table, and Prettier would explode each
+row into a dozen lines and lose the shape of the data.
 
 ## Architecture — one component system
 
@@ -76,7 +93,102 @@ npm run build      # tsc --noEmit + vite build (app + design-system page)
 the `DataService` interface (`service.ts`) carrying the prototype's numbers. A
 real backend drops in by implementing that interface; no UI changes needed.
 
-**One surface carries real engine data:** the Satellite card.
+**Prices are not among them any more.** `SymbolInfo` is split by provenance:
+`quote` (price, 52-week high, drawdown) is real, read from the daily mirror;
+`demo` (day change, volume, market cap, P/E, RSI) is still the prototype's.
+The split is the point — a call site writes `x.demo.changePct`, which says
+what the number is at the moment it is rendered, where a flat `x.changePct`
+sitting next to a real price would not. There is no price literal left
+outside `demo`, so a failed mirror read has nothing to fall back to: `quote`
+is null and every price on screen renders `—` through `moneyOrDash`. The
+prototype price survives only as the basis for the still-demo figures derived
+from it (the stock page's OHLC strip, after-hours line and dollar day-change)
+and for valuing the demo portfolio, and never as *the* price.
+
+Day change is the notable absence from `quote`: **the ranking has no
+day-change field**, so it cannot be made real from this source and is not
+borrowed from anywhere either. It stays demo until an intraday quote source
+exists — which is why the standing on-screen note now names both halves
+("prices are real … day change, volume, charts and portfolio figures are
+still sample data") instead of calling the whole screen sample data, which
+would have been the same failure in the other direction.
+
+**Where the prices come from, and why it cost nothing.** The mirrored ranking
+already carries `price` and `high_52w` for ~100 names and is refreshed daily
+by the job that feeds the Satellite card. `fetchQuotes()` reads that same
+snapshot through the same `readMirror` helper, so real prices arrived with no
+new API key, no new quota, no browser-visible network call beyond the one the
+app already made — which is why prices went real before anything else on the
+list did. A ticker the ranking does not cover is simply absent from the map
+and renders `—`; that is deliberately indistinguishable on screen from an
+unreadable snapshot, because in both cases the app genuinely does not know
+the price. The freshness gate is shared too: a snapshot too old for the
+Satellite card is too old to price a watchlist with.
+
+**The charts are real too, from a second mirror.** Everything the stock
+page's chart and the movers' sparklines draw is a published trading session:
+`app/src/data/priceHistory.ts` reads `app/public/data/series/<TICKER>.json`,
+written daily by `.github/workflows/mirror-prices.yml` via
+`scripts/mirror-prices.mjs`. What that replaced was a seeded pseudo-random
+walk — and not only the line. The candle bodies were derived from the close
+series (open was *yesterday's* close, the wicks a fixed ±1.6), the volume pane
+was `8 + ((i * 37) % 26)`, a sawtooth that repeated every 26 candles for every
+stock in the app, and "RSI" was `50 + (close - ma12) * 3.6`, which is not RSI
+by any definition: unbounded, with no notion of gains against losses, and
+scaled by the stock's own price, so the 30 and 70 lines drawn across its pane
+were decoration. MA, RSI(14) and MACD(12,26,9) are now the actual indicators
+on the actual closes, and they start where their window fills rather than
+averaging whatever happens to sit at the left edge under a label claiming
+fifty sessions.
+
+**Why a separate mirror, and why a script.** Alpha Vantage's free key allows
+tens of requests a day and must stay server-side, so the browser can never
+call it — one visitor walking a few stock pages would spend the day's
+allowance for everyone. Daily bars also change once a day by definition. The
+screener mirror answers the same problem with a dozen `jq` assertions in YAML,
+which is as far as that approach stretches; this job has to map a nested
+payload into a sorted series, tolerate a symbol the provider does not cover
+while *stopping* on a spent quota, and leave the previous good file untouched
+in both cases. That is program logic, so it lives in a script with tests
+(`app/src/data/mirrorPrices.test.ts`) that assert what the publisher writes is
+what the reader accepts, rather than in a workflow runner.
+
+Its publishing contract, and the honest states that follow from it:
+
+| Mirror content | App shows |
+| --- | --- |
+| a fresh file for the ticker | the real sessions, and the key-stats rows a bar can answer |
+| no file for the ticker | "no price history is published for this symbol yet" — a fact, not a failure, and not a retry prompt |
+| a file whose newest session is over `MAX_SERIES_AGE_DAYS` old | "unavailable" with the age, never the stale sessions |
+| unreadable, or any row in it unreadable | "unavailable" — the whole file, because a chart is read as a whole and a series with sessions silently dropped is a picture of price action that never happened |
+
+`MAX_SERIES_AGE_DAYS` is 7 where the screener's gate is 4, deliberately.
+`as_of` is the last *trading* session, so a Friday close read on the Tuesday
+after a Monday holiday is already four days old with nothing wrong. The
+asymmetry is also about what the number is for: a stale "last price" is
+presented as today's and misleads directly, while a year of real sessions
+missing its last few is still an honest year of history.
+
+**What this deliberately does not cover: 1D.** The timeframe row offers 1W,
+1M, 3M and 1Y and no 1D, because a daily series is one point per session — a
+day is a single dot, and a 1D tab could only be filled by inventing the
+intraday path. That needs an intraday feed, not a narrower slice of this one.
+`MDA` is the standing example of the other gap: it trades in Toronto, the
+provider has no US tape for it, and the publisher skips it rather than failing
+the other nine tickers' refresh.
+
+**One inconsistency worth knowing about.** The headline price comes from the
+screener mirror and the chart's last close from this one, so on a given day
+they can be a session apart. Both are real, and the OHLC strip is stamped with
+the session it describes for exactly that reason. What is no longer possible
+is the key-stats grid disagreeing with the chart above it: Open, Prev close,
+Day range, Volume, Avg vol and RSI(14) are read from the same bars the chart
+draws. They used to be `price - 1.9`, `price * 0.99`, `price - 3.1` to
+`price + 2.4` and a frozen `162.4M` that was the same figure for every stock,
+which put an "Open 231.85" directly beneath a chart strip reading "O 232.80"
+for the same session.
+
+**Two surfaces carry real engine data.** The second is the Satellite card:
 `satelliteSignals()` delegates to `app/src/data/recoveryDetector.ts`, which
 reads the Recovery Detector screener's BUY signals. Field names are mapped
 defensively (`ticker|symbol`, `price|current_price|last`, `drawdown_pct|
@@ -154,6 +266,44 @@ for the same reason. Second, an invalid or missing ticker is rejected
 tests by the absence of the call, not just the status code, since the status
 alone would keep passing if the guard drifted below the fetch.
 
+**Tone tags.** EODHD scores some rows with its own `sentiment` object, and
+`mapSentiment` (`app/api/_lib/news.ts`) buckets that `polarity` into
+positive / negative / neutral, rendered as a green / red / grey chip in both
+languages (`app/src/screens/news/sentimentTag.ts`). The threshold is ±0.05,
+the VADER-style model's own documented cut-off rather than a number we picked.
+A row the provider did not score carries **no tag at all** — not a "neutral"
+one. "We were not told" and "the provider called this neutral" are different
+claims, and only one of them is ours to make; sentiment ships on some EODHD
+plans and some rows only, so this is the common case, not an edge case.
+
+**Hebrew headlines.** The app is Hebrew-first but EODHD's feed is English, so
+`GET /api/news?lang=he` translates each `headline` and `summary` to Hebrew
+through the Google Cloud Translation API before answering
+(`app/api/_lib/translate.ts`). `source`, `url`, `symbols` and `publishedAt` are
+facts, not copy, and are never touched. The step is **best effort and cannot
+fail the response**: if `GOOGLE_TRANSLATE_API_KEY` is unset, or the API errors,
+times out, or the monthly free allowance is spent, the English articles are
+returned with a normal `200`. That is not a silent
+degradation — the articles are real, current and fetched successfully; only
+the wording is the provider's. Hiding real headlines because a *secondary*
+service is down would remove information the reader could have used, and
+inventing a translation is not on the table. A batch is all-or-nothing: if
+the API returns a different number of translations than it was sent, the whole
+batch is discarded rather than paired up by index, which could put one
+article's words under another's headline. Quota is defended by the edge cache
+above (the language is part of the URL, so the two languages cache
+separately), by sending each distinct string once, and by a small in-process
+memo of recently translated strings that survives warm function invocations.
+`lang` accepts only `en` (the default, and exactly the pre-translation
+behaviour) or `he`; anything else is a `400` before any upstream call.
+
+One provider quirk is handled rather than shipped to the screen: the v2 API
+HTML-escapes its output even for `format: 'text'`, so `decodeEntities` undoes
+that before the string leaves the function — otherwise a card would read
+"Nvidia&#39;s" in the middle of Hebrew copy. Anything that is not a recognised
+entity is left exactly as written, since a bare `&` is ordinary text in a
+headline.
+
 Not yet covered: **per-client rate limiting**. The cache is shared, so it
 blunts repeat load on one ticker but not a single client walking a thousand
 different ones. That needs a durable counter (Vercel KV or Upstash Redis) and
@@ -194,7 +344,7 @@ filings:
 
 | Tab | Source | Notes |
 | --- | --- | --- |
-| סקירה / Overview | demo adapter + real holdings + the mirrored ranking | chart, your position, key stats, analyst ratings, and the engine's own view |
+| סקירה / Overview | demo adapter + real holdings + both mirrors | real price, 52-week high, chart, and the key-stats rows a daily bar answers (open, prev close, day range, volume, avg vol, RSI); day change, market cap, P/E and analyst ratings still demo |
 | דוחות / Reports | `/api/stock/{ticker}/fundamentals` (live, un-mirrored) | branches purely on the engine's `status` |
 | חדשות / News | `/api/news` (this repo's Vercel function) | excerpts only, never a full article body |
 
@@ -206,10 +356,11 @@ nothing failed and there is nothing to retry. Day-change percent is **not**
 in the ranking payload, so it is not shown there rather than being borrowed
 from demo data.
 
-Both mirror readers share one `readMirror` helper so transport, freshness and
-honesty handling cannot drift between them — one serving a snapshot the other
-rejects is exactly the class of bug the mirror's verification exists to
-prevent.
+All three mirror readers — the Satellite card's BUY list, a single stock's
+ranking row, and the quote map behind every price in the app — share one
+`readMirror` helper so transport, freshness and honesty handling cannot drift
+between them. One serving a snapshot the other rejects is exactly the class of
+bug the mirror's verification exists to prevent.
 
 **RTL note:** localized Hebrew dates are *not* wrapped in `<Num>`. `<Num>`
 forces LTR isolation, which is right for numerals and wrong for Hebrew text —
@@ -229,6 +380,8 @@ Both were caught by looking at the rendered screen, not by a passing test.
 | Stock page · דוחות (filed revenue) | engine `/api/stock/{ticker}/fundamentals` | — |
 | Stock page · רבעונים שדווחו | `/api/earnings?ticker=&from=&to=` — 12 quarters | 1 Alpha Vantage call |
 | Satellite card | the daily mirror in this repo | none |
+| Every price on screen (`SymbolInfo.quote`) | the same daily mirror | none |
+| Stock page · chart, and the movers' sparklines | the daily price-history mirror in this repo | none |
 
 The general feed is why the browsable news screen is cheap: EODHD's `s`
 parameter takes **one** symbol at a time and a per-ticker call costs double,
@@ -300,16 +453,18 @@ The client's history window is **derived** from the endpoint's own
 (`app/src/data/earnings.ts`), with a test asserting the two stay in
 agreement — the same publisher/reader discipline the screener mirror uses.
 
-**Required environment variables**, both added in the Vercel dashboard under
+**Environment variables**, added in the Vercel dashboard under
 **Project → Settings → Environment Variables**, scoped to Production,
-Preview, and Development so PR previews and local `vercel dev` also work:
+Preview, and Development so PR previews and local `vercel dev` also work. The
+first two are required; the third only changes the language of the news:
 
 | Variable | Used by |
 | --- | --- |
 | `EODHD_API_KEY` | `/api/news` — the news feed |
-| `ALPHAVANTAGE_API_KEY` | `/api/earnings` — the calendar and per-stock history |
+| `GOOGLE_TRANSLATE_API_KEY` | `/api/news?lang=he` — Hebrew headlines, via the Cloud Translation API. **Optional**: without it the news is served in the provider's English rather than failing. The key travels as the API's `key=` query parameter, so restrict it **to the Cloud Translation API** in the Google Cloud console — an HTTP-referrer restriction would break it, since the call is server-side. The first 500k characters a month are free, but the project still needs billing enabled. |
+| `ALPHAVANTAGE_API_KEY` | `/api/earnings` — the calendar and per-stock history; also a **GitHub Actions secret**, where `mirror-prices.yml` spends one call per covered ticker per day. If it is the same key, the earnings route lives on what is left of the daily allowance. |
 
-Both are read only server-side and neither may be given a `VITE_` prefix,
+All three are read only server-side and none may be given a `VITE_` prefix,
 which would bundle it into the client build.
 
 Pure request/response mapping lives in `app/api/_lib/news.ts` (unit-tested in

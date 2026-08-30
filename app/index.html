@@ -10,10 +10,26 @@
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F1F5F9" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Weights 400–700 only: nothing renders at 300. Loaded non-blocking
+         (media="print" until onload) so first paint doesn't wait on a
+         third-party stylesheet round trip; display=swap covers the gap. -->
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&display=swap"
+    />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&display=swap"
+      media="print"
+      onload="this.media = 'all'"
     />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&display=swap"
+      />
+    </noscript>
     <title>Shift</title>
   </head>
   <body>

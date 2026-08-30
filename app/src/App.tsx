@@ -1,4 +1,13 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import {
+  Suspense,
+  lazy,
+  memo,
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ComponentType,
+} from 'react';
 import { AppHeader } from './components/AppHeader';
 import { TabBar } from './components/TabBar';
 import { BackgroundShapes } from './components/BackgroundShapes';
@@ -15,26 +24,56 @@ import { WatchlistScreen } from './screens/Watchlist';
 import { MoversScreen } from './screens/Movers';
 import { NewsScreen } from './screens/News';
 import { MoreScreen } from './screens/More';
-import { SettingsScreen } from './screens/Settings';
-import { ConnectionsScreen } from './screens/Connections';
-import { ConnectedAccountScreen } from './screens/ConnectedAccount';
-import { AdvisoryChat } from './screens/advisory/Chat';
-import { AdvisoryDisclosure } from './screens/advisory/Disclosure';
-import { AdvisoryRecommendation } from './screens/advisory/Recommendation';
-import { AdvisoryConnect } from './screens/advisory/Connect';
-import { AdvisoryFirstPurchase } from './screens/advisory/FirstPurchase';
-import { LearnScreen } from './screens/onboarding/Learn';
-import { StepsScreen } from './screens/onboarding/Steps';
-import { OpenAccountScreen } from './screens/onboarding/OpenAccount';
+
 import { FirstRunOverlay } from './screens/onboarding/FirstRunOverlay';
+import { SignInScreen } from './screens/SignIn';
+import { useAuth } from './auth/AuthProvider';
+import { useRemoteSync } from './state/useRemoteSync';
+import { useProviderLanguage } from './auth/useProviderLanguage';
+import { useProfile } from './auth/ProfileProvider';
 import { SearchOverlay } from './sheets/SearchOverlay';
 import { NotificationsSheet } from './sheets/NotificationsSheet';
 import { AlertSheet } from './sheets/AlertSheet';
 import { useT as useTranslate } from './i18n/useT';
 import { Button } from './components/Button';
 import { SHELL_ID } from './components/Sheet';
+import { SkeletonCard } from './components/Skeleton';
 
-const SCREENS: Record<Screen, (p: ScreenProps) => JSX.Element> = {
+// Screens outside the core tab set load on demand: the advisory flow,
+// onboarding and settings are behind explicit navigation, so their code
+// stays out of the initial bundle. Each maps its named export onto the
+// default shape React.lazy expects.
+const SettingsScreen = lazy(() => import('./screens/Settings').then((m) => ({ default: m.SettingsScreen })));
+const ConnectionsScreen = lazy(() =>
+  import('./screens/Connections').then((m) => ({ default: m.ConnectionsScreen })),
+);
+const AdvisoryChat = lazy(() => import('./screens/advisory/Chat').then((m) => ({ default: m.AdvisoryChat })));
+const AdvisoryDisclosure = lazy(() =>
+  import('./screens/advisory/Disclosure').then((m) => ({ default: m.AdvisoryDisclosure })),
+);
+const AdvisoryRecommendation = lazy(() =>
+  import('./screens/advisory/Recommendation').then((m) => ({ default: m.AdvisoryRecommendation })),
+);
+const AdvisoryConnect = lazy(() =>
+  import('./screens/advisory/Connect').then((m) => ({ default: m.AdvisoryConnect })),
+);
+const AdvisoryFirstPurchase = lazy(() =>
+  import('./screens/advisory/FirstPurchase').then((m) => ({ default: m.AdvisoryFirstPurchase })),
+);
+const LearnScreen = lazy(() =>
+  import('./screens/onboarding/Learn').then((m) => ({ default: m.LearnScreen })),
+);
+const StepsScreen = lazy(() =>
+  import('./screens/onboarding/Steps').then((m) => ({ default: m.StepsScreen })),
+);
+const OpenAccountScreen = lazy(() =>
+  import('./screens/onboarding/OpenAccount').then((m) => ({ default: m.OpenAccountScreen })),
+);
+const ConnectedAccountScreen = lazy(() =>
+  import('./screens/ConnectedAccount').then((m) => ({ default: m.ConnectedAccountScreen })),
+);
+
+const SCREENS: Record<Screen, ComponentType<ScreenProps>> = {
   home: HomeScreen,
   stock: StockScreen,
   pf: PortfolioScreen,
@@ -58,7 +97,11 @@ const SCREENS: Record<Screen, (p: ScreenProps) => JSX.Element> = {
 };
 
 export interface ScreenProps {
-  openAlert: () => void;
+  /** Open the new-alert sheet. Pass a ticker to attach the alert to it; with
+   *  no argument the sheet asks which stock the alert is about. */
+  openAlert: (ticker?: string) => void;
+  /** Open the ticker search overlay — the app's one way to add a stock. */
+  openSearch: () => void;
 }
 
 /**
@@ -71,30 +114,128 @@ export interface ScreenProps {
  * navigation — see the layout effect below.
  */
 export function App() {
+  const { session } = useAuth();
+  // The gate, following the FirstRunOverlay precedent but as a branch: the
+  // sign-in screen replaces the shell (there is nothing to navigate while
+  // signed out). 'loading' gets a quiet splash rather than the sign-in
+  // screen so an already-authenticated user never sees a sign-in flash;
+  // 'unavailable' (missing env config) renders SignIn with everything
+  // disabled and the honest reason — deliberately NOT a local-only fallback,
+  // which would make the auth gate silently vanish on a misconfigured
+  // deploy. Once signed in, the existing firstRunSeen/steps flow already
+  // routes new users to onboarding and returning users to the dashboard.
+  const content =
+    session.status === 'loading' ? (
+      <AuthSplash />
+    ) : session.status === 'unavailable' || session.data == null ? (
+      <SignInScreen />
+    ) : (
+      <AppShell />
+    );
+  return (
+    <>
+      {/* Always mounted, whatever the gate shows: the sync hook is also what
+          resets app state on sign-out, and it can only see that transition
+          if it survives the shell unmounting. */}
+      <RemoteSync />
+      {content}
+    </>
+  );
+}
+
+/** Boot state while the stored session is restored (or the OAuth redirect is
+ *  consumed) — same gradient backdrop as SignInScreen so the brand mark
+ *  doesn't pop in on top of a plain background once the real screen mounts.
+ *  Usually sub-second, so the mark itself (rather than a spinner) carries the
+ *  "this is Shift, please wait" message. */
+function AuthSplash() {
+  const t = useT();
+  return (
+    <div
+      role="status"
+      style={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 14,
+        background: 'radial-gradient(120% 60% at 15% -6%, var(--g1) 0%, var(--g2) 55%)',
+      }}
+    >
+      <img
+        src="/assets/shift-mark.svg"
+        alt="Shift"
+        width={64}
+        height={64}
+        className="anim-mark-breathe"
+        style={{ borderRadius: '50%', boxShadow: 'var(--shadow-lg)' }}
+      />
+      <span className="text-muted" style={{ fontSize: 'var(--text-body)' }}>
+        {t('data.loading')}
+      </span>
+    </div>
+  );
+}
+
+/** Mounts the Supabase state sync inside the providers; renders nothing. */
+function RemoteSync() {
+  useRemoteSync();
+  useProviderLanguage();
+  return null;
+}
+
+function AppShell() {
   const s = useAppState();
+  // The merged profile, so a user who renamed themselves is greeted by the
+  // name they chose rather than the one Google holds.
+  const { profile } = useProfile();
   const dispatch = useDispatch();
   const t = useT();
   const [searchOpen, setSearchOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [alertOpen, setAlertOpen] = useState(false);
 
+  // Which ticker the alert sheet is about: whatever asked for it, falling
+  // back to the stock page the user is on. Alerts created from the watchlist
+  // used to arrive with an empty ticker, which made them unattributable.
+  const [alertTicker, setAlertTicker] = useState<string | null>(null);
+
   const symbols = useLoadable(() => demoService.symbols(), []);
   const currentSymbol =
     symbols.state.status === 'ok' ? symbols.state.data.find((x) => x.ticker === s.ticker) : undefined;
+  const alertFor = alertTicker ?? (s.screen === 'stock' ? s.ticker : '');
+  const alertSymbol = currentSymbol?.ticker === alertFor ? currentSymbol : null;
 
   const titleKey = `title.${s.screen}` as StringKey;
   // "ארבעה חשבונות" is fixed copy from the prototype. With a real account
   // connected it states a count that is simply untrue, so the portfolio
   // kicker changes with the flag — and only with the flag on.
   const liveAccount = useDemoFlag('liveAccount');
-  const kickerKey = (
-    liveAccount && s.screen === 'pf' ? 'kicker.pfLive' : `kicker.${s.screen}`
-  ) as StringKey;
-  const title = s.screen === 'stock' ? (currentSymbol?.name ?? s.ticker) : t(titleKey);
+  const kickerKey = (liveAccount && s.screen === 'pf' ? 'kicker.pfLive' : `kicker.${s.screen}`) as StringKey;
+  const title =
+    s.screen === 'stock'
+      ? (currentSymbol?.name ?? s.ticker)
+      : s.screen === 'home'
+        ? // The home title is the one greeting the user by name, so it cannot
+          // come from the generic key lookup: it needs the name interpolated,
+          // and a nameless variant when the provider gave us none.
+          profile.firstName
+          ? t('title.home', { name: profile.firstName })
+          : t('title.homeAnon')
+        : t(titleKey);
   const kicker = s.screen === 'stock' ? s.ticker : t(kickerKey);
 
   const unread = s.notificationsRead ? 0 : 2;
   const ScreenView = SCREENS[s.screen];
+  // Stable identity so MemoScreen below can bail out when only local shell
+  // state (an opened overlay) changed. Screens read app state via context, so
+  // skipping this subtree never hides a real state change from them.
+  const openAlert = useCallback((ticker?: string) => {
+    setAlertTicker(ticker ?? null);
+    setAlertOpen(true);
+  }, []);
+  const openSearch = useCallback(() => setSearchOpen(true), []);
 
   // There is one shared scroll container across every screen (no per-route
   // remount), so without this a screen opens wherever the previous one left
@@ -143,7 +284,7 @@ export function App() {
           kicker={kicker}
           title={title}
           unreadCount={unread}
-          onSearch={() => setSearchOpen(true)}
+          onSearch={openSearch}
           onNotifications={() => setNotifOpen(true)}
         />
         <div
@@ -156,18 +297,61 @@ export function App() {
             padding: '6px 16px calc(90px + env(safe-area-inset-bottom))',
           }}
         >
-          <ScreenView openAlert={() => setAlertOpen(true)} />
+          {/* A compact skeleton, not null: on a warm cache the chunk resolves
+              in a frame or two, but on a slow network a lazy screen would
+              otherwise be an empty hole between header and tab bar. */}
+          <Suspense fallback={<ScreenFallback />}>
+            <MemoScreen View={ScreenView} openAlert={openAlert} openSearch={openSearch} />
+          </Suspense>
         </div>
         <BackToStepsPill />
-        <TabBar current={s.screen} onGo={(screen) => dispatch({ type: 'go', screen })} />
+        <TabBar
+          current={s.screen}
+          onGo={(screen) => dispatch({ type: 'go', screen })}
+          avatarUrl={profile.avatarUrl}
+        />
         <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
         <NotificationsSheet open={notifOpen} onClose={() => setNotifOpen(false)} />
-        <AlertSheet open={alertOpen} onClose={() => setAlertOpen(false)} symbol={currentSymbol ?? null} />
+        <AlertSheet
+          open={alertOpen}
+          onClose={() => setAlertOpen(false)}
+          ticker={alertFor}
+          symbol={alertSymbol}
+        />
         {!s.firstRunSeen && <FirstRunOverlay />}
       </div>
     </div>
   );
 }
+
+/** What the scroll area shows while a lazy screen's chunk downloads. */
+function ScreenFallback() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <SkeletonCard height={132} lines={2} />
+      <SkeletonCard height={188} lines={3} />
+      <SkeletonCard height={150} lines={2} />
+    </div>
+  );
+}
+
+/**
+ * Renders the active screen behind a memo boundary: toggling shell-local
+ * state (search/notifications/alert open) re-renders AppShell but must not
+ * re-render the whole screen tree. Both props are referentially stable
+ * between navigations, so this bails out unless the screen itself changed.
+ */
+const MemoScreen = memo(function MemoScreen({
+  View,
+  openAlert,
+  openSearch,
+}: {
+  View: ComponentType<ScreenProps>;
+  openAlert: (ticker?: string) => void;
+  openSearch: () => void;
+}) {
+  return <View openAlert={openAlert} openSearch={openSearch} />;
+});
 
 /** Floating "back to the steps" pill when a step opened another screen. */
 function BackToStepsPill() {
@@ -201,7 +385,7 @@ function BackToStepsPill() {
           // straight through it, so the label was competing with a squiggle.
           background: 'var(--acc-fill)',
           color: 'var(--color-accent-200)',
-          fontSize: 13,
+          fontSize: 'var(--text-body)',
           fontWeight: 600,
           boxShadow: 'var(--shadow-lg)',
           backdropFilter: 'blur(10px)',

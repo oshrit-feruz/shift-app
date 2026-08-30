@@ -21,7 +21,8 @@
  * invented one.
  */
 
-import { demoService, DEMO_FLAGS } from './demoAdapter';
+import { demoService } from './demoAdapter';
+import { DEMO_FLAGS } from './demoFlags';
 import { fetchConnectedAccounts } from './snaptradeAccount';
 import { positionReturnPct } from '../lib/format';
 import type { DataService } from './service';

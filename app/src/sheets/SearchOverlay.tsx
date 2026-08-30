@@ -1,41 +1,101 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useDismissAnimation } from '../lib/useDismissAnimation';
 import { Button } from '../components/Button';
 import { Icon } from '../components/Icon';
-import { ListRow, RowValues } from '../components/ListRow';
+import { ListRow } from '../components/ListRow';
+import { WatchRowValues } from '../components/WatchRowValues';
 import { TickerTile } from '../components/TickerTile';
 import { DataState } from '../components/DataState';
 import { SkeletonList } from '../components/Skeleton';
-import { useDispatch } from '../state/appState';
+import { useAppState, useDispatch } from '../state/appState';
 import { useT } from '../i18n/useT';
+import { useToast } from '../components/Toast';
 import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
-import { money, pct, signalColor } from '../lib/format';
+import type { WatchRow } from '../data/types';
 
 /**
- * Full-screen ticker search. Opens over the current screen rather than
- * navigating, so dismissing it returns the user exactly where they were.
+ * Full-screen ticker search — and the app's one way onto the watchlist.
  *
- * With no query it lists a few recent symbols instead of nothing, so the
- * overlay is never an empty box on open.
+ * Opens over the current screen rather than navigating, so dismissing it
+ * returns the user exactly where they were. With no query it lists a few
+ * symbols instead of nothing, so the overlay is never an empty box on open.
+ *
+ * Every row carries an add/added toggle, so a stock can be followed without a
+ * detour through its page, and the searchable set is the whole universe the
+ * app can price (data/demoAdapter.searchUniverse) rather than the ten rows of
+ * the sample table — a watchlist you may only fill from ten names is a demo
+ * with extra steps.
  */
+/** Rows whose ticker or company name contains the (already lowercased) query. */
+function matches(rows: WatchRow[], query: string): WatchRow[] {
+  return rows.filter(
+    (x) => x.ticker.toLowerCase().includes(query) || (x.name?.toLowerCase().includes(query) ?? false),
+  );
+}
+
 export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const dispatch = useDispatch();
-  const t = useT();
-  const [q, setQ] = useState('');
-  const symbols = useLoadable(() => demoService.symbols(), []);
-  const { mounted, closing } = useDismissAnimation(open, 170);
+  const { mounted, closing } = useDismissAnimation(open);
+  // The body (and its symbols fetch) exists only while the overlay is
+  // actually shown — the always-mounted wrapper must not fetch on app boot.
   if (!mounted) return null;
+  return <SearchOverlayBody closing={closing} onClose={onClose} />;
+}
+
+/**
+ * The overlay's contents, split from the wrapper above so that mounting them —
+ * and with them the symbol fetch — happens only while the overlay is actually
+ * open, rather than on every app boot.
+ */
+function SearchOverlayBody({ closing, onClose }: { closing: boolean; onClose: () => void }) {
+  const dispatch = useDispatch();
+  const s = useAppState();
+  const t = useT();
+  const toast = useToast();
+  const [q, setQ] = useState('');
+  // The watchlist is passed in so a followed ticker the daily ranking has
+  // since dropped is still findable here — search is where someone goes to
+  // take it off, and a symbol search cannot reach what the universe omits.
+  //
+  // Snapshotted at mount rather than tracked: the searchable set must not be
+  // rebuilt every time the user adds a stock, or the list they are working
+  // through would refetch under their hands. The body is mounted fresh each
+  // time the overlay opens, so the snapshot is never stale for long.
+  const universeFor = useRef(s.watchlist).current;
+  const symbols = useLoadable(() => demoService.searchUniverse(universeFor), []);
   const query = q.trim().toLowerCase();
 
   return (
     <div
       className={closing ? 'anim-fade-out' : 'anim-fade-up'}
-      style={{ position: 'absolute', inset: 0, zIndex: 90, background: 'var(--color-bg)', display: 'flex', flexDirection: 'column' }}
+      style={{
+        position: 'absolute',
+        inset: 0,
+        zIndex: 90,
+        background: 'var(--color-bg)',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
     >
-      <div style={{ flex: 'none', padding: 'calc(14px + env(safe-area-inset-top)) 16px 10px', display: 'flex', alignItems: 'center', gap: 9 }}>
+      <div
+        style={{
+          flex: 'none',
+          padding: 'calc(14px + env(safe-area-inset-top)) 16px 10px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 9,
+        }}
+      >
         <label style={{ position: 'relative', flex: 1 }}>
-          <span style={{ position: 'absolute', insetInlineStart: 10, top: 11, opacity: 0.5, pointerEvents: 'none' }}>
+          <span
+            style={{
+              position: 'absolute',
+              insetInlineStart: 10,
+              top: 11,
+              opacity: 0.5,
+              pointerEvents: 'none',
+            }}
+          >
             <Icon name="search" size={15} strokeWidth={2} />
           </span>
           <input
@@ -46,12 +106,12 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
             placeholder={t('search.placeholder')}
             // 16px, not smaller: this field autoFocuses on open, and any
             // input under 16px makes iOS Safari zoom the page in on focus.
-            style={{ paddingInlineStart: 32, height: 38, minHeight: 38, fontSize: 16 }}
+            style={{ paddingInlineStart: 32, height: 38, minHeight: 38, fontSize: 'var(--text-title)' }}
           />
         </label>
         <Button
           variant="ghost"
-          fontSize={13}
+          fontSize={16}
           onClick={() => {
             setQ('');
             onClose();
@@ -67,35 +127,81 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
           skeleton={<SkeletonList count={5} minHeight={52} firstDivider />}
         >
           {(syms) => {
-            const hits = query
-              ? syms.filter((x) => x.ticker.toLowerCase().includes(query) || x.name.toLowerCase().includes(query))
-              : syms.slice(0, 5);
+            // One list, whatever the user follows. An earlier version swapped
+            // in the watchlist once it had anything on it, so adding a stock
+            // replaced the list being browsed with a list of one — the row
+            // the user had just tapped. The list stays put; the row's own
+            // button is what changes to say it was added.
+            const hits = query ? matches(syms, query) : syms.slice(0, 5);
+            const heading = query ? t('search.matches', { n: hits.length }) : t('search.recent');
             return (
               <>
-                <div className="text-muted" style={{ fontSize: 12.5, letterSpacing: '.09em', textTransform: 'uppercase', padding: '6px 0' }}>
-                  {query ? t('search.matches', { n: hits.length }) : t('search.recent')}
+                <div
+                  className="text-muted"
+                  style={{
+                    fontSize: 'var(--text-caption)',
+                    letterSpacing: '.09em',
+                    textTransform: 'uppercase',
+                    padding: '6px 0',
+                  }}
+                >
+                  {heading}
                 </div>
-                {hits.map((x) => (
-                  <ListRow
-                    key={x.ticker}
-                    leading={<TickerTile ticker={x.ticker} size={26} />}
-                    title={x.ticker}
-                    subtitle={`${x.name} · ${x.sector}`}
-                    right={<RowValues main={money(x.price)} sub={pct(x.changePct)} subColor={signalColor(x.changePct)} />}
-                    minHeight={52}
-                    onClick={() => {
-                      dispatch({ type: 'openStock', ticker: x.ticker });
-                      setQ('');
-                      onClose();
-                    }}
-                  />
-                ))}
+                {hits.map((x) => {
+                  const watched = s.watchlist.includes(x.ticker);
+                  return (
+                    <ListRow
+                      key={x.ticker}
+                      leading={<TickerTile ticker={x.ticker} size={26} />}
+                      title={x.ticker}
+                      subtitle={x.name ? `${x.name} · ${x.sector}` : t('search.rankedOnly')}
+                      right={<WatchRowValues row={x} />}
+                      trailing={
+                        <button
+                          type="button"
+                          // The row itself opens the stock page; this does not.
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            dispatch({ type: 'toggleWatch', ticker: x.ticker });
+                            // The overlay covers the watchlist, so the row it
+                            // just changed is not on screen to speak for itself.
+                            toast(t(watched ? 'toast.removed' : 'toast.added', { ticker: x.ticker }));
+                          }}
+                          aria-pressed={watched}
+                          aria-label={t(watched ? 'search.removeAria' : 'search.addAria', {
+                            ticker: x.ticker,
+                          })}
+                          style={{
+                            flex: 'none',
+                            minHeight: 32,
+                            padding: '0 10px',
+                            borderRadius: 999,
+                            cursor: 'pointer',
+                            font: 'inherit',
+                            fontSize: 'var(--text-caption)',
+                            border: `1px solid ${watched ? 'var(--color-accent)' : 'var(--color-divider)'}`,
+                            background: watched ? 'var(--fill-selected)' : 'transparent',
+                            color: watched ? 'var(--color-accent-200)' : 'var(--color-accent)',
+                          }}
+                        >
+                          {watched ? `✓ ${t('search.added')}` : `＋ ${t('search.add')}`}
+                        </button>
+                      }
+                      minHeight={52}
+                      onClick={() => {
+                        dispatch({ type: 'openStock', ticker: x.ticker });
+                        setQ('');
+                        onClose();
+                      }}
+                    />
+                  );
+                })}
                 {query && hits.length === 0 && (
                   <div style={{ padding: '34px 8px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 14 }}>
+                    <div style={{ fontSize: 'var(--text-row)' }}>
                       {t('search.noMatch')} “{q}”
                     </div>
-                    <div className="text-muted" style={{ fontSize: 13, marginTop: 4 }}>
+                    <div className="text-muted" style={{ fontSize: 'var(--text-body)', marginTop: 4 }}>
                       {t('search.noMatchHelp')}
                     </div>
                   </div>

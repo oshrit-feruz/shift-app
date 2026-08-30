@@ -18,9 +18,27 @@ import { money } from '../lib/format';
 import type { ScreenProps } from '../App';
 
 const LINKED = [
-  { logo: '/assets/broker-blink.webp', broker: 'Blink', acct: '••4821', detail: { en: 'Core · brokerage · 7 positions', he: 'Core · חשבון מסחר · 7 פוזיציות' }, value: '$48,214.60' },
-  { logo: '/assets/broker-ibkr.png', broker: 'Interactive Brokers', acct: '••7130', detail: { en: 'Global · margin · 4 positions', he: 'Global · מרווח · 4 פוזיציות' }, value: '$12,905.11' },
-  { logo: '/assets/broker-colmex.webp', broker: 'Colmex Pro', acct: '••2265', detail: { en: 'Dividend · cash · 4 positions', he: 'Dividend · מזומן · 4 פוזיציות' }, value: '$21,470.02' },
+  {
+    logo: '/assets/broker-blink.webp',
+    broker: 'Blink',
+    acct: '••4821',
+    detail: { en: 'Core · brokerage · 7 positions', he: 'Core · חשבון מסחר · 7 פוזיציות' },
+    value: '$48,214.60',
+  },
+  {
+    logo: '/assets/broker-ibkr.webp',
+    broker: 'Interactive Brokers',
+    acct: '••7130',
+    detail: { en: 'Global · margin · 4 positions', he: 'Global · מרווח · 4 פוזיציות' },
+    value: '$12,905.11',
+  },
+  {
+    logo: '/assets/broker-colmex.webp',
+    broker: 'Colmex Pro',
+    acct: '••2265',
+    detail: { en: 'Dividend · cash · 4 positions', he: 'Dividend · מזומן · 4 פוזיציות' },
+    value: '$21,470.02',
+  },
 ];
 
 export function ConnectionsScreen(_: ScreenProps) {
@@ -33,7 +51,7 @@ export function ConnectionsScreen(_: ScreenProps) {
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
       <Card padding={13} gap={5}>
         <CardTitle>{t('connScreen.linked')}</CardTitle>
-        <p className="text-muted" style={{ fontSize: 12.5, margin: 0 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0 }}>
           {t('connScreen.linkedHelp')}
         </p>
       </Card>
@@ -43,51 +61,74 @@ export function ConnectionsScreen(_: ScreenProps) {
       {live ? (
         <LiveLinkedAccounts />
       ) : (
-      <Card padding="4px 0" gap={0}>
-        {LINKED.map((c, i) => (
-          <div
-            key={i}
-            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 13px', borderTop: '1px solid var(--color-divider)' }}
-          >
-            <LogoTile src={c.logo} />
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontSize: 14 }}>
-                {c.broker}{' '}
-                <span className="text-muted" style={{ fontSize: 13 }}>
-                  <Num>{c.acct}</Num>
+        <Card padding="4px 0" gap={0}>
+          {LINKED.map((c, i) => (
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '11px 13px',
+                borderTop: '1px solid var(--color-divider)',
+              }}
+            >
+              <LogoTile src={c.logo} />
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>
+                  {c.broker}{' '}
+                  <span className="text-muted" style={{ fontSize: 'var(--text-body)' }}>
+                    <Num>{c.acct}</Num>
+                  </span>
+                </span>
+                <span
+                  className="text-muted"
+                  style={{
+                    display: 'block',
+                    fontSize: 'var(--text-caption)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {c.detail[language]}
                 </span>
               </span>
               <span
-                className="text-muted"
-                style={{ display: 'block', fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                style={{
+                  textAlign: 'end',
+                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 3,
+                  alignItems: 'flex-end',
+                }}
               >
-                {c.detail[language]}
+                <Num size={17}>{c.value}</Num>
+                <Tag variant="accent" fontSize={14}>
+                  {t('connScreen.live')}
+                </Tag>
               </span>
-            </span>
-            <span style={{ textAlign: 'end', whiteSpace: 'nowrap', display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-end' }}>
-              <Num size={14}>{c.value}</Num>
-              <Tag variant="accent" fontSize={11}>
-                {t('connScreen.live')}
-              </Tag>
-            </span>
-          </div>
-        ))}
-      </Card>
+            </div>
+          ))}
+        </Card>
       )}
 
       <Card padding="4px 0" gap={0}>
         <CardTitle>
-          <span style={{ display: 'block', padding: '9px 13px 2px', fontSize: 15 }}>{t('connScreen.add')}</span>
+          <span style={{ display: 'block', padding: '9px 13px 2px', fontSize: 'var(--text-title)' }}>
+            {t('connScreen.add')}
+          </span>
         </CardTitle>
         <InstitutionRows />
       </Card>
 
       <Card padding={13} gap={7}>
         <CardTitle>{t('connScreen.theo')}</CardTitle>
-        <p className="text-muted" style={{ fontSize: 12.5, margin: 0 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0 }}>
           {t('connScreen.theoHelp')}
         </p>
-        <Button variant="secondary" block fontSize={13} minHeight={40} onClick={() => setNewPfOpen(true)}>
+        <Button variant="secondary" block fontSize={16} minHeight={40} onClick={() => setNewPfOpen(true)}>
           {t('connScreen.newTheo')}
         </Button>
       </Card>
@@ -102,7 +143,14 @@ export function ConnectionsScreen(_: ScreenProps) {
         ).map(([k, v]) => (
           <div
             key={k}
-            style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 13, padding: '11px 13px', borderTop: '1px solid var(--color-divider)' }}
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              gap: 10,
+              fontSize: 'var(--text-body)',
+              padding: '11px 13px',
+              borderTop: '1px solid var(--color-divider)',
+            }}
           >
             <span className="text-muted">{t(k)}</span>
             <span>{t(v)}</span>
@@ -175,7 +223,15 @@ function LiveLinkedAccounts() {
                         {t('live.title')}
                       </span>
                     </span>
-                    <span style={{ textAlign: 'end', display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-end' }}>
+                    <span
+                      style={{
+                        textAlign: 'end',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 3,
+                        alignItems: 'flex-end',
+                      }}
+                    >
                       {account.totalValue === null ? (
                         <span className="text-muted" style={{ fontSize: 14 }}>
                           —

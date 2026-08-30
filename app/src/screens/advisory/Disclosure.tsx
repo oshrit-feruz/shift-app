@@ -17,29 +17,37 @@ export function AdvisoryDisclosure(_: ScreenProps) {
       <FlowStepper />
       <Card padding={14} gap={6}>
         <CardTitle>{t('disc.title')}</CardTitle>
-        <p className="text-muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.55 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0, lineHeight: 1.55 }}>
           {t('disc.lead')}
         </p>
       </Card>
       <Card padding="4px 0" gap={0}>
         {POINTS.map((k, i) => (
-          <div key={k} style={{ display: 'flex', gap: 10, padding: '11px 13px', borderTop: '1px solid var(--color-divider)' }}>
+          <div
+            key={k}
+            style={{
+              display: 'flex',
+              gap: 10,
+              padding: '11px 13px',
+              borderTop: '1px solid var(--color-divider)',
+            }}
+          >
             <span
               style={{
                 width: 20,
                 height: 20,
                 flex: 'none',
                 borderRadius: 6,
-                background: 'var(--color-accent-900)',
+                background: 'var(--fill-selected)',
                 color: 'var(--color-accent-200)',
                 display: 'grid',
                 placeItems: 'center',
-                fontSize: 12,
+                fontSize: 'var(--text-caption)',
               }}
             >
               {i + 1}
             </span>
-            <span style={{ flex: 1, fontSize: 13.5, lineHeight: 1.5 }}>{t(k)}</span>
+            <span style={{ flex: 1, fontSize: 'var(--text-body)', lineHeight: 1.5 }}>{t(k)}</span>
           </div>
         ))}
       </Card>
@@ -47,10 +55,14 @@ export function AdvisoryDisclosure(_: ScreenProps) {
         {t('disc.cta')}
       </Button>
       <div style={{ display: 'flex', justifyContent: 'center', gap: 14 }}>
-        <Button variant="ghost" fontSize={13} onClick={() => dispatch({ type: 'advGoto', screen: 'advChat' })}>
+        <Button
+          variant="ghost"
+          fontSize={16}
+          onClick={() => dispatch({ type: 'advGoto', screen: 'advChat' })}
+        >
           {t('adv.back')}
         </Button>
-        <Button variant="ghost" fontSize={13} onClick={() => dispatch({ type: 'go', screen: 'home' })}>
+        <Button variant="ghost" fontSize={16} onClick={() => dispatch({ type: 'go', screen: 'home' })}>
           {t('adv.later')}
         </Button>
       </div>

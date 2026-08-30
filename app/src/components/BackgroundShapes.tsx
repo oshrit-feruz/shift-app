@@ -18,6 +18,8 @@
  * cards instead of as backdrop. Opacity is one dial, defaulted below.
  */
 
+import { memo } from 'react';
+
 interface Shape {
   d: string;
   viewBox: string;
@@ -53,7 +55,9 @@ const SHAPES: Shape[] = [
   { d: HOOK, viewBox: VB.hook, fill: 'var(--up)', top: '70%', left: '28%', width: '70%' },
 ];
 
-export function BackgroundShapes() {
+// memo: props-less and purely decorative — four large SVGs that must not be
+// re-rendered every time the shell's state changes.
+export const BackgroundShapes = memo(function BackgroundShapes() {
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: -1, pointerEvents: 'none', overflow: 'hidden' }}>
       {SHAPES.map((sh, i) => (
@@ -76,4 +80,4 @@ export function BackgroundShapes() {
       ))}
     </div>
   );
-}
+});

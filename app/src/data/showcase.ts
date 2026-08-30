@@ -53,12 +53,12 @@ function seeded(key: string): number {
   return ((h >>> 0) % 10_000) / 10_000;
 }
 
-/** A surprise percentage in roughly [-8, +12], leaning positive as reality does. */
+/** Generate a deterministic surprise percentage from a string key, ranging roughly [-8, +12] and leaning positive as real earnings surprises do. */
 function surpriseFor(key: string): number {
   return Math.round((seeded(key) * 20 - 8) * 10) / 10;
 }
 
-/** The Monday-to-Sunday week containing `now`, in UTC. */
+/** Return an array of 7 dates representing the Monday-to-Sunday calendar week containing the given date, in UTC. */
 function calendarWeek(now: Date): Date[] {
   const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const monday = new Date(d.getTime() - ((d.getUTCDay() + 6) % 7) * 86_400_000);

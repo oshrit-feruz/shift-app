@@ -25,6 +25,7 @@
  * mode this contract exists to prevent.
  */
 
+import { cachedLoadable } from './loadableCache';
 import { ok, unavailable, type Fundamentals, type Loadable } from './types';
 import { RECOVERY_DETECTOR_ORIGIN } from './recoveryDetector';
 
@@ -35,7 +36,7 @@ import { RECOVERY_DETECTOR_ORIGIN } from './recoveryDetector';
  */
 const TIMEOUT_MS = 60_000;
 
-/** Accepts a number or numeric string; anything else (or non-finite) → null. */
+/** Parse a value as a finite number, accepting numbers or numeric strings. Returns null for anything else or non-finite values. */
 function num(v: unknown): number | null {
   if (typeof v === 'number') return Number.isFinite(v) ? v : null;
   if (typeof v === 'string' && v.trim() !== '') {
@@ -45,16 +46,14 @@ function num(v: unknown): number | null {
   return null;
 }
 
-/** Trimmed non-empty string, or null. */
+/** Extract a trimmed non-empty string from a value, or return null if it's not a usable string. */
 function str(v: unknown): string | null {
   return typeof v === 'string' && v.trim() !== '' ? v.trim() : null;
 }
 
-/** Narrow an unknown to a plain object (not null, not an array). */
+/** Narrow an unknown value to a plain object (not null, not an array), or return null. */
 function obj(v: unknown): Record<string, unknown> | null {
-  return v !== null && typeof v === 'object' && !Array.isArray(v)
-    ? (v as Record<string, unknown>)
-    : null;
+  return v !== null && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
 }
 
 /**
@@ -127,7 +126,17 @@ export async function fetchFundamentals(
 ): Promise<Loadable<Fundamentals>> {
   const clean = ticker.trim().toUpperCase();
   if (!clean) return unavailable(NO_FILINGS);
+  // Filed figures change on the scale of quarters; ten minutes of client
+  // reuse spares the Render service (and its cold starts) a hit every time
+  // the same stock page is reopened. Test fetchImpl bypasses the cache.
+  if (fetchImpl === fetch) {
+    return cachedLoadable(`fundamentals:${clean}`, 10 * 60_000, () => readFundamentals(clean, fetch));
+  }
+  return readFundamentals(clean, fetchImpl);
+}
 
+/** Transport + mapping for one ticker. Never throws. */
+async function readFundamentals(clean: string, fetchImpl: typeof fetch): Promise<Loadable<Fundamentals>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {

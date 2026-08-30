@@ -19,7 +19,13 @@ import { money, pct, signalColor } from '../../lib/format';
 import type { StringKey } from '../../i18n/strings';
 import type { ScreenProps } from '../../App';
 
-const SAT_RULES: StringKey[] = ['rec.satRule1', 'rec.satRule2', 'rec.satRule3', 'rec.satRule4', 'rec.satRule5'];
+const SAT_RULES: StringKey[] = [
+  'rec.satRule1',
+  'rec.satRule2',
+  'rec.satRule3',
+  'rec.satRule4',
+  'rec.satRule5',
+];
 
 /** Rendered in place of any numeric the live engine did not supply. */
 const DASH = '—';
@@ -38,22 +44,31 @@ export function AdvisoryRecommendation(_: ScreenProps) {
       <FlowStepper />
       <Card padding={14} gap={7} outlined>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-          <Tag variant="accent" fontSize={12}>
+          <Tag variant="accent" fontSize={15}>
             {t('adv.tag')}
           </Tag>
-          <Tag variant="outline" fontSize={12}>
+          <Tag variant="outline" fontSize={15}>
             {t('adv.noAction')}
           </Tag>
         </div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 23 }}>{t(`profile.${profileKey}` as StringKey)}</div>
+          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-heading)' }}>
+            {t(`profile.${profileKey}` as StringKey)}
+          </div>
           <span style={{ marginInlineStart: 'auto' }}>
-            <Button variant="ghost" fontSize={12.5} style={{ padding: 0 }} onClick={() => dispatch({ type: 'advReset' })}>
+            <Button
+              variant="ghost"
+              fontSize={15.5}
+              style={{ padding: 0 }}
+              onClick={() => dispatch({ type: 'advReset' })}
+            >
               {t('adv.redoChat')}
             </Button>
           </span>
         </div>
-        <p style={{ fontSize: 13.5, lineHeight: 1.55, margin: 0, opacity: 0.85 }}>{t('rec.coreSatIntro')}</p>
+        <p style={{ fontSize: 'var(--text-body)', lineHeight: 1.55, margin: 0, opacity: 0.85 }}>
+          {t('rec.coreSatIntro')}
+        </p>
       </Card>
 
       {/* Core — specific fund per category, not just a percentage. Fund names
@@ -61,18 +76,27 @@ export function AdvisoryRecommendation(_: ScreenProps) {
       <Card padding={13} gap={9}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
           <CardTitle>{t('rec.core')}</CardTitle>
-          <Num size={12.5} style={{ color: 'var(--muted)' }}>
+          <Num size={15.5} style={{ color: 'var(--muted)' }}>
             {100 - profile.satellitePct}%
           </Num>
         </div>
-        <p className="text-muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.5 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
           {t('rec.coreHelp')}
         </p>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', padding: '8px 10px', borderRadius: 'var(--radius-sm)', background: 'var(--sunk)' }}>
-          <Tag variant="neutral" fontSize={12}>
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+            alignItems: 'baseline',
+            padding: '8px 10px',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--sunk)',
+          }}
+        >
+          <Tag variant="neutral" fontSize={15}>
             {t('adv.fromLibrary')}
           </Tag>
-          <span className="text-muted" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
+          <span className="text-muted" style={{ fontSize: 'var(--text-caption)', lineHeight: 1.5 }}>
             {t('rec.eduCoreBody')}
           </span>
         </div>
@@ -96,24 +120,27 @@ export function AdvisoryRecommendation(_: ScreenProps) {
         <Card padding={13} gap={9} outlined>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
             <CardTitle>{t('rec.satellite')}</CardTitle>
-            <Num size={12.5} style={{ color: 'var(--muted)' }}>
+            <Num size={15.5} style={{ color: 'var(--muted)' }}>
               {profile.satellitePct}%
             </Num>
-            <span className="text-muted" style={{ fontSize: 12.5 }}>
+            <span className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
               {t('rec.ofPortfolio')}
             </span>
             <span style={{ marginInlineStart: 'auto' }}>
-              <Tag variant="accent" fontSize={12}>
+              <Tag variant="accent" fontSize={15}>
                 Recovery Detector
               </Tag>
             </span>
           </div>
-          <p className="text-muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.5 }}>
+          <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
             {t('rec.satHelp')}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
             {SAT_RULES.map((k) => (
-              <div key={k} style={{ display: 'flex', gap: 8, fontSize: 12.5, lineHeight: 1.45 }}>
+              <div
+                key={k}
+                style={{ display: 'flex', gap: 8, fontSize: 'var(--text-caption)', lineHeight: 1.45 }}
+              >
                 <span style={{ color: 'var(--color-accent-200)', flex: 'none' }}>·</span>
                 <span className="text-muted" style={{ flex: 1 }}>
                   {t(k)}
@@ -131,7 +158,7 @@ export function AdvisoryRecommendation(_: ScreenProps) {
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
           <CardTitle>{t('rec.satPositions')}</CardTitle>
           <span style={{ marginInlineStart: 'auto' }}>
-            <Tag variant="outline" fontSize={12}>
+            <Tag variant="outline" fontSize={15}>
               {t('rec.livePrices')}
             </Tag>
           </span>
@@ -139,23 +166,19 @@ export function AdvisoryRecommendation(_: ScreenProps) {
         {/* With no satellite sleeve the engine's picks are not advice for
             this profile, so say so rather than letting the list imply it. */}
         {profile.satellitePct === 0 && (
-          <p className="text-muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.5 }}>
+          <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
             {t('rec.satInfoOnly')}
           </p>
         )}
         {/* Says plainly who executes, and — while no per-symbol link is
             configured — what the button will actually do. */}
         {s.advBroker && (
-          <p className="text-muted" style={{ fontSize: 12, margin: 0, lineHeight: 1.5 }}>
+          <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
             {t('buy.handoffNote')}
             {!hasAnyTradeDeepLink() && ` ${t('buy.noDeepLink')}`}
           </p>
         )}
-        <DataState
-          state={sat.state}
-          onRetry={sat.retry}
-          skeleton={<SkeletonList count={3} minHeight={52} />}
-        >
+        <DataState state={sat.state} onRetry={sat.retry} skeleton={<SkeletonList count={3} minHeight={52} />}>
           {(signals) =>
             signals.length === 0 ? (
               <EmptyState>{t('rec.noPositions')}</EmptyState>
@@ -168,23 +191,18 @@ export function AdvisoryRecommendation(_: ScreenProps) {
                   // its 52-week high, so it is shown as a negative move.
                   const priceStr = x.price === null ? DASH : money(x.price);
                   const ddStr = x.drawdownPct === null ? DASH : pct(-x.drawdownPct, 1);
-                  const scoreStr =
-                    x.compositeScore === null ? DASH : x.compositeScore.toFixed(2);
+                  const scoreStr = x.compositeScore === null ? DASH : x.compositeScore.toFixed(2);
                   return (
                     <ListRow
                       key={x.ticker}
                       leading={<TickerTile ticker={x.ticker} />}
                       title={x.ticker}
-                      subtitle={
-                        <Num>{`${t('rec.fromHigh')} ${ddStr} · ${t('rec.score')} ${scoreStr}`}</Num>
-                      }
+                      subtitle={<Num>{`${t('rec.fromHigh')} ${ddStr} · ${t('rec.score')} ${scoreStr}`}</Num>}
                       right={
                         <RowValues
                           main={priceStr}
                           sub={ddStr}
-                          subColor={
-                            x.drawdownPct === null ? 'var(--muted)' : signalColor(-x.drawdownPct)
-                          }
+                          subColor={x.drawdownPct === null ? 'var(--muted)' : signalColor(-x.drawdownPct)}
                         />
                       }
                       trailing={<BuyAtBrokerButton ticker={x.ticker} />}
@@ -199,16 +217,24 @@ export function AdvisoryRecommendation(_: ScreenProps) {
         </DataState>
       </Card>
 
-
       <Card padding={13} gap={8}>
         <CardTitle>{t('rec.nextStep')}</CardTitle>
-        <p className="text-muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0, lineHeight: 1.5 }}>
           {t('rec.nextStepHelp')}
         </p>
-        <Button block minHeight={44} onClick={() => dispatch({ type: 'advGoto', screen: 'advConnect', stage: 3 })}>
+        <Button
+          block
+          minHeight={44}
+          onClick={() => dispatch({ type: 'advGoto', screen: 'advConnect', stage: 3 })}
+        >
           {t('rec.chooseBroker')}
         </Button>
-        <Button variant="ghost" alignSelf="center" fontSize={13} onClick={() => dispatch({ type: 'go', screen: 'home' })}>
+        <Button
+          variant="ghost"
+          alignSelf="center"
+          fontSize={16}
+          onClick={() => dispatch({ type: 'go', screen: 'home' })}
+        >
           {t('adv.later')}
         </Button>
       </Card>

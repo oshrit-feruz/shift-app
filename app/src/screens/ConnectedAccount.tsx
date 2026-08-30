@@ -100,9 +100,7 @@ export function ConnectedAccountScreen(_: ScreenProps) {
                       </span>
                     </Card>
                   ) : (
-                    quiet.map((connection) => (
-                      <ConnectionCard key={connection.id} connection={connection} />
-                    ))
+                    quiet.map((connection) => <ConnectionCard key={connection.id} connection={connection} />)
                   )
                 ) : (
                   <>
@@ -138,9 +136,7 @@ function DisabledConnectionCard({ connection }: { connection: ConnectedConnectio
   const broker = connection.brokerage ?? connection.id;
   return (
     <Card padding={16} gap={7}>
-      <span style={{ fontSize: 14, color: 'var(--down)' }}>
-        {t('live.connDisabledTitle', { broker })}
-      </span>
+      <span style={{ fontSize: 14, color: 'var(--down)' }}>{t('live.connDisabledTitle', { broker })}</span>
       <span className="text-muted" style={{ fontSize: 12.5, lineHeight: 1.55 }}>
         {t('live.connDisabledHelp')}
       </span>
@@ -159,11 +155,7 @@ function ConnectionCard({ connection }: { connection: ConnectedConnection }) {
   const t = useT();
   const broker = connection.brokerage ?? connection.id;
   const state =
-    connection.disabled === null
-      ? null
-      : connection.disabled
-        ? t('live.connDisabled')
-        : t('live.connActive');
+    connection.disabled === null ? null : connection.disabled ? t('live.connDisabled') : t('live.connActive');
 
   return (
     <Card padding={16} gap={7}>

@@ -1,4 +1,5 @@
 import type {
+  Bar,
   EarningsEvent,
   Loadable,
   NewsItem,
@@ -6,6 +7,7 @@ import type {
   Holding,
   SatelliteSignal,
   SymbolInfo,
+  WatchRow,
 } from './types';
 
 /**
@@ -21,12 +23,40 @@ import type {
 export interface DataService {
   symbols(): Promise<Loadable<SymbolInfo[]>>;
   symbol(ticker: string): Promise<Loadable<SymbolInfo>>;
+  /**
+   * Rows for an arbitrary list of tickers, in the order given — the user's
+   * watchlist. Unlike `symbols()` this is not restricted to the sample table:
+   * a ticker with no row there comes back described by what is actually known
+   * about it (see WatchRow). An empty list is ok([]), with no fetch at all.
+   */
+  watchRows(tickers: string[]): Promise<Loadable<WatchRow[]>>;
+  /**
+   * Everything a user can put on their watchlist: the sample table plus every
+   * symbol in the engine's daily ranking, plus any ticker in `include` that
+   * neither covers. Backs ticker search, which passes the user's watchlist so
+   * a symbol the ranking has since dropped is still listed — and can still be
+   * un-followed.
+   */
+  searchUniverse(include?: string[]): Promise<Loadable<WatchRow[]>>;
   /** Live positions currently held by the Recovery Detector engine. */
   satelliteSignals(): Promise<Loadable<SatelliteSignal[]>>;
   portfolios(): Promise<Loadable<PortfolioSummary[]>>;
   holdings(portfolioId: string): Promise<Loadable<Holding[]>>;
   news(): Promise<Loadable<NewsItem[]>>;
   earnings(): Promise<Loadable<EarningsEvent[]>>;
-  /** Daily close series for charts (seeded/demo or real). */
+  /**
+   * REAL daily price history for one ticker, from the mirror
+   * (data/priceHistory.ts). ok(null) means the mirror publishes nothing for
+   * this symbol — a real answer, not a failure.
+   */
+  dailySeries(ticker: string): Promise<Loadable<Bar[] | null>>;
+  /**
+   * DEMO seeded walk. What is left of the prototype's chart data now that the
+   * stock page and the movers draw real bars: the portfolio's value history
+   * and its benchmark, neither of which can be real until the transactions
+   * behind them are. Never use this for a single stock's price action —
+   * `dailySeries` is real, and a screen mixing the two would be showing
+   * invented price history beside actual sessions.
+   */
   series(key: string, n: number, drift: number, vol: number): number[];
 }

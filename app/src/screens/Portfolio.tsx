@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { DemoDataNote } from '../components/DemoDataNote';
 import { Card, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Tag } from '../components/Tag';
@@ -50,7 +49,6 @@ export function PortfolioScreen(_: ScreenProps) {
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <DemoDataNote />
       <DataState
         state={portfolios.state}
         onRetry={portfolios.retry}
@@ -90,7 +88,12 @@ export function PortfolioScreen(_: ScreenProps) {
             <>
               <ChipRail>
                 {list.map((x, i) => (
-                  <Chip key={x.id} big active={i === Math.min(s.pfIndex, list.length - 1)} onClick={() => dispatch({ type: 'pfIndex', index: i })}>
+                  <Chip
+                    key={x.id}
+                    big
+                    active={i === Math.min(s.pfIndex, list.length - 1)}
+                    onClick={() => dispatch({ type: 'pfIndex', index: i })}
+                  >
                     <span
                       style={{
                         width: 6,
@@ -115,11 +118,18 @@ export function PortfolioScreen(_: ScreenProps) {
                 {/* Add transaction exists ONLY on the theoretical portfolio — linked
                     accounts are read-only synced (product rule). */}
                 {isManual && (
-                  <Button style={{ flex: 1, fontSize: 13, minHeight: 36 }} onClick={() => setTxOpen(true)}>
+                  <Button
+                    style={{ flex: 1, fontSize: 'var(--text-body)', minHeight: 36 }}
+                    onClick={() => setTxOpen(true)}
+                  >
                     ＋ {t('pf.addTx')}
                   </Button>
                 )}
-                <Button variant="secondary" style={{ fontSize: 13, minHeight: 36 }} onClick={() => setNewPfOpen(true)}>
+                <Button
+                  variant="secondary"
+                  style={{ fontSize: 'var(--text-body)', minHeight: 36 }}
+                  onClick={() => setNewPfOpen(true)}
+                >
                   ＋ {t('pf.portfolio')}
                 </Button>
               </div>
@@ -130,18 +140,27 @@ export function PortfolioScreen(_: ScreenProps) {
                 {isAgg && (
                   <span style={{ display: 'flex', flex: 'none', marginInlineEnd: 8 }}>
                     {linked.map((l) => (
-                      <span key={l.id} style={{ marginInlineEnd: -8, borderRadius: 7, boxShadow: '0 0 0 2px var(--color-surface)' }}>
+                      <span
+                        key={l.id}
+                        style={{
+                          marginInlineEnd: -8,
+                          borderRadius: 7,
+                          boxShadow: '0 0 0 2px var(--color-surface)',
+                        }}
+                      >
                         <LogoTile src={l.logo} size={26} />
                       </span>
                     ))}
                   </span>
                 )}
-                {isManual && <LogoTile src={null} dashed label={pf.name.slice(0, 2).toUpperCase()} size={28} />}
+                {isManual && (
+                  <LogoTile src={null} dashed label={pf.name.slice(0, 2).toUpperCase()} size={28} />
+                )}
                 <span style={{ flex: 1, minWidth: 0, marginInlineStart: 10 }}>
-                  <span style={{ display: 'block', fontSize: 14 }}>
+                  <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>
                     {isAgg ? t('pf.allLinked') : isManual ? pf.name : `${pf.broker} ${pf.acct}`}
                   </span>
-                  <span className="text-muted" style={{ display: 'block', fontSize: 12.5 }}>
+                  <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-caption)' }}>
                     {isAgg
                       ? t('pf.aggDetail')
                       : isManual
@@ -149,17 +168,24 @@ export function PortfolioScreen(_: ScreenProps) {
                         : t('pf.synced', { when: pf.syncedAgo?.[language] ?? '' })}
                   </span>
                 </span>
-                <Button variant="ghost" fontSize={12.5} onClick={() => dispatch({ type: 'go', screen: 'connections' })}>
+                <Button
+                  variant="ghost"
+                  fontSize={15.5}
+                  onClick={() => dispatch({ type: 'go', screen: 'connections' })}
+                >
                   {isAgg || pf.kind === 'linked' ? t('pf.manage') : t('pf.link')}
                 </Button>
               </Card>
 
               {isAgg && (
                 <Card padding="4px 0" gap={0}>
-                  <CardTitle size={14}>
+                  <CardTitle size={17}>
                     <span style={{ padding: '9px 13px 2px', display: 'block' }}>{t('pf.byAccount')}</span>
                   </CardTitle>
-                  <div className="text-muted" style={{ fontSize: 12.5, padding: '0 13px 6px' }}>
+                  <div
+                    className="text-muted"
+                    style={{ fontSize: 'var(--text-caption)', padding: '0 13px 6px' }}
+                  >
                     {t('pf.aggPickHelp')}
                   </div>
                   {linked.map((x) => {
@@ -193,7 +219,7 @@ export function PortfolioScreen(_: ScreenProps) {
                             borderRadius: '50%',
                             display: 'grid',
                             placeItems: 'center',
-                            fontSize: 12,
+                            fontSize: 'var(--text-caption)',
                             ...(on
                               ? { background: 'var(--color-accent)', color: 'var(--g2)' }
                               : { border: '1px solid var(--color-divider)', color: 'transparent' }),
@@ -203,8 +229,11 @@ export function PortfolioScreen(_: ScreenProps) {
                         </span>
                         <LogoTile src={x.logo} size={26} />
                         <span style={{ flex: 1, minWidth: 0 }}>
-                          <span style={{ display: 'block', fontSize: 14 }}>{x.name}</span>
-                          <span className="text-muted" style={{ display: 'block', fontSize: 12.5 }}>
+                          <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>{x.name}</span>
+                          <span
+                            className="text-muted"
+                            style={{ display: 'block', fontSize: 'var(--text-caption)' }}
+                          >
                             {on ? `${((x.total / aggTotal) * 100).toFixed(1)}%` : t('pf.excluded')}
                           </span>
                         </span>
@@ -216,7 +245,11 @@ export function PortfolioScreen(_: ScreenProps) {
                           {live ? (
                             <RowValues main={money(x.total)} sub="—" />
                           ) : (
-                            <RowValues main={money(x.total)} sub={pct(x.dayPct)} subColor={signalColor(x.dayPct)} />
+                            <RowValues
+                              main={money(x.total)}
+                              sub={pct(x.dayPct)}
+                              subColor={signalColor(x.dayPct)}
+                            />
                           )}
                         </span>
                       </button>
@@ -226,11 +259,11 @@ export function PortfolioScreen(_: ScreenProps) {
               )}
 
               <Card padding={14} gap={8}>
-                <div className="text-muted" style={{ fontSize: 12.5 }}>
+                <div className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
                   {isAgg ? t('pf.allAccounts') : pf.name} {t('pf.totalValue')}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: 9 }}>
-                  <Num size={27} style={{ fontFamily: 'var(--font-heading)', lineHeight: 1.1 }}>
+                  <Num size={28} style={{ fontFamily: 'var(--font-heading)', lineHeight: 1.1 }}>
                     {money(isAgg ? aggTotal : pf.total)}
                   </Num>
                   {/* The day change and the performance chart come from the
@@ -241,21 +274,34 @@ export function PortfolioScreen(_: ScreenProps) {
                       they are replaced by a statement of what is actually
                       known. */}
                   {!live && (
-                    <span style={{ fontSize: 13, color: signalColor(pf.dayPct), paddingBottom: 3 }}>
+                    <span
+                      style={{
+                        fontSize: 'var(--text-body)',
+                        color: signalColor(pf.dayPct),
+                        paddingBottom: 3,
+                      }}
+                    >
                       <Num>{pct(pf.dayPct)}</Num> {t('pf.today')}
                     </span>
                   )}
                 </div>
                 {live ? (
-                  <p className="text-muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.5 }}>
+                  <p
+                    className="text-muted"
+                    style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}
+                  >
                     {t('live.noHistory')}
                   </p>
                 ) : (
                   <>
                     <AreaChart values={series} height={110} pad={8} benchmark={bench} />
-                    <div className="text-muted" style={{ display: 'flex', gap: 14, fontSize: 12.5 }}>
+                    <div
+                      className="text-muted"
+                      style={{ display: 'flex', gap: 14, fontSize: 'var(--text-caption)' }}
+                    >
                       <span>
-                        <span style={{ color: 'var(--acc-lite)' }}>—</span> {isAgg ? t('pf.allAccounts') : pf.name}
+                        <span style={{ color: 'var(--acc-lite)' }}>—</span>{' '}
+                        {isAgg ? t('pf.allAccounts') : pf.name}
                       </span>
                       <span>{t('pf.benchmark')}</span>
                     </div>
@@ -285,7 +331,7 @@ export function PortfolioScreen(_: ScreenProps) {
                   />
                 )}
                 {beg && !live && (
-                  <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
+                  <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0 }}>
                     {t('pf.concentration')}
                   </p>
                 )}
@@ -335,7 +381,9 @@ function Holdings({ pfId, live }: { pfId: string; live: boolean }) {
                 key={h.ticker}
                 title={h.ticker}
                 subtitle={<Num>{`${h.shares} sh · avg ${money(h.avgCost)}`}</Num>}
-                right={<RowValues main={money(h.value, 0)} sub={pct(h.plPct)} subColor={signalColor(h.plPct)} />}
+                right={
+                  <RowValues main={money(h.value, 0)} sub={pct(h.plPct)} subColor={signalColor(h.plPct)} />
+                }
                 minHeight={46}
                 onClick={() => dispatch({ type: 'openStock', ticker: h.ticker })}
               />
@@ -423,13 +471,13 @@ export function LongTermSavings() {
       </div>
       {rows.length === 0 ? (
         <div style={{ padding: '4px 0 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <p className="text-muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+          <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0, lineHeight: 1.5 }}>
             {t('pf.longTermEmpty')}
           </p>
           <Button
             variant="secondary"
             alignSelf="flex-start"
-            fontSize={13}
+            fontSize={16}
             minHeight={36}
             onClick={() => dispatch({ type: 'advGoto', screen: 'advConnect', solo: true })}
           >
@@ -447,11 +495,11 @@ export function LongTermSavings() {
                   height: 30,
                   flex: 'none',
                   borderRadius: 8,
-                  background: 'var(--color-accent-900)',
+                  background: 'var(--fill-selected)',
                   color: 'var(--color-accent-200)',
                   display: 'grid',
                   placeItems: 'center',
-                  fontSize: 13,
+                  fontSize: 'var(--text-body)',
                   fontWeight: 600,
                 }}
               >

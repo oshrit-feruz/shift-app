@@ -16,7 +16,13 @@ export const STRINGS = {
   'nav.more': p('More', 'עוד'),
   'nav.back': p('Back', 'חזרה'),
 
-  'title.home': p('Good morning, Noa', 'בוקר טוב, נועה'),
+  // Greeted by the name the provider gave us. `title.homeAnon` is not a
+  // fallback for a slow load but for a real case: a provider that sends no
+  // display name at all (Apple, after the first authorisation). Greeting
+  // someone by a name guessed from their email address would be worse than
+  // not naming them.
+  'title.home': p('Good morning, {name}', 'בוקר טוב, {name}'),
+  'title.homeAnon': p('Good morning', 'בוקר טוב'),
   'kicker.home': p('Overview', 'סקירה'),
   'title.pf': p('Portfolios', 'תיקים'),
   'kicker.pf': p('Four accounts', 'ארבעה חשבונות'),
@@ -75,6 +81,8 @@ export const STRINGS = {
   'home.startHere': p('New to investing? Start here', 'חדשה בהשקעות? מתחילים כאן'),
   'home.startHereSub': p('A short guide, then the steps', 'מדריך קצר, ואחריו הצעדים'),
   'home.watchlist': p('Watchlist', 'ווטצ׳ליסט'),
+  'home.watchlistEmpty': p('You are not following any stocks yet', 'עדיין לא עוקבת אחרי אף מניה'),
+  'home.watchlistAdd': p('Add your first stock', 'להוסיף מניה ראשונה'),
   'home.seeAll': p('See all', 'לראות הכול'),
   'home.moversBeg': p("What's moving today", 'מה זז היום'),
   'home.moversAdv': p('Top movers', 'המובילים'),
@@ -228,17 +236,23 @@ export const STRINGS = {
     'Entry when the price is 40–60% below its 52-week high',
     'כניסה כשהמחיר נמוך ב-40%–60% מהשיא של 52 שבועות',
   ),
-  'rec.satRule3': p('Held for a fixed 180 days, then closed by rule', 'החזקה קבועה של 180 יום, ואז סגירה לפי הכלל'),
+  'rec.satRule3': p(
+    'Held for a fixed 180 days, then closed by rule',
+    'החזקה קבועה של 180 יום, ואז סגירה לפי הכלל',
+  ),
   'rec.satRule4': p(
     'The same rules for every client — nothing is customised per person',
     'אותם כללים לכל לקוח — אין התאמה אישית',
   ),
   'rec.satRule5': p('Capped at 15% of the portfolio', 'מוגבל ל-15% מהתיק'),
-  'rec.satOpenPositions': p('Recovery Detector — open positions right now', 'Recovery Detector — פוזיציות פתוחות כרגע'),
+  'rec.satOpenPositions': p(
+    'Recovery Detector — open positions right now',
+    'Recovery Detector — פוזיציות פתוחות כרגע',
+  ),
   'rec.satPositions': p("Today's candidates", 'המועמדות של היום'),
   'rec.livePrices': p('Live prices', 'מחירים חיים'),
   'rec.satInfoOnly': p(
-    "Information only — your profile has no satellite sleeve, so these are not part of your recommendation.",
+    'Information only — your profile has no satellite sleeve, so these are not part of your recommendation.',
     'מידע בלבד — בפרופיל שלך אין רכיב Satellite, ולכן אלה לא חלק מההמלצה שלך.',
   ),
   'rec.noPositions': p('No candidates today', 'אין מועמדות היום'),
@@ -346,10 +360,7 @@ export const STRINGS = {
     'Figures as filed with the SEC. Shown for reference — this is the newest filing on record, not a point-in-time view.',
     'נתונים כפי שהוגשו ל-SEC. מוצגים לעיון — זהו הדוח העדכני ביותר הרשום, ולא תמונת מצב לתאריך מסוים.',
   ),
-  'stock.newsEmpty': p(
-    'No recent articles for this stock.',
-    'אין כתבות אחרונות על מניה זו.',
-  ),
+  'stock.newsEmpty': p('No recent articles for this stock.', 'אין כתבות אחרונות על מניה זו.'),
   'stock.newsRead': p('Read the full article', 'לכתבה המלאה'),
   'stock.newsExcerptNote': p(
     'Excerpts only — the full article opens at its source.',
@@ -381,6 +392,12 @@ export const STRINGS = {
     'הווטצ׳ליסט שלך ריק, אז אין עבור מה למשוך חדשות.',
   ),
   'news.openSource': p('Open at the source', 'לפתוח במקור'),
+  // The provider's own tone score for a story, not this app's reading of it —
+  // see screens/news/sentimentTag.ts. An article the provider did not score
+  // carries no tag at all rather than one of these.
+  'news.sentimentPositive': p('Positive', 'חיובי'),
+  'news.sentimentNegative': p('Negative', 'שלילי'),
+  'news.sentimentNeutral': p('Neutral', 'ניטרלי'),
   'earn.truncated': p(
     'Showing {shown} of {total} reports in the week ahead.',
     'מוצגים {shown} מתוך {total} דוחות בשבוע הקרוב.',
@@ -398,18 +415,16 @@ export const STRINGS = {
   // exists to not do.
   // Sample prices are still what most screens render. Saying so in place is
   // the difference between a prototype and a screen that misleads.
-  'demo.pricesNote': p(
-    'Prices, charts and portfolio figures on this screen are sample data, not live market data.',
-    'מחירים, גרפים ונתוני תיק במסך הזה הם נתוני דוגמה, לא נתוני שוק אמיתיים.',
-  ),
-  'demo.showcase': p(
-    'Illustrative data — this is how these screens look on a paid data plan that includes reported results.',
-    'נתוני הדגמה — כך המסכים נראים עם מנוי נתונים בתשלום שכולל גם תוצאות שדווחו.',
-  ),
-  'set.showcaseRow': p('Demo: full earnings data', 'הדגמה: נתוני דוחות מלאים'),
-  'set.showcaseHelp': p(
-    'Fills the calendar and each stock’s history with illustrative figures, to show what a paid data plan adds. Clearly marked wherever it shows, and never used when live data fails.',
-    'ממלא את היומן ואת ההיסטוריה של כל מניה בנתוני הדגמה, כדי להראות מה מנוי בתשלום מוסיף. מסומן בבירור בכל מקום שהוא מופיע, ולעולם לא משמש כשנתונים חיים נכשלים.',
+  // Rewritten when prices went live: it used to call prices sample data, and
+  // leaving that would have been the same failure in the other direction —
+  // telling a reader to distrust the one number on the screen that is real.
+  // Charts came off this list when they started drawing published sessions.
+  // Day change is the one that has to stay: no source in the app carries an
+  // intraday move, so the percentage beside every price is still invented.
+  'more.demoData': p('Sample data', 'נתוני דמו'),
+  'more.demoDataHelp': p(
+    'Draws charts from generated price action and fills the earnings screens with illustrative figures, so nothing is ever empty. Turn it off to use real market data.',
+    'מצייר את הגרפים מנתונים מומצאים וממלא את מסכי הדוחות בנתוני הדגמה, כך ששום דבר לא נשאר ריק. כבי אותו כדי להשתמש בנתוני שוק אמיתיים.',
   ),
   'earn.scheduledOnly': p(
     'The week ahead: reports still to come. Results already published appear on each stock’s own page.',
@@ -424,9 +439,21 @@ export const STRINGS = {
     'אין נתוני מחיר לדוגמה לסמל הזה — הדוחות והחדשות למטה הם נתונים חיים.',
   ),
   'stock.nov': p('Nov', 'נוב׳'),
+  // Was "Up about 18% over three months" with both the direction and the
+  // figure hard-coded — which, once the line became real, could contradict the
+  // chart directly above it. The change is now measured off the sessions on
+  // screen and carries its own sign, and the period is no longer named because
+  // the reader picked it.
   'stock.chartHelp': p(
-    "Up about {pct} over three months. The line is each day's closing price — where the stock finished the day.",
-    'עלייה של בערך {pct} בשלושה חודשים. הקו הוא מחיר הסגירה של כל יום — איפה המניה סיימה את היום.',
+    "{pct} over the period shown. The line is each day's closing price — where the stock finished the day.",
+    '{pct} בתקופה המוצגת. הקו הוא מחיר הסגירה של כל יום — איפה המניה סיימה את היום.',
+  ),
+  // The mirror publishes a file per covered ticker and nothing for the rest,
+  // so this is a fact about the symbol rather than a failure — no retry, and
+  // deliberately not the "unavailable" state.
+  'stock.noSeries': p(
+    'No price history is published for this symbol yet.',
+    'עדיין לא פורסמה היסטוריית מחירים לסמל הזה.',
   ),
 
   // ── Portfolio ─────────────────────────────────────────────────────────
@@ -478,11 +505,28 @@ export const STRINGS = {
   'pf.benchmark': p('- - S&P 500', '- - S&P 500'),
 
   // ── Watchlist / alerts ────────────────────────────────────────────────
-  'watch.sub': p('4 active alerts · 8 tracked', '4 התראות פעילות · 8 במעקב'),
+  // The subtitle counts what the user actually has, so it is built from two
+  // halves rather than one frozen sentence.
+  'watch.trackedCount': p('{n} tracked', '{n} במעקב'),
+  'watch.alertsCount': p('{n} active alerts', '{n} התראות פעילות'),
   'watch.newAlert': p('New alert', 'התראה חדשה'),
+  'watch.addStock': p('Add stock', 'להוסיף מניה'),
   'watch.tracking': p('Tracking', 'במעקב'),
   'watch.activeAlerts': p('Active alerts', 'התראות פעילות'),
   'watch.remove': p('Remove', 'להסיר'),
+  'watch.empty': p('Your watchlist is empty', 'הווטצ׳ליסט שלך ריק'),
+  'watch.emptyHelp': p(
+    'Search for a stock and add it. The list is yours — it stays on this device and syncs to your account.',
+    'לחפש מניה ולהוסיף אותה. הרשימה שלך — היא נשמרת במכשיר ומסתנכרנת לחשבון שלך.',
+  ),
+  'watch.removeAria': p('Remove {ticker} from your watchlist', 'להסיר את {ticker} מהווטצ׳ליסט'),
+  'watch.alertAria': p('New alert for {ticker}', 'התראה חדשה על {ticker}'),
+  'watch.noAlerts': p('No alerts yet', 'אין עדיין התראות'),
+  'watch.noAlertsHelp': p(
+    'An alert tells you when a stock you follow crosses a price, gets mentioned in the news, or reports.',
+    'התראה מודיעה לך כשמניה שאת עוקבת אחריה חוצה מחיר, מוזכרת בחדשות או מפרסמת דוח.',
+  ),
+  'watch.symbolOnly': p('Symbol only', 'סימבול בלבד'),
   'watch.alertNudge': p(
     'An alert is just a nudge — it never buys or sells anything.',
     'התראה היא רק תזכורת — היא לא קונה ולא מוכרת כלום.',
@@ -496,6 +540,12 @@ export const STRINGS = {
   'alert.newsHelp': p('When a keyword shows up in coverage', 'כשמילת מפתח מופיעה בכיסוי התקשורתי'),
   'alert.earnType': p('Earnings report', 'דוח רבעוני'),
   'alert.earnHelp': p('Before or when results land', 'לפני הפרסום או ברגע שהוא יוצא'),
+  'alert.stock': p('Stock', 'מניה'),
+  'alert.pickStock': p('Choose a stock', 'לבחור מניה'),
+  'alert.noStock': p(
+    'Add a stock to your watchlist first — an alert has to be about something.',
+    'קודם להוסיף מניה לווטצ׳ליסט — התראה חייבת להיות על משהו.',
+  ),
   'alert.condition': p('Condition', 'תנאי'),
   'alert.rises': p('Rises above', 'עולה מעל'),
   'alert.falls': p('Falls below', 'יורד מתחת'),
@@ -543,9 +593,24 @@ export const STRINGS = {
   // ── Search ────────────────────────────────────────────────────────────
   'search.placeholder': p('Search ticker or company', 'חיפוש סימבול או חברה'),
   'search.recent': p('Recent', 'אחרונים'),
+  'search.add': p('Add', 'להוסיף'),
+  // Confirmations. The subject is a stock — מניה, feminine — so the verb
+  // agrees with it rather than with the ticker's letters.
+  'toast.added': p('{ticker} added to your watchlist', '{ticker} נוספה לווטצ׳ליסט'),
+  'toast.removed': p('{ticker} removed from your watchlist', '{ticker} הוסרה מהווטצ׳ליסט'),
+  'search.added': p('Added', 'נוסף'),
+  'search.addAria': p('Add {ticker} to your watchlist', 'להוסיף את {ticker} לווטצ׳ליסט'),
+  'search.removeAria': p('Remove {ticker} from your watchlist', 'להסיר את {ticker} מהווטצ׳ליסט'),
+  // Shown for a symbol that is in the engine's daily ranking but has no row
+  // in the sample table — we have its price and nothing else, and the row
+  // says so rather than leaving a blank where a company name belongs.
+  'search.rankedOnly': p("In today's ranking", 'בדירוג היומי'),
   'search.matches': p('{n} matches', '{n} תוצאות'),
   'search.noMatch': p('No match for', 'אין תוצאה עבור'),
-  'search.noMatchHelp': p('Try a ticker like NVDA, or a company name.', 'נסי סימבול כמו NVDA, או שם של חברה.'),
+  'search.noMatchHelp': p(
+    'Try a ticker like NVDA, or a company name.',
+    'נסי סימבול כמו NVDA, או שם של חברה.',
+  ),
 
   // ── Movers ────────────────────────────────────────────────────────────
   'movers.gainers': p('Gainers', 'עולות'),
@@ -581,7 +646,6 @@ export const STRINGS = {
   'earn.lastSurprise': p('Last surprise', 'הפתעה אחרונה'),
   'earn.weekOf': p('{n} companies report in the week ahead', '{n} חברות מדווחות בשבוע הקרוב'),
   'earn.noneMatch': p('No reports match this filter', 'אין דוחות שתואמים לסינון הזה'),
-
 
   // ── Compare ───────────────────────────────────────────────────────────
   'cmp.indexed': p('Indexed to 100 at the start of the window', 'מנורמל ל-100 בתחילת התקופה'),
@@ -732,6 +796,52 @@ export const STRINGS = {
   'data.retry': p('Retry', 'לנסות שוב'),
   'data.demo': p('Demo data', 'נתוני הדגמה'),
 
+  // ── Auth ──────────────────────────────────────────────────────────────
+  'auth.kicker': p('Sign in', 'התחברות'),
+  'auth.title': p('Welcome to Shift', 'ברוכים הבאים ל-Shift'),
+  'auth.sub': p(
+    'Sign in to keep your progress and settings on every device.',
+    'התחברות שומרת את ההתקדמות וההגדרות שלך בכל מכשיר.',
+  ),
+  'auth.google': p('Continue with Google', 'המשך עם Google'),
+  'auth.apple': p('Continue with Apple', 'המשך עם Apple'),
+  'auth.appleSoon': p(
+    'Apple sign-in isn’t available yet — coming soon.',
+    'התחברות עם Apple עדיין לא זמינה — בקרוב.',
+  ),
+  'auth.redirecting': p('Redirecting…', 'מעביר…'),
+  'auth.errorTitle': p('Sign-in didn’t work', 'ההתחברות לא הצליחה'),
+  'auth.retry': p('Try again', 'לנסות שוב'),
+  'set.signOut': p('Sign out', 'התנתקות'),
+  'set.signedInAs': p('Signed in as {email}', 'מחובר/ת כ-{email}'),
+  'set.providerGoogle': p('via Google', 'דרך Google'),
+  'set.providerApple': p('via Apple', 'דרך Apple'),
+  'set.editProfile': p('Edit profile', 'עריכת פרופיל'),
+  'set.displayName': p('Display name', 'שם תצוגה'),
+  'set.namePlaceholder': p('The name shown in the app', 'השם שמוצג באפליקציה'),
+  'set.nameInvalid': p('A name of up to 60 characters', 'שם באורך עד 60 תווים'),
+  'set.changePhoto': p('Change picture', 'החלפת תמונה'),
+  'set.uploading': p('Uploading…', 'מעלה…'),
+  'set.photoHelp': p('JPEG, PNG or WebP, up to 2 MB', 'JPEG, PNG או WebP, עד 2 מגה'),
+  'set.useProviderName': p('Use my Google name', 'להשתמש בשם מ-Google'),
+  'set.useProviderPhoto': p('Use my Google picture', 'להשתמש בתמונה מ-Google'),
+  'set.save': p('Save', 'שמירה'),
+  'set.saving': p('Saving…', 'שומר…'),
+  'set.saved': p('Saved', 'נשמר'),
+  'set.saveFailedTitle': p('Not saved', 'לא נשמר'),
+  'set.emailFixed': p(
+    'The email comes from the account you signed in with and cannot be changed here.',
+    'האימייל מגיע מהחשבון שאיתו נכנסת ולא ניתן לשנות אותו כאן.',
+  ),
+  'set.deleteTitle': p('Delete account', 'מחיקת חשבון'),
+  'set.deleteWarn': p(
+    'This permanently deletes your account and everything stored with it — your risk profile, onboarding progress, watchlist and alerts. It cannot be undone, and signing in again creates a fresh account.',
+    'הפעולה מוחקת לצמיתות את החשבון שלך ואת כל מה שנשמר איתו — פרופיל הסיכון, ההתקדמות בהקמה, הווטצ׳ליסט וההתראות. אי אפשר לבטל אותה, והתחברות מחדש תיצור חשבון חדש.',
+  ),
+  'set.deleteConfirm': p('Delete permanently', 'למחוק לצמיתות'),
+  'set.deleteCancel': p('Cancel', 'ביטול'),
+  'set.deleting': p('Deleting…', 'מוחק…'),
+  'set.deleteFailedTitle': p('The account was not deleted', 'החשבון לא נמחק'),
   // ── Connected account (founder demo, SnapTrade Personal) ──────────────
   // A demo-only, single-account, read-only integration. Every string here is
   // written to make that scope unmistakable — nothing may read as a feature
@@ -741,11 +851,11 @@ export const STRINGS = {
   'live.title': p('Connected account (demo)', 'חשבון מקושר (הדגמה)'),
   'live.badge': p('Real data', 'נתונים אמיתיים'),
   'live.intro': p(
-    'One real brokerage account, read live and read-only through SnapTrade. This is a founder demo on SnapTrade\'s free Personal tier — a single account, not account linking for users.',
+    "One real brokerage account, read live and read-only through SnapTrade. This is a founder demo on SnapTrade's free Personal tier — a single account, not account linking for users.",
     'חשבון ברוקר אמיתי אחד, נקרא בזמן אמת ובקריאה בלבד דרך SnapTrade. זו הדגמה של המייסדת בשכבת Personal החינמית של SnapTrade — חשבון בודד, לא חיבור חשבונות למשתמשות.',
   ),
   'live.notForUsers': p(
-    'Not available to users. Multi-user account linking would need SnapTrade\'s Commercial tier with KYC and billing — a separate decision that has not been made.',
+    "Not available to users. Multi-user account linking would need SnapTrade's Commercial tier with KYC and billing — a separate decision that has not been made.",
     'לא זמין למשתמשות. חיבור חשבונות לריבוי משתמשות ידרוש את שכבת Commercial של SnapTrade עם KYC וחיוב — החלטה נפרדת שטרם התקבלה.',
   ),
   'live.readOnly': p(
@@ -754,7 +864,7 @@ export const STRINGS = {
   ),
   'live.none': p('No brokerage account connected yet.', 'עדיין לא מקושר חשבון ברוקר.'),
   'live.noneHelp': p(
-    'Connect one in SnapTrade\'s own Connection Portal and it will appear here. Nothing is shown until a real account is linked.',
+    "Connect one in SnapTrade's own Connection Portal and it will appear here. Nothing is shown until a real account is linked.",
     'אפשר לקשר חשבון בפורטל החיבורים של SnapTrade והוא יופיע כאן. עד שיקושר חשבון אמיתי לא יוצג דבר.',
   ),
   'live.balances': p('Balances', 'יתרות'),
@@ -773,7 +883,7 @@ export const STRINGS = {
     'מקף פירושו שהברוקר לא דיווח על השדה הזה. שום נתון כאן אינו משוער או מושלם מעצמנו.',
   ),
   'live.noHistory': p(
-    'No performance history: this is a live read of the account\'s current state, and the brokerage reports no day change or priced history through this integration.',
+    "No performance history: this is a live read of the account's current state, and the brokerage reports no day change or priced history through this integration.",
     'אין היסטוריית ביצועים: זו קריאה חיה של מצב החשבון כרגע, והברוקר אינו מדווח שינוי יומי או היסטוריה מתומחרת דרך החיבור הזה.',
   ),
   'live.shortExcluded': p(
@@ -804,10 +914,7 @@ export const STRINGS = {
     'This connection is served from a cache (delayed), not queried live — so an empty list can mean the cache has not been filled yet rather than that the account is empty. A manual refresh can populate it.',
     'החיבור הזה מוגש ממטמון (delayed) ולא נשאל בזמן אמת — ולכן רשימה ריקה יכולה להעיד שהמטמון טרם התמלא, ולא שהחשבון ריק. רענון ידני יכול למלא אותו.',
   ),
-  'live.connDisabledTitle': p(
-    'The connection to {broker} is disabled.',
-    'החיבור ל-{broker} מושבת.',
-  ),
+  'live.connDisabledTitle': p('The connection to {broker} is disabled.', 'החיבור ל-{broker} מושבת.'),
   'live.connDisabledHelp': p(
     'Nothing from it is shown. A disabled connection keeps returning its last cached figures, and there is no way to tell how old they are — so showing them would be presenting stale holdings as current. Reconnect it in SnapTrade to restore it.',
     'שום נתון ממנו אינו מוצג. חיבור מושבת ממשיך להחזיר את הנתונים האחרונים שנשמרו במטמון, ואין דרך לדעת בני כמה הם — כך שהצגתם פירושה להציג החזקות ישנות כאילו הן עדכניות. אפשר לחבר מחדש ב-SnapTrade כדי לשחזר אותו.',

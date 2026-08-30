@@ -47,7 +47,7 @@ export function DataState<T>({
       <div
         role="status"
         className="text-muted"
-        style={{ textAlign: 'center', padding: '16px 0', fontSize: 13 }}
+        style={{ textAlign: 'center', padding: '16px 0', fontSize: 'var(--text-body)' }}
       >
         {t('data.loading')}
       </div>
@@ -55,9 +55,11 @@ export function DataState<T>({
   }
   if (state.status === 'unavailable') {
     return (
-      <div style={{ textAlign: 'center', padding: '14px 0', display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <span style={{ fontSize: 14 }}>{t('data.unavailable')}</span>
-        <span className="text-muted" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
+      <div
+        style={{ textAlign: 'center', padding: '14px 0', display: 'flex', flexDirection: 'column', gap: 6 }}
+      >
+        <span style={{ fontSize: 'var(--text-row)' }}>{t('data.unavailable')}</span>
+        <span className="text-muted" style={{ fontSize: 'var(--text-caption)', lineHeight: 1.5 }}>
           {/* A specific reason from the data layer beats the generic copy:
               "the snapshot is 9 days old" tells the user something true and
               actionable, where "try again later" would imply a transient
@@ -65,7 +67,7 @@ export function DataState<T>({
           {state.reason ? state.reason[language] : t('data.unavailableHelp')}
         </span>
         {onRetry && (
-          <Button variant="ghost" onClick={onRetry} alignSelf="center" fontSize={13}>
+          <Button variant="ghost" onClick={onRetry} alignSelf="center" fontSize={16}>
             {t('data.retry')}
           </Button>
         )}
@@ -78,6 +80,10 @@ export function DataState<T>({
 /** Honest empty state for ok-but-empty lists (e.g. no open satellite positions). */
 export function EmptyState({ children }: { children: ReactNode }) {
   return (
-    <div style={{ textAlign: 'center', padding: '14px 0', color: 'var(--muted)', fontSize: 14 }}>{children}</div>
+    <div
+      style={{ textAlign: 'center', padding: '14px 0', color: 'var(--muted)', fontSize: 'var(--text-row)' }}
+    >
+      {children}
+    </div>
   );
 }

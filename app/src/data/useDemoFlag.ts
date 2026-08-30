@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { DEMO_FLAGS, type DemoFlag } from './demoAdapter';
+import { DEMO_FLAGS, type DemoFlag } from './demoFlags';
 
 /**
  * A demo flag as reactive state.

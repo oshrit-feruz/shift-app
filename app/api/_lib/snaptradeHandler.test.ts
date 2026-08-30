@@ -118,7 +118,7 @@ describe('/api/snaptrade handler', () => {
     expect(body.connections[0].accountCount).toBe(1);
   });
 
-  it('never serves a disabled connection\'s accounts — SnapTrade keeps returning its last cached state', async () => {
+  it("never serves a disabled connection's accounts — SnapTrade keeps returning its last cached state", async () => {
     // The reason this matters: SnapTrade's docs say a disabled connection
     // "can no longer access the latest data from the brokerage, but will
     // continue to return the last available cached state". It answers 200
@@ -146,7 +146,7 @@ describe('/api/snaptrade handler', () => {
     expect(seen.some((p) => p.includes('/positions') || p.includes('/balances'))).toBe(false);
   });
 
-  it('keeps a live connection\'s accounts when a second connection is disabled', async () => {
+  it("keeps a live connection's accounts when a second connection is disabled", async () => {
     globalThis.fetch = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
       const url = String(input);
       if (url.includes('/authorizations')) {
@@ -353,7 +353,10 @@ describe('/api/snaptrade handler', () => {
       return jsonResponse([]);
     }) as unknown as typeof fetch;
 
-    await handler({ method: 'GET', query: { path: '/trade/place-order', accountId: '../../evil' } }, makeRes());
+    await handler(
+      { method: 'GET', query: { path: '/trade/place-order', accountId: '../../evil' } },
+      makeRes(),
+    );
     // Two calls: the daily list, then the empty-cache fallback. Both are
     // paths from READ_ONLY_PATHS, neither carries anything the caller sent.
     expect(seen.map((u) => new URL(u).pathname)).toEqual(['/api/v1/authorizations', '/api/v1/accounts']);
@@ -363,7 +366,9 @@ describe('/api/snaptrade handler', () => {
   });
 
   it('maps a 401 to a credentials fault rather than an empty account list', async () => {
-    globalThis.fetch = vi.fn(async () => jsonResponse({ detail: 'bad signature' }, 401)) as unknown as typeof fetch;
+    globalThis.fetch = vi.fn(async () =>
+      jsonResponse({ detail: 'bad signature' }, 401),
+    ) as unknown as typeof fetch;
     const res = makeRes();
     await handler({ method: 'GET', query: {} }, res);
     expect(res._status).toBe(502);

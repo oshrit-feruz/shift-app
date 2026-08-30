@@ -1,11 +1,6 @@
 import { isValidTicker } from './_lib/news.js';
 import { parseIsoDate, validateRange, type EarningsRow } from './_lib/earnings.js';
-import {
-  mapHistoryRow,
-  parseCalendarCsv,
-  readApiError,
-  withinRange,
-} from './_lib/alphavantage.js';
+import { mapHistoryRow, parseCalendarCsv, readApiError, withinRange } from './_lib/alphavantage.js';
 import { failureBody, fetchUpstreamJson } from './_lib/upstream.js';
 import { type ApiRequest, type ApiResponse } from './_lib/http.js';
 
@@ -34,7 +29,9 @@ const CALENDAR_HORIZONS: Array<{ days: number; value: string }> = [
  * empty answer for a past window is a real answer.
  */
 export function horizonFor(to: string, now: Date = new Date()): string | null {
-  const days = (Date.parse(`${to}T00:00:00Z`) - Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())) / 86_400_000;
+  const days =
+    (Date.parse(`${to}T00:00:00Z`) - Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())) /
+    86_400_000;
   if (days <= 0) return CALENDAR_HORIZONS[0].value;
   return CALENDAR_HORIZONS.find((h) => days <= h.days)?.value ?? null;
 }
@@ -63,8 +60,14 @@ const MAX_ROWS = 400;
  * the rest of the app already uses for HTTP statuses: a plan problem reads as
  * forbidden (it will not fix itself), a spent quota as rate-limited (it will).
  */
-const NOTICE_FAILURES: Record<'rate_limited' | 'plan_required' | 'rejected', { error: string; message: string }> = {
-  rate_limited: { error: 'upstream_rate_limited', message: "The earnings provider's request quota has been reached." },
+const NOTICE_FAILURES: Record<
+  'rate_limited' | 'plan_required' | 'rejected',
+  { error: string; message: string }
+> = {
+  rate_limited: {
+    error: 'upstream_rate_limited',
+    message: "The earnings provider's request quota has been reached.",
+  },
   plan_required: {
     error: 'upstream_forbidden',
     message: "The earnings provider refused the request — this API key's plan may not include this data.",
@@ -72,8 +75,14 @@ const NOTICE_FAILURES: Record<'rate_limited' | 'plan_required' | 'rejected', { e
   rejected: { error: 'upstream_error', message: 'The earnings provider refused the request.' },
 };
 
-/** Parse text that should be JSON, without throwing. Null when it is not. */
+/** Safely parse a string as JSON. Returns null if the string is not valid JSON instead of throwing. */
 function safeJson(text: string): unknown {
+  // The calendar path passes the whole CSV body (potentially megabytes)
+  // through here just to check for a JSON provider notice. A body that does
+  // not even start like JSON cannot be one — skip the guaranteed-to-throw
+  // parse instead of paying for the exception on every request.
+  const first = text.trimStart()[0];
+  if (first !== '{' && first !== '[') return null;
   try {
     return JSON.parse(text);
   } catch {
@@ -82,16 +91,93 @@ function safeJson(text: string): unknown {
 }
 
 /**
- * The market-wide calendar, from the CSV body. Null means "not a shape we
- * understand", which the caller reports rather than treating as a quiet week.
+ * Warm-invocation cache for the market-wide calendar, keyed on horizon.
+ *
+ * The upstream response is window-independent — the same '3month' horizon
+ * serves every from/to pair inside it — but the CDN caches per URL, so two
+ * different windows were two full downloads and two CSV parses of the same
+ * ~1,500-row body. Module scope survives warm invocations only; a cold start
+ * simply misses. TTL matches the route's own s-maxage.
+ */
+const CALENDAR_CACHE_TTL_MS = 6 * 60 * 60_000;
+const calendarCache = new Map<string, { rows: EarningsRow[]; fetchedAt: number }>();
+
+/**
+ * In-flight calendar work, keyed on horizon, so concurrent cache misses in
+ * the same warm container share ONE upstream call instead of each spending a
+ * provider request on the identical download. Entries remove themselves when
+ * the work settles; only the result cache above outlives a request.
+ */
+const calendarInFlight = new Map<string, Promise<UpstreamOutcome>>();
+
+/**
+ * Either the mapped rows, or the exact (status, body) failure response every
+ * waiter should send. Failures are precomputed here so concurrent requests
+ * sharing one upstream call can each answer faithfully.
+ */
+type UpstreamOutcome = { rows: EarningsRow[] } | { status: number; body: unknown };
+
+/** The whole upstream round trip: fetch, provider-notice check, mapping. */
+async function fetchAndMap(
+  upstreamUrl: URL,
+  timeoutMs: number,
+  ticker: string | null,
+): Promise<UpstreamOutcome> {
+  // The calendar answers CSV; the per-company history answers JSON.
+  const result = await fetchUpstreamJson(
+    upstreamUrl,
+    timeoutMs,
+    'earnings',
+    '/api/earnings',
+    fetch,
+    ticker === null ? 'text' : 'json',
+  );
+  if (!result.ok) return { status: result.failure.status, body: failureBody(result.failure) };
+
+  // Alpha Vantage reports its own failures with HTTP 200 and a JSON body,
+  // including on the CSV route — so a spent daily quota looks exactly like
+  // a successful empty week unless it is read first. Answering "no reports"
+  // to a quota error would be this app's worst failure mode: a confident
+  // claim made from a response that contained no data at all.
+  const notice = readApiError(typeof result.body === 'string' ? safeJson(result.body) : result.body);
+  if (notice !== null) {
+    console.error(`/api/earnings: provider notice (${notice.kind}): ${notice.detail}`);
+    return { status: 502, body: NOTICE_FAILURES[notice.kind] };
+  }
+
+  const mapped = ticker === null ? readCalendar(result.body) : readHistory(result.body, ticker.toUpperCase());
+  if (mapped === null) {
+    console.error('/api/earnings: upstream response had an unexpected shape');
+    return {
+      status: 502,
+      body: { error: 'bad_response', message: 'The earnings provider returned an unexpected shape.' },
+    };
+  }
+  return { rows: mapped };
+}
+
+/**
+ * Plain string comparison, not localeCompare: reportDate is YYYY-MM-DD,
+ * which already sorts lexicographically, and this runs over thousands of
+ * rows on the widest windows.
+ */
+function byReportDate(a: EarningsRow, b: EarningsRow): number {
+  if (a.reportDate < b.reportDate) return -1;
+  if (a.reportDate > b.reportDate) return 1;
+  return 0;
+}
+
+/**
+ * Parse the market-wide calendar from CSV response body.
+ * Returns null if the body is not a recognizable CSV format, which the caller reports as unreadable rather than treating as an empty week.
  */
 function readCalendar(body: unknown): EarningsRow[] | null {
   return typeof body === 'string' ? parseCalendarCsv(body) : null;
 }
 
 /**
- * One company's reported quarters, from EARNINGS' quarterlyEarnings array.
- * A body without that array is unreadable, not an empty history.
+ * Extract a company's reported quarters from the EARNINGS response's quarterlyEarnings array.
+ * Returns null if the array is missing (unreadable response), not an empty array (which would mean no history).
  */
 function readHistory(body: unknown, ticker: string): EarningsRow[] | null {
   if (typeof body !== 'object' || body === null) return null;
@@ -132,7 +218,7 @@ function readHistory(body: unknown, ticker: string): EarningsRow[] | null {
  * or invented rows. A window with genuinely no reports is a 200 with an empty
  * list, which is a real answer and not an error.
  */
-export function createHandler(timeoutMs: number) {
+export function createHandler(timeoutMs: number, useCalendarCache = false) {
   return async function handler(req: ApiRequest, res: ApiResponse) {
     if (req.method !== 'GET') {
       res.setHeader('Allow', 'GET');
@@ -158,7 +244,9 @@ export function createHandler(timeoutMs: number) {
     const rawTicker = one(req.query.ticker);
     const ticker = rawTicker === undefined || rawTicker === '' ? null : rawTicker;
     if (ticker !== null && !isValidTicker(ticker)) {
-      return res.status(400).json({ error: 'invalid_ticker', message: 'Ticker contains unsupported characters.' });
+      return res
+        .status(400)
+        .json({ error: 'invalid_ticker', message: 'Ticker contains unsupported characters.' });
     }
 
     // Dates are required and validated before any upstream call: a bad range
@@ -173,15 +261,18 @@ export function createHandler(timeoutMs: number) {
         .json({ error: 'invalid_range', message: 'Query params "from" and "to" must be YYYY-MM-DD dates.' });
     }
     if (rangeError === 'bad_range') {
-      return res
-        .status(400)
-        .json({ error: 'invalid_range', message: 'The date range is inverted or wider than this endpoint allows.' });
+      return res.status(400).json({
+        error: 'invalid_range',
+        message: 'The date range is inverted or wider than this endpoint allows.',
+      });
     }
 
     const apiKey = process.env.ALPHAVANTAGE_API_KEY;
     if (!apiKey) {
       console.error('/api/earnings: ALPHAVANTAGE_API_KEY is not set');
-      return res.status(500).json({ error: 'not_configured', message: 'Earnings service is not configured.' });
+      return res
+        .status(500)
+        .json({ error: 'not_configured', message: 'Earnings service is not configured.' });
     }
 
     // Two upstream questions, two functions. Neither takes a date range —
@@ -189,11 +280,12 @@ export function createHandler(timeoutMs: number) {
     // fixed horizon — so the window is applied here, after mapping.
     const upstreamUrl = new URL(ALPHAVANTAGE_URL);
     upstreamUrl.searchParams.set('apikey', apiKey);
+    let horizon: string | null = null;
     if (ticker !== null) {
       upstreamUrl.searchParams.set('function', 'EARNINGS');
       upstreamUrl.searchParams.set('symbol', ticker.toUpperCase());
     } else {
-      const horizon = horizonFor(to as string);
+      horizon = horizonFor(to as string);
       if (horizon === null) {
         // Refused rather than answered with an empty list: upstream cannot
         // see that far, and "no reports" would be a claim about a period we
@@ -207,40 +299,45 @@ export function createHandler(timeoutMs: number) {
       upstreamUrl.searchParams.set('horizon', horizon);
     }
 
-    // The calendar answers CSV; the per-company history answers JSON.
-    const result = await fetchUpstreamJson(
-      upstreamUrl,
-      timeoutMs,
-      'earnings',
-      '/api/earnings',
-      fetch,
-      ticker === null ? 'text' : 'json',
-    );
-    if (!result.ok) return res.status(result.failure.status).json(failureBody(result.failure));
-
-    // Alpha Vantage reports its own failures with HTTP 200 and a JSON body,
-    // including on the CSV route — so a spent daily quota looks exactly like
-    // a successful empty week unless it is read first. Answering "no reports"
-    // to a quota error would be this app's worst failure mode: a confident
-    // claim made from a response that contained no data at all.
-    const notice = readApiError(typeof result.body === 'string' ? safeJson(result.body) : result.body);
-    if (notice !== null) {
-      console.error(`/api/earnings: provider notice (${notice.kind}): ${notice.detail}`);
-      const failure = NOTICE_FAILURES[notice.kind];
-      return res.status(502).json(failure);
+    // A cached horizon answers the whole request without touching upstream —
+    // the window filter below is the only per-request part.
+    let mapped: EarningsRow[] | null = null;
+    if (ticker === null && useCalendarCache && horizon !== null) {
+      const hit = calendarCache.get(horizon);
+      if (hit && Date.now() - hit.fetchedAt < CALENDAR_CACHE_TTL_MS) mapped = hit.rows;
     }
 
-    const mapped = ticker === null ? readCalendar(result.body) : readHistory(result.body, ticker.toUpperCase());
     if (mapped === null) {
-      console.error('/api/earnings: upstream response had an unexpected shape');
-      return res
-        .status(502)
-        .json({ error: 'bad_response', message: 'The earnings provider returned an unexpected shape.' });
+      const cacheableCalendar = ticker === null && useCalendarCache && horizon !== null;
+      let outcome: UpstreamOutcome;
+      if (cacheableCalendar) {
+        // Share in-flight work: a burst of concurrent misses for the same
+        // horizon must cost one upstream request, not one each.
+        let pending = calendarInFlight.get(horizon as string);
+        if (!pending) {
+          pending = fetchAndMap(upstreamUrl, timeoutMs, ticker);
+          calendarInFlight.set(horizon as string, pending);
+          // Two-sided .then, not .finally: .finally would return a DERIVED
+          // promise that re-throws pending's rejection with nobody attached
+          // to it — an unhandled rejection even though the awaiter below
+          // handles pending itself.
+          const cleanup = () => calendarInFlight.delete(horizon as string);
+          void pending.then(cleanup, cleanup);
+        }
+        outcome = await pending;
+      } else {
+        outcome = await fetchAndMap(upstreamUrl, timeoutMs, ticker);
+      }
+      if (!('rows' in outcome)) return res.status(outcome.status).json(outcome.body);
+      mapped = outcome.rows;
+      // Only a successfully mapped calendar is cached — a failure outcome has
+      // already returned above, so an error can never be frozen here.
+      if (cacheableCalendar) {
+        calendarCache.set(horizon as string, { rows: mapped, fetchedAt: Date.now() });
+      }
     }
 
-    const all: EarningsRow[] = withinRange(mapped, from as string, to as string).sort((a, b) =>
-      a.reportDate.localeCompare(b.reportDate),
-    );
+    const all: EarningsRow[] = withinRange(mapped, from as string, to as string).sort(byReportDate);
     const earnings = all.slice(0, MAX_ROWS);
     const truncated = all.length > earnings.length;
 
@@ -265,4 +362,6 @@ export function createHandler(timeoutMs: number) {
   };
 }
 
-export default createHandler(DEFAULT_UPSTREAM_TIMEOUT_MS);
+// The deployed handler caches the calendar horizon across warm invocations;
+// tests build their own handlers without the cache so runs stay isolated.
+export default createHandler(DEFAULT_UPSTREAM_TIMEOUT_MS, true);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compactMoney, isoDate } from './format';
+import { compactMoney, isoDate, moneyOrDash } from './format';
 
 describe('compactMoney', () => {
   it('compacts at each scale, keeping one decimal', () => {
@@ -75,5 +75,25 @@ describe('isoDate', () => {
     expect(isoDate(null, 'en')).toBe('—');
     expect(isoDate('', 'en')).toBe('—');
     expect(isoDate('sometime', 'en')).toBe('sometime');
+  });
+});
+
+describe('moneyOrDash — a price, or an honest dash', () => {
+  it('formats a real price like money() does', () => {
+    expect(moneyOrDash(144.76)).toBe('$144.76');
+    expect(moneyOrDash(1480.7)).toBe('$1,480.70');
+  });
+
+  it('dashes on null and undefined — the two ways a quote goes missing', () => {
+    // null: the mirror was read and does not rank this ticker.
+    // undefined: `x.quote?.price` on a symbol with no quote at all.
+    expect(moneyOrDash(null)).toBe('—');
+    expect(moneyOrDash(undefined)).toBe('—');
+  });
+
+  it('does not dash a legitimate zero', () => {
+    // $0.00 is a strange price but it is a number the source sent; only a
+    // missing one becomes a dash.
+    expect(moneyOrDash(0)).toBe('$0.00');
   });
 });

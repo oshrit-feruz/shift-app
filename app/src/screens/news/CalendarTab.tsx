@@ -2,14 +2,13 @@ import { useState } from 'react';
 import { Card, CardTitle } from '../../components/Card';
 import { Chip, ChipRail } from '../../components/Chip';
 import { DataState, EmptyState } from '../../components/DataState';
-import { DemoBanner } from '../../components/DemoBanner';
 import { Skeleton } from '../../components/Skeleton';
 import { Num } from '../../components/Num';
 import { Tag } from '../../components/Tag';
 import { useT } from '../../i18n/useT';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useLoadable } from '../../data/useLoadable';
-import { DEMO_FLAGS } from '../../data/demoAdapter';
+import { useDemoMode } from '../../lib/DemoModeProvider';
 import { useDispatch } from '../../state/appState';
 import { fetchWeekEarnings } from '../../data/earnings';
 import { isoDate, pct, signalColor } from '../../lib/format';
@@ -34,7 +33,10 @@ export function CalendarTab({ watchlist }: { watchlist: string[] }) {
   const { language } = useTheme();
   const [onlyWatchlist, setOnlyWatchlist] = useState(false);
   const [day, setDay] = useState<string | null>(null);
-  const cal = useLoadable(() => fetchWeekEarnings(), []);
+  const demo = useDemoMode();
+  // `demo` is in the deps so flipping the switch re-reads at once, rather
+  // than leaving the previous week's rows on screen until the next visit.
+  const cal = useLoadable(() => fetchWeekEarnings(), [demo]);
 
   return (
     <DataState
@@ -53,7 +55,15 @@ export function CalendarTab({ watchlist }: { watchlist: string[] }) {
                 <Skeleton width={90} height={11} />
               </div>
               {Array.from({ length: 2 }, (_, j) => (
-                <div key={j} style={{ display: 'flex', gap: 10, padding: '10px 13px', borderTop: '1px solid var(--color-divider)' }}>
+                <div
+                  key={j}
+                  style={{
+                    display: 'flex',
+                    gap: 10,
+                    padding: '10px 13px',
+                    borderTop: '1px solid var(--color-divider)',
+                  }}
+                >
                   <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <Skeleton width="38%" height={11} />
                     <Skeleton width="62%" height={9} />
@@ -108,20 +118,27 @@ export function CalendarTab({ watchlist }: { watchlist: string[] }) {
                       padding: '7px 10px',
                       borderRadius: 'var(--radius-md)',
                       border: `1px solid ${selected === d ? 'var(--color-accent)' : 'var(--color-divider)'}`,
-                      background: selected === d ? 'var(--color-accent-900)' : 'transparent',
+                      background: selected === d ? 'var(--fill-selected)' : 'transparent',
                       color: 'inherit',
                       font: 'inherit',
                       cursor: 'pointer',
                       textAlign: 'center',
                     }}
                   >
-                    <div className="text-muted" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+                    <div
+                      className="text-muted"
+                      style={{
+                        fontSize: 'var(--text-micro)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '.06em',
+                      }}
+                    >
                       {weekdayLabel(d, language)}
                     </div>
-                    <Num size={17} style={{ fontFamily: 'var(--font-heading)' }}>
+                    <Num size={20} style={{ fontFamily: 'var(--font-heading)' }}>
                       {d.slice(8)}
                     </Num>
-                    <div className="text-muted" style={{ fontSize: 11 }}>
+                    <div className="text-muted" style={{ fontSize: 'var(--text-micro)' }}>
                       <Num>{String(events.length)}</Num>
                     </div>
                   </button>
@@ -129,20 +146,18 @@ export function CalendarTab({ watchlist }: { watchlist: string[] }) {
               </ChipRail>
             )}
 
-            <DemoBanner />
-
             {/* The provider's market-wide feed carries only reports that
                 have not happened yet. Left unsaid, a reader who knows a
                 company reported on Monday would read its absence — or a
                 "scheduled" row — as the app being wrong rather than the feed
                 being forward-looking.
 
-                Not in showcase mode: there the rows deliberately include
+                Not in demo mode: there the rows deliberately include
                 reported results, so this sentence would be false — and a
                 caveat that does not match what is on screen teaches a reader
                 to stop reading the caveats. */}
-            {!DEMO_FLAGS.showcase && (
-              <span className="text-muted" style={{ fontSize: 12.5, padding: '0 2px' }}>
+            {!demo && (
+              <span className="text-muted" style={{ fontSize: 'var(--text-caption)', padding: '0 2px' }}>
                 {t('earn.scheduledOnly')}
               </span>
             )}
@@ -152,7 +167,7 @@ export function CalendarTab({ watchlist }: { watchlist: string[] }) {
                 inaccuracy this app exists to avoid. */}
             {page.truncated && (
               <Card padding={12} gap={0}>
-                <span className="text-muted" style={{ fontSize: 12.5 }}>
+                <span className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
                   {t('earn.truncated', { shown: rows.length, total: page.totalAvailable })}
                 </span>
               </Card>
@@ -252,11 +267,11 @@ function EarningsRowView({
       onClick={onOpen}
       style={{ ...ROW_BUTTON_STYLE, padding: '10px 13px', borderTop: '1px solid var(--color-divider)' }}
     >
-      <Tag variant="accent" fontSize={12}>
+      <Tag variant="accent" fontSize={15}>
         {row.ticker}
       </Tag>
       <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <span className="text-muted" style={{ fontSize: 12.5, display: 'flex', gap: 6 }}>
+        <span className="text-muted" style={{ fontSize: 'var(--text-caption)', display: 'flex', gap: 6 }}>
           <span>
             {t('stock.epsEst')} <Num>{row.estimate === null ? '—' : row.estimate.toFixed(2)}</Num>
           </span>
@@ -274,11 +289,11 @@ function EarningsRowView({
           published. Missing surprise renders as the actual EPS, or an em dash
           when even that is absent. */}
       {reported ? (
-        <Num size={13} style={{ color: row.surprisePct === null ? undefined : signalColor(row.surprisePct) }}>
+        <Num size={16} style={{ color: row.surprisePct === null ? undefined : signalColor(row.surprisePct) }}>
           {row.surprisePct === null ? row.actual!.toFixed(2) : pct(row.surprisePct, 1)}
         </Num>
       ) : (
-        <Tag variant="outline" fontSize={11.5}>
+        <Tag variant="outline" fontSize={14.5}>
           {t('stock.upcoming')}
         </Tag>
       )}

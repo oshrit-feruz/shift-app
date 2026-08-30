@@ -1,5 +1,13 @@
-import { describe, it, expect } from 'vitest';
-import { fetchMarketNews, fetchStockNews, mapNewsArticle, publishedAtMs, STOCK_NEWS_URL, UNDATED } from './stockNews';
+import { afterEach, beforeEach, describe, it, expect } from 'vitest';
+import { clearLoadableCache } from './loadableCache';
+import {
+  fetchMarketNews,
+  fetchStockNews,
+  mapNewsArticle,
+  publishedAtMs,
+  STOCK_NEWS_URL,
+  UNDATED,
+} from './stockNews';
 
 const ARTICLE = {
   headline: 'Nvidia beats on datacenter revenue',
@@ -9,15 +17,32 @@ const ARTICLE = {
   url: 'https://example.com/a',
 };
 
+const ORIGINAL_FETCH = globalThis.fetch;
+
+afterEach(() => {
+  globalThis.fetch = ORIGINAL_FETCH;
+});
+
 const res = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
 describe('mapNewsArticle', () => {
   it('maps a full article', () => {
-    expect(mapNewsArticle(ARTICLE)).toEqual({ ...ARTICLE, symbols: [] });
+    expect(mapNewsArticle(ARTICLE)).toEqual({ ...ARTICLE, symbols: [], sentiment: null });
   });
 
-  it('carries the feed\'s tagged symbols, dropping unusable entries', () => {
+  it('keeps a sentiment the function recognises, and nothing else', () => {
+    for (const v of ['positive', 'negative', 'neutral']) {
+      expect(mapNewsArticle({ ...ARTICLE, sentiment: v })?.sentiment, v).toBe(v);
+    }
+    // A value we do not recognise is no tag at all: the chip is a claim about
+    // the story, so it is only made from something we actually understood.
+    for (const v of [undefined, null, '', 'bullish', 'POSITIVE', 1, {}]) {
+      expect(mapNewsArticle({ ...ARTICLE, sentiment: v })?.sentiment, String(v)).toBeNull();
+    }
+  });
+
+  it("carries the feed's tagged symbols, dropping unusable entries", () => {
     // Only the general market feed populates these; a per-ticker response
     // legitimately has none, since the caller already knows the stock.
     expect(mapNewsArticle({ ...ARTICLE, symbols: ['NVDA', 'AMD'] })?.symbols).toEqual(['NVDA', 'AMD']);
@@ -37,32 +62,61 @@ describe('mapNewsArticle', () => {
 
   it('keeps a missing source, date or summary as empty rather than inventing one', () => {
     const m = mapNewsArticle({ headline: 'H', url: 'https://e.com/x' });
-    expect(m).toEqual({ headline: 'H', url: 'https://e.com/x', source: '', publishedAt: '', summary: '', symbols: [] });
+    expect(m).toEqual({
+      headline: 'H',
+      url: 'https://e.com/x',
+      source: '',
+      publishedAt: '',
+      summary: '',
+      symbols: [],
+      sentiment: null,
+    });
   });
 
   it('drops a malformed publishedAt rather than passing it through as metadata', () => {
     // The card renders publishedAt as a date, and the date formatter passes
     // anything unparseable through unchanged — so garbage kept here would
     // reach the screen verbatim. No date is honest; fake metadata is not.
-    for (const bad of ['garbage', 'not-a-date-at-all', '2026-13-45T09:00:00Z', '2026-02-31T00:00:00Z', '26/08/2026']) {
+    for (const bad of [
+      'garbage',
+      'not-a-date-at-all',
+      '2026-13-45T09:00:00Z',
+      '2026-02-31T00:00:00Z',
+      '26/08/2026',
+    ]) {
       expect(mapNewsArticle({ ...ARTICLE, publishedAt: bad })?.publishedAt, bad).toBe('');
     }
     // The whole string must validate, not just its date prefix: publishedAt
     // is the reverse-chronological sort key, and an impossible hour sorts
     // above every real one.
-    for (const bad of ['2026-08-26T99:00:00Z', '2026-08-26T12:99:00Z', '2026-08-26junk', '2026-08-26T12:00:00Z tail']) {
+    for (const bad of [
+      '2026-08-26T99:00:00Z',
+      '2026-08-26T12:99:00Z',
+      '2026-08-26junk',
+      '2026-08-26T12:00:00Z tail',
+    ]) {
       expect(mapNewsArticle({ ...ARTICLE, publishedAt: bad })?.publishedAt, bad).toBe('');
     }
     // Timezone offsets are range-checked too: only the local clock fields
     // were validated before, so these passed.
-    for (const bad of ['2026-08-26T13:04+24:00', '2026-08-26T13:04+03:60', '2026-08-26T13:04+9999', '2026-08-26T13:04+03']) {
+    for (const bad of [
+      '2026-08-26T13:04+24:00',
+      '2026-08-26T13:04+03:60',
+      '2026-08-26T13:04+9999',
+      '2026-08-26T13:04+03',
+    ]) {
       expect(mapNewsArticle({ ...ARTICLE, publishedAt: bad })?.publishedAt, bad).toBe('');
     }
     // Real provider formats survive.
     for (const good of [
-      '2026-08-26T13:04:00Z', '2026-08-26T13:04:00+03:00', '2026-08-26 13:04',
-      '2026-08-26T13:04:00.512Z', '2026-08-26T13:04:00-05:00', '2026-08-26T13:04:00+0330',
-      '2026-08-26T23:59:60Z', '2026-08-26',
+      '2026-08-26T13:04:00Z',
+      '2026-08-26T13:04:00+03:00',
+      '2026-08-26 13:04',
+      '2026-08-26T13:04:00.512Z',
+      '2026-08-26T13:04:00-05:00',
+      '2026-08-26T13:04:00+0330',
+      '2026-08-26T23:59:60Z',
+      '2026-08-26',
     ]) {
       expect(mapNewsArticle({ ...ARTICLE, publishedAt: good })?.publishedAt, good).toBe(good);
     }
@@ -87,7 +141,7 @@ describe('mapNewsArticle', () => {
 
 describe('fetchStockNews', () => {
   it('returns the real list on success', async () => {
-    const r = await fetchStockNews('NVDA', async () => res({ ticker: 'NVDA', articles: [ARTICLE] }));
+    const r = await fetchStockNews('NVDA', 'en', async () => res({ ticker: 'NVDA', articles: [ARTICLE] }));
     expect(r.status).toBe('ok');
     expect(r.status === 'ok' && r.data).toHaveLength(1);
   });
@@ -95,7 +149,7 @@ describe('fetchStockNews', () => {
   it('treats an empty list as a legitimate ok, NOT an error', async () => {
     // A quiet week for a stock is a real answer. Calling it a failure would
     // train people to distrust a working screen.
-    const r = await fetchStockNews('NVDA', async () => res({ ticker: 'NVDA', articles: [] }));
+    const r = await fetchStockNews('NVDA', 'en', async () => res({ ticker: 'NVDA', articles: [] }));
     expect(r.status).toBe('ok');
     expect(r.status === 'ok' && r.data).toEqual([]);
   });
@@ -104,7 +158,7 @@ describe('fetchStockNews', () => {
     // The inverse of the case above, and the one that matters: an outage
     // must not read as "no news for this stock".
     for (const status of [400, 429, 500, 502]) {
-      const r = await fetchStockNews('NVDA', async () =>
+      const r = await fetchStockNews('NVDA', 'en', async () =>
         res({ error: 'upstream_unavailable', message: 'nope' }, status),
       );
       expect(r.status, `HTTP ${status}`).toBe('unavailable');
@@ -113,23 +167,23 @@ describe('fetchStockNews', () => {
 
   it('is unavailable when the body is a shape we do not recognise', async () => {
     for (const body of [{}, { articles: null }, { articles: 'none' }, [ARTICLE], null, 42]) {
-      const r = await fetchStockNews('NVDA', async () => res(body));
+      const r = await fetchStockNews('NVDA', 'en', async () => res(body));
       expect(r.status, JSON.stringify(body)).toBe('unavailable');
     }
   });
 
   it('is unavailable on a network failure and on unparseable JSON', async () => {
-    const boom = await fetchStockNews('NVDA', async () => {
+    const boom = await fetchStockNews('NVDA', 'en', async () => {
       throw new Error('offline');
     });
     expect(boom.status).toBe('unavailable');
 
-    const garbage = await fetchStockNews('NVDA', async () => new Response('<html>', { status: 200 }));
+    const garbage = await fetchStockNews('NVDA', 'en', async () => new Response('<html>', { status: 200 }));
     expect(garbage.status).toBe('unavailable');
   });
 
   it('drops unusable rows but keeps the good ones', async () => {
-    const r = await fetchStockNews('NVDA', async () =>
+    const r = await fetchStockNews('NVDA', 'en', async () =>
       res({ articles: [ARTICLE, { headline: 'no link' }, null, { ...ARTICLE, url: 'https://e.com/b' }] }),
     );
     expect(r.status).toBe('ok');
@@ -141,39 +195,39 @@ describe('fetchStockNews', () => {
 
   it('calls the same-origin function with an encoded, uppercased ticker', async () => {
     let seen = '';
-    await fetchStockNews('brk.b', async (url) => {
+    await fetchStockNews('brk.b', 'en', async (url) => {
       seen = String(url);
       return res({ articles: [] });
     });
-    expect(seen).toBe(`${STOCK_NEWS_URL}?ticker=BRK.B`);
+    expect(seen).toBe(`${STOCK_NEWS_URL}?ticker=BRK.B&lang=en`);
     // Must never reach the provider — the API key lives server-side only.
     expect(seen).not.toContain('eodhd');
   });
 
   it('reads the general market feed with no ticker param at all', async () => {
     let seen = '';
-    const r = await fetchMarketNews(async (url) => {
+    const r = await fetchMarketNews('en', async (url) => {
       seen = String(url);
       return res({ ticker: null, articles: [{ ...ARTICLE, symbols: ['NVDA'] }] });
     });
     // No `ticker=` — that is what makes it the cheaper 5-credit feed call
     // upstream rather than a 10-credit per-ticker one.
-    expect(seen).toBe(STOCK_NEWS_URL);
+    expect(seen).toBe(`${STOCK_NEWS_URL}?lang=en`);
     expect(r.status).toBe('ok');
     expect(r.status === 'ok' && r.data[0].symbols).toEqual(['NVDA']);
   });
 
   it('applies the same honesty contract to the feed as to a ticker', async () => {
-    const err = await fetchMarketNews(async () => res({ error: 'upstream_unavailable' }, 502));
+    const err = await fetchMarketNews('en', async () => res({ error: 'upstream_unavailable' }, 502));
     expect(err.status).toBe('unavailable');
-    const empty = await fetchMarketNews(async () => res({ ticker: null, articles: [] }));
+    const empty = await fetchMarketNews('en', async () => res({ ticker: null, articles: [] }));
     expect(empty.status).toBe('ok');
     expect(empty.status === 'ok' && empty.data).toEqual([]);
   });
 
   it('rejects an empty ticker without calling the network', async () => {
     let called = 0;
-    const r = await fetchStockNews('  ', async () => {
+    const r = await fetchStockNews('  ', 'en', async () => {
       called += 1;
       return res({ articles: [] });
     });
@@ -185,12 +239,12 @@ describe('fetchStockNews', () => {
 describe('failure reasons', () => {
   // The screen used to say "News is unavailable right now" for a plan the
   // provider refuses — advice to wait for something that will not change.
-  it('carries the function\'s specific reason through to the screen', async () => {
+  it("carries the function's specific reason through to the screen", async () => {
     const fetchImpl = (async () =>
       new Response(JSON.stringify({ error: 'upstream_forbidden', upstreamStatus: 403 }), {
         status: 502,
       })) as unknown as typeof fetch;
-    const result = await fetchStockNews('NVDA', fetchImpl);
+    const result = await fetchStockNews('NVDA', 'en', fetchImpl);
     expect(result.status).toBe('unavailable');
     if (result.status !== 'unavailable') return;
     expect(result.reason?.he).toContain('מנוי');
@@ -199,7 +253,7 @@ describe('failure reasons', () => {
   it('keeps the generic reason when the failure is unrecognised', async () => {
     const fetchImpl = (async () =>
       new Response('gateway exploded', { status: 502 })) as unknown as typeof fetch;
-    const result = await fetchMarketNews(fetchImpl);
+    const result = await fetchMarketNews('en', fetchImpl);
     expect(result.status).toBe('unavailable');
     if (result.status !== 'unavailable') return;
     expect(result.reason?.he).toContain('אינן זמינות');
@@ -224,12 +278,14 @@ describe('publishedAtMs', () => {
 
   // An article we cannot date must never be presented as the freshest thing
   // on the screen.
-  it.each([['missing', undefined], ['empty', ''], ['unparseable', 'yesterday'], ['null', null]])(
-    'sorts a %s timestamp oldest',
-    (_label, value) => {
-      expect(publishedAtMs(value as string | null | undefined)).toBe(UNDATED);
-    },
-  );
+  it.each([
+    ['missing', undefined],
+    ['empty', ''],
+    ['unparseable', 'yesterday'],
+    ['null', null],
+  ])('sorts a %s timestamp oldest', (_label, value) => {
+    expect(publishedAtMs(value as string | null | undefined)).toBe(UNDATED);
+  });
 
   // validTimestamp deliberately accepts a leap second because providers emit
   // them — but Date.parse answers NaN for one, so the article we went out of
@@ -251,10 +307,49 @@ describe('publishedAtMs', () => {
   });
 
   it('handles a leap second carrying an offset', () => {
-    expect(publishedAtMs('2016-12-31T23:59:60+02:00')).toBe(publishedAtMs('2016-12-31T23:59:59+02:00') + 1000);
+    expect(publishedAtMs('2016-12-31T23:59:60+02:00')).toBe(
+      publishedAtMs('2016-12-31T23:59:59+02:00') + 1000,
+    );
   });
 
   it('stays a usable comparator when both sides are undated', () => {
     expect(publishedAtMs(undefined) - publishedAtMs(undefined)).toBe(0);
+  });
+});
+
+describe('language', () => {
+  // The function answers in the app's language: EODHD's feed is English and
+  // this app is Hebrew-first, so the language has to travel with the request.
+  beforeEach(clearLoadableCache);
+
+  it('sends the current language on both the feed and a ticker', async () => {
+    let seen = '';
+    const capture = async (url: URL | RequestInfo) => {
+      seen = String(url);
+      return res({ articles: [] });
+    };
+    await fetchMarketNews('he', capture);
+    expect(seen).toBe(`${STOCK_NEWS_URL}?lang=he`);
+    await fetchStockNews('NVDA', 'he', capture);
+    expect(seen).toBe(`${STOCK_NEWS_URL}?ticker=NVDA&lang=he`);
+  });
+
+  it('does not serve one language out of the other language’s cache entry', async () => {
+    // The cache key is the request URL, and the language is part of it — so
+    // switching to English can never be answered with the Hebrew translation
+    // that happens to still be cached.
+    const seen: string[] = [];
+    globalThis.fetch = (async (url: URL | RequestInfo) => {
+      seen.push(String(url));
+      return res({ articles: [] });
+    }) as unknown as typeof fetch;
+
+    await fetchMarketNews('he');
+    await fetchMarketNews('en');
+    await fetchMarketNews('he');
+
+    // Three calls, two requests: each language fetched once, the repeat served
+    // from its own entry.
+    expect(seen).toEqual([`${STOCK_NEWS_URL}?lang=he`, `${STOCK_NEWS_URL}?lang=en`]);
   });
 });

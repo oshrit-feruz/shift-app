@@ -75,13 +75,18 @@ export function Sheet({
           overflowY: 'auto',
         }}
       >
-        <div style={{ width: 38, height: 4, borderRadius: 2, background: 'var(--line)', alignSelf: 'center' }} />
+        <div
+          style={{ width: 38, height: 4, borderRadius: 2, background: 'var(--line)', alignSelf: 'center' }}
+        />
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 18, whiteSpace: 'nowrap', flex: 'none' }}>
+          <div
+            className="nowrap"
+            style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-title)', flex: 'none' }}
+          >
             {title}
           </div>
           {meta != null && (
-            <span className="text-muted" style={{ fontSize: 13 }}>
+            <span className="text-muted" style={{ fontSize: 'var(--text-body)' }}>
               {meta}
             </span>
           )}
@@ -89,7 +94,7 @@ export function Sheet({
           <button
             type="button"
             className="btn btn-ghost"
-            style={{ padding: 0, fontSize: 15, opacity: 0.6 }}
+            style={{ padding: 0, fontSize: 'var(--text-title)', opacity: 0.6 }}
             onClick={onClose}
             aria-label="Close"
           >

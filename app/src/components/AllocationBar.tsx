@@ -23,10 +23,10 @@ export function AllocationBar({
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <div style={{ display: 'flex', gap: 8, fontSize: 14, alignItems: 'baseline' }}>
+      <div style={{ display: 'flex', gap: 8, fontSize: 'var(--text-row)', alignItems: 'baseline' }}>
         <span style={{ flex: 1 }}>{name}</span>
         {amount != null && (
-          <Num size={13} style={{ color: 'var(--muted)' }}>
+          <Num size={16} style={{ color: 'var(--muted)' }}>
             {amount}
           </Num>
         )}
@@ -34,13 +34,21 @@ export function AllocationBar({
       </div>
       {(fund != null || action != null) && (
         <span style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
-          {fund != null && <span style={{ flex: 1, fontSize: 12.5, color: 'var(--muted)' }}>{fund}</span>}
+          {fund != null && (
+            <span style={{ flex: 1, fontSize: 'var(--text-caption)', color: 'var(--muted)' }}>{fund}</span>
+          )}
           {action}
         </span>
       )}
       <span style={{ height: 6, borderRadius: 4, background: 'var(--line)', overflow: 'hidden' }}>
         <span
-          style={{ display: 'block', height: '100%', width: `${pct}%`, borderRadius: 4, background: colorVar }}
+          style={{
+            display: 'block',
+            height: '100%',
+            width: `${pct}%`,
+            borderRadius: 4,
+            background: colorVar,
+          }}
         />
       </span>
     </div>

@@ -1,5 +1,13 @@
 /** Switch toggle (settings). */
-export function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
+export function Toggle({
+  on,
+  onChange,
+  label,
+}: {
+  on: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+}) {
   return (
     <button
       type="button"
@@ -27,6 +35,7 @@ export function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boo
           borderRadius: 9,
           display: 'block',
           background: on ? 'var(--color-accent-300)' : 'var(--muted)',
+          boxShadow: '0 1px 2px rgba(0, 0, 0, .35)',
         }}
       />
     </button>

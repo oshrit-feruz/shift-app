@@ -308,7 +308,8 @@ export function createHandler(timeoutMs: number) {
           // positions — a real account full of holdings must not render as
           // "no positions" with no error anywhere.
           const envelope = unwrapPositions(rawPositions);
-          if (envelope === null) throw badResponse(`/accounts/${account.id}/positions/all had no results array`);
+          if (envelope === null)
+            throw badResponse(`/accounts/${account.id}/positions/all had no results array`);
           const positions: ConnectedPosition[] = envelope.rows
             .map(mapPosition)
             .filter((p): p is ConnectedPosition => p !== null);

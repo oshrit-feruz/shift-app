@@ -48,12 +48,21 @@ export function ProgressTrack({ pct, label }: { pct: number; label?: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <span
-        style={{ flex: 1, height: 4, borderRadius: 3, background: 'var(--line)', overflow: 'hidden', display: 'block' }}
+        style={{
+          flex: 1,
+          height: 4,
+          borderRadius: 3,
+          background: 'var(--line)',
+          overflow: 'hidden',
+          display: 'block',
+        }}
       >
-        <span style={{ display: 'block', height: '100%', width: `${pct}%`, background: 'var(--color-accent)' }} />
+        <span
+          style={{ display: 'block', height: '100%', width: `${pct}%`, background: 'var(--color-accent)' }}
+        />
       </span>
       {label != null && (
-        <Num size={12.5} style={{ color: 'var(--muted)' }}>
+        <Num size={15.5} style={{ color: 'var(--muted)' }}>
           {label}
         </Num>
       )}

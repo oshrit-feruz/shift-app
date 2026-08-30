@@ -37,15 +37,17 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
       <FlowStepper />
       <Card padding={14} gap={7} outlined>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-          <Tag variant="accent" fontSize={12}>
+          <Tag variant="accent" fontSize={15}>
             {t('adv.tag')}
           </Tag>
-          <Tag variant="outline" fontSize={12}>
+          <Tag variant="outline" fontSize={15}>
             {t('adv.noAction')}
           </Tag>
         </div>
-        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 22 }}>{t('buy.title')}</div>
-        <p className="text-muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-heading)' }}>
+          {t('buy.title')}
+        </div>
+        <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0, lineHeight: 1.5 }}>
           {t('buy.help')}
         </p>
       </Card>
@@ -53,7 +55,7 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
       <Card padding={13} gap={9}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
           <CardTitle>{t(`profile.${profileKey}` as StringKey)}</CardTitle>
-          <span className="text-muted" style={{ fontSize: 13 }}>
+          <span className="text-muted" style={{ fontSize: 'var(--text-body)' }}>
             {t('buy.example')}
           </span>
         </div>
@@ -71,13 +73,20 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
           ))}
           {profile.satellitePct > 0 && (
             <div
-              style={{ display: 'flex', gap: 8, fontSize: 13.5, alignItems: 'center', paddingTop: 6, borderTop: '1px solid var(--color-divider)' }}
+              style={{
+                display: 'flex',
+                gap: 8,
+                fontSize: 'var(--text-body)',
+                alignItems: 'center',
+                paddingTop: 6,
+                borderTop: '1px solid var(--color-divider)',
+              }}
             >
-              <Tag variant="accent" fontSize={12}>
+              <Tag variant="accent" fontSize={15}>
                 Recovery Detector
               </Tag>
               <span style={{ flex: 1 }}>Satellite</span>
-              <Num size={13} style={{ color: 'var(--muted)' }}>
+              <Num size={16} style={{ color: 'var(--muted)' }}>
                 {'$' + (profile.satellitePct * 100).toLocaleString('en-US')}
               </Num>
               <Num>{profile.satellitePct}%</Num>
@@ -93,27 +102,23 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
           <CardTitle>{t('rec.satPositions')}</CardTitle>
           <span style={{ marginInlineStart: 'auto' }}>
-            <Tag variant="outline" fontSize={12}>
+            <Tag variant="outline" fontSize={15}>
               {t('rec.livePrices')}
             </Tag>
           </span>
         </div>
         {profile.satellitePct === 0 && (
-          <p className="text-muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.5 }}>
+          <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
             {t('rec.satInfoOnly')}
           </p>
         )}
         {s.advBroker && (
-          <p className="text-muted" style={{ fontSize: 12, margin: 0, lineHeight: 1.5 }}>
+          <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
             {t('buy.handoffNote')}
             {!hasAnyTradeDeepLink() && ` ${t('buy.noDeepLink')}`}
           </p>
         )}
-        <DataState
-          state={sat.state}
-          onRetry={sat.retry}
-          skeleton={<SkeletonList count={3} minHeight={52} />}
-        >
+        <DataState state={sat.state} onRetry={sat.retry} skeleton={<SkeletonList count={3} minHeight={52} />}>
           {(signals) =>
             signals.length === 0 ? (
               <EmptyState>{t('rec.noPositions')}</EmptyState>
@@ -150,7 +155,12 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
       <Button block minHeight={46} onClick={() => dispatch({ type: 'advGoto', screen: 'home', stage: 5 })}>
         {t('buy.finish')}
       </Button>
-      <Button variant="ghost" alignSelf="center" fontSize={13} onClick={() => dispatch({ type: 'go', screen: 'home' })}>
+      <Button
+        variant="ghost"
+        alignSelf="center"
+        fontSize={16}
+        onClick={() => dispatch({ type: 'go', screen: 'home' })}
+      >
         {t('adv.later')}
       </Button>
     </div>

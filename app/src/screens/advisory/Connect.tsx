@@ -11,9 +11,33 @@ import { BROKER_URLS } from '../../lib/brokerLinks';
 import type { ScreenProps } from '../../App';
 
 const BROKERS = [
-  { key: 'blink' as const, name: 'Blink', logo: '/assets/broker-blink.webp', help: { en: 'Hebrew-first, a simple app, low minimums — the easy start.', he: 'בעברית, אפליקציה פשוטה, מינימום נמוך — ההתחלה הקלה.' } },
-  { key: 'ibkr' as const, name: 'Interactive Brokers', logo: '/assets/broker-ibkr.png', help: { en: 'The widest market access, lowest fees at larger amounts.', he: 'הגישה הרחבה ביותר לשווקים, והעמלות הנמוכות בסכומים גדולים.' } },
-  { key: 'colmex' as const, name: 'Colmex Pro', logo: '/assets/broker-colmex.webp', help: { en: 'Israeli service with phone support in Hebrew.', he: 'שירות ישראלי עם תמיכה טלפונית בעברית.' } },
+  {
+    key: 'blink' as const,
+    name: 'Blink',
+    logo: '/assets/broker-blink.webp',
+    help: {
+      en: 'Hebrew-first, a simple app, low minimums — the easy start.',
+      he: 'בעברית, אפליקציה פשוטה, מינימום נמוך — ההתחלה הקלה.',
+    },
+  },
+  {
+    key: 'ibkr' as const,
+    name: 'Interactive Brokers',
+    logo: '/assets/broker-ibkr.webp',
+    help: {
+      en: 'The widest market access, lowest fees at larger amounts.',
+      he: 'הגישה הרחבה ביותר לשווקים, והעמלות הנמוכות בסכומים גדולים.',
+    },
+  },
+  {
+    key: 'colmex' as const,
+    name: 'Colmex Pro',
+    logo: '/assets/broker-colmex.webp',
+    help: {
+      en: 'Israeli service with phone support in Hebrew.',
+      he: 'שירות ישראלי עם תמיכה טלפונית בעברית.',
+    },
+  },
 ];
 
 /**
@@ -35,14 +59,14 @@ export function AdvisoryConnect(_: ScreenProps) {
       <FlowStepper />
       <Card padding={13} gap={4}>
         <CardTitle>{t('conn.title')}</CardTitle>
-        <p className="text-muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0, lineHeight: 1.5 }}>
           {flow ? t('conn.help') : t('conn.helpSolo')}
         </p>
       </Card>
 
       <Card padding={13} gap={9}>
         <CardTitle>{t('conn.brokerTitle')}</CardTitle>
-        <p className="text-muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0, lineHeight: 1.5 }}>
           {t('conn.brokerHelp')}
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
@@ -63,18 +87,25 @@ export function AdvisoryConnect(_: ScreenProps) {
                   color: 'inherit',
                   cursor: 'pointer',
                   textAlign: 'start',
-                  background: selected ? 'var(--color-accent-900)' : 'var(--color-surface)',
+                  background: selected ? 'var(--fill-selected)' : 'var(--color-surface)',
                   border: `1px solid ${selected ? 'var(--color-accent)' : 'var(--color-divider)'}`,
                 }}
               >
                 <LogoTile src={b.logo} size={34} />
                 <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: 'block', fontSize: 14, fontWeight: 600 }}>{b.name}</span>
-                  <span className="text-muted" style={{ display: 'block', fontSize: 12.5, lineHeight: 1.45 }}>
+                  <span style={{ display: 'block', fontSize: 'var(--text-row)', fontWeight: 600 }}>
+                    {b.name}
+                  </span>
+                  <span
+                    className="text-muted"
+                    style={{ display: 'block', fontSize: 'var(--text-caption)', lineHeight: 1.45 }}
+                  >
                     {b.help[language]}
                   </span>
                 </span>
-                <span style={{ color: 'var(--color-accent)', fontSize: 14 }}>{selected ? '✓' : ''}</span>
+                <span style={{ color: 'var(--color-accent)', fontSize: 'var(--text-row)' }}>
+                  {selected ? '✓' : ''}
+                </span>
               </button>
             );
           })}
@@ -91,8 +122,8 @@ export function AdvisoryConnect(_: ScreenProps) {
               background: 'var(--sunk)',
             }}
           >
-            <CardTitle size={13.5}>{t('conn.handoffTitle')}</CardTitle>
-            <p className="text-muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.5 }}>
+            <CardTitle size={16.5}>{t('conn.handoffTitle')}</CardTitle>
+            <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
               {t('conn.handoffHelp')}
             </p>
             {/* Referral only: opening happens on the broker's own site. */}
@@ -100,7 +131,7 @@ export function AdvisoryConnect(_: ScreenProps) {
               variant="secondary"
               block
               minHeight={42}
-              fontSize={13}
+              fontSize={16}
               onClick={() => window.open(BROKER_URLS[s.advBroker!], '_blank', 'noopener,noreferrer')}
             >
               {t('conn.openAt', { broker: brokerName(s.advBroker) })} ↗
@@ -109,31 +140,44 @@ export function AdvisoryConnect(_: ScreenProps) {
         )}
       </Card>
 
-      <CardTitle size={15}>{t('conn.existing')}</CardTitle>
+      <CardTitle size={18}>{t('conn.existing')}</CardTitle>
       <Card padding="4px 0" gap={0}>
         <InstitutionRows />
       </Card>
-      <p className="text-muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.5 }}>
+      <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
         {t('conn.note')}
       </p>
 
       {flow ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <Button block minHeight={46} onClick={() => dispatch({ type: 'advGoto', screen: 'advBuy', stage: 4 })}>
+          <Button
+            block
+            minHeight={46}
+            onClick={() => dispatch({ type: 'advGoto', screen: 'advBuy', stage: 4 })}
+          >
             {t('conn.continue')}
           </Button>
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 10 }}>
-            <Button variant="ghost" fontSize={14} onClick={() => dispatch({ type: 'advGoto', screen: 'advBuy', stage: 4 })}>
+            <Button
+              variant="ghost"
+              fontSize={17}
+              onClick={() => dispatch({ type: 'advGoto', screen: 'advBuy', stage: 4 })}
+            >
               {t('adv.skipStep')}
             </Button>
             <span style={{ width: 1, height: 14, background: 'var(--color-divider)' }} />
-            <Button variant="ghost" fontSize={14} onClick={() => dispatch({ type: 'go', screen: 'home' })}>
+            <Button variant="ghost" fontSize={17} onClick={() => dispatch({ type: 'go', screen: 'home' })}>
               {t('adv.later')}
             </Button>
           </div>
         </div>
       ) : (
-        <Button variant="success" block minHeight={46} onClick={() => dispatch({ type: 'go', screen: 'home' })}>
+        <Button
+          variant="success"
+          block
+          minHeight={46}
+          onClick={() => dispatch({ type: 'go', screen: 'home' })}
+        >
           <Icon name="check" size={16} strokeWidth={2.4} />
           {t('conn.done')}
         </Button>

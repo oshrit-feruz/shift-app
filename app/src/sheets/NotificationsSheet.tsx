@@ -13,7 +13,10 @@ import type { AppNotification } from '../data/types';
 const NOTIFS: AppNotification[] = [
   {
     glyph: '▲',
-    title: { en: 'NVDA crossed your +25% alert (currently +27% from entry)', he: 'NVDA חצתה את ההתראה שלך של +25% (כרגע +27% מנקודת הכניסה)' },
+    title: {
+      en: 'NVDA crossed your +25% alert (currently +27% from entry)',
+      he: 'NVDA חצתה את ההתראה שלך של +25% (כרגע +27% מנקודת הכניסה)',
+    },
     detail: { en: 'Personal threshold alert', he: 'התראת סף אישית' },
     ago: { en: '4m', he: 'לפני 4 ד׳' },
     ticker: 'NVDA',
@@ -62,7 +65,7 @@ export function NotificationsSheet({ open, onClose }: { open: boolean; onClose: 
       maxHeight="80%"
     >
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <Button variant="ghost" fontSize={13} onClick={() => dispatch({ type: 'markNotificationsRead' })}>
+        <Button variant="ghost" fontSize={16} onClick={() => dispatch({ type: 'markNotificationsRead' })}>
           {t('notif.markAll')}
         </Button>
       </div>
@@ -106,32 +109,37 @@ export function NotificationsSheet({ open, onClose }: { open: boolean; onClose: 
                 height: 26,
                 flex: 'none',
                 borderRadius: 8,
-                background: 'var(--color-accent-900)',
+                background: 'var(--fill-selected)',
                 color: 'var(--color-accent-300)',
                 display: 'grid',
                 placeItems: 'center',
-                fontSize: 13,
+                fontSize: 'var(--text-body)',
               }}
             >
               {n.glyph}
             </span>
             <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontSize: 14, whiteSpace: 'normal' }}>{n.title[language]}</span>
-              <span className="text-muted" style={{ display: 'block', fontSize: 12.5, marginTop: 1 }}>
+              <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>{n.title[language]}</span>
+              <span
+                className="text-muted"
+                style={{ display: 'block', fontSize: 'var(--text-caption)', marginTop: 1 }}
+              >
                 {n.detail[language]}
               </span>
             </span>
-            <span className="text-muted" style={{ fontSize: 12.5, whiteSpace: 'nowrap' }}>
+            <span className="text-muted" style={{ fontSize: 'var(--text-caption)', whiteSpace: 'nowrap' }}>
               {n.ago[language]}
             </span>
           </button>
           {n.isThresholdAlert && (
             <>
               {/* Equal-prominence disclaimer: same size as the title, not fine print. */}
-              <p style={{ fontSize: 14, lineHeight: 1.5, margin: 0, whiteSpace: 'normal' }}>{t('thresh.disclaimer')}</p>
+              <p style={{ fontSize: 'var(--text-row)', lineHeight: 1.5, margin: 0 }}>
+                {t('thresh.disclaimer')}
+              </p>
               <Button
                 variant="secondary"
-                fontSize={13}
+                fontSize={16}
                 minHeight={36}
                 alignSelf="flex-start"
                 onClick={() => dispatch({ type: 'markNotificationsRead' })}
@@ -146,7 +154,7 @@ export function NotificationsSheet({ open, onClose }: { open: boolean; onClose: 
         variant="secondary"
         block
         minHeight={42}
-        fontSize={13}
+        fontSize={16}
         onClick={() => {
           dispatch({ type: 'go', screen: 'watch' });
           onClose();

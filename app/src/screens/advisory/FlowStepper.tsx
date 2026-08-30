@@ -20,7 +20,7 @@ export function FlowStepper() {
     border: '1px solid var(--color-divider)',
     background: 'var(--sunk)',
     font: 'inherit',
-    fontSize: 12.5,
+    fontSize: 'var(--text-caption)',
     cursor: on ? 'pointer' : 'default',
     color: 'inherit',
     opacity: on ? 1 : 0.3,
@@ -28,7 +28,11 @@ export function FlowStepper() {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '2px 0 10px' }}>
-      <button type="button" style={btn(canPrev)} onClick={() => canPrev && dispatch({ type: 'advGoto', screen: ADV_ORDER[i - 1] })}>
+      <button
+        type="button"
+        style={btn(canPrev)}
+        onClick={() => canPrev && dispatch({ type: 'advGoto', screen: ADV_ORDER[i - 1] })}
+      >
         ‹ {t('adv.stepPrev')}
       </button>
       <div style={{ flex: 1, display: 'flex', gap: 4, alignItems: 'center', justifyContent: 'center' }}>
@@ -39,12 +43,17 @@ export function FlowStepper() {
               width: j === i ? 18 : 6,
               height: 6,
               borderRadius: 4,
-              background: j === i ? 'var(--color-accent)' : j <= s.advStage ? 'var(--acc-dim)' : 'var(--line)',
+              background:
+                j === i ? 'var(--color-accent)' : j <= s.advStage ? 'var(--acc-dim)' : 'var(--line)',
             }}
           />
         ))}
       </div>
-      <button type="button" style={btn(canNext)} onClick={() => canNext && dispatch({ type: 'advGoto', screen: ADV_ORDER[i + 1] })}>
+      <button
+        type="button"
+        style={btn(canNext)}
+        onClick={() => canNext && dispatch({ type: 'advGoto', screen: ADV_ORDER[i + 1] })}
+      >
         {t('adv.stepNext')} ›
       </button>
     </div>

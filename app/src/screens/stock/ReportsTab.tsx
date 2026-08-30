@@ -8,9 +8,9 @@ import { useTheme } from '../../theme/ThemeProvider';
 import { useLoadable } from '../../data/useLoadable';
 import { fetchFundamentals } from '../../data/fundamentals';
 import { fetchTickerEarnings } from '../../data/earnings';
+import { useDemoMode } from '../../lib/DemoModeProvider';
 import { EmptyState } from '../../components/DataState';
 import { Tag } from '../../components/Tag';
-import { DemoBanner } from '../../components/DemoBanner';
 import type { EarningsRow } from '../../data/types';
 import { compactMoney, isoDate, pct, signalColor } from '../../lib/format';
 
@@ -44,16 +44,16 @@ export function ReportsTab({ ticker }: { ticker: string }) {
           <CardTitle>{t('stock.reportsTitle')}</CardTitle>
 
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 9, flexWrap: 'wrap' }}>
-            <Num size={26} style={{ fontFamily: 'var(--font-heading)', lineHeight: 1 }}>
+            <Num size={27} style={{ fontFamily: 'var(--font-heading)', lineHeight: 1 }}>
               {d.revenue === null ? '—' : compactMoney(d.revenue)}
             </Num>
             {d.yoyPct !== null && (
-              <Num size={14} style={{ color: signalColor(d.yoyPct) }}>
+              <Num size={17} style={{ color: signalColor(d.yoyPct) }}>
                 {pct(d.yoyPct, 1)}
               </Num>
             )}
           </div>
-          <div className="text-muted" style={{ fontSize: 12.5, marginTop: -4 }}>
+          <div className="text-muted" style={{ fontSize: 'var(--text-caption)', marginTop: -4 }}>
             {t('stock.revenue')}
             {d.yoyPct !== null ? ` · ${t('stock.yoy')}` : ''}
           </div>
@@ -89,7 +89,7 @@ export function ReportsTab({ ticker }: { ticker: string }) {
             ))}
           </div>
 
-          <p className="text-muted" style={{ fontSize: 12, lineHeight: 1.5, margin: 0 }}>
+          <p className="text-muted" style={{ fontSize: 'var(--text-caption)', lineHeight: 1.5, margin: 0 }}>
             {t('stock.reportsNote')}
             {d.source ? ` · ${d.source}` : ''}
           </p>
@@ -114,8 +114,9 @@ export function ReportsTab({ ticker }: { ticker: string }) {
  */
 export function EarningsHistory({ ticker }: { ticker: string }) {
   const t = useT();
+  const demo = useDemoMode();
   const { language } = useTheme();
-  const e = useLoadable(() => fetchTickerEarnings(ticker), [ticker]);
+  const e = useLoadable(() => fetchTickerEarnings(ticker), [ticker, demo]);
 
   return (
     <DataState state={e.state} onRetry={e.retry} skeleton={<SkeletonCard height={190} lines={4} />}>
@@ -127,7 +128,6 @@ export function EarningsHistory({ ticker }: { ticker: string }) {
         return (
           <Card padding={12} gap={8}>
             <CardTitle>{t('stock.history')}</CardTitle>
-            <DemoBanner />
             {sorted.length === 0 ? (
               <EmptyState>{t('stock.historyEmpty')}</EmptyState>
             ) : (
@@ -164,10 +164,14 @@ function QuarterRow({
   return (
     <div style={{ paddingTop: 7, borderTop: '1px solid var(--color-divider)' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 13 }}>{isoDate(row.reportDate, language)}</span>
-        {row.timing && <Num size={11.5} style={{ color: 'var(--muted)' }}>{row.timing}</Num>}
+        <span style={{ fontSize: 'var(--text-body)' }}>{isoDate(row.reportDate, language)}</span>
+        {row.timing && (
+          <Num size={14.5} style={{ color: 'var(--muted)' }}>
+            {row.timing}
+          </Num>
+        )}
         {!reported && (
-          <Tag variant="outline" fontSize={11.5}>
+          <Tag variant="outline" fontSize={14.5}>
             {t('stock.upcoming')}
           </Tag>
         )}
@@ -178,14 +182,17 @@ function QuarterRow({
             true. Zero gets its own label and the neutral colour. */}
         {reported && row.surprisePct !== null && (
           <Num
-            size={12.5}
+            size={18.5}
             style={{ color: row.surprisePct === 0 ? undefined : signalColor(row.surprisePct) }}
           >
             {`${pct(row.surprisePct, 1)} ${surpriseLabel(row.surprisePct, t)}`}
           </Num>
         )}
       </div>
-      <div className="text-muted" style={{ fontSize: 12.5, marginTop: 2, display: 'flex', gap: 6 }}>
+      <div
+        className="text-muted"
+        style={{ fontSize: 'var(--text-caption)', marginTop: 2, display: 'flex', gap: 6 }}
+      >
         <Num>{reported ? row.actual!.toFixed(2) : '—'}</Num>
         <span>·</span>
         <span>

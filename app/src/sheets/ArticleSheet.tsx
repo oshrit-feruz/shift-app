@@ -34,17 +34,32 @@ export function ArticleSheet({ item, onClose }: { item: NewsItem | null; onClose
       {item && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            <Tag variant="accent" fontSize={12}>
+            <Tag variant="accent" fontSize={15}>
               {item.tag}
             </Tag>
-            <Num size={13} style={{ color: signalColor(item.changePct) }}>
+            <Num size={16} style={{ color: signalColor(item.changePct) }}>
               {pct(item.changePct)}
             </Num>
           </span>
-          <span style={{ display: 'block', fontFamily: 'var(--font-heading)', fontSize: 18, lineHeight: 1.3 }}>
+          <span
+            style={{
+              display: 'block',
+              fontFamily: 'var(--font-heading)',
+              fontSize: 'var(--text-title)',
+              lineHeight: 1.3,
+            }}
+          >
             {item.headline}
           </span>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 14, lineHeight: 1.55 }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+              fontSize: 'var(--text-row)',
+              lineHeight: 1.55,
+            }}
+          >
             {item.body.split('\n\n').map((para, i) => (
               <p key={i} style={{ margin: 0, whiteSpace: 'pre-line' }}>
                 {para}
@@ -53,7 +68,7 @@ export function ArticleSheet({ item, onClose }: { item: NewsItem | null; onClose
           </div>
           <Button
             variant="secondary"
-            fontSize={13.5}
+            fontSize={16.5}
             alignSelf="flex-start"
             onClick={() => {
               dispatch({ type: 'openStock', ticker: item.ticker });

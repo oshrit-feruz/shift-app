@@ -15,12 +15,13 @@ export function Chip({
   return (
     <button
       type="button"
+      className="chip"
       onClick={onClick}
       style={{
         padding: big ? '7px 13px' : '6px 12px',
         borderRadius: 999,
         font: 'inherit',
-        fontSize: 13,
+        fontSize: 'var(--text-body)',
         whiteSpace: 'nowrap',
         cursor: 'pointer',
         flex: 'none',
@@ -28,7 +29,7 @@ export function Chip({
         alignItems: 'center',
         gap: 7,
         border: `1px solid ${active ? 'var(--color-accent)' : 'var(--color-divider)'}`,
-        background: active ? 'var(--color-accent-900)' : 'transparent',
+        background: active ? 'var(--fill-selected)' : 'var(--sunk)',
         color: active ? 'var(--color-accent-300)' : 'inherit',
       }}
     >

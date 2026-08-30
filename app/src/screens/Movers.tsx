@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { DemoDataNote } from '../components/DemoDataNote';
 import { Card } from '../components/Card';
 import { Num } from '../components/Num';
 import { Chip, ChipRail } from '../components/Chip';
-import { Sparkline } from '../components/AreaChart';
+import { TickerSparkline } from '../components/TickerSparkline';
 import { TickerTile } from '../components/TickerTile';
 import { DataState } from '../components/DataState';
 import { SkeletonCard, SkeletonList } from '../components/Skeleton';
@@ -12,7 +11,7 @@ import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
-import { money, pct, signalColor } from '../lib/format';
+import { moneyOrDash, pct, signalColor } from '../lib/format';
 import type { StringKey } from '../i18n/strings';
 import type { ScreenProps } from '../App';
 
@@ -42,7 +41,6 @@ export function MoversScreen(_: ScreenProps) {
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-      <DemoDataNote />
       <div style={{ display: 'flex', gap: 5 }}>
         {TABS.map(([k, key]) => (
           <Chip key={k} active={tab === k} onClick={() => setTab(k)}>
@@ -80,39 +78,52 @@ export function MoversScreen(_: ScreenProps) {
             .slice()
             .sort((a, b) =>
               tab === 'Losers'
-                ? a.changePct - b.changePct
+                ? a.demo.changePct - b.demo.changePct
                 : tab === 'Most active'
-                  ? parseFloat(b.volume) - parseFloat(a.volume)
-                  : b.changePct - a.changePct,
+                  ? parseFloat(b.demo.volume) - parseFloat(a.demo.volume)
+                  : b.demo.changePct - a.demo.changePct,
             );
           const filtered = sector === 'All' ? pool : pool.filter((x) => x.sector === sector);
 
           if (beg) {
             return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                {filtered.slice(0, 6).map((x, i) => (
-                  <Card key={x.ticker} padding={12} gap={5} onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}>
+                {filtered.slice(0, 6).map((x) => (
+                  <Card
+                    key={x.ticker}
+                    padding={12}
+                    gap={5}
+                    onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}
+                  >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <TickerTile ticker={x.ticker} size={26} />
-                      <Num size={14} weight={600}>
+                      <Num size={17} weight={600}>
                         {x.ticker}
                       </Num>
                       <span
                         className="text-muted"
-                        style={{ fontSize: 13, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                        style={{
+                          fontSize: 'var(--text-body)',
+                          flex: 1,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
                       >
                         {x.name}
                       </span>
-                      <Num size={17} style={{ fontFamily: 'var(--font-heading)', color: signalColor(x.changePct) }}>
-                        {pct(x.changePct)}
+                      <Num
+                        size={23}
+                        style={{ fontFamily: 'var(--font-heading)', color: signalColor(x.demo.changePct) }}
+                      >
+                        {pct(x.demo.changePct)}
                       </Num>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 13, opacity: 0.76, flex: 1 }}>{x.why[language]}</span>
-                      <Sparkline
-                        values={demoService.series(`spark-${x.ticker}-${i}`, 26, x.changePct / 6, 2)}
-                        color={signalColor(x.changePct)}
-                      />
+                      <span style={{ fontSize: 'var(--text-body)', opacity: 0.76, flex: 1 }}>
+                        {x.why[language]}
+                      </span>
+                      <TickerSparkline ticker={x.ticker} />
                     </div>
                   </Card>
                 ))}
@@ -122,7 +133,7 @@ export function MoversScreen(_: ScreenProps) {
 
           return (
             <Card padding="6px 10px 4px" gap={0}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-caption)' }}>
                 <thead>
                   <tr>
                     <Th align="start">{t('movers.colSym')}</Th>
@@ -143,13 +154,13 @@ export function MoversScreen(_: ScreenProps) {
                         {x.ticker}
                       </Td>
                       <Td>
-                        <Num>{money(x.price)}</Num>
+                        <Num>{moneyOrDash(x.quote?.price)}</Num>
                       </Td>
-                      <Td color={signalColor(x.changePct)}>
-                        <Num>{pct(x.changePct)}</Num>
+                      <Td color={signalColor(x.demo.changePct)}>
+                        <Num>{pct(x.demo.changePct)}</Num>
                       </Td>
                       <Td muted>
-                        <Num>{x.volume}</Num>
+                        <Num>{x.demo.volume}</Num>
                       </Td>
                       <Td color="var(--color-accent-300)">
                         <Num>{(1.1 + (x.ticker.length % 4) * 0.4).toFixed(1)}×</Num>
@@ -170,7 +181,12 @@ function Th({ children, align = 'end' }: { children: React.ReactNode; align?: 's
   return (
     <th
       className="text-muted"
-      style={{ textAlign: align, fontWeight: 500, padding: '8px 4px', borderBottom: '1px solid var(--color-divider)' }}
+      style={{
+        textAlign: align,
+        fontWeight: 500,
+        padding: '8px 4px',
+        borderBottom: '1px solid var(--color-divider)',
+      }}
     >
       {children}
     </th>

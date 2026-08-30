@@ -1,13 +1,35 @@
 import { describe, expect, it } from 'vitest';
-import { mapHistoryRow, parseCalendarCsv, readApiError, readTiming, splitCsvLine, withinRange } from './alphavantage.js';
+import {
+  mapHistoryRow,
+  parseCalendarCsv,
+  readApiError,
+  readTiming,
+  splitCsvLine,
+  withinRange,
+} from './alphavantage.js';
 
 describe('readApiError', () => {
   // These arrive with HTTP 200. Missed, they read as an empty result — so the
   // app would answer "no reports" from a body that contained no data at all.
   it.each([
-    ['the daily quota', { Information: 'We have detected your API key... 25 requests per day' }, 'rate_limited'],
-    ['the per-minute throttle', { Note: 'Our standard API rate limit is 5 calls per minute' }, 'rate_limited'],
-    ['a premium-only endpoint', { Information: 'Thank you for using Alpha Vantage! This is a premium endpoint. You may subscribe to any of the premium plans...' }, 'plan_required'],
+    [
+      'the daily quota',
+      { Information: 'We have detected your API key... 25 requests per day' },
+      'rate_limited',
+    ],
+    [
+      'the per-minute throttle',
+      { Note: 'Our standard API rate limit is 5 calls per minute' },
+      'rate_limited',
+    ],
+    [
+      'a premium-only endpoint',
+      {
+        Information:
+          'Thank you for using Alpha Vantage! This is a premium endpoint. You may subscribe to any of the premium plans...',
+      },
+      'plan_required',
+    ],
     ['a rejected call', { 'Error Message': 'Invalid API call.' }, 'rejected'],
   ])('classifies %s', (_label, body, kind) => {
     expect(readApiError(body)?.kind).toBe(kind);
@@ -55,7 +77,9 @@ describe('readTiming', () => {
 describe('splitCsvLine', () => {
   it('keeps a comma inside a quoted field', () => {
     expect(splitCsvLine('BRK-B,"BERKSHIRE HATHAWAY, INC",2026-08-26')).toEqual([
-      'BRK-B', 'BERKSHIRE HATHAWAY, INC', '2026-08-26',
+      'BRK-B',
+      'BERKSHIRE HATHAWAY, INC',
+      '2026-08-26',
     ]);
   });
 
@@ -74,7 +98,15 @@ describe('parseCalendarCsv', () => {
   it('maps a row, leaving the figures a scheduled report cannot have as null', () => {
     const rows = parseCalendarCsv(`${HEADER}\nADSK,AUTODESK,2026-08-27,2026-07-31,2.35,USD,post-market`);
     expect(rows).toEqual([
-      { ticker: 'ADSK', reportDate: '2026-08-27', periodEnd: '2026-07-31', timing: 'AMC', actual: null, estimate: 2.35, surprisePct: null },
+      {
+        ticker: 'ADSK',
+        reportDate: '2026-08-27',
+        periodEnd: '2026-07-31',
+        timing: 'AMC',
+        actual: null,
+        estimate: 2.35,
+        surprisePct: null,
+      },
     ]);
   });
 
@@ -104,7 +136,9 @@ describe('parseCalendarCsv', () => {
   // report this week" on the strength of a rejection.
   it('refuses to read an all-unusable body as an empty week', () => {
     expect(parseCalendarCsv(`${HEADER}\nI,n,f,o,r,m,a`)).toBeNull();
-    expect(parseCalendarCsv(`${HEADER}\nADSK,AUTODESK,2026-02-31,2026-07-31,2.35,USD,post-market`)).toBeNull();
+    expect(
+      parseCalendarCsv(`${HEADER}\nADSK,AUTODESK,2026-02-31,2026-07-31,2.35,USD,post-market`),
+    ).toBeNull();
   });
 
   // A header with nothing under it is a real answer: some weeks are quiet.
@@ -113,21 +147,33 @@ describe('parseCalendarCsv', () => {
   });
 
   it('survives CRLF line endings and a trailing newline', () => {
-    const rows = parseCalendarCsv(`${HEADER}\r\nADSK,AUTODESK,2026-08-27,2026-07-31,2.35,USD,post-market\r\n`);
+    const rows = parseCalendarCsv(
+      `${HEADER}\r\nADSK,AUTODESK,2026-08-27,2026-07-31,2.35,USD,post-market\r\n`,
+    );
     expect(rows).toHaveLength(1);
   });
 });
 
 describe('mapHistoryRow', () => {
   const ROW = {
-    fiscalDateEnding: '2026-06-30', reportedDate: '2026-07-22', reportedEPS: '2.93',
-    estimatedEPS: '2.90', surprise: '0.03', surprisePercentage: '1.0345', reportTime: 'post-market',
+    fiscalDateEnding: '2026-06-30',
+    reportedDate: '2026-07-22',
+    reportedEPS: '2.93',
+    estimatedEPS: '2.90',
+    surprise: '0.03',
+    surprisePercentage: '1.0345',
+    reportTime: 'post-market',
   };
 
   it('maps the reported figures', () => {
     expect(mapHistoryRow('IBM', ROW)).toEqual({
-      ticker: 'IBM', reportDate: '2026-07-22', periodEnd: '2026-06-30',
-      timing: 'AMC', actual: 2.93, estimate: 2.90, surprisePct: 1.0345,
+      ticker: 'IBM',
+      reportDate: '2026-07-22',
+      periodEnd: '2026-06-30',
+      timing: 'AMC',
+      actual: 2.93,
+      estimate: 2.9,
+      surprisePct: 1.0345,
     });
   });
 
@@ -148,13 +194,27 @@ describe('mapHistoryRow', () => {
 
 describe('withinRange', () => {
   const row = (reportDate: string) => ({
-    ticker: 'X', reportDate, periodEnd: null, timing: null, actual: null, estimate: null, surprisePct: null,
+    ticker: 'X',
+    reportDate,
+    periodEnd: null,
+    timing: null,
+    actual: null,
+    estimate: null,
+    surprisePct: null,
   });
 
   it('includes both ends of the window', () => {
-    const rows = [row('2026-08-23'), row('2026-08-24'), row('2026-08-27'), row('2026-08-30'), row('2026-08-31')];
+    const rows = [
+      row('2026-08-23'),
+      row('2026-08-24'),
+      row('2026-08-27'),
+      row('2026-08-30'),
+      row('2026-08-31'),
+    ];
     expect(withinRange(rows, '2026-08-24', '2026-08-30').map((r) => r.reportDate)).toEqual([
-      '2026-08-24', '2026-08-27', '2026-08-30',
+      '2026-08-24',
+      '2026-08-27',
+      '2026-08-30',
     ]);
   });
 });

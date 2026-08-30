@@ -1,9 +1,11 @@
 /**
  * LIVE data source — Recovery Detector engine, read from a daily mirror.
  *
- * This is the one surface in the app wired to real engine data; everything
- * else still comes from the clearly-labeled demo adapter. It backs the
- * Satellite card on the recommendation screen.
+ * Three readers share this file, because they share one snapshot: the
+ * Satellite card's BUY candidates, a single stock's ranking row, and the
+ * quote map that gives every screen in the app a real last-traded price
+ * instead of the prototype's frozen one. Everything else still comes from
+ * the clearly-labeled demo adapter.
  *
  * WHY A MIRROR RATHER THAN A LIVE CALL:
  * The engine runs on Render's free tier, which sleeps after ~15 minutes idle
@@ -41,7 +43,8 @@
  *   week must look like a failure, not like a quiet market.
  */
 
-import { ok, unavailable, type Loadable, type SatelliteSignal } from './types';
+import { cachedLoadable } from './loadableCache';
+import { ok, unavailable, type Loadable, type Quote, type SatelliteSignal } from './types';
 
 /**
  * The mirrored snapshot, served as a static file from the same origin as the
@@ -98,7 +101,7 @@ export function toNumber(v: unknown): number | null {
   return null;
 }
 
-/** First non-empty string among the candidate keys. */
+/** Return the first non-empty string value found among the given keys in the row, or null if none exist. */
 function pickString(row: Record<string, unknown>, keys: string[]): string | null {
   for (const k of keys) {
     const v = row[k];
@@ -107,7 +110,7 @@ function pickString(row: Record<string, unknown>, keys: string[]): string | null
   return null;
 }
 
-/** First parseable number among the candidate keys. */
+/** Return the first parseable finite number found among the given keys in the row, or null if none exist. */
 function pickNumber(row: Record<string, unknown>, keys: string[]): number | null {
   for (const k of keys) {
     if (k in row) {
@@ -133,8 +136,7 @@ export function mapSignal(raw: unknown): SatelliteSignal | null {
 
   // An unrecognised verdict is reported as-is rather than coerced to BUY.
   const rawSignal = pickString(row, ['signal']);
-  const signal =
-    rawSignal === 'BUY' || rawSignal === 'WATCH' || rawSignal === 'SKIP' ? rawSignal : null;
+  const signal = rawSignal === 'BUY' || rawSignal === 'WATCH' || rawSignal === 'SKIP' ? rawSignal : null;
 
   return {
     ticker: ticker.toUpperCase(),
@@ -167,9 +169,7 @@ export function extractBuySignals(body: unknown): SatelliteSignal[] | null {
 
   const ranking = obj.full_ranking;
   if (Array.isArray(ranking)) {
-    return ranking
-      .map(mapSignal)
-      .filter((s): s is SatelliteSignal => s !== null && s.signal === 'BUY');
+    return ranking.map(mapSignal).filter((s): s is SatelliteSignal => s !== null && s.signal === 'BUY');
   }
 
   return null;
@@ -201,11 +201,7 @@ export function snapshotAgeDays(computedOn: unknown, now: Date = new Date()): nu
   // fresh. Round-tripping the parsed fields is what makes the age check
   // trustworthy rather than bypassable.
   const back = new Date(stamped);
-  if (
-    back.getUTCFullYear() !== year ||
-    back.getUTCMonth() !== month - 1 ||
-    back.getUTCDate() !== day
-  ) {
+  if (back.getUTCFullYear() !== year || back.getUTCMonth() !== month - 1 || back.getUTCDate() !== day) {
     return null;
   }
 
@@ -269,6 +265,65 @@ async function readMirror<T>(
   fetchImpl: typeof fetch = fetch,
   now: Date = new Date(),
 ): Promise<Loadable<T>> {
+  // The snapshot changes once a day, but several screens read it (the
+  // Satellite card, every stock page's ranking row, the first-purchase flow).
+  // Cache the transport+parse for the default fetch so one download serves
+  // them all; the shape and freshness checks below still run per call. An
+  // injected test fetchImpl bypasses the cache to keep tests isolated.
+  const bodyRes =
+    fetchImpl === fetch
+      ? await cachedLoadable('screener-mirror', MIRROR_CACHE_MS, () => fetchMirrorBody(fetch))
+      : await fetchMirrorBody(fetchImpl);
+  if (bodyRes.status !== 'ok') {
+    // 'unavailable' carries no payload, so its type is caller-agnostic.
+    return bodyRes as Loadable<T>;
+  }
+  const body = bodyRes.data;
+
+  const extracted = extract(body);
+  // Unrecognised shape → unavailable, never a fabricated empty result.
+  if (extracted === null) return unavailable();
+
+  // Age is checked only after the shape is known good, so a malformed file
+  // is reported as malformed rather than as stale.
+  const age = snapshotAgeDays(
+    (body as Record<string, unknown>).computed_on ?? (body as Record<string, unknown>).as_of,
+    now,
+  );
+  if (age === null) {
+    return unavailable({
+      en: 'Market data is missing its date, so it cannot be trusted.',
+      he: 'לנתוני השוק חסר תאריך, ולכן אי אפשר להסתמך עליהם.',
+    });
+  }
+  if (age > MAX_SNAPSHOT_AGE_DAYS) {
+    return unavailable({
+      en: `Market data is ${age} days old, so it is no longer current.`,
+      he: `נתוני השוק בני ${age} ימים, ולכן אינם עדכניים.`,
+    });
+  }
+  if (age < -MAX_FUTURE_SKEW_DAYS) {
+    return unavailable({
+      en: 'Market data is dated in the future, so it cannot be trusted.',
+      he: 'נתוני השוק מתוארכים לעתיד, ולכן אי אפשר להסתמך עליהם.',
+    });
+  }
+
+  return ok(extracted);
+}
+
+/**
+ * How long a downloaded snapshot body is reused. The file is republished
+ * once a day, so five minutes of reuse is invisible in freshness terms while
+ * collapsing the per-screen re-downloads into one.
+ */
+const MIRROR_CACHE_MS = 5 * 60_000;
+
+/**
+ * Transport + JSON parse for the mirror, with none of the trust checks.
+ * Never throws.
+ */
+async function fetchMirrorBody(fetchImpl: typeof fetch): Promise<Loadable<unknown>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
@@ -286,38 +341,7 @@ async function readMirror<T>(
       });
     }
     if (!res.ok) return unavailable();
-
-    const body: unknown = await res.json();
-    const extracted = extract(body);
-    // Unrecognised shape → unavailable, never a fabricated empty result.
-    if (extracted === null) return unavailable();
-
-    // Age is checked only after the shape is known good, so a malformed file
-    // is reported as malformed rather than as stale.
-    const age = snapshotAgeDays(
-      (body as Record<string, unknown>).computed_on ?? (body as Record<string, unknown>).as_of,
-      now,
-    );
-    if (age === null) {
-      return unavailable({
-        en: 'Market data is missing its date, so it cannot be trusted.',
-        he: 'לנתוני השוק חסר תאריך, ולכן אי אפשר להסתמך עליהם.',
-      });
-    }
-    if (age > MAX_SNAPSHOT_AGE_DAYS) {
-      return unavailable({
-        en: `Market data is ${age} days old, so it is no longer current.`,
-        he: `נתוני השוק בני ${age} ימים, ולכן אינם עדכניים.`,
-      });
-    }
-    if (age < -MAX_FUTURE_SKEW_DAYS) {
-      return unavailable({
-        en: 'Market data is dated in the future, so it cannot be trusted.',
-        he: 'נתוני השוק מתוארכים לעתיד, ולכן אי אפשר להסתמך עליהם.',
-      });
-    }
-
-    return ok(extracted);
+    return ok<unknown>(await res.json());
   } catch {
     // Network failure, abort/timeout, invalid JSON — all honestly
     // 'unavailable'. Deliberately no demo fallback.
@@ -367,4 +391,54 @@ export async function fetchRankingRow(
     now,
   );
   return snap.status === 'ok' ? ok(snap.data.row) : snap;
+}
+
+/**
+ * Every ranked ticker's real numbers, keyed by upper-case ticker.
+ *
+ * The ranking is the app's only free source of real prices: it already
+ * carries `price` and `high_52w` for ~100 names, refreshed daily by the same
+ * job that feeds the Satellite card, and reading it costs no API call and no
+ * Render round trip. That is the whole reason prices stopped being demo
+ * figures here first rather than waiting on a quote provider.
+ *
+ * Returns null for a body without a recognisable `full_ranking`, which the
+ * shared reader turns into 'unavailable'. Rows with no usable ticker are
+ * dropped; a row whose price the engine omitted is kept with a null price,
+ * because "ranked, price unknown" is a different fact from "not ranked" and
+ * the UI renders the two differently.
+ */
+export function extractQuotes(body: unknown): Record<string, Quote> | null {
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) return null;
+  const ranking = (body as Record<string, unknown>).full_ranking;
+  if (!Array.isArray(ranking)) return null;
+
+  const out: Record<string, Quote> = {};
+  for (const raw of ranking) {
+    const mapped = mapSignal(raw);
+    // First row wins: a duplicated ticker keeps its highest-ranked entry
+    // rather than whichever happened to be last in the file.
+    if (mapped && !(mapped.ticker in out)) {
+      out[mapped.ticker] = {
+        price: mapped.price,
+        high52w: mapped.high52w,
+        drawdownPct: mapped.drawdownPct,
+      };
+    }
+  }
+  return out;
+}
+
+/**
+ * Read the day's quote map from the mirrored snapshot. Never throws.
+ *
+ * A ticker the ranking does not cover is simply absent from the map — the
+ * caller renders "—" for it. An unreadable or stale snapshot is
+ * 'unavailable' for every ticker at once, and still never a demo price.
+ */
+export async function fetchQuotes(
+  fetchImpl: typeof fetch = fetch,
+  now: Date = new Date(),
+): Promise<Loadable<Record<string, Quote>>> {
+  return readMirror(extractQuotes, fetchImpl, now);
 }

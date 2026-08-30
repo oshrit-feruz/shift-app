@@ -23,11 +23,11 @@ export function MetricStrip({ metrics, columns = 3 }: { metrics: Metric[]; colum
         <div key={i} style={{ background: 'var(--color-surface)', padding: '8px 9px' }}>
           <div
             className="text-muted"
-            style={{ fontSize: 12, letterSpacing: '.06em', textTransform: 'uppercase' }}
+            style={{ fontSize: 'var(--text-caption)', letterSpacing: '.06em', textTransform: 'uppercase' }}
           >
             {m.label}
           </div>
-          <Num size={15} style={{ color: m.color ?? 'inherit' }}>
+          <Num size={18} style={{ color: m.color ?? 'inherit' }}>
             {m.value}
           </Num>
         </div>

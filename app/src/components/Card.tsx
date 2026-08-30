@@ -49,7 +49,7 @@ export function Card({
     // reset the sheen .card paints as its background-image, so the one
     // highlighted card on a screen would be the only pane without a
     // specular highlight.
-    backgroundColor: highlight ? 'var(--color-accent-900)' : undefined,
+    backgroundColor: highlight ? 'var(--fill-selected)' : undefined,
     ...style,
   };
   if (onClick) {
@@ -71,7 +71,7 @@ export function Card({
   );
 }
 
-export function CardTitle({ children, size = 16 }: { children: ReactNode; size?: number }) {
+export function CardTitle({ children, size = 16.5 }: { children: ReactNode; size?: number }) {
   return (
     <div className="card-title" style={{ fontSize: size }}>
       {children}

@@ -1,5 +1,5 @@
-import { Icon } from "./Icon";
-import { Num } from "./Num";
+import { Icon } from './Icon';
+import { Num } from './Num';
 
 /** Screen header: mark + kicker + search/bell buttons + big title. */
 export function AppHeader({
@@ -18,39 +18,39 @@ export function AppHeader({
   return (
     <div
       style={{
-        flex: "none",
-        padding: "calc(14px + env(safe-area-inset-top)) 16px 8px",
-        display: "flex",
-        alignItems: "center",
+        flex: 'none',
+        padding: 'calc(14px + env(safe-area-inset-top)) 16px 8px',
+        display: 'flex',
+        alignItems: 'center',
         gap: 10,
       }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span
             style={{
               width: 24,
               height: 24,
-              flex: "none",
+              flex: 'none',
               borderRadius: 7,
-              backgroundColor: "var(--color-surface)",
-              backgroundImage: "url(/assets/shift-mark.svg)",
-              backgroundSize: "contain",
-              backgroundRepeat: "no-repeat",
-              backgroundPosition: "center",
+              backgroundColor: 'var(--color-surface)',
+              backgroundImage: 'url(/assets/shift-mark.svg)',
+              backgroundSize: 'contain',
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'center',
             }}
           />
           <div
             className="text-muted"
             style={{
-              fontSize: 14,
-              letterSpacing: ".08em",
-              textTransform: "uppercase",
+              fontSize: 'var(--text-row)',
+              letterSpacing: '.08em',
+              textTransform: 'uppercase',
               flex: 1,
               fontWeight: 600,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
             }}
           >
             {kicker}
@@ -63,17 +63,17 @@ export function AppHeader({
             {unreadCount > 0 && (
               <span
                 style={{
-                  position: "absolute",
+                  position: 'absolute',
                   top: -4,
                   insetInlineEnd: -4,
                   minWidth: 17,
                   height: 17,
                   borderRadius: 9,
-                  background: "var(--down)",
-                  color: "#fff",
-                  fontSize: 11,
-                  display: "grid",
-                  placeItems: "center",
+                  background: 'var(--down)',
+                  color: '#fff',
+                  fontSize: 'var(--text-micro)',
+                  display: 'grid',
+                  placeItems: 'center',
                 }}
               >
                 <Num>{unreadCount}</Num>
@@ -83,10 +83,10 @@ export function AppHeader({
         </div>
         <div
           style={{
-            fontFamily: "var(--font-heading)",
-            fontSize: 28,
+            fontFamily: 'var(--font-heading)',
+            fontSize: 'var(--text-display)',
             lineHeight: 1.2,
-            letterSpacing: "-.01em",
+            letterSpacing: '-.01em',
           }}
         >
           {title}
@@ -109,19 +109,20 @@ function HeaderIconButton({
     <button
       type="button"
       title={title}
+      className="header-icon-btn"
       onClick={onClick}
       style={{
-        position: "relative",
+        position: 'relative',
         width: 48,
         height: 48,
-        display: "grid",
-        placeItems: "center",
-        border: "1px solid var(--color-divider)",
-        borderRadius: "var(--radius-sm)",
-        background: "var(--color-surface)",
-        color: "var(--color-text)",
-        cursor: "pointer",
-        transition: "background .2s ease, color .2s ease",
+        display: 'grid',
+        placeItems: 'center',
+        border: '1px solid var(--color-divider)',
+        borderRadius: 'var(--radius-sm)',
+        background: 'var(--color-surface)',
+        color: 'var(--color-text)',
+        cursor: 'pointer',
+        transition: 'background .2s ease, color .2s ease',
       }}
     >
       {children}

@@ -30,7 +30,17 @@ describe('parseIsoDate', () => {
   });
   it('rejects impossible dates rather than rolling them forward', () => {
     // Date.UTC would turn 2026-02-31 into 2 March and it would read as real.
-    for (const v of ['2026-02-31', '2026-13-45', '2026-00-10', '2026-02-29', '25/02/2026', 'soon', '', null, 42]) {
+    for (const v of [
+      '2026-02-31',
+      '2026-13-45',
+      '2026-00-10',
+      '2026-02-29',
+      '25/02/2026',
+      'soon',
+      '',
+      null,
+      42,
+    ]) {
       expect(parseIsoDate(v), String(v)).toBeNull();
     }
   });
@@ -69,12 +79,18 @@ const handler = createHandler(5000);
 const GOOD = { from: '2026-08-24', to: '2026-08-30' };
 
 describe('earnings handler', () => {
-  beforeEach(() => { process.env.ALPHAVANTAGE_API_KEY = 'test-key'; });
-  afterEach(() => { vi.restoreAllMocks(); });
+  beforeEach(() => {
+    process.env.ALPHAVANTAGE_API_KEY = 'test-key';
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
   it('returns mapped rows, sorted by report date, and never leaks the key', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
-      new Response(calendarCsv(csvRow('NVDA', '2026-08-28'), csvRow('AAPL', '2026-08-25')), { status: 200 }),
+      new Response(calendarCsv(csvRow('NVDA', '2026-08-28'), csvRow('AAPL', '2026-08-25')), {
+        status: 200,
+      }),
     ) as unknown as typeof fetch;
     const res = makeRes();
     await handler({ method: 'GET', query: GOOD }, res);
@@ -88,43 +104,65 @@ describe('earnings handler', () => {
   // asked about a window, so anything outside it is not an answer to the
   // question and must not be returned as one.
   it('keeps only the rows inside the requested window', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      new Response(
-        calendarCsv(csvRow('IN', '2026-08-25'), csvRow('BEFORE', '2026-08-23'), csvRow('AFTER', '2026-08-31')),
-        { status: 200 },
-      ),
-    ) as unknown as typeof fetch;
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          calendarCsv(
+            csvRow('IN', '2026-08-25'),
+            csvRow('BEFORE', '2026-08-23'),
+            csvRow('AFTER', '2026-08-31'),
+          ),
+          { status: 200 },
+        ),
+      ) as unknown as typeof fetch;
     const res = makeRes();
     await handler({ method: 'GET', query: GOOD }, res);
-    expect((res._body as { earnings: Array<{ ticker: string }> }).earnings.map((e) => e.ticker)).toEqual(['IN']);
+    expect((res._body as { earnings: Array<{ ticker: string }> }).earnings.map((e) => e.ticker)).toEqual([
+      'IN',
+    ]);
   });
 
   // Company names in this feed carry commas; splitting on "," alone would
   // shift every later column and put a name where a date belongs.
   it('reads a quoted company name containing a comma without shifting columns', async () => {
     const row = 'BRK-B,"BERKSHIRE HATHAWAY, INC",2026-08-26,2026-06-30,4.51,USD,pre-market';
-    globalThis.fetch = vi.fn().mockResolvedValue(new Response(calendarCsv(row), { status: 200 })) as unknown as typeof fetch;
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(new Response(calendarCsv(row), { status: 200 })) as unknown as typeof fetch;
     const res = makeRes();
     await handler({ method: 'GET', query: GOOD }, res);
     expect((res._body as { earnings: Array<Record<string, unknown>> }).earnings[0]).toMatchObject({
-      ticker: 'BRK-B', reportDate: '2026-08-26', timing: 'BMO', estimate: 4.51,
+      ticker: 'BRK-B',
+      reportDate: '2026-08-26',
+      timing: 'BMO',
+      estimate: 4.51,
     });
   });
 
   it("returns a ticker's reported quarters, with the figures", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify(history({ reportedDate: '2026-08-27' })), { status: 200 }),
-    ) as unknown as typeof fetch;
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify(history({ reportedDate: '2026-08-27' })), { status: 200 }),
+      ) as unknown as typeof fetch;
     const res = makeRes();
     await handler({ method: 'GET', query: { ...GOOD, ticker: 'nvda' } }, res);
     expect(res._status).toBe(200);
     expect((res._body as { earnings: Array<Record<string, unknown>> }).earnings[0]).toMatchObject({
-      ticker: 'NVDA', reportDate: '2026-08-27', actual: 1.24, estimate: 1.18, surprisePct: 5.08, timing: 'AMC',
+      ticker: 'NVDA',
+      reportDate: '2026-08-27',
+      actual: 1.24,
+      estimate: 1.18,
+      surprisePct: 5.08,
+      timing: 'AMC',
     });
   });
 
   it('treats a window with no reports as a legitimate empty result, not an error', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(new Response(calendarCsv(), { status: 200 })) as unknown as typeof fetch;
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(new Response(calendarCsv(), { status: 200 })) as unknown as typeof fetch;
     const res = makeRes();
     await handler({ method: 'GET', query: GOOD }, res);
     expect(res._status).toBe(200);
@@ -135,13 +173,21 @@ describe('earnings handler', () => {
   // CSV route too. Read as a body, that is an empty week — so the app would
   // answer "nobody reports this week" from a response holding no data at all.
   it.each([
-    ['a daily quota notice', { Information: 'You have reached the 25 requests per day limit.' }, 'upstream_rate_limited'],
-    ['a throttle note', { Note: 'Thank you for using Alpha Vantage! Our standard API rate limit is...' }, 'upstream_rate_limited'],
+    [
+      'a daily quota notice',
+      { Information: 'You have reached the 25 requests per day limit.' },
+      'upstream_rate_limited',
+    ],
+    [
+      'a throttle note',
+      { Note: 'Thank you for using Alpha Vantage! Our standard API rate limit is...' },
+      'upstream_rate_limited',
+    ],
     ['a rejected request', { 'Error Message': 'Invalid API call.' }, 'upstream_error'],
   ])('reports %s rather than an empty week', async (_label, body, error) => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify(body), { status: 200 }),
-    ) as unknown as typeof fetch;
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify(body), { status: 200 })) as unknown as typeof fetch;
     const res = makeRes();
     await handler({ method: 'GET', query: GOOD }, res);
     expect(res._status).toBe(502);
@@ -159,7 +205,9 @@ describe('earnings handler', () => {
   // shape we did not understand, not a company that has never reported.
   it('refuses to read an all-unusable history as a company with no reports', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ symbol: 'NVDA', quarterlyEarnings: [{ reportedDate: 'sometime' }] }), { status: 200 }),
+      new Response(JSON.stringify({ symbol: 'NVDA', quarterlyEarnings: [{ reportedDate: 'sometime' }] }), {
+        status: 200,
+      }),
     ) as unknown as typeof fetch;
     const res = makeRes();
     await handler({ method: 'GET', query: { ...GOOD, ticker: 'NVDA' } }, res);
@@ -180,7 +228,11 @@ describe('earnings handler', () => {
 
     const today = new Date();
     const iso = (days: number) => new Date(today.getTime() + days * 86_400_000).toISOString().slice(0, 10);
-    for (const [days, horizon] of [[7, '3month'], [120, '6month'], [300, '12month']] as const) {
+    for (const [days, horizon] of [
+      [7, '3month'],
+      [120, '6month'],
+      [300, '12month'],
+    ] as const) {
       await handler({ method: 'GET', query: { from: iso(0), to: iso(days) } }, makeRes());
       expect(seen, `${days} days`).toContain(`horizon=${horizon}`);
     }
@@ -200,7 +252,12 @@ describe('earnings handler', () => {
 
   it('reports a premium-only endpoint as a plan problem, not a spent quota', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ Information: 'This is a premium endpoint. You may subscribe to any of the premium plans.' }), { status: 200 }),
+      new Response(
+        JSON.stringify({
+          Information: 'This is a premium endpoint. You may subscribe to any of the premium plans.',
+        }),
+        { status: 200 },
+      ),
     ) as unknown as typeof fetch;
     const res = makeRes();
     await handler({ method: 'GET', query: GOOD }, res);
@@ -252,9 +309,9 @@ describe('earnings handler', () => {
     // bound is right for a mobile client — a silent one is not, because the
     // caller would treat a partial week as the whole week.
     const many = Array.from({ length: 450 }, (_, i) => csvRow(`T${i}`, '2026-08-25'));
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      new Response(calendarCsv(...many), { status: 200 }),
-    ) as unknown as typeof fetch;
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(new Response(calendarCsv(...many), { status: 200 })) as unknown as typeof fetch;
     const res = makeRes();
     await handler({ method: 'GET', query: GOOD }, res);
     const body = res._body as { earnings: unknown[]; truncated: boolean; totalAvailable: number };
@@ -264,9 +321,11 @@ describe('earnings handler', () => {
   });
 
   it('reports truncated:false when everything fit', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      new Response(calendarCsv(csvRow('NVDA', '2026-08-25')), { status: 200 }),
-    ) as unknown as typeof fetch;
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(calendarCsv(csvRow('NVDA', '2026-08-25')), { status: 200 }),
+      ) as unknown as typeof fetch;
     const res = makeRes();
     await handler({ method: 'GET', query: GOOD }, res);
     const body = res._body as { truncated: boolean; totalAvailable: number };
@@ -300,7 +359,9 @@ describe('earnings handler', () => {
   });
 
   it('caches a success and never a failure', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(new Response(calendarCsv(), { status: 200 })) as unknown as typeof fetch;
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(new Response(calendarCsv(), { status: 200 })) as unknown as typeof fetch;
     const okRes = makeRes();
     await handler({ method: 'GET', query: GOOD }, okRes);
     // Six hours: the free key allows only tens of requests a day, so a short

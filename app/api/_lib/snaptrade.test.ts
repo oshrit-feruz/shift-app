@@ -29,9 +29,7 @@ describe('canonicalJson', () => {
     // code units give B, Z, a, e, é. Only the second is what SnapTrade's
     // server reproduces when it recomputes the HMAC, so "fixing" the sort to
     // be locale-aware would 401 every request. This test fails if anyone does.
-    expect(canonicalJson({ B: 1, a: 2, Z: 3, 'é': 4, e: 5 })).toBe(
-      '{"B":1,"Z":3,"a":2,"e":5,"é":4}',
-    );
+    expect(canonicalJson({ B: 1, a: 2, Z: 3, é: 4, e: 5 })).toBe('{"B":1,"Z":3,"a":2,"e":5,"é":4}');
   });
 
   it('is independent of key insertion order', () => {
@@ -60,7 +58,9 @@ describe('computeSignature', () => {
 
   it('changes when the path, the query or the key changes', () => {
     const base = { path: '/api/v1/accounts', query: 'q=1', consumerKey: 'k' };
-    expect(computeSignature({ ...base, path: '/api/v1/accounts/x/positions' })).not.toBe(computeSignature(base));
+    expect(computeSignature({ ...base, path: '/api/v1/accounts/x/positions' })).not.toBe(
+      computeSignature(base),
+    );
     expect(computeSignature({ ...base, query: 'q=2' })).not.toBe(computeSignature(base));
     expect(computeSignature({ ...base, consumerKey: 'other' })).not.toBe(computeSignature(base));
   });
@@ -172,7 +172,13 @@ describe('unwrapPositions', () => {
 
 describe('mapPosition', () => {
   const AAPL = {
-    instrument: { kind: 'stock', symbol: 'AAPL', raw_symbol: 'AAPL', description: 'Apple Inc.', currency: 'USD' },
+    instrument: {
+      kind: 'stock',
+      symbol: 'AAPL',
+      raw_symbol: 'AAPL',
+      description: 'Apple Inc.',
+      currency: 'USD',
+    },
     units: '10.5',
     price: '200',
     cost_basis: '150',
@@ -218,13 +224,15 @@ describe('mapPosition', () => {
   });
 
   it('keeps a short position negative', () => {
-    expect(mapPosition({ instrument: { kind: 'stock', symbol: 'TSLA' }, units: '-4', price: '100' })?.marketValue).toBe(
-      -400,
-    );
+    expect(
+      mapPosition({ instrument: { kind: 'stock', symbol: 'TSLA' }, units: '-4', price: '100' })?.marketValue,
+    ).toBe(-400);
   });
 
   it('falls back to the instrument currency', () => {
-    expect(mapPosition({ instrument: { kind: 'etf', symbol: 'VOO', currency: 'USD' } })?.currency).toBe('USD');
+    expect(mapPosition({ instrument: { kind: 'etf', symbol: 'VOO', currency: 'USD' } })?.currency).toBe(
+      'USD',
+    );
   });
 
   it('drops a row with no symbol at all', () => {

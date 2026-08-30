@@ -1,6 +1,8 @@
 import { Card, CardTitle } from '../components/Card';
 import { Icon, type IconName } from '../components/Icon';
 import { Tag } from '../components/Tag';
+import { Toggle } from '../components/Toggle';
+import { useDemoMode, useSetDemoMode } from '../lib/DemoModeProvider';
 import { useDispatch, type Screen } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
@@ -36,13 +38,15 @@ export function MoreScreen(_: ScreenProps) {
   const { mode, setMode } = useTheme();
   const t = useT();
   const beg = mode === 'beginner';
+  const demo = useDemoMode();
+  const setDemo = useSetDemoMode();
   const live = useDemoFlag('liveAccount');
   const links = live ? [...LINKS, LIVE_LINK] : LINKS;
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <Card padding="10px 12px" gap={6}>
-        <CardTitle size={14}>{t('more.viewMode')}</CardTitle>
+        <CardTitle size={17}>{t('more.viewMode')}</CardTitle>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <ModeCard
             active={beg}
@@ -59,8 +63,28 @@ export function MoreScreen(_: ScreenProps) {
             onClick={() => setMode('advanced')}
           />
         </div>
-        <p className="text-muted" style={{ fontSize: 12, margin: 0 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0 }}>
           {t('more.switchNote')}
+        </p>
+      </Card>
+
+      {/* Sample data. One switch over everything the app can invent —
+          the charts and the earnings screens — so a reader who would rather
+          see a filled-in app than an honest gap can have one, by asking.
+          It carries no on-screen disclaimer where it renders: the reader
+          turned it on themselves, and the standing note at the top of each
+          screen already says what they are looking at. */}
+      <Card padding="10px 12px" gap={6}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ flex: 1 }}>
+            <span style={{ display: 'block', fontSize: 'var(--text-row)', fontWeight: 500 }}>
+              {t('more.demoData')}
+            </span>
+          </span>
+          <Toggle label={t('more.demoData')} on={demo} onChange={setDemo} />
+        </div>
+        <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.45 }}>
+          {t('more.demoDataHelp')}
         </p>
       </Card>
 
@@ -92,7 +116,7 @@ export function MoreScreen(_: ScreenProps) {
                 height: 33,
                 flex: 'none',
                 borderRadius: 8,
-                background: 'var(--color-accent-900)',
+                background: 'var(--fill-selected)',
                 color: 'var(--color-accent-300)',
                 display: 'grid',
                 placeItems: 'center',
@@ -101,19 +125,21 @@ export function MoreScreen(_: ScreenProps) {
               <Icon name={r.icon} size={19} strokeWidth={1.7} />
             </span>
             <span style={{ flex: 1 }}>
-              <span style={{ display: 'block', fontSize: 14.5, fontWeight: 500 }}>{t(r.label)}</span>
-              <span className="text-muted" style={{ display: 'block', fontSize: 13 }}>
+              <span style={{ display: 'block', fontSize: 'var(--text-row)', fontWeight: 500 }}>
+                {t(r.label)}
+              </span>
+              <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-body)' }}>
                 {t(r.help)}
               </span>
             </span>
-            <span style={{ opacity: 0.4, fontSize: 15 }}>›</span>
+            <span style={{ opacity: 0.4, fontSize: 'var(--text-title)' }}>›</span>
           </button>
         ))}
       </Card>
 
       <Card padding={13} gap={4}>
         <CardTitle>{t('more.screener')}</CardTitle>
-        <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
+        <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0 }}>
           {t('more.screenerHelp')}
         </p>
       </Card>
@@ -137,6 +163,7 @@ function ModeCard({
   return (
     <button
       type="button"
+      className="select-card"
       onClick={onClick}
       style={{
         display: 'block',
@@ -148,16 +175,18 @@ function ModeCard({
         font: 'inherit',
         color: 'inherit',
         border: `1px solid ${active ? 'var(--color-accent)' : 'var(--color-divider)'}`,
-        background: active ? 'color-mix(in srgb, var(--color-accent) 10%, transparent)' : 'transparent',
+        background: active ? 'color-mix(in srgb, var(--color-accent) 10%, transparent)' : 'var(--sunk)',
       }}
     >
       <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 14, fontWeight: 600 }}>{name}</span>
-        <Tag variant="outline" fontSize={12}>
+        <span style={{ fontSize: 'var(--text-row)', fontWeight: 600 }}>{name}</span>
+        <Tag variant="outline" fontSize={15}>
           {badge}
         </Tag>
       </span>
-      <span style={{ display: 'block', fontSize: 13, opacity: 0.78, marginTop: 3 }}>{blurb}</span>
+      <span style={{ display: 'block', fontSize: 'var(--text-body)', opacity: 0.78, marginTop: 3 }}>
+        {blurb}
+      </span>
     </button>
   );
 }

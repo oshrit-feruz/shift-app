@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useReducer, useRef, type ReactNode } from 'react';
 import type { Answer } from '../lib/advisory';
 
 export type Screen =
@@ -67,7 +67,7 @@ export interface AppState {
   advConnections: Partial<Record<InstitutionKey, string>>;
   /** advConnect opened standalone (no flow chrome) vs. as a flow step */
   advSolo: boolean;
-  /** self-directed */
+  /** self-directed — the user's own watchlist, empty until they add to it */
   watchlist: string[];
   /** onboarding */
   firstRunSeen: boolean;
@@ -85,7 +85,7 @@ export interface AppState {
   manualTransactions: Record<string, ManualTransaction[]>;
 }
 
-const initial: AppState = {
+export const initial: AppState = {
   screen: 'home',
   ticker: 'NVDA',
   advAnswers: [],
@@ -93,7 +93,7 @@ const initial: AppState = {
   advBroker: null,
   advConnections: {},
   advSolo: false,
-  watchlist: ['NVDA', 'AMD', 'LLY', 'JPM', 'AAPL', 'MSFT', 'TSLA', 'XOM'],
+  watchlist: [],
   firstRunSeen: false,
   stepsDone: {},
   fromSteps: false,
@@ -117,6 +117,7 @@ export type Action =
   | { type: 'advBroker'; broker: AppState['advBroker'] }
   | { type: 'advConnect'; inst: InstitutionKey; provider: string | null }
   | { type: 'toggleWatch'; ticker: string }
+  | { type: 'removeWatch'; ticker: string }
   | { type: 'firstRunSeen' }
   | { type: 'stepDone'; key: string; done: boolean }
   | { type: 'setThreshold'; which: 'up' | 'down'; value: string }
@@ -124,10 +125,17 @@ export type Action =
   | { type: 'pfIndex'; index: number }
   | { type: 'toggleAggAccount'; id: string }
   | { type: 'addAlert'; alert: SavedAlert }
+  | { type: 'removeAlert'; id: string }
   | { type: 'addManualPortfolio'; portfolio: ManualPortfolio }
-  | { type: 'addManualTransaction'; portfolioId: string; transaction: ManualTransaction };
+  | { type: 'addManualTransaction'; portfolioId: string; transaction: ManualTransaction }
+  /** Hydrate the persisted slice from the signed-in user's Supabase row. */
+  | { type: 'replaceState'; persisted: Partial<AppState> }
+  /** Sign-out: drop the persisted slice so the next account on this device
+   *  never sees the previous user's risk profile or progress. */
+  | { type: 'resetPersisted' };
 
-function reducer(s: AppState, a: Action): AppState {
+/** Exported for tests — the app itself only ever reaches this via dispatch. */
+export function reducer(s: AppState, a: Action): AppState {
   switch (a.type) {
     case 'go':
       return { ...s, screen: a.screen, fromSteps: a.fromSteps ?? false };
@@ -154,21 +162,30 @@ function reducer(s: AppState, a: Action): AppState {
       else next[a.inst] = a.provider;
       return { ...s, advConnections: next };
     }
-    case 'toggleWatch':
+    case 'toggleWatch': {
+      // Symbols reach this from search, the earnings calendar and news chips
+      // as well as the stock page, so they are normalised here rather than at
+      // each call site — 'nvda' and 'NVDA' must never become two rows.
+      const ticker = a.ticker.trim().toUpperCase();
+      if (!ticker) return s;
       return {
         ...s,
-        watchlist: s.watchlist.includes(a.ticker)
-          ? s.watchlist.filter((t) => t !== a.ticker)
-          : [...s.watchlist, a.ticker],
+        watchlist: s.watchlist.includes(ticker)
+          ? s.watchlist.filter((t) => t !== ticker)
+          : [...s.watchlist, ticker],
       };
+    }
+    case 'removeWatch': {
+      const ticker = a.ticker.trim().toUpperCase();
+      if (!s.watchlist.includes(ticker)) return s;
+      return { ...s, watchlist: s.watchlist.filter((t) => t !== ticker) };
+    }
     case 'firstRunSeen':
       return { ...s, firstRunSeen: true };
     case 'stepDone':
       return { ...s, stepsDone: { ...s.stepsDone, [a.key]: a.done } };
     case 'setThreshold':
-      return a.which === 'up'
-        ? { ...s, alertUpThreshold: a.value }
-        : { ...s, alertDownThreshold: a.value };
+      return a.which === 'up' ? { ...s, alertUpThreshold: a.value } : { ...s, alertDownThreshold: a.value };
     case 'markNotificationsRead':
       return { ...s, notificationsRead: true };
     case 'pfIndex':
@@ -177,6 +194,8 @@ function reducer(s: AppState, a: Action): AppState {
       return { ...s, aggExcluded: { ...s.aggExcluded, [a.id]: !s.aggExcluded[a.id] } };
     case 'addAlert':
       return { ...s, savedAlerts: [...s.savedAlerts, a.alert] };
+    case 'removeAlert':
+      return { ...s, savedAlerts: s.savedAlerts.filter((x) => x.id !== a.id) };
     case 'addManualPortfolio':
       return { ...s, manualPortfolios: [...s.manualPortfolios, a.portfolio] };
     case 'addManualTransaction':
@@ -187,13 +206,24 @@ function reducer(s: AppState, a: Action): AppState {
           [a.portfolioId]: [...(s.manualTransactions[a.portfolioId] ?? []), a.transaction],
         },
       };
+    case 'replaceState':
+      // Keep the ephemeral navigation (screen/ticker) — the user is mid-app
+      // when the server state lands; yanking them elsewhere would read as a
+      // crash. Everything else resets to initial + the server's slice.
+      return { ...initial, ...a.persisted, screen: s.screen, ticker: s.ticker };
+    case 'resetPersisted':
+      // Back to a clean boot; the localStorage effect below then overwrites
+      // the on-device cache with the blank slice.
+      return { ...initial };
     default:
       return s;
   }
 }
 
 const STORAGE_KEY = 'shift.state';
-const PERSISTED: Array<keyof AppState> = [
+/** The slice that outlives a session: localStorage cache + the signed-in
+ *  user's Supabase row (state/remoteState.ts) both persist exactly this. */
+export const PERSISTED: Array<keyof AppState> = [
   'advAnswers',
   'advStage',
   'advBroker',
@@ -208,12 +238,51 @@ const PERSISTED: Array<keyof AppState> = [
   'manualTransactions',
 ];
 
+/**
+ * The watchlist every install used to boot with, before the list became the
+ * user's own. It was never chosen by anyone, so a stored slice that still
+ * carries exactly it is a seed, not a decision, and is dropped on read —
+ * otherwise "starts empty" would only be true for people installing today,
+ * and everyone else would keep eight stocks they never picked.
+ *
+ * Only an exact match is dropped. A list the user has since edited — one name
+ * added or removed — is theirs, and is left alone.
+ */
+export const LEGACY_SEED_WATCHLIST = ['NVDA', 'AMD', 'LLY', 'JPM', 'AAPL', 'MSFT', 'TSLA', 'XOM'];
+
+/** True when `value` is exactly the retired demo seed, in any order. */
+export function isSeededWatchlist(value: unknown): boolean {
+  if (!Array.isArray(value) || value.length !== LEGACY_SEED_WATCHLIST.length) return false;
+  const seen = new Set(value.map((x) => (typeof x === 'string' ? x.toUpperCase() : x)));
+  return seen.size === LEGACY_SEED_WATCHLIST.length && LEGACY_SEED_WATCHLIST.every((t) => seen.has(t));
+}
+
+/**
+ * Whitelist a stored bag (localStorage cache or the Supabase row) down to the
+ * persisted keys, normalising what has to be normalised. Shared by both read
+ * paths so a slice cannot arrive clean from one and seeded from the other.
+ */
+export function readPersisted(saved: Record<string, unknown>): Partial<AppState> {
+  const picked: Partial<AppState> = {};
+  for (const k of PERSISTED) if (k in saved) (picked as Record<string, unknown>)[k] = saved[k];
+  if (isSeededWatchlist(picked.watchlist)) picked.watchlist = [];
+  else if (Array.isArray(picked.watchlist)) {
+    // Stored before tickers were normalised on the way in, or hand-edited.
+    const out: string[] = [];
+    for (const raw of picked.watchlist) {
+      if (typeof raw !== 'string') continue;
+      const ticker = raw.trim().toUpperCase();
+      if (ticker && !out.includes(ticker)) out.push(ticker);
+    }
+    picked.watchlist = out;
+  }
+  return picked;
+}
+
 function hydrate(): AppState {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
-    const picked: Partial<AppState> = {};
-    for (const k of PERSISTED) if (k in saved) (picked as Record<string, unknown>)[k] = saved[k];
-    return { ...initial, ...picked };
+    return { ...initial, ...readPersisted(saved) };
   } catch {
     return initial;
   }
@@ -224,10 +293,19 @@ const DispatchCtx = createContext<(a: Action) => void>(() => {});
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, hydrate);
+  // Written only when a persisted key actually changed: most dispatches are
+  // navigation, which is not persisted, and a synchronous stringify+write of
+  // the whole slice on every tab tap is main-thread work for nothing. The
+  // reducer spreads a new state object but keeps untouched values by
+  // reference, so a per-key identity check is a faithful "did it change".
+  const lastPersisted = useRef<Partial<AppState> | null>(null);
   useEffect(() => {
+    const prev = lastPersisted.current;
+    if (prev !== null && PERSISTED.every((k) => state[k] === prev[k])) return;
     try {
-      const out: Record<string, unknown> = {};
-      for (const k of PERSISTED) out[k] = state[k];
+      const out: Partial<AppState> = {};
+      for (const k of PERSISTED) (out as Record<string, unknown>)[k] = state[k];
+      lastPersisted.current = out;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(out));
     } catch {
       /* persistence is best-effort */

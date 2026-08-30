@@ -1,19 +1,118 @@
 /** Domain types shared by the data service and the UI. */
 
-export interface SymbolInfo {
-  ticker: string;
-  name: string;
+/**
+ * Real market numbers for one ticker, read from the daily mirror
+ * (data/recoveryDetector.ts). Every field is nullable for the same reason
+ * SatelliteSignal's are: the mirror ranks 100 names and the app can open any
+ * symbol, so "we do not have this number" is a normal answer that renders as
+ * "—" rather than being guessed or back-filled.
+ */
+export interface Quote {
+  /** Last close the engine saw. */
+  price: number | null;
+  /** 52-week high the drawdown is measured against. */
+  high52w: number | null;
+  /** How far below the 52-week high, in percent (positive = below). */
+  drawdownPct: number | null;
+}
+
+/**
+ * One real trading session, from the daily price-history mirror
+ * (data/priceHistory.ts).
+ *
+ * Unlike Quote, no field here is nullable: the publisher drops a row that is
+ * missing any of them rather than passing a half-bar through
+ * (scripts/mirror-prices.mjs). A candlestick needs all four prices to mean
+ * what it draws — a bar with a guessed high is a lie in a shape a reader
+ * cannot see through, where a guessed price at least renders as a number they
+ * could question.
+ */
+export interface Bar {
+  /** Session date, raw YYYY-MM-DD. */
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+/**
+ * The market stats that are still demo figures, carried from the design
+ * prototype.
+ *
+ * They live behind their own key so no call site can render an invented
+ * number while believing it is real: `x.demo.changePct` says what it is at
+ * the point of use, where a flat `x.changePct` sitting beside a real price
+ * would not. That naming is now the whole guard — the standing on-screen
+ * note was removed, so nothing but the key tells a call site what it holds.
+ *
+ * Day change is the notable absence from Quote: the mirrored ranking has no
+ * day-change field, so it cannot be made real from this source and is not
+ * borrowed from anywhere either — it stays here until an intraday quote
+ * source exists.
+ */
+export interface SymbolDemoStats {
+  /** Prototype price. Kept only as the basis for the other demo figures and
+   *  for the demo portfolio's valuation — never rendered as *the* price,
+   *  which comes from `SymbolInfo.quote`. */
   price: number;
   changePct: number; // day change, signed
   volume: string;
   marketCap: string;
   pe: number;
   rsi: number;
+}
+
+/**
+ * One tradable symbol: static description plus its numbers, split by
+ * provenance — `quote` is real, `demo` is not.
+ */
+export interface SymbolInfo {
+  ticker: string;
+  name: string;
   sector: string;
   /** Beginner-mode plain-language description (per language). */
   plain: { en: string; he: string };
   /** Beginner-mode "why it moved" line (per language). */
   why: { en: string; he: string };
+  /**
+   * REAL, from the daily mirror. Null when the mirror does not cover this
+   * ticker or could not be read — the UI renders "—", never a demo price.
+   */
+  quote: Quote | null;
+  /** DEMO. See SymbolDemoStats. */
+  demo: SymbolDemoStats;
+}
+
+/**
+ * One row of the user's own watchlist, or one result in ticker search.
+ *
+ * Deliberately NOT SymbolInfo. The watchlist is the user's to fill, and they
+ * can put any symbol on it — including one the app's ten-row sample table has
+ * never heard of. SymbolInfo cannot describe such a ticker without inventing a
+ * name, a sector and six demo statistics for it, so this type makes every
+ * borrowed field nullable instead and each renders as "—" or is simply
+ * omitted.
+ *
+ * `quote` is real (the daily mirror). `demoChangePct` is the one demo figure
+ * carried over, and only for the sample-table tickers that have one — it is
+ * null for everything else rather than fabricated, which is why it keeps the
+ * `demo` prefix at the point of use.
+ */
+export interface WatchRow {
+  ticker: string;
+  /** Company name, or null for a ticker known to us only by its symbol. */
+  name: string | null;
+  sector: string | null;
+  /** Beginner-mode plain-language description, when the sample table has one. */
+  plain: { en: string; he: string } | null;
+  /** REAL, from the daily mirror; null when the mirror does not cover it. */
+  quote: Quote | null;
+  /** DEMO day change, only for tickers in the sample table. */
+  demoChangePct: number | null;
+  /** True when the ticker appears in the engine's daily ranking. */
+  ranked: boolean;
 }
 
 /**
@@ -97,7 +196,17 @@ export interface StockNewsArticle {
    * fabrication.
    */
   symbols: string[];
+  /**
+   * How the provider scored the story's tone, or null when it did not score
+   * it at all — the sentiment field is not on every EODHD plan or every row.
+   * Null is rendered as no tag: "we were not told" is not the same claim as
+   * "the provider called this neutral", and only one of them is ours to make.
+   */
+  sentiment: NewsSentiment | null;
 }
+
+/** The provider's tone score, bucketed. See StockNewsArticle.sentiment. */
+export type NewsSentiment = 'positive' | 'negative' | 'neutral';
 
 /**
  * One company's scheduled or reported quarter, from the earnings calendar.
@@ -238,12 +347,17 @@ export type Loadable<T> =
   | { status: 'unavailable'; reason?: { en: string; he: string } }
   | { status: 'ok'; data: T };
 
-export const loading = <T,>(): Loadable<T> => ({ status: 'loading' });
-export const unavailable = <T,>(reason?: { en: string; he: string }): Loadable<T> => ({
+/** Create a loading state for a Loadable. */
+export const loading = <T>(): Loadable<T> => ({ status: 'loading' });
+
+/** Create an unavailable state for a Loadable, optionally with a bilingual reason explaining why. */
+export const unavailable = <T>(reason?: { en: string; he: string }): Loadable<T> => ({
   status: 'unavailable',
   reason,
 });
-export const ok = <T,>(data: T): Loadable<T> => ({ status: 'ok', data });
+
+/** Create a successful state for a Loadable with the given data. */
+export const ok = <T>(data: T): Loadable<T> => ({ status: 'ok', data });
 
 /**
  * One real brokerage position as /api/snaptrade reports it. Every number is

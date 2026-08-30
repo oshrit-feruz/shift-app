@@ -115,14 +115,15 @@ describe('fetchConnectedAccounts', () => {
   });
 
   it('falls back to the generic reason when an error body is not JSON', async () => {
-    const r = await fetchConnectedAccounts(async () =>
-      ({
-        ok: false,
-        status: 502,
-        json: async () => {
-          throw new Error('not json');
-        },
-      }) as unknown as Response,
+    const r = await fetchConnectedAccounts(
+      async () =>
+        ({
+          ok: false,
+          status: 502,
+          json: async () => {
+            throw new Error('not json');
+          },
+        }) as unknown as Response,
     );
     expect(r.status).toBe('unavailable');
   });
@@ -157,7 +158,12 @@ describe('fetchConnectedAccounts', () => {
     expect(r.status).toBe('ok');
     if (r.status !== 'ok') return;
     expect(r.data.accounts[0].totalValue).toBeNull();
-    expect(r.data.accounts[0].positions[0]).toMatchObject({ ticker: 'NVDA', units: null, price: null, marketValue: null });
+    expect(r.data.accounts[0].positions[0]).toMatchObject({
+      ticker: 'NVDA',
+      units: null,
+      price: null,
+      marketValue: null,
+    });
   });
 
   it('drops an account with no id — it could not be addressed or trusted', async () => {
