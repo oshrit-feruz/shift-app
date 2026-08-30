@@ -67,9 +67,9 @@ export function InstallSteps() {
 
       {/* The two one-line routes get the same shape as the steps — one glyph,
           a few words — rather than a paragraph. */}
-      {route === 'ios-webview' && (
+      {route === 'ios-safari-only' && (
         <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 10 }}>
-          <Step icon="share" label={t('install.iosWebview')} />
+          <Step icon="share" label={t('install.iosSafariOnly')} />
         </ol>
       )}
       {route === 'manual' && (
@@ -81,10 +81,11 @@ export function InstallSteps() {
         </>
       )}
 
-      {/* Offered where the Share sheet may not carry "Add to Home Screen" —
-          an in-app browser, or an iOS older than 16.4 — so that opening
-          Safari is a paste rather than a URL typed from memory. */}
-      {(route === 'ios-webview' || route === 'ios-browser') && <CopyLinkButton />}
+      {/* Offered wherever Safari is part of the answer — the browser cannot do
+          it itself, or it is a third-party browser whose share sheet may still
+          be missing the item — so that opening Safari is a paste rather than a
+          URL typed from memory. */}
+      {(route === 'ios-safari-only' || route === 'ios-browser') && <CopyLinkButton />}
 
       {/* Rendered outside the prompt branch on purpose: dismissing the native
           dialog spends the event, so the very next render has already fallen

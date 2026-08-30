@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   installRoute,
+  iosVersion,
+  supportsThirdPartyInstall,
   isIOS,
   isIOSSafari,
   isIOSWebView,
@@ -102,6 +104,31 @@ describe('isIOS / isIOSSafari', () => {
   });
 });
 
+describe('iOS version', () => {
+  it('reads the version out of an iOS user agent', () => {
+    expect(iosVersion('Mozilla/5.0 (iPhone; CPU iPhone OS 16_4 like Mac OS X)')).toEqual([16, 4]);
+    expect(iosVersion('Mozilla/5.0 (iPad; CPU OS 15_7 like Mac OS X)')).toEqual([15, 7]);
+  });
+
+  it('does not read a Mac’s OS version as an iOS one', () => {
+    expect(iosVersion('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)')).toBeNull();
+  });
+
+  it('opens up at exactly 16.4, where Apple gave third-party browsers the item', () => {
+    const at = (v: string) => supportsThirdPartyInstall(`Mozilla/5.0 (iPhone; CPU iPhone OS ${v})`);
+    expect(at('16_3')).toBe(false);
+    expect(at('16_4')).toBe(true);
+    expect(at('15_7')).toBe(false);
+    expect(at('18_1')).toBe(true);
+  });
+
+  it('treats a version-less UA (the iPad claiming to be a Mac) as new enough', () => {
+    expect(supportsThirdPartyInstall('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) CriOS/126.0')).toBe(
+      true,
+    );
+  });
+});
+
 describe('installRoute', () => {
   const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5) Version/17.5 Mobile/15E148 Safari/604.1';
   const ANDROID = 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/126.0 Mobile Safari/537.36';
@@ -114,16 +141,31 @@ describe('installRoute', () => {
     expect(installRoute({ canPrompt: false, ua: IPHONE, maxTouchPoints: 5 })).toBe('ios-safari');
   });
 
-  it('gives Chrome/Firefox/Edge on iOS the same steps: since 16.4 their share menu carries it too', () => {
-    expect(installRoute({ canPrompt: false, ua: `${IPHONE} CriOS/126.0`, maxTouchPoints: 5 })).toBe(
-      'ios-browser',
+  it('gives Chrome/Firefox/Edge on iOS 16.4+ the same steps: their share menu carries it too', () => {
+    const NEW = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X)';
+    expect(
+      installRoute({ canPrompt: false, ua: `${NEW} CriOS/126.0 Mobile/15E148`, maxTouchPoints: 5 }),
+    ).toBe('ios-browser');
+  });
+
+  it('sends an in-app webview to Safari — it cannot install at any iOS version', () => {
+    expect(installRoute({ canPrompt: false, ua: `${IPHONE} [FBAN/FBIOS]`, maxTouchPoints: 5 })).toBe(
+      'ios-safari-only',
     );
   });
 
-  it('sends an in-app webview to Safari — the one iOS case that really cannot install', () => {
-    expect(installRoute({ canPrompt: false, ua: `${IPHONE} [FBAN/FBIOS]`, maxTouchPoints: 5 })).toBe(
-      'ios-webview',
-    );
+  it('sends a third-party browser below iOS 16.4 to Safari: the item does not exist there yet', () => {
+    const OLD = 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_7 like Mac OS X)';
+    for (const brand of ['CriOS/126.0', 'FxiOS/126.0', 'EdgiOS/126.0']) {
+      expect(installRoute({ canPrompt: false, ua: `${OLD} ${brand} Mobile/15E148`, maxTouchPoints: 5 })).toBe(
+        'ios-safari-only',
+      );
+    }
+  });
+
+  it('still gives Safari its own steps on an old iOS — Safari always had them', () => {
+    const OLD_SAFARI = 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_7 like Mac OS X) Version/15.6 Safari/604.1';
+    expect(installRoute({ canPrompt: false, ua: OLD_SAFARI, maxTouchPoints: 5 })).toBe('ios-safari');
   });
 
   it('falls back to the browser menu for a Chromium that has not fired the event yet', () => {

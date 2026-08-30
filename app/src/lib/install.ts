@@ -79,18 +79,20 @@ export function shouldBlockUntilInstalled(input: {
  *  - `prompt`      — Chromium (Android, desktop Chrome/Edge): a captured
  *                    `beforeinstallprompt` event is waiting, so a button does it.
  *  - `ios-safari`  — no install API at all; the Share sheet is the only route.
- *  - `ios-browser` — Chrome, Firefox or Edge on iOS. Since iOS 16.4 they carry
- *                    "Add to Home Screen" in their own share menu, so they get
- *                    the same three steps as Safari — plus the copy-link
- *                    fallback, for the older iOS versions that do not.
- *  - `ios-webview` — an in-app browser (Instagram, Facebook, Gmail). These
- *                    cannot add to the home screen at all, so the only honest
- *                    instruction is to open the page in Safari.
+ *  - `ios-browser` — Chrome, Firefox or Edge on **iOS 16.4 or later**, where
+ *                    Apple gave third-party browsers "Add to Home Screen" in
+ *                    their own share menu: the same three steps as Safari.
+ *  - `ios-safari-only`
+ *                  — everything else on iOS that cannot add to the home
+ *                    screen itself: an in-app browser (Instagram, Facebook,
+ *                    Gmail) at any version, and a third-party browser on an
+ *                    iOS older than 16.4. Safari is the only way through, so
+ *                    that is what it says.
  *  - `manual`      — anything else (Firefox Android, Samsung Internet, a
  *                    Chromium that has not fired the event yet): the browser
  *                    menu carries an install item under one name or another.
  */
-export type InstallRoute = 'prompt' | 'ios-safari' | 'ios-browser' | 'ios-webview' | 'manual';
+export type InstallRoute = 'prompt' | 'ios-safari' | 'ios-browser' | 'ios-safari-only' | 'manual';
 
 export function installRoute(input: {
   canPrompt: boolean;
@@ -99,8 +101,38 @@ export function installRoute(input: {
 }): InstallRoute {
   if (input.canPrompt) return 'prompt';
   if (!isIOS(input.ua, input.maxTouchPoints)) return 'manual';
-  if (isIOSWebView(input.ua)) return 'ios-webview';
-  return isIOSSafari(input.ua) ? 'ios-safari' : 'ios-browser';
+  if (isIOSSafari(input.ua)) return 'ios-safari';
+  // Safari has always been able to do this; nothing else on iOS could until
+  // 16.4, and an in-app browser still cannot at any version.
+  if (isIOSWebView(input.ua)) return 'ios-safari-only';
+  return supportsThirdPartyInstall(input.ua) ? 'ios-browser' : 'ios-safari-only';
+}
+
+/**
+ * Whether a non-Safari iOS browser can add to the home screen itself —
+ * iOS/iPadOS **16.4** is where Apple opened that up (Safari 16.4 release
+ * notes). Below it, Chrome, Firefox and Edge carry no such item at all, and
+ * showing them Safari's three steps would be sending them to look for a
+ * button that is not there.
+ *
+ * A UA with no version token is treated as new enough: that is the
+ * iPad-claiming-to-be-a-Mac form, which only exists from iPadOS 13 and today
+ * means a device many major versions past 16.4. Guessing "old" there would
+ * push every modern iPad down the Safari-only route instead.
+ */
+export function supportsThirdPartyInstall(ua: string): boolean {
+  const v = iosVersion(ua);
+  if (!v) return true;
+  const [major, minor] = v;
+  return major > 16 || (major === 16 && minor >= 4);
+}
+
+/** The iOS version as [major, minor], or null when the UA does not carry one.
+ *  The `CPU … OS 17_5` token is iOS-only — a Mac's `Mac OS X 10_15_7` does not
+ *  match it, which is what keeps a desktop UA from reading as iOS 10. */
+export function iosVersion(ua: string): [number, number] | null {
+  const m = /CPU (?:iPhone )?OS (\d+)[._](\d+)/.exec(ua);
+  return m ? [Number(m[1]), Number(m[2])] : null;
 }
 
 /** iPhone/iPod/iPad — including the iPad that claims to be a Mac, which is

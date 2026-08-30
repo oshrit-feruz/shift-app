@@ -1002,13 +1002,12 @@ export const STRINGS = {
   'install.ios1': p('Share', 'שיתוף'),
   'install.ios2': p('Add to Home Screen', 'הוספה למסך הבית'),
   'install.ios3': p('Add', 'הוספה'),
-  // An in-app browser (Instagram, Facebook, Gmail) — the one iOS case with no
-  // route to the home screen at all. Named third-party browsers are NOT this
-  // case: since iOS 16.4 Chrome, Firefox and Edge carry "Add to Home Screen"
-  // in their own share menu, so they get the three steps like Safari.
-  'install.iosWebview': p(
-    'This in-app browser cannot add to the home screen — open the page in Safari.',
-    'הדפדפן הפנימי הזה לא יכול להוסיף למסך הבית — כדאי לפתוח את הדף ב-Safari.',
+  // Everything on iOS that cannot add to the home screen itself: an in-app
+  // browser (Instagram, Facebook, Gmail) at any version, and Chrome/Firefox/
+  // Edge below iOS 16.4, which is where Apple gave them the item at all.
+  'install.iosSafariOnly': p(
+    'This browser cannot add to the home screen — open the page in Safari.',
+    'הדפדפן הזה לא יכול להוסיף למסך הבית — כדאי לפתוח את הדף ב-Safari.',
   ),
   // Anything else: the item exists but each browser names it differently.
   'install.manual': p('Browser menu → “Install app”', 'תפריט הדפדפן ← ״התקנת אפליקציה״'),
