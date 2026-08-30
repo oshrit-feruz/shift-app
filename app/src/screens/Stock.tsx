@@ -9,6 +9,7 @@ import { rsi } from '../components/charts';
 import { Chip } from '../components/Chip';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { DataState } from '../components/DataState';
+import { DemoOnly } from '../components/DemoOnly';
 import { Skeleton, SkeletonCard, SkeletonList } from '../components/Skeleton';
 import { ListRow, RowValues } from '../components/ListRow';
 import { useAppState, useDispatch } from '../state/appState';
@@ -20,7 +21,7 @@ import { useLoadable } from '../data/useLoadable';
 import { fetchYourPositions } from '../lib/holdings';
 import { fetchTickerEarnings } from '../data/earnings';
 import { useDemoMode } from '../lib/DemoModeProvider';
-import { compactCount, money, moneyOrDash, pct, signalColor } from '../lib/format';
+import { compactCount, money, moneyOrDash, pct, pctOrDash, signalColor } from '../lib/format';
 import { ReportsTab, EarningsHistory } from './stock/ReportsTab';
 import { NewsTab } from './stock/NewsTab';
 import { TabPanel } from '../components/TabPanel';
@@ -117,7 +118,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
   const inWl = s.watchlist.includes(s.ticker);
   const positions = useLoadable(
     () => fetchYourPositions(s.ticker, s.manualTransactions, s.manualPortfolios),
-    [s.ticker, s.manualTransactions, s.manualPortfolios],
+    [s.ticker, s.manualTransactions, s.manualPortfolios, demo],
   );
 
   // REAL price history. Separate from `sym` on purpose: the row and the chart
@@ -322,8 +323,8 @@ export function StockScreen({ openAlert }: ScreenProps) {
                         subtitle={<Num>{`${holding.shares} sh · avg ${money(holding.avgCost)}`}</Num>}
                         right={
                           <RowValues
-                            main={money(holding.value, 0)}
-                            sub={pct(holding.plPct)}
+                            main={moneyOrDash(holding.value, 0)}
+                            sub={pctOrDash(holding.plPct)}
                             subColor={signalColor(holding.plPct)}
                           />
                         }
@@ -393,32 +394,38 @@ export function StockScreen({ openAlert }: ScreenProps) {
             {/* Shown in both modes: the ratings bar and counts are already
               plain-language, so there was no beginner-specific reason to
               hide analyst sentiment from that mode. */}
-            <Card padding={12} gap={7}>
-              <CardTitle>{t('stock.analyst')}</CardTitle>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                <span style={{ fontSize: 'var(--text-title)', fontFamily: 'var(--font-heading)' }}>
-                  {t('stock.consensus')}
-                </span>
-                <span className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
-                  {t('stock.analystMeta')}
-                </span>
-              </div>
-              <div style={{ display: 'flex', height: 6, borderRadius: 4, overflow: 'hidden', gap: 1 }}>
-                <div style={{ flex: 31, background: 'var(--up)' }} />
-                <div style={{ flex: 11, background: 'var(--acc-mid)' }} />
-                <div style={{ flex: 8, background: 'var(--muted-2)' }} />
-                <div style={{ flex: 3, background: 'var(--down)' }} />
-              </div>
-              <div
-                className="text-muted"
-                style={{ display: 'flex', gap: 9, fontSize: 'var(--text-caption)' }}
-              >
-                <span>{t('stock.rateSb')}</span>
-                <span>{t('stock.rateB')}</span>
-                <span>{t('stock.rateH')}</span>
-                <span>{t('stock.rateS')}</span>
-              </div>
-            </Card>
+            {demo ? (
+              <Card padding={12} gap={7}>
+                <CardTitle>{t('stock.analyst')}</CardTitle>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                  <span style={{ fontSize: 'var(--text-title)', fontFamily: 'var(--font-heading)' }}>
+                    {t('stock.consensus')}
+                  </span>
+                  <span className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
+                    {t('stock.analystMeta')}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', height: 6, borderRadius: 4, overflow: 'hidden', gap: 1 }}>
+                  <div style={{ flex: 31, background: 'var(--up)' }} />
+                  <div style={{ flex: 11, background: 'var(--acc-mid)' }} />
+                  <div style={{ flex: 8, background: 'var(--muted-2)' }} />
+                  <div style={{ flex: 3, background: 'var(--down)' }} />
+                </div>
+                <div
+                  className="text-muted"
+                  style={{ display: 'flex', gap: 9, fontSize: 'var(--text-caption)' }}
+                >
+                  <span>{t('stock.rateSb')}</span>
+                  <span>{t('stock.rateB')}</span>
+                  <span>{t('stock.rateH')}</span>
+                  <span>{t('stock.rateS')}</span>
+                </div>
+              </Card>
+            ) : (
+              // Ratings, price target and the 31/11/8/3 bar are all literals —
+              // there is no analyst feed behind this card at all.
+              <DemoOnly feature="stock.analyst" />
+            )}
 
             <NextEarnings ticker={s.ticker} />
 

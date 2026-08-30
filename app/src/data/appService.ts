@@ -113,8 +113,12 @@ function toPortfolioSummary(account: ConnectedAccount, total: number): Portfolio
     acct: account.numberMasked ?? '',
     syncedAgo: null,
     total,
-    dayPct: 0,
-    allTimePct: 0,
+    // null, not 0. The brokerage reports no day change and no priced history
+    // through this integration, and PortfolioSummary now says so in the type
+    // — the screens render null as "—" via pctOrDash, where a 0 rendered as
+    // a measured flat day the app never measured.
+    dayPct: null,
+    allTimePct: null,
   };
 }
 
@@ -137,7 +141,9 @@ function toHolding(position: ConnectedAccount['positions'][number]): Holding {
     ticker: position.ticker,
     shares: units,
     avgCost,
-    value: position.marketValue ?? 0,
+    // null, not 0: Holding.value is nullable now, and a position the
+    // brokerage did not price renders as "—" rather than as worthless.
+    value: position.marketValue,
     plPct,
   };
 }
@@ -165,9 +171,9 @@ async function livePortfolios(): Promise<Loadable<PortfolioSummary[]>> {
     logo: null,
     acct: '',
     syncedAgo: null,
-    total: rows.reduce((sum, r) => sum + r.total, 0),
-    dayPct: 0,
-    allTimePct: 0,
+    total: rows.reduce((sum, r) => sum + (r.total ?? 0), 0),
+    dayPct: null,
+    allTimePct: null,
   };
   return ok([aggregate, ...rows]);
 }

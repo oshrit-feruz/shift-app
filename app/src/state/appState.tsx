@@ -45,7 +45,6 @@ export interface SavedAlert {
 export interface ManualPortfolio {
   id: string;
   name: string;
-  startingCash: number;
 }
 
 export interface ManualTransaction {
@@ -128,6 +127,19 @@ export type Action =
   | { type: 'removeAlert'; id: string }
   | { type: 'addManualPortfolio'; portfolio: ManualPortfolio }
   | { type: 'addManualTransaction'; portfolioId: string; transaction: ManualTransaction }
+  | { type: 'removeManualPortfolio'; id: string }
+  | { type: 'removeManualTransaction'; portfolioId: string; id: string }
+  /**
+   * The reconciled ledger — server rows minus queued deletes plus queued
+   * inserts (state/ledger.ts). Replaces both keys wholesale rather than
+   * merging: reconcile() has already done the merging, and a second one here
+   * could only reintroduce a row it deliberately dropped.
+   */
+  | {
+      type: 'ledgerLoaded';
+      portfolios: ManualPortfolio[];
+      transactions: Record<string, ManualTransaction[]>;
+    }
   /** Hydrate the persisted slice from the signed-in user's Supabase row. */
   | { type: 'replaceState'; persisted: Partial<AppState> }
   /** Sign-out: drop the persisted slice so the next account on this device
@@ -206,6 +218,38 @@ export function reducer(s: AppState, a: Action): AppState {
           [a.portfolioId]: [...(s.manualTransactions[a.portfolioId] ?? []), a.transaction],
         },
       };
+    case 'removeManualPortfolio': {
+      // Cascades its transactions, matching the database's `on delete
+      // cascade` — leaving them behind would keep the rows in memory,
+      // orphaned, until the next read.
+      const { [a.id]: _dropped, ...rest } = s.manualTransactions;
+      const manualPortfolios = s.manualPortfolios.filter((x) => x.id !== a.id);
+      return {
+        ...s,
+        manualPortfolios,
+        manualTransactions: rest,
+        // Back to the first account. Portfolio.tsx selects by index into a
+        // list this reducer cannot see the length of — it also holds the
+        // demo/linked accounts — so there is no index to clamp to correctly.
+        // Zero is the one selection that is always valid and always
+        // explainable: delete a portfolio, land on the first one.
+        pfIndex: 0,
+      };
+    }
+    case 'removeManualTransaction':
+      return {
+        ...s,
+        manualTransactions: {
+          ...s.manualTransactions,
+          [a.portfolioId]: (s.manualTransactions[a.portfolioId] ?? []).filter((x) => x.id !== a.id),
+        },
+      };
+    case 'ledgerLoaded':
+      return {
+        ...s,
+        manualPortfolios: a.portfolios,
+        manualTransactions: a.transactions,
+      };
     case 'replaceState':
       // Keep the ephemeral navigation (screen/ticker) — the user is mid-app
       // when the server state lands; yanking them elsewhere would read as a
@@ -234,9 +278,41 @@ export const PERSISTED: Array<keyof AppState> = [
   'alertUpThreshold',
   'alertDownThreshold',
   'savedAlerts',
-  'manualPortfolios',
-  'manualTransactions',
+  // NOT 'manualPortfolios' / 'manualTransactions'. The ledger lives in its own
+  // Supabase tables now (supabase/migrations/0005_ledger.sql, synced by
+  // state/useLedgerSync.ts). Writing it to both stores would reintroduce
+  // through the back door the very bug the tables exist to fix: this bag ships
+  // wholesale on a debounce, so a second device's copy overwrites the first's
+  // and one transaction vanishes with no error anywhere.
+  //
+  // They stay READABLE from a stored bag — see readLegacyLedger below — so a
+  // device that has been offline since before the move still hands its
+  // transactions over on the next sign-in.
 ];
+
+/**
+ * The two ledger keys as they were written into the bag before the move, for
+ * the one-time import (state/ledger.ts, planLegacyImport).
+ *
+ * Kept for two releases. Reading a key we no longer write is cheap; a
+ * long-offline device whose only copy of its transactions is this bag has no
+ * other way to hand them over, and dropping the reader is how that copy
+ * becomes the one nobody thought about.
+ */
+export function readLegacyLedger(saved: Record<string, unknown>): {
+  manualPortfolios: ManualPortfolio[];
+  manualTransactions: Record<string, ManualTransaction[]>;
+} {
+  const pfs = saved.manualPortfolios;
+  const txs = saved.manualTransactions;
+  return {
+    manualPortfolios: Array.isArray(pfs) ? (pfs as ManualPortfolio[]) : [],
+    manualTransactions:
+      txs !== null && typeof txs === 'object' && !Array.isArray(txs)
+        ? (txs as Record<string, ManualTransaction[]>)
+        : {},
+  };
+}
 
 /**
  * The watchlist every install used to boot with, before the list became the

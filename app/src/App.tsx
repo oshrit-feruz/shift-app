@@ -16,7 +16,6 @@ import { useT } from './i18n/useT';
 import type { StringKey } from './i18n/strings';
 import { demoService } from './data/demoAdapter';
 import { useLoadable } from './data/useLoadable';
-import { useDemoFlag } from './data/useDemoFlag';
 import { HomeScreen } from './screens/Home';
 import { StockScreen } from './screens/Stock';
 import { PortfolioScreen } from './screens/Portfolio';
@@ -29,14 +28,16 @@ import { FirstRunOverlay } from './screens/onboarding/FirstRunOverlay';
 import { SignInScreen } from './screens/SignIn';
 import { useAuth } from './auth/AuthProvider';
 import { useRemoteSync } from './state/useRemoteSync';
+import { LedgerProvider } from './state/useLedgerSync';
 import { useProviderLanguage } from './auth/useProviderLanguage';
 import { useProfile } from './auth/ProfileProvider';
 import { SearchOverlay } from './sheets/SearchOverlay';
-import { NotificationsSheet } from './sheets/NotificationsSheet';
+import { NotificationsSheet, unreadNotifications } from './sheets/NotificationsSheet';
 import { AlertSheet } from './sheets/AlertSheet';
 import { useT as useTranslate } from './i18n/useT';
 import { Button } from './components/Button';
 import { SHELL_ID } from './components/Sheet';
+import { useDemoMode } from './lib/DemoModeProvider';
 import { SkeletonCard } from './components/Skeleton';
 
 // Screens outside the core tab set load on demand: the advisory flow,
@@ -138,7 +139,11 @@ export function App() {
           resets app state on sign-out, and it can only see that transition
           if it survives the shell unmounting. */}
       <RemoteSync />
-      {content}
+      {/* Same reasoning, and the same reason it wraps rather than sits beside
+          the content: it holds the ledger's mutation API, which the portfolio
+          sheets call, and it has to drop the previous account's rows on a
+          sign-out the shell does not survive. */}
+      <LedgerProvider>{content}</LedgerProvider>
     </>
   );
 }
@@ -187,6 +192,9 @@ function RemoteSync() {
 
 function AppShell() {
   const s = useAppState();
+  // The header badge counts the demo notifications, so it has to disappear
+  // with them — see unreadNotifications in sheets/NotificationsSheet.
+  const demo = useDemoMode();
   // The merged profile, so a user who renamed themselves is greeted by the
   // name they chose rather than the one Google holds.
   const { profile } = useProfile();
@@ -208,11 +216,7 @@ function AppShell() {
   const alertSymbol = currentSymbol?.ticker === alertFor ? currentSymbol : null;
 
   const titleKey = `title.${s.screen}` as StringKey;
-  // "ארבעה חשבונות" is fixed copy from the prototype. With a real account
-  // connected it states a count that is simply untrue, so the portfolio
-  // kicker changes with the flag — and only with the flag on.
-  const liveAccount = useDemoFlag('liveAccount');
-  const kickerKey = (liveAccount && s.screen === 'pf' ? 'kicker.pfLive' : `kicker.${s.screen}`) as StringKey;
+  const kickerKey = `kicker.${s.screen}` as StringKey;
   const title =
     s.screen === 'stock'
       ? (currentSymbol?.name ?? s.ticker)
@@ -226,7 +230,7 @@ function AppShell() {
         : t(titleKey);
   const kicker = s.screen === 'stock' ? s.ticker : t(kickerKey);
 
-  const unread = s.notificationsRead ? 0 : 2;
+  const unread = unreadNotifications(s.notificationsRead, demo);
   const ScreenView = SCREENS[s.screen];
   // Stable identity so MemoScreen below can bail out when only local shell
   // state (an opened overlay) changed. Screens read app state via context, so

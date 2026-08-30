@@ -5,6 +5,8 @@ import { Chip, ChipRail } from '../components/Chip';
 import { TickerSparkline } from '../components/TickerSparkline';
 import { TickerTile } from '../components/TickerTile';
 import { DataState } from '../components/DataState';
+import { DemoOnly } from '../components/DemoOnly';
+import { useDemoMode } from '../lib/DemoModeProvider';
 import { SkeletonCard, SkeletonList } from '../components/Skeleton';
 import { useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
@@ -30,7 +32,18 @@ const SECTORS: Array<[string, StringKey]> = [
   ['Healthcare', 'sector.healthcare'],
 ];
 
-export function MoversScreen(_: ScreenProps) {
+/**
+ * Split so the hooks below never run with sample data off. The ranking this
+ * screen exists to show — which stocks moved most, and by how much — is
+ * ordered and populated entirely by `demo.changePct` and `demo.volume`, so
+ * there is no honest partial version of it to render.
+ */
+export function MoversScreen(props: ScreenProps) {
+  const demo = useDemoMode();
+  return demo ? <MoversBody {...props} /> : <DemoOnly feature="title.movers" />;
+}
+
+function MoversBody(_: ScreenProps) {
   const dispatch = useDispatch();
   const { mode, language } = useTheme();
   const t = useT();

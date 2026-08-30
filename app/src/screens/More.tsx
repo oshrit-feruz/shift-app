@@ -68,12 +68,12 @@ export function MoreScreen(_: ScreenProps) {
         </p>
       </Card>
 
-      {/* Sample data. One switch over everything the app can invent —
-          the charts and the earnings screens — so a reader who would rather
-          see a filled-in app than an honest gap can have one, by asking.
-          It carries no on-screen disclaimer where it renders: the reader
-          turned it on themselves, and the standing note at the top of each
-          screen already says what they are looking at. */}
+      {/* Sample data. One switch over everything the app can invent — the
+          charts, the earnings screens, and every feature with no real source
+          behind it — so a reader who would rather see a filled-in app than an
+          honest gap can have one, by asking. On, it carries no disclaimer
+          where it renders: the reader turned it on themselves. Off, each
+          gated feature says so in its own place. */}
       <Card padding="10px 12px" gap={6}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ flex: 1 }}>

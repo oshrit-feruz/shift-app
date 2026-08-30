@@ -69,11 +69,14 @@ const STEPS: Step[] = [
     key: 'paper',
     target: 'pf',
     title: { en: 'Practise with no money', he: 'להתאמן בלי כסף' },
+    // Names no specific portfolio. Sandbox is no longer a fixture that is
+    // simply there — a theoretical portfolio is something the reader creates,
+    // and copy promising one that does not exist yet reads as a broken app.
     how: {
-      en: 'The Sandbox portfolio records the trades you would have made. Give it a few weeks and see how it did before anything is real.',
-      he: 'תיק ה-Sandbox רושם את העסקאות שהיית עושה. תני לזה כמה שבועות ותראי מה יצא, לפני שמשהו אמיתי.',
+      en: 'A theoretical portfolio records the trades you would have made. Give it a few weeks and see how it did before anything is real.',
+      he: 'תיק תיאורטי רושם את העסקאות שהיית עושה. תני לזה כמה שבועות ותראי מה יצא, לפני שמשהו אמיתי.',
     },
-    cta: { en: 'Open Sandbox', he: 'לפתוח את Sandbox' },
+    cta: { en: 'Open a theoretical portfolio', he: 'לפתוח תיק תיאורטי' },
   },
   {
     key: 'open',

@@ -29,13 +29,31 @@ export function pct(v: number, fractionDigits = 2): string {
   return (v >= 0 ? '+' : '') + v.toFixed(fractionDigits) + '%';
 }
 
+/**
+ * A percentage we have, or the em-dash we owe the reader when we do not.
+ *
+ * The companion to moneyOrDash, and needed for the same reason: a manual
+ * position whose ticker the price mirror does not cover has no return, and
+ * rendering that unknown as a green "+0.00%" states a measured flat result
+ * where there is no measurement at all.
+ */
+export function pctOrDash(v: number | null | undefined, fractionDigits = 2): string {
+  return v === null || v === undefined ? '—' : pct(v, fractionDigits);
+}
+
 /** Signed absolute money change: +412.18 / -12.40 */
 export function signedMoney(v: number): string {
   return (v >= 0 ? '+' : '') + v.toFixed(2);
 }
 
-/** CSS color var for a signed value. */
-export function signalColor(v: number): string {
+/**
+ * CSS color var for a signed value.
+ *
+ * An unknown value gets the muted colour, not the up colour: green is a claim
+ * that the number is not negative, and we do not have a number to make it of.
+ */
+export function signalColor(v: number | null | undefined): string {
+  if (v === null || v === undefined) return 'var(--muted)';
   return v >= 0 ? 'var(--up)' : 'var(--down)';
 }
 

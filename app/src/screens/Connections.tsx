@@ -15,6 +15,8 @@ import { useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { money } from '../lib/format';
+import { DemoOnly } from '../components/DemoOnly';
+import { useDemoMode } from '../lib/DemoModeProvider';
 import type { ScreenProps } from '../App';
 
 const LINKED = [
@@ -46,72 +48,81 @@ export function ConnectionsScreen(_: ScreenProps) {
   const t = useT();
   const live = useDemoFlag('liveAccount');
   const [newPfOpen, setNewPfOpen] = useState(false);
+  const demo = useDemoMode();
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-      <Card padding={13} gap={5}>
-        <CardTitle>{t('connScreen.linked')}</CardTitle>
-        <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0 }}>
-          {t('connScreen.linkedHelp')}
-        </p>
-      </Card>
+      {/* A real connected account outranks the sample-data switch: it is not
+          sample data, so it shows even with that switch off. */}
+      {live || demo ? (
+        <>
+          <Card padding={13} gap={5}>
+            <CardTitle>{t('connScreen.linked')}</CardTitle>
+            <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0 }}>
+              {t('connScreen.linkedHelp')}
+            </p>
+          </Card>
 
-      {/* With the founder-demo switch on, the three demo brokers below give
-          way to the one real account read through SnapTrade. */}
-      {live ? (
-        <LiveLinkedAccounts />
-      ) : (
-        <Card padding="4px 0" gap={0}>
-          {LINKED.map((c, i) => (
-            <div
-              key={i}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '11px 13px',
-                borderTop: '1px solid var(--color-divider)',
-              }}
-            >
-              <LogoTile src={c.logo} />
-              <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>
-                  {c.broker}{' '}
-                  <span className="text-muted" style={{ fontSize: 'var(--text-body)' }}>
-                    <Num>{c.acct}</Num>
-                  </span>
-                </span>
-                <span
-                  className="text-muted"
+          {/* With the founder-demo switch on, the three demo brokers
+              give way to the one real account read through SnapTrade. */}
+          {live ? (
+            <LiveLinkedAccounts />
+          ) : (
+            <Card padding="4px 0" gap={0}>
+              {LINKED.map((c, i) => (
+                <div
+                  key={i}
                   style={{
-                    display: 'block',
-                    fontSize: 'var(--text-caption)',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '11px 13px',
+                    borderTop: '1px solid var(--color-divider)',
                   }}
                 >
-                  {c.detail[language]}
-                </span>
-              </span>
-              <span
-                style={{
-                  textAlign: 'end',
-                  whiteSpace: 'nowrap',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 3,
-                  alignItems: 'flex-end',
-                }}
-              >
-                <Num size={17}>{c.value}</Num>
-                <Tag variant="accent" fontSize={14}>
-                  {t('connScreen.live')}
-                </Tag>
-              </span>
-            </div>
-          ))}
-        </Card>
+                  <LogoTile src={c.logo} />
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>
+                      {c.broker}{' '}
+                      <span className="text-muted" style={{ fontSize: 'var(--text-body)' }}>
+                        <Num>{c.acct}</Num>
+                      </span>
+                    </span>
+                    <span
+                      className="text-muted"
+                      style={{
+                        display: 'block',
+                        fontSize: 'var(--text-caption)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {c.detail[language]}
+                    </span>
+                  </span>
+                  <span
+                    style={{
+                      textAlign: 'end',
+                      whiteSpace: 'nowrap',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 3,
+                      alignItems: 'flex-end',
+                    }}
+                  >
+                    <Num size={17}>{c.value}</Num>
+                    <Tag variant="accent" fontSize={14}>
+                      {t('connScreen.live')}
+                    </Tag>
+                  </span>
+                </div>
+              ))}
+            </Card>
+          )}
+        </>
+      ) : (
+        <DemoOnly feature="connScreen.linked" />
       )}
 
       <Card padding="4px 0" gap={0}>

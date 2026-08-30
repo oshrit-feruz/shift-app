@@ -233,8 +233,15 @@ export interface Holding {
   ticker: string;
   shares: number;
   avgCost: number;
-  value: number;
-  plPct: number;
+  /**
+   * What the position is worth now, or `null` when it cannot be priced — the
+   * quote snapshot was unavailable, the ticker is outside the ranking, or it
+   * is ranked with no price. Never 0 for any of those: a reader believes a
+   * number and reads an em dash as the unknown it is.
+   */
+  value: number | null;
+  /** Total return, or `null` on the same three unpriced cases. */
+  plPct: number | null;
 }
 
 export type PortfolioKind = 'aggregate' | 'linked' | 'manual' | 'institution';
@@ -247,9 +254,16 @@ export interface PortfolioSummary {
   logo: string | null;
   acct: string;
   syncedAgo: { en: string; he: string } | null;
-  total: number;
-  dayPct: number;
-  allTimePct: number;
+  /**
+   * Market value, or `null` when it is not known — a manual portfolio with a
+   * holding the price mirror does not cover has no knowable total, and the
+   * sum of the legs it *can* price is not a smaller total, it is a wrong one.
+   */
+  total: number | null;
+  /** Day change, `null` when unknown. A manual ledger has no priced history. */
+  dayPct: number | null;
+  /** All-time change, `null` when unknown. */
+  allTimePct: number | null;
   /** institution kind label key suffix: 'pension' | 'hisht' | 'bank' */
   institution?: 'pension' | 'hisht' | 'bank';
 }
