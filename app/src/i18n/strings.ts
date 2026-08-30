@@ -887,8 +887,8 @@ export const STRINGS = {
     'אין היסטוריית ביצועים: זו קריאה חיה של מצב החשבון כרגע, והברוקר אינו מדווח שינוי יומי או היסטוריה מתומחרת דרך החיבור הזה.',
   ),
   'live.shortExcluded': p(
-    'Short positions are left out: they are a negative holding and have no share of a total. {tickers} not shown here.',
-    'פוזיציות שורט אינן נכללות: הן החזקה שלילית ואין להן נתח מתוך סך הכול. {tickers} אינן מוצגות כאן.',
+    'Short positions are left out of the ring: a negative holding has no share of a total. Not shown here: {tickers}.',
+    'פוזיציות שורט אינן נכללות בטבעת: להחזקה שלילית אין נתח מתוך סך הכול. לא מוצגות כאן: {tickers}.',
   ),
   'live.noAllocation': p(
     'The brokerage did not price these positions, so no allocation can be shown.',

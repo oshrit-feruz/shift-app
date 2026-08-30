@@ -59,7 +59,13 @@ export function mergeManualTransactions(rows: Holding[], transactions: ManualTra
     }
     merged.set(tx.ticker, current);
   }
-  return [...merged.values()].filter((row) => row.shares > 0);
+  // Zero, not "not positive". This drops a position that was sold down to
+  // nothing, which is what it was written for — the manual sandbox, where a
+  // sell clamps at zero and a negative count cannot arise. A real brokerage
+  // account can hold a SHORT, whose share count is legitimately negative,
+  // and `> 0` deleted it from the list entirely: the first live account read
+  // held 77 ALB short and the holdings card showed only the other position.
+  return [...merged.values()].filter((row) => row.shares !== 0);
 }
 
 /**
