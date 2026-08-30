@@ -163,6 +163,9 @@ export function AdvisoryRecommendation(_: ScreenProps) {
         <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
           {t('rec.updatedDaily')}
         </p>
+        <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
+          {t('rec.notAnOrder')}
+        </p>
         {/* With no individual-stock sleeve the picks are not advice for this
             profile, so say so rather than letting the list imply it. */}
         {profile.satellitePct === 0 && (

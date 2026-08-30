@@ -110,6 +110,9 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
         <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
           {t('rec.updatedDaily')}
         </p>
+        <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
+          {t('rec.notAnOrder')}
+        </p>
         {profile.satellitePct === 0 && (
           <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
             {t('rec.satInfoOnly')}
