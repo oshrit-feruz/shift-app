@@ -87,6 +87,56 @@ row into a dozen lines and lose the shape of the data.
   hishtalmut / bank show totals by provider only, in a separate read-only
   section, never merged into the managed portfolio number.
 
+## Home-screen only (the install gate)
+
+**On a phone, in production, the app runs only from its own icon.** A mobile
+browser that opens it in a tab gets `screens/InstallGate.tsx` instead of the
+app — ahead of the sign-in gate, so nobody is asked to authenticate into
+something they cannot then use.
+
+The whole decision is three booleans (`app/src/lib/install.ts`, unit-tested in
+`install.test.ts`), and it deliberately blocks the narrowest case that can
+actually comply:
+
+| | |
+| --- | --- |
+| **enforced** | Production builds (`import.meta.env.PROD`). `VITE_REQUIRE_INSTALL=false` turns it off for a scope — Vercel's Preview, say — and `=true` turns it on in `npm run dev` to see the screen. |
+| **mobile** | `(pointer: coarse) and (hover: none)` — a capability query, not a UA sniff. A touchscreen laptop still reports hover and a fine pointer for its trackpad, so it is not caught; an iPad, which claims a desktop UA, is. |
+| **standalone** | `(display-mode: standalone / minimal-ui / fullscreen / window-controls-overlay)`, **or** `navigator.standalone` — iOS has never implemented the media query, so the non-standard property is the only signal there. Watched, not read once, so the gate lifts the moment a window changes display mode. |
+
+**Desktop is never gated.** There is no home screen to add to on a Mac, and
+Safari cannot install a PWA at all, so enforcing it there would be a wall
+rather than a gate — it would lock out every desktop reviewer and tester.
+Desktop instead gets the same install offer as an optional card in Settings.
+
+**There is no "continue anyway".** The rule is that a browser tab is not a
+supported surface; an escape hatch would quietly make it one. What the screen
+owes the user in exchange is the way out, and only one platform can be given a
+button:
+
+- **Chromium (Android, desktop Chrome/Edge)** — the captured
+  `beforeinstallprompt` event opens the native install dialog in one tap.
+  The event fires **once, early**, before React has mounted, so it is caught
+  at boot in `main.tsx` (`startInstallPromptCapture`) and held outside React;
+  a listener registered in a component effect misses it and the button never
+  appears.
+- **iOS Safari** — there is no install API whatsoever. The screen lists the
+  literal tap sequence (Share → Add to Home Screen → Add) rather than a button
+  that would have to pretend.
+- **Chrome / Firefox / Edge on iOS, and in-app webviews** (Instagram, Facebook,
+  Gmail) — they are WebKit under another name and cannot add to the home
+  screen at all, so the honest instruction is "open this page in Safari".
+- **Anything else** — the browser menu carries the item under one name or
+  another.
+
+**`app/public/sw.js` is an empty service worker,** and exists for exactly one
+reason: Chromium only offers `beforeinstallprompt` to a page that has both a
+manifest and a service worker with a fetch handler. Its fetch handler is a
+pass-through and it caches **nothing**, on purpose — an offline mode would
+mean deciding what a stale price or a stale portfolio may look like, and the
+data rule here is that a figure on screen is either current or honestly
+missing. It is registered only from built output, never in `npm run dev`.
+
 ## Data
 
 `app/src/data/demoAdapter.ts` is a clearly-labeled **demo** implementation of

@@ -27,6 +27,9 @@ import { MoreScreen } from './screens/More';
 
 import { FirstRunOverlay } from './screens/onboarding/FirstRunOverlay';
 import { SignInScreen } from './screens/SignIn';
+import { InstallGateScreen } from './screens/InstallGate';
+import { INSTALL_GATE_ENFORCED, shouldBlockUntilInstalled } from './lib/install';
+import { useIsMobileDevice, useIsStandalone } from './lib/useInstall';
 import { useAuth } from './auth/AuthProvider';
 import { useRemoteSync } from './state/useRemoteSync';
 import { LedgerProvider } from './state/useLedgerSync';
@@ -123,6 +126,17 @@ export function App() {
   // survives sign-out, so this cannot re-fire and strand a signed-out user
   // behind a second splash.
   const splashHeld = useSplashHold();
+  // The home-screen gate, ahead of the auth gate: on a phone in production
+  // the app only runs from its own icon, so a user who opened it in a tab is
+  // shown how to add it rather than asked to sign in to something they cannot
+  // use. Off on desktop and in dev/preview builds — see lib/install.ts.
+  const mobile = useIsMobileDevice();
+  const standalone = useIsStandalone();
+  const blockedUntilInstalled = shouldBlockUntilInstalled({
+    enforced: INSTALL_GATE_ENFORCED,
+    mobile,
+    standalone,
+  });
   // The gate, following the FirstRunOverlay precedent but as a branch: the
   // sign-in screen replaces the shell (there is nothing to navigate while
   // signed out). 'loading' gets a quiet splash rather than the sign-in
@@ -135,6 +149,8 @@ export function App() {
   const content =
     session.status === 'loading' || splashHeld ? (
       <AuthSplash />
+    ) : blockedUntilInstalled ? (
+      <InstallGateScreen />
     ) : session.status === 'unavailable' || session.data == null ? (
       <SignInScreen />
     ) : (

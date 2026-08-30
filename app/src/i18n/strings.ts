@@ -980,6 +980,56 @@ export const STRINGS = {
   'live.connState': p('Connection: {state}', 'החיבור: {state}'),
   'live.connActive': p('active', 'פעיל'),
   'live.connDisabled': p('disabled', 'מושבת'),
+  // ── Home-screen gate (lib/install.ts, screens/InstallGate.tsx) ─────────
+  // Shown instead of the whole app on a phone that opened it in a browser
+  // tab. It is a dead end by design, so the copy has to carry the reason and
+  // the exact route out — on iOS there is no button that can do it for you.
+  'install.kicker': p('Add to home screen', 'הוספה למסך הבית'),
+  'install.title': p('Shift runs from your home screen', 'Shift פועלת ממסך הבית'),
+  'install.sub': p(
+    'On a phone the app opens from its own icon, not in a browser tab: that is what gives it the full screen, keeps you signed in, and lets alerts reach you. It takes one step, and nothing is downloaded from a store.',
+    'בטלפון האפליקציה נפתחת מהאייקון שלה ולא מלשונית בדפדפן: כך היא מקבלת את כל המסך, שומרת אותך מחוברת, ומאפשרת להתראות להגיע אליך. זה שלב אחד, ואין מה להוריד מחנות.',
+  ),
+  'install.cta': p('Add to home screen', 'הוספה למסך הבית'),
+  'install.working': p('Opening the dialog…', 'פותח את החלון…'),
+  'install.dismissed': p(
+    'The dialog was closed without installing. You can open it again, or use your browser menu.',
+    'החלון נסגר בלי להתקין. אפשר לפתוח אותו שוב, או להשתמש בתפריט הדפדפן.',
+  ),
+  'install.done': p(
+    'Added. Close this tab and open Shift from its new icon.',
+    'נוסף. אפשר לסגור את הלשונית ולפתוח את Shift מהאייקון החדש.',
+  ),
+  'install.stepsTitle': p('How to add it', 'איך מוסיפים'),
+  // iOS Safari — the only route, and it is manual.
+  'install.ios1': p('Tap the Share button at the bottom of Safari.', 'הקישי על כפתור השיתוף בתחתית Safari.'),
+  'install.ios2': p('Choose “Add to Home Screen”.', 'בחרי ״הוספה למסך הבית״.'),
+  'install.ios3': p(
+    'Tap “Add”, then open Shift from the new icon.',
+    'הקישי ״הוספה״, ואז פתחי את Shift מהאייקון החדש.',
+  ),
+  // iOS in a browser that is not Safari (Chrome, Firefox, Edge, in-app
+  // webviews): they cannot add to the home screen at all.
+  'install.iosOther': p(
+    'This browser cannot add apps to the home screen on iPhone. Open shift in Safari — the “…” or share menu here has “Open in Safari” — and add it from there.',
+    'הדפדפן הזה לא יכול להוסיף אפליקציות למסך הבית באייפון. פתחי את shift ב-Safari — בתפריט השיתוף או ״…״ יש ״פתח ב-Safari״ — והוסיפי משם.',
+  ),
+  // Anything else: the item exists but each browser names it differently.
+  'install.manual': p(
+    'Open your browser menu and choose “Install app” or “Add to Home screen”, then open Shift from the new icon.',
+    'פתחי את תפריט הדפדפן ובחרי ״התקנת אפליקציה״ או ״הוספה למסך הבית״, ואז פתחי את Shift מהאייקון החדש.',
+  ),
+  'install.already': p(
+    'Already added it? Open Shift from the icon on your home screen.',
+    'כבר הוספת? פתחי את Shift מהאייקון במסך הבית.',
+  ),
+  // The optional card in Settings → More, for a browser that is not gated
+  // (desktop, or a preview build) but can still install.
+  'install.cardTitle': p('Install Shift', 'התקנת Shift'),
+  'install.cardHelp': p(
+    'Opens in its own window, without browser chrome.',
+    'נפתחת בחלון משלה, בלי סרגלי הדפדפן.',
+  ),
   'more.snaptrade': p('Connected account (demo)', 'חשבון מקושר (הדגמה)'),
   'more.snaptradeHelp': p('One real account, read-only', 'חשבון אמיתי אחד, קריאה בלבד'),
 } as const;
