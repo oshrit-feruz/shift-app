@@ -47,8 +47,12 @@ import { buildQuery, computeSignature, SNAPTRADE_BASE } from '../api/_lib/snaptr
  */
 const MAX_PRINTED = 600;
 function safe(value) {
-  const text = typeof value === 'string' ? value : JSON.stringify(value);
-  if (text === undefined) return String(value);
+  // `?? String(value)` rather than a check on the result: JSON.stringify
+  // returns undefined for undefined, functions and symbols, while its type
+  // signature claims `string`. A `text === undefined` guard is therefore
+  // reachable at runtime but reads as dead code to any type-aware checker —
+  // coalescing states the same intent without the contradiction.
+  const text = typeof value === 'string' ? value : (JSON.stringify(value) ?? String(value));
   // eslint-disable-next-line no-control-regex
   const inert = text.replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ');
   return inert.length > MAX_PRINTED ? `${inert.slice(0, MAX_PRINTED)}…` : inert;
