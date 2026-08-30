@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { Button } from './Button';
 import { Icon, type IconName } from './Icon';
-import { installRoute } from '../lib/install';
-import { useInstallPrompt } from '../lib/useInstall';
+import { useInstallPrompt, useInstallRoute } from '../lib/useInstall';
 import { useT } from '../i18n/useT';
 
 /**
@@ -20,12 +19,10 @@ import { useT } from '../i18n/useT';
  */
 export function InstallSteps() {
   const t = useT();
-  const { canPrompt, installed, promptInstall } = useInstallPrompt();
+  const { installed, promptInstall } = useInstallPrompt();
+  const route = useInstallRoute();
   const [busy, setBusy] = useState(false);
   const [dismissed, setDismissed] = useState(false);
-
-  const nav = window.navigator;
-  const route = installRoute({ canPrompt, ua: nav.userAgent, maxTouchPoints: nav.maxTouchPoints ?? 0 });
 
   if (installed) {
     return <Note>{t('install.done')}</Note>;
@@ -72,13 +69,45 @@ export function InstallSteps() {
   // The two menu routes get the same shape as the steps above — one glyph,
   // a few words — rather than a paragraph.
   return (
-    <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 10 }}>
-      {route === 'ios-other' ? (
-        <Step icon="share" label={t('install.iosOther')} />
-      ) : (
-        <Step icon="dotsV" label={t('install.manual')} />
-      )}
-    </ol>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 10 }}>
+        {route === 'ios-other' ? (
+          <Step icon="share" label={t('install.iosOther')} />
+        ) : (
+          <Step icon="dotsV" label={t('install.manual')} />
+        )}
+      </ol>
+      {route === 'ios-other' && <OpenInSafariButton />}
+    </div>
+  );
+}
+
+/**
+ * The one shortcut available to a user stuck in Chrome, Firefox or an in-app
+ * webview on iOS: `x-safari-https:`, the scheme Safari registers, which hands
+ * the current URL to Safari where the Share sheet actually carries "Add to
+ * Home Screen".
+ *
+ * It is a best-effort hop, not a guarantee — some hosts swallow the
+ * navigation, and nothing reports back either way — which is why the written
+ * instruction above it stays put rather than being replaced by the button. It
+ * is offered only over https: the scheme mirrors the page's own, and there is
+ * no `x-safari-http:` worth sending anyone to.
+ */
+function OpenInSafariButton() {
+  const t = useT();
+  if (window.location.protocol !== 'https:') return null;
+  return (
+    <Button
+      block
+      minHeight={48}
+      onClick={() => {
+        const { host, pathname, search } = window.location;
+        window.location.href = `x-safari-https://${host}${pathname}${search}`;
+      }}
+    >
+      {t('install.openSafari')}
+    </Button>
   );
 }
 

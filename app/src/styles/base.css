@@ -579,3 +579,18 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
 .card > *:first-child {
   border-top: 0 !important;
 }
+
+/* The install screen's nudge: an arrow that hangs above Safari's own toolbar,
+ * where the Share button physically is on an iPhone. It bobs because a static
+ * arrow beside a paragraph reads as decoration — the movement is what makes
+ * it point. Translate only, on an element with no glass descendants. */
+@keyframes installNudge {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(7px); }
+}
+.install-nudge {
+  animation: installNudge 1.6s var(--ease-out) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .install-nudge { animation: none; }
+}

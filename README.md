@@ -125,10 +125,23 @@ button:
   is looking for on their own screen (Safari's Share box-with-an-arrow, the
   plus-in-a-screen of "Add to Home Screen", a check) with two words beside it.
   A paragraph explaining where a button is takes longer to read than the
-  button takes to find.
+  button takes to find. An arrow bobs at the bottom edge of the gate screen,
+  just above where Safari's toolbar physically is, so the first step points at
+  something real; it is drawn for this route only, since anywhere else it
+  would point at nothing.
+
+  **There is no shortcut past this on iOS, and none can be written.** Apple
+  exposes no install API, no URL scheme and no Shortcuts action that adds a
+  web app to the home screen — the Share sheet is the only route, by design.
+  Anything here that claims otherwise would be a button that silently does
+  nothing.
 - **Chrome / Firefox / Edge on iOS, and in-app webviews** (Instagram, Facebook,
   Gmail) — they are WebKit under another name and cannot add to the home
-  screen at all, so the honest instruction is "open this page in Safari".
+  screen at all, so the instruction is "open this page in Safari", with a
+  button that tries it: `x-safari-https:`, the scheme Safari registers. It is
+  a best-effort hop — some hosts swallow the navigation and nothing reports
+  back — which is why the written instruction stays beside it rather than
+  being replaced by it, and why it is offered only over https.
 - **Anything else** — the browser menu carries the item under one name or
   another.
 

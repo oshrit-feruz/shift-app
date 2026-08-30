@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { isMobileDevice, isStandaloneDisplay } from './install';
+import { installRoute, isMobileDevice, isStandaloneDisplay, type InstallRoute } from './install';
 
 /**
  * The `beforeinstallprompt` event, which no TypeScript lib declares because
@@ -98,6 +98,16 @@ export function useIsStandalone(): boolean {
     return () => mq.removeEventListener('change', onChange);
   }, []);
   return standalone;
+}
+
+/** Which install route this browser gets — the native prompt, the iOS Share
+ *  sequence, "open in Safari", or the browser menu. Shared by the steps
+ *  component and by the gate screen, which anchors its arrow to Safari's own
+ *  toolbar and so must not draw one for anybody else. */
+export function useInstallRoute(): InstallRoute {
+  const { canPrompt } = useInstallPrompt();
+  const nav = window.navigator;
+  return installRoute({ canPrompt, ua: nav.userAgent, maxTouchPoints: nav.maxTouchPoints ?? 0 });
 }
 
 /** Phone or tablet, evaluated once — a device does not grow a mouse mid-session. */
