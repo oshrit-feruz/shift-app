@@ -30,6 +30,30 @@
 
 import { buildQuery, computeSignature, SNAPTRADE_BASE } from '../api/_lib/snaptrade.ts';
 
+/**
+ * Renders something from SnapTrade's response for a terminal.
+ *
+ * Everything printed below the first two lines of this script came off the
+ * wire, and printing a remote payload straight into a terminal is not free:
+ * control bytes and ANSI escapes in it are interpreted, so a hostile or
+ * merely broken body can move the cursor, recolour or erase what is already
+ * on screen, and misrepresent the result of the very command that fetched
+ * it. An error path is exactly where that lands, because that is where the
+ * body is least predictable.
+ *
+ * So: serialise, drop every control character, and cap the length. The
+ * script is a diagnostic — a truncated, inert rendering tells you what you
+ * need, and nothing it prints can rewrite the screen.
+ */
+const MAX_PRINTED = 600;
+function safe(value) {
+  const text = typeof value === 'string' ? value : JSON.stringify(value);
+  if (text === undefined) return String(value);
+  // eslint-disable-next-line no-control-regex
+  const inert = text.replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ');
+  return inert.length > MAX_PRINTED ? `${inert.slice(0, MAX_PRINTED)}…` : inert;
+}
+
 const clientId = process.env.SNAPTRADE_PERSONAL_CLIENT_ID;
 const consumerKey = process.env.SNAPTRADE_PERSONAL_CONSUMER_KEY;
 if (!clientId || !consumerKey) {
@@ -57,7 +81,7 @@ async function call(method, path) {
 
 const connections = await call('GET', '/authorizations');
 if (!connections.ok || !Array.isArray(connections.body)) {
-  console.error(`Could not list connections (HTTP ${connections.status}):`, connections.body);
+  console.error(`Could not list connections (HTTP ${connections.status}): ${safe(connections.body)}`);
   process.exit(1);
 }
 if (connections.body.length === 0) {
@@ -67,8 +91,8 @@ if (connections.body.length === 0) {
 
 for (const c of connections.body) {
   console.log(
-    `${c.id}  ${c.brokerage?.display_name ?? c.brokerage?.name ?? '?'}  ` +
-      `disabled=${c.disabled}  type=${c.type}  freshness=${c.data_freshness_mode}`,
+    `${safe(c.id)}  ${safe(c.brokerage?.display_name ?? c.brokerage?.name ?? '?')}  ` +
+      `disabled=${safe(c.disabled)}  type=${safe(c.type)}  freshness=${safe(c.data_freshness_mode)}`,
   );
 }
 
@@ -82,15 +106,17 @@ for (const c of connections.body) {
   // disabled for it — calling it would only produce an error, or a charge for
   // nothing.
   if (c.data_freshness_mode !== 'delayed') {
-    console.log(`\n${c.id}: freshness is "${c.data_freshness_mode}", refresh does not apply. Skipped.`);
+    console.log(
+      `\n${safe(c.id)}: freshness is "${safe(c.data_freshness_mode)}", refresh does not apply. Skipped.`,
+    );
     continue;
   }
   if (c.disabled) {
-    console.log(`\n${c.id}: connection is disabled — reconnect it in SnapTrade instead. Skipped.`);
+    console.log(`\n${safe(c.id)}: connection is disabled — reconnect it in SnapTrade instead. Skipped.`);
     continue;
   }
   const r = await call('POST', `/authorizations/${encodeURIComponent(c.id)}/refresh`);
-  console.log(`\n${c.id}: refresh -> HTTP ${r.status}`, r.body);
+  console.log(`\n${safe(c.id)}: refresh -> HTTP ${r.status} ${safe(r.body)}`);
 }
 
 console.log('\nRefresh is queued asynchronously. Give it a few minutes, then re-check /api/snaptrade.');
