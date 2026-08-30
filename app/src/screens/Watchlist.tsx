@@ -73,9 +73,9 @@ export function WatchlistScreen({ openAlert, openSearch }: ScreenProps) {
                   title={<SkeletonLine width="38%" fontSize={18} />}
                   subtitle={
                     <span style={{ display: 'flex', gap: 4, marginTop: 3 }}>
-                      {alertTags(s.savedAlerts, ticker, t).map((_, j) => (
-                        <Skeleton key={j} width={j === 0 ? 58 : 44} height={25} radius={999} />
-                      ))}
+                      {alertTags(s.savedAlerts, ticker, t).length > 0 && (
+                        <Skeleton width={96} height={25} radius={999} />
+                      )}
                     </span>
                   }
                   right={
@@ -112,7 +112,7 @@ export function WatchlistScreen({ openAlert, openSearch }: ScreenProps) {
             ) : (
               <>
                 {list.map((x, i) => {
-                  const tags = alertTags(s.savedAlerts, x.ticker, t);
+                  const alertTag = rowAlertTag(s.savedAlerts, x.ticker, t);
                   return (
                     <ListRow
                       key={x.ticker}
@@ -120,13 +120,14 @@ export function WatchlistScreen({ openAlert, openSearch }: ScreenProps) {
                       leading={<TickerTile ticker={x.ticker} size={36} />}
                       title={x.ticker}
                       subtitle={
-                        tags.length > 0 ? (
-                          <span style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
-                            {tags.map((tag, j) => (
-                              <Tag key={j} variant="accent" fontSize={14}>
-                                {tag}
-                              </Tag>
-                            ))}
+                        alertTag ? (
+                          <span
+                            style={{ display: 'flex', gap: 4, marginTop: 3, minWidth: 0 }}
+                            aria-label={t('watch.alertsForAria', { n: alertTag.count, ticker: x.ticker })}
+                          >
+                            <Tag variant="accent" fontSize={14}>
+                              {alertTag.label}
+                            </Tag>
                           </span>
                         ) : (
                           // A symbol the sample table does not cover has no
@@ -192,52 +193,77 @@ export function WatchlistScreen({ openAlert, openSearch }: ScreenProps) {
             </p>
           </EmptyState>
         ) : (
-          s.savedAlerts.map((alert) => {
-            const line = alertLine(alert, t);
-            return (
-              <div
-                key={alert.id}
-                style={{
-                  display: 'flex',
-                  gap: 9,
-                  paddingTop: 8,
-                  borderTop: '1px solid var(--color-divider)',
-                }}
-              >
-                <span
-                  style={{
-                    width: 24,
-                    height: 24,
-                    flex: 'none',
-                    borderRadius: 7,
-                    background: 'var(--fill-selected)',
-                    color: 'var(--color-accent-300)',
-                    display: 'grid',
-                    placeItems: 'center',
-                    fontSize: 'var(--text-caption)',
-                  }}
-                >
-                  {line.glyph}
+          // Grouped by stock rather than one flat list: the ticker is the one
+          // thing every alert on a stock repeats, so it is said once, in a
+          // header, and each alert below it is only what it watches for.
+          groupByTicker(s.savedAlerts).map((group, gi) => (
+            <div
+              key={group.ticker}
+              style={{
+                paddingTop: 8,
+                borderTop: gi > 0 ? '1px solid var(--color-divider)' : undefined,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <TickerTile ticker={group.ticker} size={22} />
+                <span style={{ fontSize: 'var(--text-row)' }}>{group.ticker}</span>
+                <span className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
+                  {group.alerts.length === 1
+                    ? t('watch.oneAlert')
+                    : t('watch.alertCount', { n: group.alerts.length })}
                 </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 'var(--text-row)' }}>{line.title}</div>
-                  {line.detail && (
-                    <div className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
-                      {line.detail}
-                    </div>
-                  )}
-                </div>
-                <Button
-                  variant="ghost"
-                  fontSize={15.5}
-                  style={{ opacity: 0.7, padding: 0 }}
-                  onClick={() => dispatch({ type: 'removeAlert', id: alert.id })}
-                >
-                  {t('watch.remove')}
-                </Button>
               </div>
-            );
-          })
+              {group.alerts.map((alert) => {
+                const line = alertLine(alert, t);
+                return (
+                  <div
+                    key={alert.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 9,
+                      paddingTop: 6,
+                      // Aligned under the group's ticker name, so the column of
+                      // alerts reads as belonging to it.
+                      marginInlineStart: 30,
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 22,
+                        height: 22,
+                        flex: 'none',
+                        borderRadius: 7,
+                        background: 'var(--fill-selected)',
+                        color: 'var(--color-accent-300)',
+                        display: 'grid',
+                        placeItems: 'center',
+                        fontSize: 'var(--text-caption)',
+                      }}
+                    >
+                      {line.glyph}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 'var(--text-row)' }}>{line.title}</div>
+                      {line.detail && (
+                        <div className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
+                          {line.detail}
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      fontSize={15.5}
+                      style={{ opacity: 0.7, padding: 0 }}
+                      onClick={() => dispatch({ type: 'removeAlert', id: alert.id })}
+                    >
+                      {t('watch.remove')}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          ))
         )}
         {beg && s.savedAlerts.length > 0 && (
           <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: '4px 0 0' }}>
@@ -289,10 +315,9 @@ function RowIconButton({
 }
 
 /**
- * The tags shown under a watchlist row: one per alert the user has saved for
- * that ticker. These used to be a hard-coded table keyed by ticker, which
- * meant NVDA always looked like it had two alerts and anything the user
- * actually created showed nothing.
+ * One short label per alert the user has saved for that ticker. These used to
+ * be a hard-coded table keyed by ticker, which meant NVDA always looked like
+ * it had two alerts and anything the user actually created showed nothing.
  */
 function alertTags(alerts: SavedAlert[], ticker: string, t: TFn): string[] {
   return alerts
@@ -306,7 +331,41 @@ function alertTags(alerts: SavedAlert[], ticker: string, t: TFn): string[] {
     );
 }
 
-/** One saved alert as the glyph + two lines the alert card renders. */
+/**
+ * What a watchlist row says about the alerts on its stock: the alert itself
+ * when there is one, and how many there are when there are more.
+ *
+ * A row is one line, and its subtitle is a single clipped line by design
+ * (ListRow) — so printing every alert as its own pill did not make a taller
+ * row, it made pills that ran under the price and off the edge, and the more
+ * alerts a stock had the less of them could be read. One pill always fits,
+ * whether the stock carries two alerts or twenty, and the card below is where
+ * the full list lives.
+ */
+function rowAlertTag(alerts: SavedAlert[], ticker: string, t: TFn): { label: string; count: number } | null {
+  const all = alertTags(alerts, ticker, t);
+  if (all.length === 0) return null;
+  return { label: all.length === 1 ? all[0] : t('watch.alertCount', { n: all.length }), count: all.length };
+}
+
+/**
+ * The saved alerts, gathered under the stock they watch, in the order their
+ * stocks first appear in the list.
+ */
+function groupByTicker(alerts: SavedAlert[]): Array<{ ticker: string; alerts: SavedAlert[] }> {
+  const groups = new Map<string, SavedAlert[]>();
+  for (const a of alerts) {
+    const group = groups.get(a.ticker);
+    if (group) group.push(a);
+    else groups.set(a.ticker, [a]);
+  }
+  return [...groups].map(([ticker, list]) => ({ ticker, alerts: list }));
+}
+
+/**
+ * One saved alert as the glyph + two lines the alert card renders. The ticker
+ * is not repeated here — the group header above the line carries it.
+ */
 function alertLine(alert: SavedAlert, t: TFn): { glyph: string; title: string; detail: string } {
   // The sheet lets both channels be cleared, so this can legitimately be
   // empty — and an empty half must not leave a separator hanging off the end
@@ -317,14 +376,14 @@ function alertLine(alert: SavedAlert, t: TFn): { glyph: string; title: string; d
   if (alert.kind === 'price') {
     return {
       glyph: alert.condition === 'rise' ? '▲' : '▼',
-      title: `${alert.ticker} ${t(alert.condition === 'rise' ? 'alert.rises' : 'alert.falls')} $${alert.value}`,
+      title: `${t(alert.condition === 'rise' ? 'alert.rises' : 'alert.falls')} $${alert.value}`,
       detail: notify,
     };
   }
   if (alert.kind === 'news') {
     return {
       glyph: '◎',
-      title: `${alert.ticker} ${t('alert.newsType')} “${alert.value}”`,
+      title: `${t('alert.newsType')} “${alert.value}”`,
       detail: notify,
     };
   }
@@ -336,7 +395,7 @@ function alertLine(alert: SavedAlert, t: TFn): { glyph: string; title: string; d
         : 'alert.whenLands';
   return {
     glyph: '📅',
-    title: `${alert.ticker} ${t('alert.earnType')}`,
+    title: t('alert.earnType'),
     detail: [t(remindKey), notify].filter(Boolean).join(' · '),
   };
 }

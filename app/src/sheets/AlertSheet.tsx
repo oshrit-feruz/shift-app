@@ -8,7 +8,8 @@ import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { moneyOrDash } from '../lib/format';
 import { newId } from '../lib/ids';
-import { useAppState, useDispatch, type AlertKind } from '../state/appState';
+import { useToast } from '../components/Toast';
+import { alertKey, useAppState, useDispatch, type AlertKind, type SavedAlert } from '../state/appState';
 import type { SymbolInfo } from '../data/types';
 
 /**
@@ -35,6 +36,7 @@ export function AlertSheet({
   const { mode } = useTheme();
   const t = useT();
   const dispatch = useDispatch();
+  const toast = useToast();
   const s = useAppState();
   const pickerId = useId();
   const [picked, setPicked] = useState('');
@@ -62,21 +64,27 @@ export function AlertSheet({
     { k: 'earn', glyph: '📅', title: t('alert.earnType'), help: t('alert.earnHelp') },
   ];
 
+  // Everything about the alert except its id, which is minted once, on save —
+  // a fresh one per render would be thrown away on every keystroke.
+  const draft: Omit<SavedAlert, 'id'> = {
+    ticker: target,
+    kind,
+    condition: cond,
+    value: kind === 'price' ? value : kind === 'news' ? keywords : '',
+    remind,
+    sources,
+    notifyBy,
+  };
+  // Saving the same alert twice is a mistake, not an intent — so the state
+  // collapses it — but silently closing the sheet on a duplicate would look
+  // like nothing happened at all, and the user would try again. Say which of
+  // the two it was.
+  const duplicate = target !== '' && s.savedAlerts.some((x) => alertKey(x) === alertKey(draft));
+
   const submit = () => {
     if (!target) return;
-    dispatch({
-      type: 'addAlert',
-      alert: {
-        id: newId('alert'),
-        ticker: target,
-        kind,
-        condition: cond,
-        value: kind === 'price' ? value : kind === 'news' ? keywords : '',
-        remind,
-        sources,
-        notifyBy,
-      },
-    });
+    dispatch({ type: 'addAlert', alert: { ...draft, id: newId('alert') } });
+    toast(duplicate ? t('alert.already', { ticker: target }) : t('alert.created', { ticker: target }));
     onClose();
   };
 
@@ -253,8 +261,13 @@ export function AlertSheet({
           </label>
         </div>
       </div>
+      {duplicate && (
+        <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.45 }}>
+          {t('alert.duplicateHint')}
+        </p>
+      )}
       <Button block minHeight={44} onClick={submit} disabled={!target}>
-        {t('alert.create')}
+        {duplicate ? t('alert.update') : t('alert.create')}
       </Button>
     </Sheet>
   );

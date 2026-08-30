@@ -95,4 +95,44 @@ describe("alerts are the user's too", () => {
     const removed = reducer(added, { type: 'removeAlert', id: 'a1' });
     expect(removed.savedAlerts).toEqual([]);
   });
+
+  it('files the same alert once, however many times it is saved', () => {
+    const once = reducer(initial, { type: 'addAlert', alert });
+    const twice = reducer(once, { type: 'addAlert', alert: { ...alert, id: 'a2' } });
+    expect(twice.savedAlerts).toHaveLength(1);
+    // The first one keeps its id, so the row the user is looking at — and its
+    // Remove button — is still the row that is there.
+    expect(twice.savedAlerts[0].id).toBe('a1');
+  });
+
+  it('re-saving an alert updates how it reaches you instead of doubling it', () => {
+    const once = reducer(initial, { type: 'addAlert', alert });
+    const again = reducer(once, {
+      type: 'addAlert',
+      alert: { ...alert, id: 'a2', notifyBy: { push: false, email: true } },
+    });
+    expect(again.savedAlerts).toHaveLength(1);
+    expect(again.savedAlerts[0].notifyBy).toEqual({ push: false, email: true });
+  });
+
+  it('keeps alerts that watch for different things', () => {
+    const price = reducer(initial, { type: 'addAlert', alert });
+    const lower = reducer(price, {
+      type: 'addAlert',
+      alert: { ...alert, id: 'a2', condition: 'fall' as const },
+    });
+    const other = reducer(lower, { type: 'addAlert', alert: { ...alert, id: 'a3', ticker: 'AMD' } });
+    const news = reducer(other, {
+      type: 'addAlert',
+      alert: { ...alert, id: 'a4', kind: 'news' as const, value: 'guidance' },
+    });
+    expect(news.savedAlerts.map((x) => x.id)).toEqual(['a1', 'a2', 'a3', 'a4']);
+  });
+
+  it('collapses duplicates a device stored before it knew better', () => {
+    const picked = readPersisted({
+      savedAlerts: [alert, { ...alert, id: 'a2' }, { ...alert, id: 'a3', value: '300' }, 'junk'],
+    });
+    expect(picked.savedAlerts?.map((x) => x.id)).toEqual(['a1', 'a3']);
+  });
 });
