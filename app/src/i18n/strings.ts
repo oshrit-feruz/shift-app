@@ -830,7 +830,6 @@ export const STRINGS = {
   // ── Onboarding: tour / steps / learn / open ───────────────────────────
 
   'steps.progress': p('{done} of {total} done', '{done} מתוך {total} הושלמו'),
-  'steps.howItWorks': p('How the app works', 'איך האפליקציה בנויה'),
   'steps.now': p('Do this now', 'הצעד הבא'),
   'steps.markDone': p('Mark as done', 'סמני כבוצע'),
   'steps.allDone': p('Every step done', 'כל הצעדים הושלמו'),
