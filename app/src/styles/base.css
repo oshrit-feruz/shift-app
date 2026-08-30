@@ -26,6 +26,16 @@ html, body {
 @supports (height: 100dvh) {
   html, body, #root { height: 100dvh; }
 }
+/* Installed (standalone) app: there are no collapsing toolbars to track, and
+ * iOS's dvh there measures the safe area rather than the window — so with a
+ * translucent status bar, where the window really is the whole screen, the
+ * shell came up short and left a band of bare page background along the
+ * bottom edge. vh is the full window, which is what the shell should fill;
+ * the safe-area padding on the header and the tab bar is what keeps content
+ * clear of the notch and the home indicator. */
+@media (display-mode: standalone) {
+  html, body, #root { height: 100vh; }
+}
 
 body {
   margin: 0;
