@@ -3,7 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/assets/shift-mark.svg" />
-    <link rel="apple-touch-icon" href="/assets/shift-icon-180.png" />
+    <!-- Home-screen identity. iOS reads apple-touch-icon and nothing else —
+         it ignores the manifest icons — and it masks whatever it gets into
+         its own squircle, so this PNG is the square-cornered tile: rounding
+         it here as well would leave a ring of ground inside the mask. -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/shift-icon-180.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Shift" />
+    <!-- black-translucent so the splash's dark ground runs under the status
+         bar instead of meeting a white strip at the top of the screen. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <!-- The install/launch identity: the manifest's background_color is what
          Android paints behind the icon while the app boots, so it matches the
          in-app splash ground rather than either theme's page colour. -->

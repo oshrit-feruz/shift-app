@@ -3,6 +3,7 @@ import {
   lazy,
   memo,
   useCallback,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -116,6 +117,12 @@ export interface ScreenProps {
  */
 export function App() {
   const { session } = useAuth();
+  // Restoring a stored session is usually far quicker than the splash takes
+  // to read as anything but a flash, so the splash is held for a fixed floor
+  // rather than only for as long as the work lasts. Mount-scoped: the App
+  // survives sign-out, so this cannot re-fire and strand a signed-out user
+  // behind a second splash.
+  const splashHeld = useSplashHold();
   // The gate, following the FirstRunOverlay precedent but as a branch: the
   // sign-in screen replaces the shell (there is nothing to navigate while
   // signed out). 'loading' gets a quiet splash rather than the sign-in
@@ -126,7 +133,7 @@ export function App() {
   // deploy. Once signed in, the existing firstRunSeen/steps flow already
   // routes new users to onboarding and returning users to the dashboard.
   const content =
-    session.status === 'loading' ? (
+    session.status === 'loading' || splashHeld ? (
       <AuthSplash />
     ) : session.status === 'unavailable' || session.data == null ? (
       <SignInScreen />
@@ -146,6 +153,21 @@ export function App() {
       <LedgerProvider>{content}</LedgerProvider>
     </>
   );
+}
+
+/** How long the splash stays up at minimum. Long enough for the wordmark to
+ *  land and glitch at least twice, which is what makes it read as the brand's
+ *  opening frame rather than a loading artefact. */
+const SPLASH_MIN_MS = 2400;
+
+/** True until the splash has had its minimum time on screen. */
+function useSplashHold() {
+  const [held, setHeld] = useState(true);
+  useEffect(() => {
+    const id = window.setTimeout(() => setHeld(false), SPLASH_MIN_MS);
+    return () => window.clearTimeout(id);
+  }, []);
+  return held;
 }
 
 /** Boot state while the stored session is restored (or the OAuth redirect is

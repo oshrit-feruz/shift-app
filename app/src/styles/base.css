@@ -510,7 +510,7 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
   position: absolute;
   inset: 0;
   opacity: 0;
-  animation: splash-tear 3.6s steps(1, end) infinite;
+  animation: splash-tear 1.9s steps(1, end) infinite;
 }
 @keyframes splash-tear {
   0%, 66% { opacity: 0; transform: translateX(0); clip-path: inset(0 0 100% 0); }
@@ -530,7 +530,7 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
   92% { opacity: 0.85; }
   93% { opacity: 1; }
 }
-.splash-logo { animation: splash-flicker 3.6s ease-in-out infinite; }
+.splash-logo { animation: splash-flicker 1.9s ease-in-out infinite; }
 .splash-caption {
   position: relative;
   font-size: var(--text-body);
