@@ -4,23 +4,14 @@ import { Tag } from '../../components/Tag';
 import { Num } from '../../components/Num';
 import { AllocationBar, ALLOC_COLORS } from '../../components/AllocationBar';
 import { FlowStepper } from './FlowStepper';
+import { CandidatesCard } from './CandidatesCard';
 import { useAppState, useDispatch } from '../../state/appState';
 import { useT } from '../../i18n/useT';
-import { ListRow, RowValues } from '../../components/ListRow';
-import { TickerTile } from '../../components/TickerTile';
-import { DataState, EmptyState } from '../../components/DataState';
-import { SkeletonList } from '../../components/Skeleton';
 import { BuyAtBrokerButton } from '../../components/BuyAtBrokerButton';
-import { fundTicker, hasAnyTradeDeepLink } from '../../lib/brokerLinks';
-import { demoService } from '../../data/demoAdapter';
-import { useLoadable } from '../../data/useLoadable';
-import { money, pct, signalColor } from '../../lib/format';
+import { fundTicker } from '../../lib/brokerLinks';
 import { CORE_FUNDS, mapProfile, PROFILES } from '../../lib/advisory';
 import type { StringKey } from '../../i18n/strings';
 import type { ScreenProps } from '../../App';
-
-/** Rendered in place of any numeric the live engine did not supply. */
-const DASH = '—';
 
 /** First-purchase SIMULATION — an order-list preview. Nothing is bought here;
  *  execution happens at the user's own broker. */
@@ -30,7 +21,6 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
   const t = useT();
   const profileKey = mapProfile(s.advAnswers) ?? 'bal';
   const profile = PROFILES[profileKey];
-  const sat = useLoadable(() => demoService.satelliteSignals(), []);
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
@@ -83,9 +73,9 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
               }}
             >
               <Tag variant="accent" fontSize={15}>
-                Recovery Detector
+                {t('rec.dailyTag')}
               </Tag>
-              <span style={{ flex: 1 }}>Satellite</span>
+              <span style={{ flex: 1 }}>{t('rec.satellite')}</span>
               <Num size={16} style={{ color: 'var(--muted)' }}>
                 {'$' + (profile.satellitePct * 100).toLocaleString('en-US')}
               </Num>
@@ -95,62 +85,9 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
         </div>
       </Card>
 
-      {/* The satellite side of the same order list. Gated exactly like the
-          recommendation screen: with no satellite sleeve these are shown as
-          information, never as part of this profile's purchase. */}
-      <Card padding="13px 13px 4px" gap={7}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <CardTitle>{t('rec.satPositions')}</CardTitle>
-          <span style={{ marginInlineStart: 'auto' }}>
-            <Tag variant="outline" fontSize={15}>
-              {t('rec.livePrices')}
-            </Tag>
-          </span>
-        </div>
-        {profile.satellitePct === 0 && (
-          <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
-            {t('rec.satInfoOnly')}
-          </p>
-        )}
-        {s.advBroker && (
-          <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
-            {t('buy.handoffNote')}
-            {!hasAnyTradeDeepLink() && ` ${t('buy.noDeepLink')}`}
-          </p>
-        )}
-        <DataState state={sat.state} onRetry={sat.retry} skeleton={<SkeletonList count={3} minHeight={52} />}>
-          {(signals) =>
-            signals.length === 0 ? (
-              <EmptyState>{t('rec.noPositions')}</EmptyState>
-            ) : (
-              <>
-                {signals.map((x) => {
-                  const priceStr = x.price === null ? DASH : money(x.price);
-                  const ddStr = x.drawdownPct === null ? DASH : pct(-x.drawdownPct, 1);
-                  return (
-                    <ListRow
-                      key={x.ticker}
-                      leading={<TickerTile ticker={x.ticker} />}
-                      title={x.ticker}
-                      subtitle={<Num>{`${t('rec.fromHigh')} ${ddStr}`}</Num>}
-                      right={
-                        <RowValues
-                          main={priceStr}
-                          sub={ddStr}
-                          subColor={x.drawdownPct === null ? 'var(--muted)' : signalColor(-x.drawdownPct)}
-                        />
-                      }
-                      trailing={<BuyAtBrokerButton ticker={x.ticker} />}
-                      minHeight={52}
-                      onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}
-                    />
-                  );
-                })}
-              </>
-            )
-          }
-        </DataState>
-      </Card>
+      {/* The individual-stock side of the same order list — the very card
+          the recommendation screen shows, caveats included. */}
+      <CandidatesCard />
 
       <Button block minHeight={46} onClick={() => dispatch({ type: 'advGoto', screen: 'home', stage: 5 })}>
         {t('buy.finish')}
