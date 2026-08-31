@@ -27,6 +27,9 @@ import { MoreScreen } from './screens/More';
 
 import { FirstRunOverlay } from './screens/onboarding/FirstRunOverlay';
 import { SignInScreen } from './screens/SignIn';
+import { InstallGateScreen } from './screens/InstallGate';
+import { INSTALL_GATE_ENFORCED, shouldBlockUntilInstalled } from './lib/install';
+import { useIsMobileDevice, useIsStandalone } from './lib/useInstall';
 import { useAuth } from './auth/AuthProvider';
 import { useRemoteSync } from './state/useRemoteSync';
 import { LedgerProvider } from './state/useLedgerSync';
@@ -123,6 +126,17 @@ export function App() {
   // survives sign-out, so this cannot re-fire and strand a signed-out user
   // behind a second splash.
   const splashHeld = useSplashHold();
+  // The home-screen gate, ahead of the auth gate: on a phone in production
+  // the app only runs from its own icon, so a user who opened it in a tab is
+  // shown how to add it rather than asked to sign in to something they cannot
+  // use. Off on desktop and in dev/preview builds — see lib/install.ts.
+  const mobile = useIsMobileDevice();
+  const standalone = useIsStandalone();
+  const blockedUntilInstalled = shouldBlockUntilInstalled({
+    enforced: INSTALL_GATE_ENFORCED,
+    mobile,
+    standalone,
+  });
   // The gate, following the FirstRunOverlay precedent but as a branch: the
   // sign-in screen replaces the shell (there is nothing to navigate while
   // signed out). 'loading' gets a quiet splash rather than the sign-in
@@ -132,14 +146,7 @@ export function App() {
   // which would make the auth gate silently vanish on a misconfigured
   // deploy. Once signed in, the existing firstRunSeen/steps flow already
   // routes new users to onboarding and returning users to the dashboard.
-  const content =
-    session.status === 'loading' || splashHeld ? (
-      <AuthSplash />
-    ) : session.status === 'unavailable' || session.data == null ? (
-      <SignInScreen />
-    ) : (
-      <AppShell />
-    );
+  const content = gateContent({ session, splashHeld, blockedUntilInstalled });
   return (
     <>
       {/* Always mounted, whatever the gate shows: the sync hook is also what
@@ -153,6 +160,25 @@ export function App() {
       <LedgerProvider>{content}</LedgerProvider>
     </>
   );
+}
+
+/**
+ * Which of the four things the app can show right now — read top to bottom,
+ * each gate before the one it protects. A chain of ternaries said the same
+ * thing but had to be read inside out. */
+function gateContent({
+  session,
+  splashHeld,
+  blockedUntilInstalled,
+}: Readonly<{
+  session: ReturnType<typeof useAuth>['session'];
+  splashHeld: boolean;
+  blockedUntilInstalled: boolean;
+}>) {
+  if (session.status === 'loading' || splashHeld) return <AuthSplash />;
+  if (blockedUntilInstalled) return <InstallGateScreen />;
+  if (session.status === 'unavailable' || session.data == null) return <SignInScreen />;
+  return <AppShell />;
 }
 
 /** How long the splash stays up at minimum. Long enough for the wordmark to
@@ -182,7 +208,7 @@ function useSplashHold() {
 function AuthSplash() {
   const t = useT();
   return (
-    <div role="status" className="splash">
+    <output className="splash">
       <div className="splash-logo">
         <img src="/assets/shift-lockup.png" alt="Shift" width={1687} height={578} />
         {/* Decorative duplicate: the torn slice. Hidden from assistive tech so
@@ -197,7 +223,7 @@ function AuthSplash() {
         />
       </div>
       <span className="splash-caption">{t('data.loading')}</span>
-    </div>
+    </output>
   );
 }
 

@@ -87,6 +87,93 @@ row into a dozen lines and lose the shape of the data.
   hishtalmut / bank show totals by provider only, in a separate read-only
   section, never merged into the managed portfolio number.
 
+## Home-screen only (the install gate)
+
+**On a phone, in production, the app runs only from its own icon.** A mobile
+browser that opens it in a tab gets `screens/InstallGate.tsx` instead of the
+app — ahead of the sign-in gate, so nobody is asked to authenticate into
+something they cannot then use.
+
+The whole decision is three booleans (`app/src/lib/install.ts`, unit-tested in
+`install.test.ts`), and it deliberately blocks the narrowest case that can
+actually comply:
+
+| | |
+| --- | --- |
+| **enforced** | Production builds (`import.meta.env.PROD`). `VITE_REQUIRE_INSTALL=false` turns it off for a scope — Vercel's Preview, say — and `=true` turns it on in `npm run dev` to see the screen. |
+| **mobile** | `(pointer: coarse) and (hover: none)` — a capability query, not a UA sniff. A touchscreen laptop still reports hover and a fine pointer for its trackpad, so it is not caught; an iPad, which claims a desktop UA, is. |
+| **standalone** | `(display-mode: standalone / minimal-ui / fullscreen / window-controls-overlay)`, **or** `navigator.standalone` — iOS has never implemented the media query, so the non-standard property is the only signal there. Watched, not read once, so the gate lifts the moment a window changes display mode. |
+
+**Desktop is never gated.** There is no home screen to add to on a Mac, and
+Safari cannot install a PWA at all, so enforcing it there would be a wall
+rather than a gate — it would lock out every desktop reviewer and tester.
+Desktop instead gets the same install offer as an optional card in Settings.
+
+**There is no "continue anyway".** The rule is that a browser tab is not a
+supported surface; an escape hatch would quietly make it one. What the screen
+owes the user in exchange is the way out, and only one platform can be given a
+button:
+
+- **Chromium (Android, desktop Chrome/Edge)** — the captured
+  `beforeinstallprompt` event opens the native install dialog in one tap.
+  The event fires **once, early**, before React has mounted, so it is caught
+  at boot in `main.tsx` (`startInstallPromptCapture`) and held outside React;
+  a listener registered in a component effect misses it and the button never
+  appears.
+- **iOS Safari** — there is no install API whatsoever. The screen draws the
+  tap sequence instead of describing it: three rows, each the glyph the user
+  is looking for on their own screen (Safari's Share box-with-an-arrow, the
+  plus-in-a-screen of "Add to Home Screen", a check) with two words beside it.
+  A paragraph explaining where a button is takes longer to read than the
+  button takes to find. Above the list, `components/InstallDemo.tsx` plays the
+  sequence on a small phone: the Share button lighting up under a tap ring,
+  the sheet that arrives, the row to choose in it, and the icon landing on a
+  home screen. An arrow was tried first and was the wrong instrument — it can
+  point at a toolbar, but a toolbar has five buttons, and it cannot show what
+  the next screen looks like. Every other button in the drawn toolbar is an
+  abstract grey pill, so the one glyph that is drawn properly is the one to
+  press. It is CSS on one shared 9s timeline with negative delays, not a JS
+  timer or a screenshot: a screenshot of iOS ages with every release and would
+  have to exist twice for the two languages. Under
+  `prefers-reduced-motion` the demo is removed rather than frozen — frozen,
+  its three scenes would stack — and the numbered list carries the
+  instruction, which is also why the demo is `aria-hidden`.
+
+  **There is no shortcut past this on iOS, and none can be written.** Apple
+  exposes no install API, no URL scheme and no Shortcuts action that adds a
+  web app to the home screen — the Share sheet is the only route, by design.
+  Anything here that claims otherwise would be a button that silently does
+  nothing.
+- **Chrome, Firefox and Edge on iOS 16.4 or later** — that release is where
+  Apple gave third-party browsers "Add to Home Screen" in their own share
+  menu, so they get the same three steps as Safari. Below 16.4 the item does
+  not exist for them at all, and the version is read from the UA
+  (`supportsThirdPartyInstall`, unit-tested at the 16.3/16.4 boundary): those
+  sessions fall to the Safari-only route rather than being sent to look for a
+  button that is not there. A UA carrying no version token is treated as new
+  enough — that is the iPad-claiming-to-be-a-Mac form, which only exists from
+  iPadOS 13.
+- **Everything else on iOS that cannot install itself** — an in-app browser
+  (Instagram, Facebook, Gmail) at any version, and the pre-16.4 browsers
+  above. Safari is the only way through, so that is what it says, with a
+  button that puts the address on the clipboard so that opening Safari is a
+  paste rather than a URL typed from memory. It deliberately does **not**
+  navigate: the obvious trick, `x-safari-https:`, means feeding the current
+  location into a redirect — a client-side open-redirect shape however narrow
+  the intent — and it was only best-effort anyway, since some hosts swallow
+  the navigation and nothing reports back. Copying is honest about what it
+  did, and no button appears at all where the clipboard is unavailable.
+- **Anything else** — the browser menu carries the item under one name or
+  another.
+
+**`app/public/sw.js` is an empty service worker,** and exists for exactly one
+reason: Chromium only offers `beforeinstallprompt` to a page that has both a
+manifest and a service worker with a fetch handler. Its fetch handler is a
+pass-through and it caches **nothing**, on purpose — an offline mode would
+mean deciding what a stale price or a stale portfolio may look like, and the
+data rule here is that a figure on screen is either current or honestly
+missing. It is registered only from built output, never in `npm run dev`.
+
 ## Data
 
 `app/src/data/demoAdapter.ts` is a clearly-labeled **demo** implementation of

@@ -506,6 +506,10 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
   position: relative;
   width: min(62vw, 260px);
   line-height: 0;
+  /* The signal-lost flicker, defined below with the rest of the splash
+   * keyframes. Declared here rather than in a second .splash-logo rule
+   * further down: two rules for one selector is one place too many to look. */
+  animation: splash-flicker 1.9s ease-in-out infinite;
 }
 .splash-logo img {
   display: block;
@@ -540,7 +544,6 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
   92% { opacity: 0.85; }
   93% { opacity: 1; }
 }
-.splash-logo { animation: splash-flicker 1.9s ease-in-out infinite; }
 .splash-caption {
   position: relative;
   font-size: var(--text-body);
@@ -578,4 +581,46 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
  * needs a rule above it should draw it as its own element, not as its border. */
 .card > *:first-child {
   border-top: 0 !important;
+}
+
+
+/* The install demo (components/InstallDemo.tsx): a small phone that plays the
+ * tap sequence on a loop, because an arrow can only point at a toolbar — it
+ * cannot say which of its buttons, or what the next screen looks like.
+ *
+ * Three scenes share one 9s timeline and are offset by negative delays
+ * (0s / -3s / -6s) rather than being driven from JS: no timers to start, stop
+ * or leak, and every copy of the demo on screen stays in step. */
+@keyframes install-scene {
+  0% { opacity: 0; }
+  3% { opacity: 1; }
+  30% { opacity: 1; }
+  33% { opacity: 0; }
+  100% { opacity: 0; }
+}
+.install-scene {
+  animation: install-scene 9s linear infinite;
+}
+/* The tap: a ring expanding out of the button being pressed. */
+@keyframes install-tap {
+  0% { transform: scale(.5); opacity: .85; }
+  75% { transform: scale(1.9); opacity: 0; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+.install-tap {
+  animation: install-tap 1.8s var(--ease-out) infinite;
+}
+/* The sheet arriving from the bottom edge, as the real one does. */
+@keyframes install-rise {
+  from { transform: translateY(45%); }
+  to { transform: translateY(0); }
+}
+.install-rise {
+  animation: install-rise .7s var(--ease-out) both;
+}
+/* Reduced motion takes the whole demo away rather than freezing it: frozen,
+ * its three scenes would stack on top of each other. The numbered steps
+ * beside it carry the same instruction and stay. */
+@media (prefers-reduced-motion: reduce) {
+  .install-demo { display: none; }
 }

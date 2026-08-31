@@ -7,6 +7,8 @@ import { useDispatch, type Screen } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { useDemoFlag } from '../data/useDemoFlag';
+import { InstallSteps } from '../components/InstallSteps';
+import { useIsStandalone } from '../lib/useInstall';
 import type { StringKey } from '../i18n/strings';
 import type { ScreenProps } from '../App';
 
@@ -41,6 +43,11 @@ export function MoreScreen(_: ScreenProps) {
   const demo = useDemoMode();
   const setDemo = useSetDemoMode();
   const live = useDemoFlag('liveAccount');
+  // Only in a browser tab. On a phone in production this screen is only
+  // reachable from the installed app, so the card is really for desktop and
+  // for builds where the gate is off — there is no point offering an install
+  // to a window that is already the installed app.
+  const standalone = useIsStandalone();
   const links = live ? [...LINKS, LIVE_LINK] : LINKS;
 
   return (
@@ -87,6 +94,16 @@ export function MoreScreen(_: ScreenProps) {
           {t('more.demoDataHelp')}
         </p>
       </Card>
+
+      {!standalone && (
+        <Card padding="10px 12px" gap={8}>
+          <CardTitle size={17}>{t('install.cardTitle')}</CardTitle>
+          <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0 }}>
+            {t('install.cardHelp')}
+          </p>
+          <InstallSteps />
+        </Card>
+      )}
 
       <Card padding="6px 0" gap={0}>
         {links.map((r) => (

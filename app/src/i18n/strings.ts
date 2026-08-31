@@ -986,6 +986,50 @@ export const STRINGS = {
   'live.connState': p('Connection: {state}', 'החיבור: {state}'),
   'live.connActive': p('active', 'פעיל'),
   'live.connDisabled': p('disabled', 'מושבת'),
+  // ── Home-screen gate (lib/install.ts, screens/InstallGate.tsx) ─────────
+  // Shown instead of the whole app on a phone that opened it in a browser
+  // tab. It is a dead end by design, so the copy has to carry the reason and
+  // the exact route out — on iOS there is no button that can do it for you.
+  'install.kicker': p('Add to home screen', 'הוספה למסך הבית'),
+  'install.title': p('Shift runs from your home screen', 'Shift פועלת ממסך הבית'),
+  'install.sub': p(
+    'On a phone, Shift opens from its own icon — not from a browser tab. One step, nothing to download from a store.',
+    'בטלפון Shift נפתחת מהאייקון שלה, לא מלשונית בדפדפן. שלב אחד, בלי להוריד כלום מחנות.',
+  ),
+  'install.cta': p('Add to home screen', 'הוספה למסך הבית'),
+  'install.working': p('Opening the dialog…', 'פותח את החלון…'),
+  'install.dismissed': p(
+    'Closed without installing — you can open it again.',
+    'נסגר בלי להתקין — אפשר לפתוח שוב.',
+  ),
+  'install.done': p('Added. Open Shift from its new icon.', 'נוסף. פתחי את Shift מהאייקון החדש.'),
+  'install.stepsTitle': p('Three taps', 'שלוש הקשות'),
+  // iOS Safari — the only route, and it is manual.
+  'install.ios1': p('Share', 'שיתוף'),
+  'install.ios2': p('Add to Home Screen', 'הוספה למסך הבית'),
+  'install.ios3': p('Add', 'הוספה'),
+  // Everything on iOS that cannot add to the home screen itself: an in-app
+  // browser (Instagram, Facebook, Gmail) at any version, and Chrome/Firefox/
+  // Edge below iOS 16.4, which is where Apple gave them the item at all.
+  'install.iosSafariOnly': p(
+    'This browser cannot add to the home screen — open the page in Safari.',
+    'הדפדפן הזה לא יכול להוסיף למסך הבית — כדאי לפתוח את הדף ב-Safari.',
+  ),
+  // Anything else: the item exists but each browser names it differently.
+  'install.manual': p('Browser menu → “Install app”', 'תפריט הדפדפן ← ״התקנת אפליקציה״'),
+  'install.demoMenu': p('Menu', 'תפריט'),
+  'install.demoInstall': p('Install app', 'התקנת אפליקציה'),
+  'install.demoDone': p('Open it from the icon', 'פתיחה מהאייקון'),
+  'install.copyLink': p('Copy the link', 'העתקת הקישור'),
+  'install.copied': p('Copied — now paste it in Safari', 'הועתק — כעת להדביק ב-Safari'),
+  'install.already': p('Already added it? Open Shift from the icon.', 'כבר הוספת? פתחי את Shift מהאייקון.'),
+  // The optional card in Settings → More, for a browser that is not gated
+  // (desktop, or a preview build) but can still install.
+  'install.cardTitle': p('Install Shift', 'התקנת Shift'),
+  'install.cardHelp': p(
+    'Opens in its own window, without browser chrome.',
+    'נפתחת בחלון משלה, בלי סרגלי הדפדפן.',
+  ),
   'more.snaptrade': p('Connected account (demo)', 'חשבון מקושר (הדגמה)'),
   'more.snaptradeHelp': p('One real account, read-only', 'חשבון אמיתי אחד, קריאה בלבד'),
 } as const;

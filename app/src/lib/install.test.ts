@@ -1,0 +1,174 @@
+import { describe, expect, it } from 'vitest';
+import {
+  installRoute,
+  iosVersion,
+  supportsThirdPartyInstall,
+  isIOS,
+  isIOSSafari,
+  isIOSWebView,
+  isMobileDevice,
+  isStandaloneDisplay,
+  shouldBlockUntilInstalled,
+} from './install';
+
+/** A window stub with just the two things the detectors read. */
+function fakeWindow(opts: { media?: Record<string, boolean>; standalone?: boolean }): Window {
+  const media = opts.media ?? {};
+  return {
+    navigator: { standalone: opts.standalone } as unknown as Navigator,
+    matchMedia: (q: string) => ({ matches: media[q] ?? false }) as MediaQueryList,
+  } as unknown as Window;
+}
+
+const touch = { '(pointer: coarse)': true, '(hover: none)': true };
+
+describe('shouldBlockUntilInstalled', () => {
+  it('blocks only an enforced, mobile, non-standalone window', () => {
+    expect(shouldBlockUntilInstalled({ enforced: true, mobile: true, standalone: false })).toBe(true);
+  });
+
+  it('lets the installed app through', () => {
+    expect(shouldBlockUntilInstalled({ enforced: true, mobile: true, standalone: true })).toBe(false);
+  });
+
+  it('never blocks desktop — there is no home screen to add to', () => {
+    expect(shouldBlockUntilInstalled({ enforced: true, mobile: false, standalone: false })).toBe(false);
+  });
+
+  it('never blocks where it is not enforced (dev, preview)', () => {
+    expect(shouldBlockUntilInstalled({ enforced: false, mobile: true, standalone: false })).toBe(false);
+  });
+});
+
+describe('isStandaloneDisplay', () => {
+  it('reads the display-mode media query', () => {
+    expect(isStandaloneDisplay(fakeWindow({ media: { '(display-mode: standalone)': true } }))).toBe(true);
+  });
+
+  it('accepts the other launcher display modes', () => {
+    expect(isStandaloneDisplay(fakeWindow({ media: { '(display-mode: fullscreen)': true } }))).toBe(true);
+    expect(isStandaloneDisplay(fakeWindow({ media: { '(display-mode: minimal-ui)': true } }))).toBe(true);
+  });
+
+  it('reads iOS Safari’s non-standard navigator.standalone, which answers no media query', () => {
+    expect(isStandaloneDisplay(fakeWindow({ standalone: true }))).toBe(true);
+  });
+
+  it('is false in a plain browser tab', () => {
+    expect(isStandaloneDisplay(fakeWindow({ media: { '(display-mode: browser)': true } }))).toBe(false);
+  });
+
+  it('does not throw where matchMedia is missing', () => {
+    expect(isStandaloneDisplay({ navigator: {} } as unknown as Window)).toBe(false);
+  });
+});
+
+describe('isMobileDevice', () => {
+  it('is true for a touch-only device', () => {
+    expect(isMobileDevice(fakeWindow({ media: touch }))).toBe(true);
+  });
+
+  it('is false for a touchscreen laptop, which still hovers with a fine pointer', () => {
+    expect(
+      isMobileDevice(fakeWindow({ media: { '(pointer: coarse)': false, '(hover: none)': false } })),
+    ).toBe(false);
+  });
+});
+
+describe('isIOS / isIOSSafari', () => {
+  const IPHONE =
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
+  const IPAD_DESKTOP_UA =
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15';
+  const CHROME_IOS =
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/126.0 Mobile/15E148 Safari/604.1';
+  const MAC =
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
+
+  it('recognises an iPhone', () => expect(isIOS(IPHONE, 5)).toBe(true));
+
+  it('recognises the iPad that claims to be a Mac, by its touch points', () => {
+    expect(isIOS(IPAD_DESKTOP_UA, 5)).toBe(true);
+    expect(isIOS(MAC, 0)).toBe(false);
+  });
+
+  it('tells Safari from the other iOS browsers', () => {
+    expect(isIOSSafari(IPHONE)).toBe(true);
+    expect(isIOSSafari(CHROME_IOS)).toBe(false);
+  });
+
+  it('separates an in-app webview from a named browser: only the webview is stuck', () => {
+    expect(isIOSWebView(`${IPHONE} [FBAN/FBIOS]`)).toBe(true);
+    expect(isIOSWebView(CHROME_IOS)).toBe(false);
+    expect(isIOSSafari(`${IPHONE} [FBAN/FBIOS]`)).toBe(false);
+  });
+});
+
+describe('iOS version', () => {
+  it('reads the version out of an iOS user agent', () => {
+    expect(iosVersion('Mozilla/5.0 (iPhone; CPU iPhone OS 16_4 like Mac OS X)')).toEqual([16, 4]);
+    expect(iosVersion('Mozilla/5.0 (iPad; CPU OS 15_7 like Mac OS X)')).toEqual([15, 7]);
+  });
+
+  it('does not read a Mac’s OS version as an iOS one', () => {
+    expect(iosVersion('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)')).toBeNull();
+  });
+
+  it('opens up at exactly 16.4, where Apple gave third-party browsers the item', () => {
+    const at = (v: string) => supportsThirdPartyInstall(`Mozilla/5.0 (iPhone; CPU iPhone OS ${v})`);
+    expect(at('16_3')).toBe(false);
+    expect(at('16_4')).toBe(true);
+    expect(at('15_7')).toBe(false);
+    expect(at('18_1')).toBe(true);
+  });
+
+  it('treats a version-less UA (the iPad claiming to be a Mac) as new enough', () => {
+    expect(supportsThirdPartyInstall('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) CriOS/126.0')).toBe(
+      true,
+    );
+  });
+});
+
+describe('installRoute', () => {
+  const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5) Version/17.5 Mobile/15E148 Safari/604.1';
+  const ANDROID = 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/126.0 Mobile Safari/537.36';
+
+  it('prefers the native prompt wherever one was captured', () => {
+    expect(installRoute({ canPrompt: true, ua: ANDROID, maxTouchPoints: 5 })).toBe('prompt');
+  });
+
+  it('sends iOS Safari to the Share-sheet steps', () => {
+    expect(installRoute({ canPrompt: false, ua: IPHONE, maxTouchPoints: 5 })).toBe('ios-safari');
+  });
+
+  it('gives Chrome/Firefox/Edge on iOS 16.4+ the same steps: their share menu carries it too', () => {
+    const NEW = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X)';
+    expect(
+      installRoute({ canPrompt: false, ua: `${NEW} CriOS/126.0 Mobile/15E148`, maxTouchPoints: 5 }),
+    ).toBe('ios-browser');
+  });
+
+  it('sends an in-app webview to Safari — it cannot install at any iOS version', () => {
+    expect(installRoute({ canPrompt: false, ua: `${IPHONE} [FBAN/FBIOS]`, maxTouchPoints: 5 })).toBe(
+      'ios-safari-only',
+    );
+  });
+
+  it('sends a third-party browser below iOS 16.4 to Safari: the item does not exist there yet', () => {
+    const OLD = 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_7 like Mac OS X)';
+    for (const brand of ['CriOS/126.0', 'FxiOS/126.0', 'EdgiOS/126.0']) {
+      expect(installRoute({ canPrompt: false, ua: `${OLD} ${brand} Mobile/15E148`, maxTouchPoints: 5 })).toBe(
+        'ios-safari-only',
+      );
+    }
+  });
+
+  it('still gives Safari its own steps on an old iOS — Safari always had them', () => {
+    const OLD_SAFARI = 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_7 like Mac OS X) Version/15.6 Safari/604.1';
+    expect(installRoute({ canPrompt: false, ua: OLD_SAFARI, maxTouchPoints: 5 })).toBe('ios-safari');
+  });
+
+  it('falls back to the browser menu for a Chromium that has not fired the event yet', () => {
+    expect(installRoute({ canPrompt: false, ua: ANDROID, maxTouchPoints: 5 })).toBe('manual');
+  });
+});
