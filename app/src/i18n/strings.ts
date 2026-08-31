@@ -82,7 +82,6 @@ export const STRINGS = {
   /* The home band's own copy — the recommendation track's place on the home
    * screen, before the flow has been run and after it has. */
   'home.recYours': p('Your recommendation', 'ההמלצה שלך'),
-  'home.recPassed': p('{n} passed today', '{n} עברו היום'),
   'home.recDeveloped': p('Developed', 'מפותחים'),
   'home.recSp500': p('S&P 500', 'S&P 500'),
   'home.recBonds': p('Gov bonds', 'אג״ח ממשלתי'),
@@ -90,6 +89,13 @@ export const STRINGS = {
   'home.recCash': p('Cash', 'מזומן'),
   'home.recEmerging': p('Emerging', 'מתעוררים'),
   'home.recRadar': p('Radar', 'ראדר'),
+  /* The radar's mention on the home band. Two wordings, because the same count
+   * means two different things: to a client with a sleeve it is her own
+   * radar's result, and to one who has not run the flow it is simply what the
+   * daily check found — the list is the same for everyone, and what a profile
+   * decides is how much of a portfolio, if any, goes behind it. */
+  'home.radarYours': p('Stock Radar · {n} passed today', 'ראדר מניות · {n} עברו היום'),
+  'home.radarToday': p('{n} names cleared today’s radar', '{n} מניות עברו את הראדר היומי'),
   'home.startHere': p('New to investing? Start here', 'חדשה בהשקעות? מתחילים כאן'),
   'home.startHereSub': p('A short guide, then the steps', 'מדריך קצר, ואחריו הצעדים'),
   'home.watchlist': p('Watchlist', 'ווטצ׳ליסט'),

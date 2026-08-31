@@ -266,10 +266,12 @@ function RadarCard({ amount, pct }: { amount: number; pct: number }) {
       {/* Whose radar, and how often it runs — the brand's own mark inline,
           because this is the one screen where the product is the thing doing
           the looking. */}
-      {/* Body size, not caption: at 14px the mark beside the words read as a
-          smudge rather than as the brand. */}
-      <p style={{ fontSize: 'var(--text-body)', margin: 0, lineHeight: 1.6, opacity: 0.9 }}>
-        {t('rec.radarLineStart')} <GlitchMark height={19} />
+      {/* The mark is the subject of this line, so it is set well above the
+          words around it — at body size it read as a smudge, and at the line's
+          own size it read as a word rather than as the brand. The line is one
+          step up the scale to carry it. */}
+      <p style={{ fontSize: 'var(--text-row)', margin: 0, lineHeight: 1.9, opacity: 0.9 }}>
+        {t('rec.radarLineStart')} <GlitchMark height={28} />
         {t('rec.radarLineEnd')}
       </p>
       {!allocated && <Note>{t('rec.satInfoOnly')}</Note>}

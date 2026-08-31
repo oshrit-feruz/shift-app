@@ -1,4 +1,5 @@
 import { Tag } from '../../components/Tag';
+import { RadarSweep } from '../../components/RadarSweep';
 import { Icon } from '../../components/Icon';
 import { Num } from '../../components/Num';
 import { useAppState, useDispatch, setupProgress } from '../../state/appState';
@@ -72,6 +73,7 @@ function Invitation() {
       >
         {t('home.trackAdvisorSub')}
       </p>
+      <RadarLine wording="home.radarToday" />
     </button>
   );
 }
@@ -117,7 +119,6 @@ function Result({ profile }: { profile: ProfileKey }) {
           {t(`profile.${profile}` as StringKey)}
         </span>
         <span style={{ flex: 1 }} />
-        {p.satellitePct > 0 && <PassedTag />}
         <span style={{ opacity: 0.5, fontSize: 'var(--text-title)' }}>›</span>
       </div>
       <span
@@ -135,6 +136,7 @@ function Result({ profile }: { profile: ProfileKey }) {
           <span key={b.key} style={{ display: 'block', width: `${b.pct}%`, background: b.color }} />
         ))}
       </span>
+      {p.satellitePct > 0 && <RadarLine wording="home.radarYours" />}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px' }}>
         {bands.map((b) => (
           <span
@@ -156,21 +158,36 @@ function Result({ profile }: { profile: ProfileKey }) {
 }
 
 /**
- * How many names cleared today's checks — the live daily screen, the same call
- * the recommendation screen makes.
+ * How many names cleared today's checks, with the turning dish beside them —
+ * the live daily screen, the same call the recommendation screen makes.
  *
- * Renders nothing at all while it is loading or if it fails, rather than a
- * skeleton or a retry: this is a badge on a summary, and a count that is
- * simply absent misleads nobody, where a placeholder number would.
+ * It is on the band in both states on purpose. The radar is the half of the
+ * recommendation that changes daily, and a client who has never opened the
+ * flow has no way of knowing there is anything moving in there; this is the
+ * only thing on the home screen that says so.
+ *
+ * Renders nothing while it is loading, if it fails, or on a day when nothing
+ * passed. A count that is simply absent misleads nobody, where a placeholder
+ * number would — and "0 passed today" is a true sentence that reads on a home
+ * screen as a broken feature rather than as a quiet market.
  */
-function PassedTag() {
+function RadarLine({ wording }: { wording: 'home.radarYours' | 'home.radarToday' }) {
   const t = useT();
   const sat = useLoadable(() => demoService.satelliteSignals(), []);
-  if (sat.state.status !== 'ok') return null;
+  if (sat.state.status !== 'ok' || sat.state.data.length === 0) return null;
   return (
-    <Tag variant="outline" fontSize={15}>
-      {t('home.recPassed', { n: sat.state.data.length })}
-    </Tag>
+    <span
+      className="text-muted"
+      style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--text-caption)' }}
+    >
+      {/* The dish rides in a 26px slot — the width of the band's icon plate —
+          so this line's text starts on the same edge as the line above it
+          rather than a few pixels short of it. */}
+      <span style={{ width: 26, flex: 'none', display: 'grid', placeItems: 'center' }}>
+        <RadarSweep size={20} />
+      </span>
+      {t(wording, { n: sat.state.data.length })}
+    </span>
   );
 }
 
