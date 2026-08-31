@@ -82,7 +82,8 @@ describe('mapCandles', () => {
 
   it('maps parallel arrays into dated bars, oldest first', () => {
     const bars = mapCandles(ok)!;
-    expect(bars.map((b) => b.d)).toEqual([...bars.map((b) => b.d)].sort());
+    const dates = bars.map((b) => b.d);
+    expect(dates).toEqual([...dates].sort((a, b) => a.localeCompare(b)));
     expect(bars[1]).toEqual({
       d: new Date(1_756_600_000 * 1000).toISOString().slice(0, 10),
       o: 10,

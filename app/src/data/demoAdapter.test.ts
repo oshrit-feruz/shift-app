@@ -57,7 +57,7 @@ function world(prices: Record<string, number> = {}, ranked: string[] = []): type
   return (async (url: RequestInfo | URL) => {
     const href = String(url);
     if (href.startsWith('/api/quote')) {
-      const asked = new URL(href, 'http://x').searchParams.get('symbols')?.split(',') ?? [];
+      const asked = new URL(href, 'https://x').searchParams.get('symbols')?.split(',') ?? [];
       const quotes: Record<string, unknown> = {};
       for (const t of asked) if (t in prices) quotes[t] = quote(prices[t]);
       return json({ quotes, unavailable: [] });
@@ -75,7 +75,7 @@ describe('symbols() — real prices attached, demo prices quarantined', () => {
     const r = await demoService.symbols();
     expect(r.status).toBe('ok');
     const nvda = r.status === 'ok' ? r.data.find((s) => s.ticker === 'NVDA')! : null;
-    expect(nvda!.quote?.price).toBe(144.76);
+    expect(nvda!.quote?.price).toBeCloseTo(144.76, 6);
     // The prototype figure is still reachable for the demo-only stats, but it
     // is not what the price surfaces read.
     expect(nvda!.demo.price).toBe(DEMO_PRICE.NVDA);

@@ -192,8 +192,10 @@ export function createHandler(timeoutMs: number, fetchImpl: typeof fetch = fetch
     return res.status(200).json({
       quotes,
       // Named, not implied: a caller must be able to tell the symbols we
-      // could not price from the ones that have no price.
-      unavailable: failures.map((f) => f.symbol).sort(),
+      // could not price from the ones that have no price. Ordered with an
+      // explicit comparator rather than the default one, which sorts by
+      // UTF-16 code unit and is only accidentally right for tickers.
+      unavailable: failures.map((f) => f.symbol).sort((a, b) => a.localeCompare(b)),
     });
   };
 }

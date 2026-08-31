@@ -169,6 +169,7 @@ export function mapCandles(body: unknown): CandleRow[] | null {
       v: v[i],
     });
   }
-  rows.sort((a, z) => (a.d < z.d ? -1 : a.d > z.d ? 1 : 0));
+  // The dates are ISO YYYY-MM-DD, so lexicographic order is chronological.
+  rows.sort((a, z) => a.d.localeCompare(z.d));
   return rows;
 }

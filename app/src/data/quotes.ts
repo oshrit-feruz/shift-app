@@ -165,10 +165,7 @@ function extractUnavailable(body: unknown): Set<string> {
 }
 
 /** One batch's round trip. Never throws. */
-async function readBatch(
-  tickers: string[],
-  fetchImpl: typeof fetch,
-): Promise<Loadable<{ quotes: Record<string, Quote>; unavailable: Set<string> }>> {
+async function readBatch(tickers: string[], fetchImpl: typeof fetch): Promise<Loadable<BatchData>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
@@ -189,6 +186,67 @@ async function readBatch(
     return unavailable(FALLBACK_REASON);
   } finally {
     clearTimeout(timer);
+  }
+}
+
+/** One batch's successful payload, named so the merge below can be typed. */
+type BatchData = { quotes: Record<string, Quote>; unavailable: Set<string> };
+
+/**
+ * Split the wanted tickers into what the cache can already answer and what
+ * still has to be fetched.
+ *
+ * `cached` carries only the tickers with a live quote — a cached "no price
+ * for this symbol" is remembered (so the next render does not ask again) but
+ * has nothing to put in the map.
+ */
+function partitionByCache(
+  wanted: string[],
+  useCache: boolean,
+  now: number,
+): { cached: Record<string, Quote>; missing: string[] } {
+  const cached: Record<string, Quote> = {};
+  const missing: string[] = [];
+  for (const ticker of wanted) {
+    const hit = useCache ? cache.get(ticker) : undefined;
+    if (hit && now - hit.at < QUOTE_TTL_MS) {
+      if (hit.quote !== null) cached[ticker] = hit.quote;
+    } else {
+      missing.push(ticker);
+    }
+  }
+  return { cached, missing };
+}
+
+/**
+ * The requests one list of missing tickers becomes.
+ *
+ * Sorted first, so the same set of tickers always produces the same URL. The
+ * route's response is cached at the edge per URL, and two screens asking for
+ * the same symbols in a different order would otherwise be two cache entries
+ * — and two fan-outs — for one identical answer. Order is irrelevant to the
+ * caller, which gets a map back.
+ */
+function batchTickers(missing: string[]): string[][] {
+  const sorted = [...missing].sort((a, b) => a.localeCompare(b));
+  const batches: string[][] = [];
+  for (let i = 0; i < sorted.length; i += MAX_SYMBOLS_PER_REQUEST) {
+    batches.push(sorted.slice(i, i + MAX_SYMBOLS_PER_REQUEST));
+  }
+  return batches;
+}
+
+/**
+ * Remember one batch's answers for the TTL.
+ *
+ * A ticker the route named as failed is left uncached, so the next read asks
+ * again instead of remembering an absence that was really an outage.
+ * Everything else — priced, or genuinely unpriced — is cached.
+ */
+function rememberBatch(batch: string[], data: BatchData, now: number): void {
+  for (const ticker of batch) {
+    if (data.unavailable.has(ticker)) continue;
+    cache.set(ticker, { at: now, quote: data.quotes[ticker] ?? null });
   }
 }
 
@@ -215,32 +273,13 @@ export async function fetchQuotes(
 
   // Tests inject a fetchImpl and must not see, or leave behind, cache state.
   const useCache = fetchImpl === fetch;
-  const result: Record<string, Quote> = {};
-  const missing: string[] = [];
-  for (const ticker of wanted) {
-    const hit = useCache ? cache.get(ticker) : undefined;
-    if (hit && now - hit.at < QUOTE_TTL_MS) {
-      if (hit.quote !== null) result[ticker] = hit.quote;
-    } else {
-      missing.push(ticker);
-    }
-  }
-  if (missing.length === 0) return ok(result);
+  const { cached, missing } = partitionByCache(wanted, useCache, now);
+  if (missing.length === 0) return ok(cached);
 
   // Long lists are split because the route bounds one request; the batches
   // run together because they are independent and a watchlist should not pay
   // for them one after another.
-  //
-  // Sorted first, so the same set of tickers always produces the same URL.
-  // The route's response is cached at the edge per URL, and two screens
-  // asking for the same symbols in a different order would otherwise be two
-  // cache entries — and two fan-outs — for one identical answer. Order is
-  // irrelevant to the caller, which gets a map back.
-  missing.sort();
-  const batches: string[][] = [];
-  for (let i = 0; i < missing.length; i += MAX_SYMBOLS_PER_REQUEST) {
-    batches.push(missing.slice(i, i + MAX_SYMBOLS_PER_REQUEST));
-  }
+  const batches = batchTickers(missing);
   const reads = await Promise.all(
     batches.map((batch) =>
       useCache
@@ -251,25 +290,13 @@ export async function fetchQuotes(
     ),
   );
 
-  for (const read of reads) {
-    if (read.status === 'unavailable') return unavailable(read.reason);
-    if (read.status !== 'ok') return unavailable(FALLBACK_REASON);
-  }
-
+  const result = { ...cached };
   for (let i = 0; i < batches.length; i++) {
-    const read = reads[i] as {
-      status: 'ok';
-      data: { quotes: Record<string, Quote>; unavailable: Set<string> };
-    };
+    const read = reads[i];
+    if (read.status !== 'ok')
+      return unavailable(read.status === 'unavailable' ? read.reason : FALLBACK_REASON);
     Object.assign(result, read.data.quotes);
-    if (!useCache) continue;
-    for (const ticker of batches[i]) {
-      // A ticker the route named as failed is left uncached, so the next read
-      // asks again instead of remembering an absence that was really an
-      // outage. Everything else — priced or genuinely unpriced — is cached.
-      if (read.data.unavailable.has(ticker)) continue;
-      cache.set(ticker, { at: now, quote: read.data.quotes[ticker] ?? null });
-    }
+    if (useCache) rememberBatch(batches[i], read.data, now);
   }
   return ok(result);
 }
