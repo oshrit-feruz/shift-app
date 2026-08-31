@@ -1,4 +1,4 @@
-import { BackgroundShapes } from '../components/BackgroundShapes';
+import { AppBackground } from '../components/AppBackground';
 import { InstallSteps } from '../components/InstallSteps';
 import { useT } from '../i18n/useT';
 
@@ -42,7 +42,7 @@ export function InstallGateScreen() {
         }}
         data-screen-label="installGate"
       >
-        <BackgroundShapes />
+        <AppBackground />
         <div
           className="anim-fade-up"
           style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 10 }}
