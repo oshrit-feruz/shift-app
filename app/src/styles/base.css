@@ -309,24 +309,16 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
   from { opacity: 0; }
   to { opacity: 1; }
 }
-@keyframes sheetUp {
-  from { transform: translateY(100%); }
-  to { transform: none; }
-}
 @keyframes fadeOut {
   from { opacity: 1; }
   to { opacity: 0; }
 }
-@keyframes sheetDown {
-  from { transform: none; }
-  to { transform: translateY(100%); }
-}
-/* The veil is a plain overlay with no glass descendants, so opacity here is
- * free of the backdrop-filter trap that rules transforms out on screens. */
-@keyframes veilIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
+/* The sheet's own entrance, exit and veil used to live here as keyframes. They
+ * are springs in lib/spring.ts now: a keyframe runs for a fixed time toward a
+ * fixed target, which is exactly what a sheet you can grab mid-flight cannot
+ * do. Note that the sheet is free to animate `transform` where screens are
+ * not — it holds no glass descendants, so there is no backdrop-filter for a
+ * containing block to detach. */
 
 /* Screen change. The wrapper itself stays untouched at full opacity; its
  * direct children each fade. ease-out front-loads the fade, so the screen is
