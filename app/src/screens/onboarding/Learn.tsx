@@ -29,7 +29,7 @@ const PAGES = [
     title: { en: 'Never put it all in one place', he: 'לא לשים הכול במקום אחד' },
     body: {
       en: 'If everything you own does the same thing, one bad quarter hits all of it. Several unrelated companies means no single mistake decides your result.',
-      he: 'אם כל מה שאת מחזיקה עושה את אותו דבר, רבעון גרוע אחד פוגע בהכול. כמה חברות שאינן קשורות זו לזו — וטעות אחת לא קובעת את התוצאה.',
+      he: 'אם כל מה שמחזיקים עושה את אותו דבר, רבעון גרוע אחד פוגע בהכול. כמה חברות שאינן קשורות זו לזו — וטעות אחת לא קובעת את התוצאה.',
     },
   },
   {
@@ -37,7 +37,7 @@ const PAGES = [
     title: { en: 'Time does most of the work', he: 'הזמן עושה את רוב העבודה' },
     body: {
       en: 'Gains earn their own gains. Slow at first, then fast — which is why money you might need next year should not be here.',
-      he: 'רווחים מייצרים רווחים משל עצמם. לאט בהתחלה, ואז מהר — ולכן כסף שאולי תצטרכי בשנה הקרובה לא אמור להיות פה.',
+      he: 'רווחים מייצרים רווחים משל עצמם. לאט בהתחלה, ואז מהר — ולכן כסף שאולי יידרש בשנה הקרובה לא אמור להיות פה.',
     },
   },
   {
@@ -61,12 +61,12 @@ const PAGES = [
     title: { en: 'What "safe" actually means', he: 'מה זה באמת "בטוח"' },
     body: {
       en: 'Not a promise of no losses. It means money you need soon stays in cash, the bulk sits in broad ETFs, and single stocks are the small slice on top.',
-      he: 'זו לא הבטחה שלא תהיה הפסד. זה אומר שכסף שתצטרכי בקרוב נשאר במזומן, עיקר הכסף יושב בקרנות סל רחבות, ומניות בודדות הן הפרוסה הקטנה שמעל.',
+      he: 'זו לא הבטחה שלא תהיה הפסד. זה אומר שכסף שיידרש בקרוב נשאר במזומן, עיקר הכסף יושב בקרנות סל רחבות, ומניות בודדות הן הפרוסה הקטנה שמעל.',
     },
   },
   {
     chip: { en: 'Glossary', he: 'מילון' },
-    title: { en: 'Words you will keep seeing', he: 'מילים שתראי שוב ושוב' },
+    title: { en: 'Words you will keep seeing', he: 'מילים שחוזרות שוב ושוב' },
     body: {
       en: 'Short definitions for the words the app uses everywhere.',
       he: 'הגדרות קצרות למילים שהאפליקציה משתמשת בהן בכל מקום.',
@@ -86,8 +86,8 @@ const GLOSSARY = {
   ],
   he: [
     ['טיקר', 'הקוד הקצר של חברה — NVDA היא NVIDIA.'],
-    ['תיק', 'כל מה שאת מחזיקה, במקום אחד.'],
-    ['ווטצ׳ליסט', 'חברות שאת עוקבת אחריהן בלי להחזיק.'],
+    ['תיק', 'כל מה שמחזיקים, במקום אחד.'],
+    ['ווטצ׳ליסט', 'חברות שעוקבים אחריהן בלי להחזיק.'],
     ['דוחות', 'הדוח הרבעוני של החברה.'],
     ['דיבידנד', 'מזומן שחברות מסוימות משלמות למחזיקים.'],
     ['קרן סל', 'קנייה אחת שמחזיקה הרבה חברות (ETF).'],
