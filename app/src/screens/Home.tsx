@@ -73,36 +73,6 @@ export function HomeScreen({ openSearch }: ScreenProps) {
         </Card>
       )}
 
-      {beg && (
-        <Card padding={13} highlight row gap={11} onClick={() => dispatch({ type: 'go', screen: 'learn' })}>
-          <span
-            style={{
-              width: 30,
-              height: 30,
-              flex: 'none',
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--color-accent-800)',
-              color: 'var(--color-accent-200)',
-              display: 'grid',
-              placeItems: 'center',
-              fontSize: 'var(--text-title)',
-            }}
-          >
-            ◉
-          </span>
-          <span style={{ flex: 1 }}>
-            <span style={{ display: 'block', fontSize: 'var(--text-title)' }}>{t('home.startHere')}</span>
-            <span
-              className="text-muted"
-              style={{ display: 'block', fontSize: 'var(--text-row)', marginTop: 2 }}
-            >
-              {t('home.startHereSub')}
-            </span>
-          </span>
-          <span style={{ opacity: 0.5, fontSize: 'var(--text-title)' }}>›</span>
-        </Card>
-      )}
-
       {!beg && (demo ? <MetricStripDemo /> : <DemoOnly feature="home.pfToday" />)}
 
       {/* Watchlist preview */}
@@ -152,6 +122,40 @@ export function HomeScreen({ openSearch }: ScreenProps) {
           }
         </DataState>
       </Card>
+
+      {/* The learning library sits below the watchlist rather than above it:
+          it is a standing invitation, not news, and a client who opens the app
+          to look at her own list should reach that list before being offered
+          a guide. */}
+      {beg && (
+        <Card padding={13} highlight row gap={11} onClick={() => dispatch({ type: 'go', screen: 'learn' })}>
+          <span
+            style={{
+              width: 30,
+              height: 30,
+              flex: 'none',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--color-accent-800)',
+              color: 'var(--color-accent-200)',
+              display: 'grid',
+              placeItems: 'center',
+              fontSize: 'var(--text-title)',
+            }}
+          >
+            ◉
+          </span>
+          <span style={{ flex: 1 }}>
+            <span style={{ display: 'block', fontSize: 'var(--text-title)' }}>{t('home.startHere')}</span>
+            <span
+              className="text-muted"
+              style={{ display: 'block', fontSize: 'var(--text-row)', marginTop: 2 }}
+            >
+              {t('home.startHereSub')}
+            </span>
+          </span>
+          <span style={{ opacity: 0.5, fontSize: 'var(--text-title)' }}>›</span>
+        </Card>
+      )}
 
       {demo ? <MoversPreview beg={beg} /> : <DemoOnly feature="title.movers" />}
 
