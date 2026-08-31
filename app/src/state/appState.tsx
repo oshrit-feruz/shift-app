@@ -95,9 +95,31 @@ export interface ManualTransaction {
   date: string;
 }
 
+/** A view the user can be returned to: the screen and, for a stock page, which
+ *  stock — `openStock` can navigate stock -> stock, so the screen alone does
+ *  not say where you were. */
+export interface NavEntry {
+  screen: Screen;
+  ticker: string;
+  /**
+   * Chrome that belongs to the view rather than to the screen component: the
+   * "back to the steps" pill, and whether the advisory connect screen was
+   * opened on its own rather than as a step of the flow. Both are set by the
+   * navigation that opened the view, so returning to it without them lands on
+   * a differently-dressed version of the screen the user left — a step opened
+   * from the checklist loses its way back to the checklist.
+   */
+  fromSteps: boolean;
+  advSolo: boolean;
+}
+
 export interface AppState {
   screen: Screen;
   ticker: string;
+  /** The views behind the current one, oldest first — what the Android back
+   *  button walks back through (state/backStack.tsx). Ephemeral like `screen`:
+   *  never persisted, and a fresh boot always starts at home with no trail. */
+  navStack: NavEntry[];
   /** advisory */
   advAnswers: Answer[];
   advStage: number;
@@ -126,6 +148,7 @@ export interface AppState {
 export const initial: AppState = {
   screen: 'home',
   ticker: 'NVDA',
+  navStack: [],
   advAnswers: [],
   advStage: 0,
   advBroker: null,
@@ -148,6 +171,10 @@ export const initial: AppState = {
 export type Action =
   | { type: 'go'; screen: Screen; fromSteps?: boolean }
   | { type: 'openStock'; ticker: string }
+  /** Return to the previous view. Raised by the Android back button, and a
+   *  no-op with nothing behind us — the shell only claims a back press while
+   *  the trail has something on it, so that press leaves the app instead. */
+  | { type: 'back' }
   | { type: 'advAnswer'; value: Answer }
   | { type: 'advReset' }
   | { type: 'advStage'; stage: number }
@@ -185,17 +212,87 @@ export type Action =
    *  never sees the previous user's risk profile or progress. */
   | { type: 'resetPersisted' };
 
+/** How many views back the trail keeps. Deep enough that nobody reaches the
+ *  end of it in a session; bounded because every entry is also a session-history
+ *  entry, and an unbounded trail would turn a few minutes of tapping between
+ *  tabs into a hundred back presses before the app would close. */
+const MAX_TRAIL = 25;
+
+/**
+ * Whether a view *is* a given destination.
+ *
+ * The ticker is part of a view's identity only on the stock page, the one
+ * screen it selects. Everywhere else it is merely whichever stock was looked
+ * at last, and it drifts: opening AMD and going home would otherwise not
+ * recognise the home the user started on (filed under NVDA), and would stack a
+ * second, indistinguishable home behind the first. Back would then land on
+ * home twice with a stock page in between.
+ */
+function isView(view: NavEntry, screen: Screen, ticker: string): boolean {
+  return view.screen === screen && (screen !== 'stock' || view.ticker === ticker);
+}
+
+/**
+ * The trail behind the view the app is moving to.
+ *
+ * A view already on the trail is *returned to* rather than stacked on: the
+ * trail truncates back to it. Otherwise home -> portfolio -> home would leave
+ * two entries behind a screen the user is looking at for the second time, and
+ * flipping between two tabs would grow the trail without bound. Truncating
+ * matches what a tab bar is understood to do — back walks toward where you
+ * started, not through every tap that got you here.
+ *
+ * Exported for tests; the app reaches it only through the reducer.
+ */
+export function trailTo(s: AppState, screen: Screen, ticker: string): NavEntry[] {
+  // Navigating to where we already are (tapping the current tab) is not a
+  // navigation and must not leave a back press that appears to do nothing.
+  if (isView(s, screen, ticker)) return s.navStack;
+  const at = s.navStack.findIndex((x) => isView(x, screen, ticker));
+  if (at >= 0) return s.navStack.slice(0, at);
+  // The whole view, not just where it was: see NavEntry.
+  const trail = [
+    ...s.navStack,
+    { screen: s.screen, ticker: s.ticker, fromSteps: s.fromSteps, advSolo: s.advSolo },
+  ];
+  return trail.length > MAX_TRAIL ? trail.slice(trail.length - MAX_TRAIL) : trail;
+}
+
 /** Exported for tests — the app itself only ever reaches this via dispatch. */
 export function reducer(s: AppState, a: Action): AppState {
   switch (a.type) {
     case 'go':
-      return { ...s, screen: a.screen, fromSteps: a.fromSteps ?? false };
+      return {
+        ...s,
+        screen: a.screen,
+        fromSteps: a.fromSteps ?? false,
+        navStack: trailTo(s, a.screen, s.ticker),
+      };
     case 'openStock':
-      return { ...s, screen: 'stock', ticker: a.ticker };
+      return {
+        ...s,
+        screen: 'stock',
+        ticker: a.ticker,
+        navStack: trailTo(s, 'stock', a.ticker),
+      };
+    case 'back': {
+      const previous = s.navStack[s.navStack.length - 1];
+      if (previous == null) return s;
+      // Spread whole: an entry is every field that makes the view what it was,
+      // so nothing can be added to NavEntry and then quietly not restored.
+      return { ...s, ...previous, navStack: s.navStack.slice(0, -1) };
+    }
     case 'advAnswer':
       return { ...s, advAnswers: [...s.advAnswers, a.value] };
     case 'advReset':
-      return { ...s, advAnswers: [], advStage: 0, screen: 'advChat', advSolo: false };
+      return {
+        ...s,
+        advAnswers: [],
+        advStage: 0,
+        screen: 'advChat',
+        advSolo: false,
+        navStack: trailTo(s, 'advChat', s.ticker),
+      };
     case 'advStage':
       return { ...s, advStage: Math.max(s.advStage, a.stage) };
     case 'advGoto':
@@ -204,6 +301,7 @@ export function reducer(s: AppState, a: Action): AppState {
         screen: a.screen,
         advSolo: a.solo ?? false,
         advStage: a.stage != null ? Math.max(s.advStage, a.stage) : s.advStage,
+        navStack: trailTo(s, a.screen, s.ticker),
       };
     case 'advBroker':
       return { ...s, advBroker: a.broker };
@@ -292,8 +390,9 @@ export function reducer(s: AppState, a: Action): AppState {
     case 'replaceState':
       // Keep the ephemeral navigation (screen/ticker) — the user is mid-app
       // when the server state lands; yanking them elsewhere would read as a
-      // crash. Everything else resets to initial + the server's slice.
-      return { ...initial, ...a.persisted, screen: s.screen, ticker: s.ticker };
+      // crash, and dropping the trail would turn their next back press into
+      // an app exit. Everything else resets to initial + the server's slice.
+      return { ...initial, ...a.persisted, screen: s.screen, ticker: s.ticker, navStack: s.navStack };
     case 'resetPersisted':
       // Back to a clean boot; the localStorage effect below then overwrites
       // the on-device cache with the blank slice.
