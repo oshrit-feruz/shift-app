@@ -85,6 +85,8 @@ export function LogoTile({
           display: 'grid',
           placeItems: 'center',
           fontSize: 'var(--text-micro)',
+          letterSpacing: 'var(--track-micro)',
+          lineHeight: 'var(--lead-micro)',
           fontWeight: 600,
         }}
       >

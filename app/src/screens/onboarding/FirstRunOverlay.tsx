@@ -73,7 +73,8 @@ export function FirstRunOverlay() {
             style={{
               fontFamily: 'var(--font-heading)',
               fontSize: 'var(--text-heading)',
-              lineHeight: 1.25,
+              letterSpacing: 'var(--track-heading)',
+              lineHeight: 'var(--lead-heading)',
               marginTop: 6,
             }}
           >
@@ -127,7 +128,8 @@ export function FirstRunOverlay() {
           style={{
             fontFamily: 'var(--font-heading)',
             fontSize: 'var(--text-heading)',
-            lineHeight: 1.25,
+            letterSpacing: 'var(--track-heading)',
+            lineHeight: 'var(--lead-heading)',
             marginTop: 6,
             whiteSpace: 'normal',
           }}

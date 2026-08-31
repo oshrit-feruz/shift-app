@@ -163,7 +163,8 @@ export function OpenAccountScreen(_: ScreenProps) {
           style={{
             fontFamily: 'var(--font-heading)',
             fontSize: 'var(--text-heading)',
-            lineHeight: 1.25,
+            letterSpacing: 'var(--track-heading)',
+            lineHeight: 'var(--lead-heading)',
             marginTop: 5,
             whiteSpace: 'normal',
           }}

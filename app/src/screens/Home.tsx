@@ -467,7 +467,8 @@ function HeroPortfolio() {
                 style={{
                   fontFamily: 'var(--font-heading)',
                   fontSize: 'var(--text-hero)',
-                  lineHeight: 1.05,
+                  letterSpacing: 'var(--track-hero)',
+                  lineHeight: 'var(--lead-hero)',
                   fontWeight: 700,
                 }}
               >

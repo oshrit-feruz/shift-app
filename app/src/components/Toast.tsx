@@ -92,7 +92,12 @@ function ToastHost({ message, closing }: { message: string; closing: boolean }) 
         // so it should wait its turn rather than interrupt.
         role="status"
         aria-live="polite"
-        className={closing ? 'anim-fade-out' : 'anim-fade-up'}
+        // Rises from the bottom edge and leaves back through it, rather than
+        // fading in place: a thing that appears one way is expected to go the
+        // way it came, and this one lives at the bottom of the screen. Safe to
+        // transform where screens are not — a toast is a single solid pane
+        // with no glass descendant to detach (see base.css's Motion note).
+        className={closing ? 'anim-toast-out' : 'anim-toast-in'}
         style={{
           maxWidth: '100%',
           padding: '10px 15px',

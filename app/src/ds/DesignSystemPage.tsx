@@ -206,7 +206,11 @@ export function DesignSystemPage() {
                 '22 / 1.2 / −.01em',
                 <span
                   key="b"
-                  style={{ fontSize: 'var(--text-heading)', lineHeight: 1.2, letterSpacing: '-.01em' }}
+                  style={{
+                    fontSize: 'var(--text-heading)',
+                    letterSpacing: 'var(--track-heading)',
+                    lineHeight: 'var(--lead-heading)',
+                  }}
                 >
                   Watchlist
                 </span>,

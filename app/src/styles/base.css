@@ -398,6 +398,33 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
 .tap { transition: opacity .12s ease; }
 .tap:active { opacity: .6; }
 
+/* The toast: in and out through the bottom edge it lives against, rather
+ * than a fade in place. Enter and exit are the same path in reverse, which
+ * is the whole point — a thing that arrives one way is expected to leave the
+ * way it came. Exit is the shorter of the two, like every other exit here. */
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes toastOut {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(14px); }
+}
+.anim-toast-in { animation: toastIn var(--dur-nav) var(--ease-out) both; }
+.anim-toast-out { animation: toastOut var(--dur-exit) var(--ease-in) both; }
+
+/* Tab bar. Every other control in the app answers a press the instant it
+ * lands; the tabs were the one place that waited for the screen to change
+ * before showing anything, which on a slow route reads as a missed tap.
+ * Dimming rather than scaling: the tabs sit in a tight pill where a scale
+ * would visibly crowd its neighbours. */
+.tab-item {
+  transition:
+    color var(--dur-nav) ease,
+    opacity .12s ease;
+}
+.tab-btn:active .tab-item { opacity: .55; }
+
 /* One place decides that motion is unwelcome. Durations collapse rather than
  * animations being removed, so nothing depends on an animationend that would
  * then never fire. */

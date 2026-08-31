@@ -72,6 +72,8 @@ export function AppHeader({
                   background: 'var(--down)',
                   color: '#fff',
                   fontSize: 'var(--text-micro)',
+                  letterSpacing: 'var(--track-micro)',
+                  lineHeight: 'var(--lead-micro)',
                   display: 'grid',
                   placeItems: 'center',
                 }}
@@ -85,8 +87,8 @@ export function AppHeader({
           style={{
             fontFamily: 'var(--font-heading)',
             fontSize: 'var(--text-display)',
-            lineHeight: 1.2,
-            letterSpacing: '-.01em',
+            letterSpacing: 'var(--track-display)',
+            lineHeight: 'var(--lead-display)',
           }}
         >
           {title}

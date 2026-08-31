@@ -129,8 +129,12 @@ export function CalendarTab({ watchlist }: { watchlist: string[] }) {
                       className="text-muted"
                       style={{
                         fontSize: 'var(--text-micro)',
-                        textTransform: 'uppercase',
+                        // Well past --track-micro on purpose: uppercase set
+                        // this small needs the letters opened right up, and
+                        // the scale's default correction is not that.
                         letterSpacing: '.06em',
+                        lineHeight: 'var(--lead-micro)',
+                        textTransform: 'uppercase',
                       }}
                     >
                       {weekdayLabel(d, language)}
@@ -138,7 +142,14 @@ export function CalendarTab({ watchlist }: { watchlist: string[] }) {
                     <Num size={20} style={{ fontFamily: 'var(--font-heading)' }}>
                       {d.slice(8)}
                     </Num>
-                    <div className="text-muted" style={{ fontSize: 'var(--text-micro)' }}>
+                    <div
+                      className="text-muted"
+                      style={{
+                        fontSize: 'var(--text-micro)',
+                        letterSpacing: 'var(--track-micro)',
+                        lineHeight: 'var(--lead-micro)',
+                      }}
+                    >
                       <Num>{String(events.length)}</Num>
                     </div>
                   </button>

@@ -78,7 +78,8 @@ export function SignInScreen() {
               margin: 0,
               fontFamily: 'var(--font-heading)',
               fontSize: 'var(--text-display)',
-              lineHeight: 1.2,
+              letterSpacing: 'var(--track-display)',
+              lineHeight: 'var(--lead-display)',
             }}
           >
             {t('auth.title')}
