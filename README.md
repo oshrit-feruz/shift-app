@@ -481,8 +481,8 @@ Both were caught by looking at the rendered screen, not by a passing test.
 | Stock page · דוחות (filed revenue) | engine `/api/stock/{ticker}/fundamentals` | — |
 | Stock page · רבעונים שדווחו | `/api/earnings?ticker=&from=&to=` — 12 quarters | 1 Alpha Vantage call |
 | Satellite card | the daily mirror in this repo | none |
-| Every price on screen (`SymbolInfo.quote`) | the same daily mirror | none |
-| Stock page · chart, and the movers' sparklines | the daily price-history mirror in this repo | none |
+| Every price on screen (`SymbolInfo.quote`) | `/api/quote?symbols=` — live, batched per screen | 1 Finnhub call per symbol, shared for 20s |
+| Stock page · chart, and the movers' sparklines | `/api/candles?symbol=` — live, per ticker | 1 Finnhub call per ticker, cached an hour at the edge |
 
 The general feed is why the browsable news screen is cheap: EODHD's `s`
 parameter takes **one** symbol at a time and a per-ticker call costs double,
