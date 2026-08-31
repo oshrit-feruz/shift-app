@@ -163,6 +163,31 @@ describe('fetchQuotes', () => {
     }
   });
 
+  it('clearQuoteCache drops the shared batch response too, not just the tickers', async () => {
+    // The two halves of one answer: the per-ticker map here, and the batch
+    // payload shared through loadableCache. Clearing only the first left the
+    // next read free to replay the very quotes it was asked to forget.
+    const stub = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ quotes: { NVDA: WIRE } }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    );
+    vi.stubGlobal('fetch', stub as unknown as typeof fetch);
+    try {
+      const t0 = 3_000_000;
+      await fetchQuotes(['NVDA'], fetch, t0);
+      expect(stub).toHaveBeenCalledTimes(1);
+      // Well inside the TTL, so only a real clear can force the second read.
+      clearQuoteCache();
+      await fetchQuotes(['NVDA'], fetch, t0 + 1);
+      expect(stub).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('does not cache an absence the route reported as a failure', async () => {
     // Remembering "no price for AAPL" for the TTL when the truth was an
     // outage would leave a dash on screen long after the provider recovered.

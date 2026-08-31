@@ -32,7 +32,7 @@
  * useLoadable's `refreshMs`.
  */
 
-import { cachedLoadable } from './loadableCache';
+import { cachedLoadable, clearLoadableCachePrefix } from './loadableCache';
 import { reasonFromResponse } from './providerReason';
 import { ok, unavailable, type Loadable, type Quote } from './types';
 
@@ -87,9 +87,23 @@ interface CacheEntry {
 
 const cache = new Map<string, CacheEntry>();
 
-/** Drop every cached quote. For tests, and for the "refresh" action. */
+/**
+ * The key prefix every batch response is shared under. Owned here, because
+ * clearing a quote means clearing both halves of where it is kept.
+ */
+const BATCH_KEY_PREFIX = 'quotes:';
+
+/**
+ * Drop every cached quote.
+ *
+ * Both halves: the per-ticker map above, and the batch responses shared
+ * through loadableCache. Clearing only the first left the next read free to
+ * replay the same batch payload for the rest of its TTL — a "clear" that
+ * handed back exactly the quotes it was asked to forget.
+ */
 export function clearQuoteCache(): void {
   cache.clear();
+  clearLoadableCachePrefix(BATCH_KEY_PREFIX);
 }
 
 /** Normalise a caller's list: trimmed, upper-case, de-duplicated, in order. */
@@ -285,7 +299,9 @@ export async function fetchQuotes(
       useCache
         ? // Concurrent screens asking for the same list share one request:
           // Home and the movers table mount together and want the same rows.
-          cachedLoadable(`quotes:${batch.join(',')}`, QUOTE_TTL_MS, () => readBatch(batch, fetchImpl))
+          cachedLoadable(`${BATCH_KEY_PREFIX}${batch.join(',')}`, QUOTE_TTL_MS, () =>
+            readBatch(batch, fetchImpl),
+          )
         : readBatch(batch, fetchImpl),
     ),
   );

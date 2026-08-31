@@ -24,7 +24,8 @@ import { loading, type Loadable } from './types';
  *    of real prices with an error because one poll timed out. The first read
  *    still reports its failure honestly — that is the state the reader needs
  *    to see, and there is nothing behind it to keep.
- *  - It STOPS while the tab is hidden, and reads once on return. Polling a
+ *  - It does not run while the tab is hidden — it never starts there either,
+ *    not just stops on the way — and reads once on return. Polling a
  *    backgrounded tab spends the provider's quota on numbers nobody is
  *    looking at, and coming back to a minute-old price is the thing the
  *    interval exists to prevent.
@@ -66,19 +67,32 @@ export function useLoadable<T>(
         if (alive && r.status === 'ok') setState(r);
       });
     };
-    let timer = window.setInterval(refresh, refreshMs);
+    // Not started at all while the document is hidden. Mounting in a
+    // background tab used to arm the interval anyway, and it then polled
+    // until the first visibility change — spending the provider's quota on
+    // numbers nobody could see, which is the opposite of what the pause
+    // below is for.
+    let timer: number | undefined;
+    const start = () => {
+      timer = window.setInterval(refresh, refreshMs);
+    };
+    const stop = () => {
+      if (timer !== undefined) window.clearInterval(timer);
+      timer = undefined;
+    };
+    if (document.visibilityState !== 'hidden') start();
     const onVisibility = () => {
-      window.clearInterval(timer);
+      stop();
       if (document.visibilityState === 'hidden') return;
       // Back on screen: read immediately, because whatever is showing was
       // last true when the tab was hidden, then resume the cadence.
       refresh();
-      timer = window.setInterval(refresh, refreshMs);
+      start();
     };
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
       alive = false;
-      window.clearInterval(timer);
+      stop();
       document.removeEventListener('visibilitychange', onVisibility);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

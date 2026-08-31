@@ -48,12 +48,21 @@ describe('mapQuote', () => {
     expect(mapQuote({ ...body, dp: 0 })?.changePct).toBeCloseTo(3.4483, 4);
   });
 
-  it('calls the change 0% when there is no previous close to measure from', () => {
-    // An IPO's first session. Zero is the only claim true of it; a division
-    // by zero would be Infinity, which renders as a number.
-    const q = mapQuote({ ...body, pc: 0 });
-    expect(q?.changePct).toBe(0);
-    expect(Number.isFinite(q!.change)).toBe(true);
+  it('refuses a quote with no usable previous close', () => {
+    // A day change has to be measured from somewhere. With `pc` at zero the
+    // currency change is the whole price and the percentage is 0.00%, so the
+    // row would publish "+$150.00" and "0.00%" together — a contradiction,
+    // not a smaller truth. A Quote is whole or absent.
+    expect(mapQuote({ ...body, pc: 0 })).toBeNull();
+    expect(mapQuote({ ...body, pc: -1 })).toBeNull();
+  });
+
+  it('refuses a timestamp outside the range a Date can hold', () => {
+    // `isNum` accepts any finite number, and toISOString() throws a
+    // RangeError on an Invalid Date — from inside a mapper documented never
+    // to throw. That reached the caller as a platform 500 instead of this
+    // app's own JSON.
+    expect(mapQuote({ ...body, t: 8_640_000_000_001 })).toBeNull();
   });
 
   it('falls back to the last price for a session high, low or open of zero', () => {
@@ -112,6 +121,11 @@ describe('mapCandles', () => {
     expect(mapCandles({ ...ok, c: [11, null] })).toBeNull();
     expect(mapCandles({ ...ok, h: [12, 1] })).toBeNull(); // high below low
     expect(mapCandles({ ...ok, t: [1_756_600_000, 0] })).toBeNull();
+  });
+
+  it('refuses a series carrying a timestamp outside the Date range', () => {
+    // Same trap as the quote's, on the path that formats a session date.
+    expect(mapCandles({ ...ok, t: [1_756_600_000, 8_640_000_000_001] })).toBeNull();
   });
 
   it('refuses a body that is not a candle response', () => {

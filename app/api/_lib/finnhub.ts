@@ -59,6 +59,23 @@ const API_ROOT = 'https://finnhub.io/api/v1';
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
 /**
+ * The ISO instant for a UNIX-second stamp, or null when that is not a date.
+ *
+ * `isNum` accepts any finite number, and JavaScript's Date covers only ±8.64e15
+ * ms — so a stamp a few orders of magnitude too large builds an Invalid Date
+ * whose toISOString() throws a RangeError. Thrown from inside a mapper that is
+ * documented never to throw, that became a 500 from the platform instead of
+ * this app's own honest JSON: the quote route lost the whole batch, and the
+ * candle route never reached the `bad_response` it exists to send. Returning
+ * null keeps a nonsense timestamp on the same path as any other unreadable
+ * field.
+ */
+function isoFromUnixSeconds(seconds: number): string | null {
+  const date = new Date(seconds * 1000);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+/**
  * The quote URL for one symbol.
  *
  * The key travels as a query parameter because that is the form Finnhub's
@@ -110,19 +127,25 @@ export function mapQuote(body: unknown): QuoteRow | null {
   // The zero-quote trap: no timestamp, or a zero price, is Finnhub's way of
   // saying it has never seen this symbol.
   if (t <= 0 || c <= 0) return null;
+  // No usable previous close, no quote. A day change has to be measured from
+  // somewhere: with `pc` at zero the currency change comes out as the entire
+  // price and the percentage as 0.00%, which is not a smaller truth than a
+  // dash but a contradiction — "+$150.00" and "0.00%" printed side by side,
+  // both from the same row. A Quote is whole or absent (see data/types.ts),
+  // and this one cannot be whole.
+  if (pc <= 0) return null;
+  const asOf = isoFromUnixSeconds(t);
+  if (asOf === null) return null;
   const change = c - pc;
   return {
     price: c,
     change,
-    // A previous close of zero makes a percentage undefined, not infinite —
-    // an IPO's first session is the honest example. Zero change is the only
-    // claim that is true of it.
-    changePct: pc > 0 ? (change / pc) * 100 : 0,
+    changePct: (change / pc) * 100,
     prevClose: pc,
     dayHigh: isNum(h) && h > 0 ? h : c,
     dayLow: isNum(l) && l > 0 ? l : c,
     open: isNum(o) && o > 0 ? o : c,
-    asOf: new Date(t * 1000).toISOString(),
+    asOf,
   };
 }
 
@@ -158,10 +181,12 @@ export function mapCandles(body: unknown): CandleRow[] | null {
   for (let i = 0; i < n; i++) {
     const ts = t[i];
     if (!isNum(ts) || ts <= 0) return null;
+    const iso = isoFromUnixSeconds(ts);
+    if (iso === null) return null;
     if (!isNum(o[i]) || !isNum(h[i]) || !isNum(l[i]) || !isNum(c[i]) || !isNum(v[i])) return null;
     if (h[i] < l[i]) return null;
     rows.push({
-      d: new Date(ts * 1000).toISOString().slice(0, 10),
+      d: iso.slice(0, 10),
       o: o[i],
       h: h[i],
       l: l[i],
