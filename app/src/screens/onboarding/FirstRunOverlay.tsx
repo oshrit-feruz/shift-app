@@ -78,7 +78,7 @@ export function FirstRunOverlay() {
               marginTop: 6,
             }}
           >
-            בחרי שפה · Choose your language
+            בחירת שפה · Choose your language
           </div>
         </div>
         {(

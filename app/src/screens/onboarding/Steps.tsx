@@ -18,20 +18,20 @@ const STEPS: Step[] = [
   {
     key: 'view',
     target: 'more',
-    title: { en: 'Choose how much detail you see', he: 'לבחור כמה פירוט את רואה' },
+    title: { en: 'Choose how much detail you see', he: 'לבחור כמה פירוט מוצג' },
     how: {
       en: 'You are in Beginner mode: plain language, one idea per card. Settings switches to Advanced whenever you are curious.',
-      he: 'את במצב מתחילים: שפה פשוטה, רעיון אחד לכל כרטיס. בהגדרות עוברים למקצועי מתי שתרצי.',
+      he: 'המצב הנוכחי הוא מתחילים: שפה פשוטה, רעיון אחד לכל כרטיס. בהגדרות עוברים למקצועי מתי שרוצים.',
     },
     cta: { en: 'Compare the two modes', he: 'להשוות בין שני המצבים' },
   },
   {
     key: 'watch',
     target: 'watch',
-    title: { en: 'Follow three companies you know', he: 'לעקוב אחרי שלוש חברות שאת מכירה' },
+    title: { en: 'Follow three companies you know', he: 'לעקוב אחרי שלוש חברות מוכרות' },
     how: {
       en: 'Pick businesses you already use — your phone, your bank, the shop you buy from. Watching them costs nothing and teaches you how prices behave.',
-      he: 'תבחרי עסקים שאת כבר משתמשת בהם — הטלפון, הבנק, החנות. מעקב לא עולה כלום ומלמד איך מחירים מתנהגים.',
+      he: 'כדאי לבחור עסקים שכבר משתמשים בהם — הטלפון, הבנק, החנות. מעקב לא עולה כלום ומלמד איך מחירים מתנהגים.',
     },
     cta: { en: 'Open the watchlist', he: 'לפתוח את הווטצ׳ליסט' },
   },
@@ -41,7 +41,7 @@ const STEPS: Step[] = [
     title: { en: 'Read why one of them moved', he: 'לקרוא למה אחת מהן זזה' },
     how: {
       en: 'Open a company and read the two or three headlines under the chart. Soon you will spot which news matters and which is noise.',
-      he: 'תפתחי חברה ותקראי את שתי-שלוש הכותרות מתחת לגרף. עוד מעט תזהי מה חשוב ומה רעש.',
+      he: 'אפשר לפתוח חברה ולקרוא את שתי-שלוש הכותרות מתחת לגרף. עוד מעט קל יהיה לזהות מה חשוב ומה רעש.',
     },
     cta: { en: 'Open the news feed', he: 'לפתוח את החדשות' },
   },
@@ -61,7 +61,7 @@ const STEPS: Step[] = [
     title: { en: 'Set one alert', he: 'להגדיר התראה אחת' },
     how: {
       en: 'Choose a price worth knowing about, or ask to be told when the company reports. Then you can close the app instead of checking it.',
-      he: 'בחרי מחיר ששווה לדעת עליו, או בקשי לדעת כשהחברה מפרסמת דוחות. אחר כך אפשר לסגור את האפליקציה.',
+      he: 'אפשר לבחור מחיר ששווה לדעת עליו, או לבקש לדעת כשהחברה מפרסמת דוחות. אחר כך אפשר לסגור את האפליקציה.',
     },
     cta: { en: 'Create an alert', he: 'ליצור התראה' },
   },
@@ -74,7 +74,7 @@ const STEPS: Step[] = [
     // and copy promising one that does not exist yet reads as a broken app.
     how: {
       en: 'A theoretical portfolio records the trades you would have made. Give it a few weeks and see how it did before anything is real.',
-      he: 'תיק תיאורטי רושם את העסקאות שהיית עושה. תני לזה כמה שבועות ותראי מה יצא, לפני שמשהו אמיתי.',
+      he: 'תיק תיאורטי רושם את העסקאות שהיו נעשות. כדאי לתת לזה כמה שבועות ולראות מה יצא, לפני שמשהו אמיתי.',
     },
     cta: { en: 'Open a theoretical portfolio', he: 'לפתוח תיק תיאורטי' },
   },
@@ -94,7 +94,7 @@ const STEPS: Step[] = [
     title: { en: 'Then link it here, read-only', he: 'ואז לחבר אותו כאן, לקריאה בלבד' },
     how: {
       en: 'Linking imports what you already hold so everything sits in one picture. SHIFT can see positions and nothing else — it can never place an order.',
-      he: 'החיבור מייבא את מה שאת כבר מחזיקה כדי שהכול יהיה בתמונה אחת. SHIFT רואה פוזיציות ולא יותר — הוא לא יכול לבצע פקודות.',
+      he: 'החיבור מייבא את מה שכבר מוחזק כדי שהכול יהיה בתמונה אחת. SHIFT רואה פוזיציות ולא יותר — הוא לא יכול לבצע פקודות.',
     },
     cta: { en: 'See broker connections', he: 'לראות חיבורי ברוקר' },
   },
