@@ -375,7 +375,12 @@ function HeroPortfolio() {
             );
           }
           return (
-            <Card padding={15} gap={0}>
+            // The hero is the portfolio, so tapping it opens the portfolio.
+            // It read as a headline rather than as a way in: the only route
+            // to the tab was the bottom bar, and the one card on the home
+            // screen actually showing the user's money did nothing when
+            // pressed.
+            <Card padding={15} gap={0} onClick={() => dispatch({ type: 'go', screen: 'pf' })}>
               <div style={{ fontSize: 'var(--text-title)', opacity: 0.75, fontWeight: 600 }}>
                 {t('home.pfToday')}
               </div>

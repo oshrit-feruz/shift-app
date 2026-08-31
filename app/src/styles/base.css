@@ -568,12 +568,13 @@ button.band:active { background-color: color-mix(in srgb, var(--color-accent) 8%
 }
 
 /* ── Motion ────────────────────────────────────────────────────────────── */
-/* Opacity-only: every screen's .anim-fade-up wrapper is an ancestor of glass
- * .card elements. Animating `transform` here (the original translateY) gives
- * the ancestor a transform for the animation's duration, which makes it a
- * containing block — in Chromium that detaches descendant backdrop-filter
- * blur from the real page background for the fade's duration, so cards flash
- * opaque on every screen transition instead of reading as glass immediately. */
+/* Opacity-only, and used only by things that contain no glass — see .row-in
+ * below. A screen wrapper must never take this: every screen's .anim-fade-up
+ * is an ancestor of glass .card elements, and an ancestor at opacity < 1 is a
+ * backdrop root, which detaches its descendants' backdrop-filter blur from
+ * the real page background for the fade's duration — cards flash opaque on
+ * every screen transition instead of reading as glass immediately. That is
+ * why .anim-fade-up itself animates nothing and only selects the cards. */
 @keyframes fadeUp {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -622,6 +623,29 @@ button.band:active { background-color: color-mix(in srgb, var(--color-accent) 8%
 .anim-fade-up .card:nth-child(n + 5),
 .anim-tab-in .card:nth-child(n + 5) { animation-delay: 140ms; }
 
+/* Rows arriving inside a card that is already on screen. A skeleton row and
+ * the real row that replaces it are different elements, so React unmounts one
+ * and mounts the other rather than patching in place — without this the swap
+ * is a hard cut from grey bars to ticker data, with no transition to hook
+ * into. A row that survives a re-render (a price ticking, same key, same
+ * element) keeps its DOM node, so this only fires on the swap.
+ *
+ * Shorter than the card entrance, and no travel: the containing card is
+ * already in place, so this has a cut to cover rather than an entrance to
+ * stage — and twenty rows each rising 8px is a wave, not a settle.
+ *
+ * `backwards`, not `both`. A filling animation keeps its final value at a
+ * higher precedence than the cascade for as long as the element lives, so
+ * `both` would hold these rows at opacity 1 and .tap:active's dim below
+ * would never take effect — the press feedback and this entrance are on the
+ * same element and the same property.
+ *
+ * Opacity is safe here where it is not on a screen wrapper: a row sits inside
+ * a glass card, it does not contain one (see the Motion note above). */
+.row-in {
+  animation: fadeUp var(--dur-tab) var(--ease-out) backwards;
+}
+
 /* Exit, paired with useDismissAnimation's --dur-exit default (read from this
  * same token, not a duplicated number): shorter than the entrance so a close
  * never feels like it lags the tap. Overlays are usually a single pane with
@@ -653,6 +677,14 @@ button.band:active { background-color: color-mix(in srgb, var(--color-accent) 8%
 }
 .tap { transition: opacity .12s ease; }
 .tap:active { opacity: .6; }
+/* A Card with an onClick renders as a <button>, and until now was the one
+ * raised control in the app that answered a press with nothing: the rule
+ * above lists it, but nothing ever set the attribute, so the selector matched
+ * no element in the app and there was no :active state for it to transition
+ * to either. Same language as every other raised control here — the
+ * elevation collapses, so the card reads as pushed rather than tinted.
+ * Specificity (0,3,0) carries this past .elev-sm's own box-shadow. */
+.card[data-clickable='true']:active { box-shadow: var(--shadow-sm-active); }
 
 /* The toast: in and out through the bottom edge it lives against, rather
  * than a fade in place. Enter and exit are the same path in reverse, which
@@ -668,6 +700,30 @@ button.band:active { background-color: color-mix(in srgb, var(--color-accent) 8%
 }
 .anim-toast-in { animation: toastIn var(--dur-nav) var(--ease-out) both; }
 .anim-toast-out { animation: toastOut var(--dur-exit) var(--ease-in) both; }
+
+/* The advisory chat. A conversation is the one place in the app where a thing
+ * arriving is the whole point — the risk questionnaire is a chat because an
+ * exchange is easier to answer than a form, and an exchange whose turns
+ * teleport is a form again. Rare enough to afford the card duration: four
+ * questions, once, at the very start.
+ *
+ * The delay is only on the question that follows an answer, and it is the
+ * app's own stagger cap rather than a new number. It buys the beat that makes
+ * this read as a reply — the answer lands first, then the next question comes
+ * back — instead of both turns appearing together, which is what a form does.
+ *
+ * `backwards`, not `both`, for the same reason .row-in takes it: a filling
+ * animation outranks the cascade for the element's whole life, and these
+ * bubbles are re-rendered on every subsequent answer.
+ *
+ * Safe to transform: a bubble is a solid pane with no glass inside it. */
+@keyframes bubbleIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.chat-bubble {
+  animation: bubbleIn var(--dur-card) var(--ease-out) backwards;
+}
 
 /* Tab bar. Every other control in the app answers a press the instant it
  * lands; the tabs were the one place that waited for the screen to change
@@ -694,6 +750,35 @@ button.band:active { background-color: color-mix(in srgb, var(--color-accent) 8%
   transition:
     flex-grow var(--dur-nav) var(--ease-out),
     background-color var(--dur-nav) ease;
+}
+
+/* Ticking a step off the first-run checklist. This is the one moment in the
+ * app that is rare, deliberate and worth celebrating slightly — a checklist
+ * exists to be completed — so it is where the small pop is spent, and it is
+ * the only place in the app that has one.
+ *
+ * The mark's own fill, border and glyph colour cross-fade at the shared nav
+ * duration; the glyph itself is a different character before and after, which
+ * no transition can bridge, so it is remounted on the change and animates in.
+ * From .6, never from 0: a mark that grows out of nothing reads as a bug,
+ * where one that arrives slightly small reads as landing. */
+.step-mark {
+  transition:
+    background-color var(--dur-nav) ease,
+    border-color var(--dur-nav) ease,
+    color var(--dur-nav) ease;
+}
+@keyframes tickIn {
+  from { opacity: 0; transform: scale(.6); }
+  to { opacity: 1; transform: none; }
+}
+.step-tick {
+  animation: tickIn 160ms var(--ease-out) backwards;
+}
+/* Struck through and dimmed together. text-decoration cannot be transitioned,
+ * so the dim carries the change and the strike lands with it. */
+.step-title {
+  transition: opacity var(--dur-nav) ease;
 }
 
 

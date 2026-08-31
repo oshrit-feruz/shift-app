@@ -112,7 +112,7 @@ const NO_FILINGS = {
 
 const COULD_NOT_REACH = {
   en: 'Could not reach the reports service. It may still be waking up — try again in a moment.',
-  he: 'לא הצלחנו להגיע לשירות הדוחות. ייתכן שהוא עדיין מתעורר — נסי שוב בעוד רגע.',
+  he: 'לא הצלחנו להגיע לשירות הדוחות. ייתכן שהוא עדיין מתעורר — אפשר לנסות שוב בעוד רגע.',
 };
 
 /**

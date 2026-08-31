@@ -46,10 +46,10 @@ export const STRINGS = {
   'kicker.connections': p('Bank, pension, broker', 'בנק, פנסיה, ברוקר'),
   'title.more': p('Settings', 'הגדרות'),
   'kicker.more': p('More', 'עוד'),
-  'title.advChat': p('Get a recommendation', 'קבלי המלצה'),
+  'title.advChat': p('Get a recommendation', 'לקבל המלצה'),
   'kicker.advChat': p('Four questions', 'ארבע שאלות'),
   'title.advDisc': p('Disclosure', 'גילוי נאות'),
-  'kicker.advDisc': p('Recommendation', 'קבלי המלצה'),
+  'kicker.advDisc': p('Recommendation', 'לקבל המלצה'),
   'title.advDash': p('Your recommendation', 'ההמלצה שלך'),
   'kicker.advDash': p('Updated daily', 'מתעדכן כל יום'),
   'title.advConnect': p('Broker & accounts', 'ברוקר וחיבור חשבונות'),
@@ -72,12 +72,12 @@ export const STRINGS = {
   'home.noPfTitle': p('No portfolio yet', 'עדיין אין תיק'),
   'home.noPfHelp': p(
     'Connect a broker or open a new account to see your holdings here.',
-    'חברי ברוקר או פתחי חשבון חדש כדי לראות כאן את ההחזקות שלך.',
+    'אפשר לחבר ברוקר או לפתוח חשבון חדש כדי לראות כאן את ההחזקות שלך.',
   ),
   'home.trackSelf': p('Do it yourself', 'לבד, בקצב שלי'),
   'home.trackSelfSub': p('Browse, pick your own, log your own trades.', 'לחקור, לבחור בעצמך, לרשום עסקאות.'),
-  'home.trackHere': p('You are here', 'את כאן'),
-  'home.trackAdvisor': p('Get a recommendation', 'קבלי המלצה'),
+  'home.trackHere': p('You are here', 'המסלול הנוכחי'),
+  'home.trackAdvisor': p('Get a recommendation', 'לקבל המלצה'),
   'home.trackAdvisorSub': p('Four questions, then a suggested portfolio.', 'ארבע שאלות, ואז הצעה לתיק.'),
   /* The home band's own copy — the recommendation track's place on the home
    * screen, before the flow has been run and after it has. */
@@ -95,10 +95,10 @@ export const STRINGS = {
    * daily check found — the list is the same for everyone, and what a profile
    * decides is how much of a portfolio, if any, goes behind it. */
   'home.radarYours': p('Stock Radar · {n} passed today', 'ראדר מניות · {n} עברו היום'),
-  'home.startHere': p('New to investing? Start here', 'חדשה בהשקעות? מתחילים כאן'),
+  'home.startHere': p('New to investing? Start here', 'בלי ניסיון בהשקעות? מתחילים כאן'),
   'home.startHereSub': p('A short guide, then the steps', 'מדריך קצר, ואחריו הצעדים'),
   'home.watchlist': p('Watchlist', 'ווטצ׳ליסט'),
-  'home.watchlistEmpty': p('You are not following any stocks yet', 'עדיין לא עוקבת אחרי אף מניה'),
+  'home.watchlistEmpty': p('You are not following any stocks yet', 'עדיין אין מניות במעקב'),
   'home.watchlistAdd': p('Add your first stock', 'להוסיף מניה ראשונה'),
   'home.seeAll': p('See all', 'לראות הכול'),
   'home.moversBeg': p("What's moving today", 'מה זז היום'),
@@ -118,7 +118,7 @@ export const STRINGS = {
   'home.allEarnings': p('All earnings', 'כל הדוחות'),
 
   // ── Setup banner / resume ─────────────────────────────────────────────
-  'setup.banner': p('Complete your setup', 'השלימי את ההגדרה'),
+  'setup.banner': p('Complete your setup', 'להשלים את ההגדרה'),
   'setup.resume': p('Continue', 'להמשיך'),
   'setup.section': p('Setup', 'הגדרה ראשונית'),
   'setup.stepOf': p('Step {n} of 5', 'שלב {n} מתוך 5'),
@@ -135,14 +135,14 @@ export const STRINGS = {
     'Four questions about horizon, risk, goal and your safety net. The answers map to one of three fixed profiles — the same answers always give the same profile.',
     'ארבע שאלות על אופק, סיכון, מטרה וכרית הביטחון. התשובות ממופות לאחד משלושה פרופילים קבועים — אותן תשובות תמיד יתנו את אותו פרופיל.',
   ),
-  'adv.pickOne': p('Pick one', 'בחרי אחת'),
+  'adv.pickOne': p('Pick one', 'לבחור אחת'),
   'adv.yourProfile': p('Your profile', 'הפרופיל שלך'),
-  'adv.confirmProfile': p('Confirm profile', 'אשר פרופיל'),
+  'adv.confirmProfile': p('Confirm profile', 'לאשר פרופיל'),
   'adv.restart': p('Start over', 'להתחיל מחדש'),
   'adv.redoChat': p('Redo the questions', 'לענות מחדש'),
   'adv.back': p('Back', 'חזרה'),
   'adv.later': p('Continue later', 'אמשיך אחר כך'),
-  'adv.skipStep': p('Skip this step', 'דלגי על השלב הזה'),
+  'adv.skipStep': p('Skip this step', 'לדלג על השלב הזה'),
   'adv.stepPrev': p('Back', 'הקודם'),
   'adv.stepNext': p('Next', 'הבא'),
   'adv.fromLibrary': p('From the library', 'מהספרייה'),
@@ -150,17 +150,17 @@ export const STRINGS = {
   'adv.eduChatTitle': p('An ETF buys the whole basket', 'קרן סל קונה את כל הסל'),
   'adv.eduChatBody': p(
     'One thing you buy that holds hundreds of companies at once — which is why the Core below is built from ETF categories, not single stocks.',
-    'דבר אחד שקונים והוא מחזיק מאות חברות בבת אחת — ולכן הליבה שתראי בהמשך בנויה מקטגוריות של קרנות סל, לא ממניות בודדות.',
+    'דבר אחד שקונים והוא מחזיק מאות חברות בבת אחת — ולכן הליבה שמוצגת בהמשך בנויה מקטגוריות של קרנות סל, לא ממניות בודדות.',
   ),
 
   'adv.q1': p('How long can this money stay invested?', 'לכמה זמן הכסף הזה יכול להישאר מושקע?'),
   'adv.q1a1': p('Under 2 years', 'פחות משנתיים'),
   'adv.q1a2': p('Two to seven years', 'שנתיים עד 7 שנים'),
   'adv.q1a3': p('More than seven years', 'יותר מ-7 שנים'),
-  'adv.q2': p('The market drops 20% in a month. What do you do?', 'השוק יורד 20% בחודש. מה את עושה?'),
-  'adv.q2a1': p('I would sell — a 10% drop already worries me', 'הייתי מוכרת — גם ירידה של 10% מלחיצה אותי'),
-  'adv.q2a2': p('I would hold and stop looking', 'הייתי מחזיקה ומפסיקה להסתכל'),
-  'adv.q2a3': p('I would buy more', 'הייתי קונה עוד'),
+  'adv.q2': p('The market drops 20% in a month. What do you do?', 'השוק יורד 20% בחודש. מה עושים?'),
+  'adv.q2a1': p('I would sell — a 10% drop already worries me', 'למכור — גם ירידה של 10% מלחיצה אותי'),
+  'adv.q2a2': p('I would hold and stop looking', 'להחזיק ולהפסיק להסתכל'),
+  'adv.q2a3': p('I would buy more', 'לקנות עוד'),
   'adv.q3': p('What is this money for?', 'למה הכסף הזה מיועד?'),
   'adv.q3a1': p('Keeping what I have', 'לשמור על מה שיש'),
   'adv.q3a2': p('Growing at the pace of the market', 'לצמוח בקצב השוק'),
@@ -297,7 +297,9 @@ export const STRINGS = {
     'מוצג למידע בלבד: הפרופיל שלך לא מחזיק מניות בודדות, ולכן שום דבר מכאן אינו חלק מההמלצה שלך.',
   ),
   'rec.noPositions': p('No stock passed every check today', 'אף מניה לא עברה היום את כל הבדיקות'),
-  'rec.ifInvested': p('If you invested', 'אם היית משקיעה'),
+  /* Gender-neutral, like the rest of the Hebrew since #39: the screen states
+   * a sum rather than addressing the reader as one gender. */
+  'rec.ifInvested': p('If you invested', 'בהשקעה של'),
   'rec.illustration': p(
     'An illustration of the split only — arithmetic on the allocation, not a forecast of any result.',
     'המחשה של החלוקה בלבד — חישוב על ההקצאה, לא תחזית לתוצאה כלשהי.',
@@ -336,11 +338,11 @@ export const STRINGS = {
   ),
   'conn.openAt': p('Open an account at {broker}', 'לפתיחת חשבון ב-{broker}'),
   'conn.existing': p('Accounts you already have', 'חשבונות שכבר יש לך'),
-  'conn.choose': p('Choose who to connect', 'בחרי את מי לחבר'),
+  'conn.choose': p('Choose who to connect', 'לבחור את מי לחבר'),
   'conn.connected': p('✓ Connected', '✓ מחובר'),
   'conn.connect': p('Connect', 'לחבר'),
   'conn.close': p('Close', 'סגירה'),
-  'conn.continue': p('Continue', 'המשך'),
+  'conn.continue': p('Continue', 'להמשיך'),
   'conn.done': p('Done', 'סיימתי'),
   'conn.broker': p('Broker', 'ברוקר'),
   'conn.bank': p('Bank account', 'חשבון בנק'),
@@ -351,7 +353,7 @@ export const STRINGS = {
   'buy.title': p('Your first purchase — a simulation', 'הקנייה הראשונה — סימולציה'),
   'buy.help': p(
     'This is what the recommendation looks like as an order list. Nothing is bought here — when you are ready, it happens at your broker.',
-    'כך ההמלצה נראית כרשימת קנייה. שום דבר לא נקנה כאן — כשתהיי מוכנה, זה קורה אצל הברוקר שלך.',
+    'כך ההמלצה נראית כרשימת קנייה. שום דבר לא נקנה כאן — כשמגיע הרגע, זה קורה אצל הברוקר שלך.',
   ),
   'buy.connectFirst': p('Connect a broker', 'לחבר ברוקר'),
   'buy.connectFirstHelp': p(
@@ -366,7 +368,7 @@ export const STRINGS = {
   ),
   'buy.handoffNote': p(
     'Shift places no orders. These buttons open your broker, where you decide and execute yourself.',
-    'Shift לא שולח פקודות. הכפתורים פותחים את הברוקר שלך, ושם את מחליטה ומבצעת בעצמך.',
+    'Shift לא שולח פקודות. הכפתורים פותחים את הברוקר שלך, ושם ההחלטה והביצוע הם שלך.',
   ),
   'buy.noDeepLink': p(
     'A direct per-stock link is not set up yet, so the broker opens on its home page with the ticker copied.',
@@ -435,7 +437,7 @@ export const STRINGS = {
   'news.feedEmpty': p('No market news right now.', 'אין חדשות שוק כרגע.'),
   'news.watchlistEmpty': p(
     'No recent news for the stocks you follow.',
-    'אין חדשות אחרונות על המניות שאת עוקבת אחריהן.',
+    'אין חדשות אחרונות על המניות שבמעקב.',
   ),
   'news.watchlistNone': p(
     'Your watchlist is empty, so there is nothing to pull news for.',
@@ -521,14 +523,14 @@ export const STRINGS = {
   'pf.byAccount': p('By account', 'לפי חשבון'),
   'pf.aggPickHelp': p(
     'Tap an account to include or exclude it from the total.',
-    'לחצי על חשבון כדי לכלול או להוציא אותו מהסך הכולל.',
+    'אפשר להקיש על חשבון כדי לכלול או להוציא אותו מהסך הכולל.',
   ),
   'pf.excluded': p('excluded', 'לא נכלל'),
   'pf.allAccounts': p('All accounts', 'כל החשבונות'),
   'pf.allLinked': p('All linked accounts', 'כל החשבונות המחוברים'),
   // Names no account: which portfolios exist is now up to the user, so a
   // sentence naming one of them goes stale the moment they rename or add.
-  'pf.aggDetail': p('Pick below which accounts are included', 'בחרי למטה אילו חשבונות נכללים'),
+  'pf.aggDetail': p('Pick below which accounts are included', 'לבחור למטה אילו חשבונות נכללים'),
   'pf.synced': p('Synced {when} · read-only', 'סונכרן {when} · לקריאה בלבד'),
   /**
    * Why a portfolio total reads "—". Named holdings, not a count alone: a
@@ -542,7 +544,7 @@ export const STRINGS = {
   'pf.closed': p('Closed positions', 'פוזיציות שנסגרו'),
   'pf.soldOut': p('sold out', 'נמכרה במלואה'),
   // Used for any manual portfolio, not only Sandbox.
-  'pf.manualDetail': p('No broker — you record the transactions', 'בלי ברוקר — את רושמת את העסקאות'),
+  'pf.manualDetail': p('No broker — you record the transactions', 'בלי ברוקר — העסקאות נרשמות ידנית'),
   'pf.manage': p('Manage', 'לנהל'),
   'pf.delete': p('Delete', 'למחוק'),
   'pf.deleted': p('{name} deleted', '{name} נמחק'),
@@ -555,7 +557,7 @@ export const STRINGS = {
   'pf.readOnly': p('Read-only', 'קריאה בלבד'),
   'pf.longTermEmpty': p(
     'Pension, Keren Hishtalmut and bank balances show up here once you connect them.',
-    'קרן הפנסיה, קרן ההשתלמות והבנק יופיעו כאן ברגע שתחברי אותם.',
+    'קרן הפנסיה, קרן ההשתלמות והבנק יופיעו כאן ברגע שיחוברו.',
   ),
   'pf.longTermCta': p('Connect an institution', 'לחיבור מוסד'),
   'pf.newPf': p('New portfolio', 'תיק חדש'),
@@ -592,7 +594,7 @@ export const STRINGS = {
   'watch.noAlerts': p('No alerts yet', 'אין עדיין התראות'),
   'watch.noAlertsHelp': p(
     'An alert tells you when a stock you follow crosses a price, gets mentioned in the news, or reports.',
-    'התראה מודיעה לך כשמניה שאת עוקבת אחריה חוצה מחיר, מוזכרת בחדשות או מפרסמת דוח.',
+    'התראה מודיעה לך כשמניה שבמעקב חוצה מחיר, מוזכרת בחדשות או מפרסמת דוח.',
   ),
   'watch.symbolOnly': p('Symbol only', 'סימבול בלבד'),
   // A row names its one alert, or counts them when there are several, so a
@@ -651,8 +653,8 @@ export const STRINGS = {
     'Apply to all your positions. Leave blank to disable. Set thresholds higher than you think — "set and forget" works best.',
     'חלות על כל הפוזיציות שלך. אפשר להשאיר ריק כדי לכבות. עדיף לקבוע רף גבוה ממה שנדמה — "שגר ושכח" עובד הכי טוב.',
   ),
-  'thresh.up': p('Alert me if I rise above', 'התרע לי אם עליתי מעל'),
-  'thresh.down': p('Alert me if I fall below', 'התרע לי אם ירדתי מתחת ל'),
+  'thresh.up': p('Alert me if I rise above', 'להתריע אם עליתי מעל'),
+  'thresh.down': p('Alert me if I fall below', 'להתריע אם ירדתי מתחת ל'),
   'thresh.fired': p(
     '{ticker} crossed your {thresh} alert (currently {now} from entry)',
     '{ticker} חצתה את ההתראה שלך של {thresh} (כרגע {now} מנקודת הכניסה)',
@@ -661,7 +663,7 @@ export const STRINGS = {
     "This is an alert only — no action is needed or taken. The position continues per the strategy's fixed holding rule.",
     'זו התראה בלבד — לא נדרשת ולא מתבצעת שום פעולה. הפוזיציה ממשיכה לפי כלל ההחזקה הקבוע של האסטרטגיה.',
   ),
-  'thresh.markRead': p('Mark as read', 'סמן כנקרא'),
+  'thresh.markRead': p('Mark as read', 'לסמן כנקרא'),
 
   // ── Notifications ─────────────────────────────────────────────────────
   'notif.title': p('Notifications', 'התראות'),
@@ -689,7 +691,7 @@ export const STRINGS = {
   'search.noMatch': p('No match for', 'אין תוצאה עבור'),
   'search.noMatchHelp': p(
     'Try a ticker like NVDA, or a company name.',
-    'נסי סימבול כמו NVDA, או שם של חברה.',
+    'אפשר לנסות סימבול כמו NVDA, או שם של חברה.',
   ),
 
   // ── Movers ────────────────────────────────────────────────────────────
@@ -736,7 +738,7 @@ export const STRINGS = {
   'more.advanced': p('Advanced', 'מקצועי'),
   'more.begBlurb': p(
     'Plain language, one idea per card, the screener hidden until you want it.',
-    'שפה פשוטה, רעיון אחד לכל כרטיס, והסקרינר מוסתר עד שתרצי אותו.',
+    'שפה פשוטה, רעיון אחד לכל כרטיס, והסקרינר מוסתר עד שצריך אותו.',
   ),
   'more.advBlurb': p(
     'Every metric on screen, candlesticks with RSI and MACD, analyst ratings, full news feed.',
@@ -759,14 +761,14 @@ export const STRINGS = {
   'more.openHelp': p('What a broker asks, in five questions', 'מה ברוקר מבקש, בחמש שאלות'),
   'more.connections': p('Broker connections', 'חיבורי ברוקר'),
   'more.connectionsHelp': p('Three linked accounts, one theoretical', 'שלושה חשבונות מחוברים, אחד תיאורטי'),
-  'more.advChat': p('Get a recommendation', 'קבלי המלצה'),
+  'more.advChat': p('Get a recommendation', 'לקבל המלצה'),
   'more.advChatHelp': p('Four questions, then a suggested portfolio', 'ארבע שאלות, ואז הצעה לתיק'),
   'more.settings': p('Settings', 'הגדרות'),
   'more.settingsHelp': p('Notifications, data, account', 'התראות, נתונים, חשבון'),
   'more.screener': p('Screener', 'סקרינר'),
   'more.screenerHelp': p(
     "Filtering 6,412 symbols across twenty metrics needs a wide screen. Open SHIFT on desktop and it's in the sidebar.",
-    'סינון של 6,412 סימבולים לפי עשרים מדדים דורש מסך רחב. פתחי את SHIFT בדסקטופ והוא בסרגל הצד.',
+    'סינון של 6,412 סימבולים לפי עשרים מדדים דורש מסך רחב. אפשר לפתוח את SHIFT בדסקטופ והוא בסרגל הצד.',
   ),
 
   'set.modeRow': p('Detail level', 'רמת הפירוט'),
@@ -805,7 +807,7 @@ export const STRINGS = {
   // is not there to be described.
   'connScreen.theoHelp': p(
     'A theoretical portfolio has no broker behind it — you record its transactions yourself. Useful for testing an idea before it costs anything.',
-    'לתיק תיאורטי אין ברוקר מאחוריו — את רושמת בו את העסקאות בעצמך. שימושי לבדוק רעיון לפני שהוא עולה כסף.',
+    'לתיק תיאורטי אין ברוקר מאחוריו — רושמים בו את העסקאות ידנית. שימושי לבדוק רעיון לפני שהוא עולה כסף.',
   ),
   'connScreen.newTheo': p('New theoretical portfolio', 'תיק תיאורטי חדש'),
   'connScreen.freq': p('Frequency', 'תדירות'),
@@ -831,13 +833,16 @@ export const STRINGS = {
   // not — a reader who typed "brk b" needs to know about the dot.
   'tx.badTicker': p(
     'Enter a symbol like NVDA or BRK.B — letters, digits, dots and hyphens.',
-    'הזיני סימבול כמו NVDA או BRK.B — אותיות, ספרות, נקודות ומקפים.',
+    'צריך להזין סימבול כמו NVDA או BRK.B — אותיות, ספרות, נקודות ומקפים.',
   ),
-  'tx.badShares': p('Enter how many shares, as a number above zero.', 'הזיני כמה מניות, מספר גדול מאפס.'),
-  'tx.badPrice': p('Enter the price per share you paid.', 'הזיני את המחיר למניה ששילמת.'),
+  'tx.badShares': p(
+    'Enter how many shares, as a number above zero.',
+    'צריך להזין כמה מניות, מספר גדול מאפס.',
+  ),
+  'tx.badPrice': p('Enter the price per share you paid.', 'צריך להזין את המחיר למניה ששולם.'),
   'tx.badDate': p(
     'Pick a date — a trade cannot be in the future.',
-    'בחרי תאריך — עסקה לא יכולה להיות בעתיד.',
+    'צריך לבחור תאריך — עסקה לא יכולה להיות בעתיד.',
   ),
   // The number matters: "you cannot sell that many" leaves the reader
   // guessing how many they can.
@@ -852,7 +857,7 @@ export const STRINGS = {
 
   // ── Onboarding: first-run overlay ─────────────────────────────────────
   'firstRun.kicker': p('First run', 'הפעלה ראשונה'),
-  'firstRun.q': p('How much detail do you want on screen?', 'כמה מידע את רוצה לראות על המסך?'),
+  'firstRun.q': p('How much detail do you want on screen?', 'כמה מידע להציג על המסך?'),
   'firstRun.help': p(
     'You can switch in the header any time. Nothing you save depends on this.',
     'אפשר להחליף בכותרת בכל רגע. שום דבר שנשמר לא תלוי בזה.',
@@ -873,7 +878,7 @@ export const STRINGS = {
 
   'steps.progress': p('{done} of {total} done', '{done} מתוך {total} הושלמו'),
   'steps.now': p('Do this now', 'הצעד הבא'),
-  'steps.markDone': p('Mark as done', 'סמני כבוצע'),
+  'steps.markDone': p('Mark as done', 'לסמן כבוצע'),
   'steps.allDone': p('Every step done', 'כל הצעדים הושלמו'),
   'steps.allDoneBody': p(
     'From here it is watching, reading and waiting. The app will not ask anything else of you.',
@@ -884,9 +889,9 @@ export const STRINGS = {
   'learn.sub': p('Always here — every card stands alone', 'תמיד כאן — כל כרטיס עומד בפני עצמו'),
   'learn.openAccount': p('How do I actually open an account?', 'איך בעצם פותחים חשבון?'),
   'learn.next': p('Next', 'הבא'),
-  'learn.showMe': p('Show me what to do', 'תראי לי מה לעשות'),
+  'learn.showMe': p('Show me what to do', 'להראות לי מה לעשות'),
   'open.backToGuide': p('Back to the guide', 'חזרה למדריך'),
-  'open.ready': p('I am ready to do this for real', 'אני מוכנה לעשות את זה באמת'),
+  'open.ready': p('I am ready to do this for real', 'אני רוצה לעשות את זה באמת'),
   'open.docsReady': p('{n} of 4 ready', '{n} מתוך 4 מוכנים'),
   'open.toStart': p('to start', 'להתחלה'),
   'open.smallFine': p('small is fine', 'גם קטן זה בסדר'),
@@ -904,13 +909,13 @@ export const STRINGS = {
 
   // ── Auth ──────────────────────────────────────────────────────────────
   'auth.kicker': p('Sign in', 'התחברות'),
-  'auth.title': p('Welcome to Shift', 'ברוכים הבאים ל-Shift'),
+  'auth.title': p('Welcome to Shift', 'שמחים שהגעת ל-Shift'),
   'auth.sub': p(
     'Sign in to keep your progress and settings on every device.',
     'התחברות שומרת את ההתקדמות וההגדרות שלך בכל מכשיר.',
   ),
-  'auth.google': p('Continue with Google', 'המשך עם Google'),
-  'auth.apple': p('Continue with Apple', 'המשך עם Apple'),
+  'auth.google': p('Continue with Google', 'להמשיך עם Google'),
+  'auth.apple': p('Continue with Apple', 'להמשיך עם Apple'),
   'auth.appleSoon': p(
     'Apple sign-in isn’t available yet — coming soon.',
     'התחברות עם Apple עדיין לא זמינה — בקרוב.',
@@ -958,11 +963,11 @@ export const STRINGS = {
   'live.badge': p('Real data', 'נתונים אמיתיים'),
   'live.intro': p(
     "One real brokerage account, read live and read-only through SnapTrade. This is a founder demo on SnapTrade's free Personal tier — a single account, not account linking for users.",
-    'חשבון ברוקר אמיתי אחד, נקרא בזמן אמת ובקריאה בלבד דרך SnapTrade. זו הדגמה של המייסדת בשכבת Personal החינמית של SnapTrade — חשבון בודד, לא חיבור חשבונות למשתמשות.',
+    'חשבון ברוקר אמיתי אחד, נקרא בזמן אמת ובקריאה בלבד דרך SnapTrade. זו הדגמה של המייסדת בשכבת Personal החינמית של SnapTrade — חשבון בודד, לא חיבור חשבונות למשתמשים.',
   ),
   'live.notForUsers': p(
     "Not available to users. Multi-user account linking would need SnapTrade's Commercial tier with KYC and billing — a separate decision that has not been made.",
-    'לא זמין למשתמשות. חיבור חשבונות לריבוי משתמשות ידרוש את שכבת Commercial של SnapTrade עם KYC וחיוב — החלטה נפרדת שטרם התקבלה.',
+    'לא זמין למשתמשים. חיבור חשבונות לריבוי משתמשים ידרוש את שכבת Commercial של SnapTrade עם KYC וחיוב — החלטה נפרדת שטרם התקבלה.',
   ),
   'live.readOnly': p(
     'Read-only: balances and positions only. No trading endpoint is ever called.',
@@ -1044,7 +1049,7 @@ export const STRINGS = {
     'Closed without installing — you can open it again.',
     'נסגר בלי להתקין — אפשר לפתוח שוב.',
   ),
-  'install.done': p('Added. Open Shift from its new icon.', 'נוסף. פתחי את Shift מהאייקון החדש.'),
+  'install.done': p('Added. Open Shift from its new icon.', 'נוסף. אפשר לפתוח את Shift מהאייקון החדש.'),
   'install.stepsTitle': p('Three taps', 'שלוש הקשות'),
   // iOS Safari — the only route, and it is manual.
   'install.ios1': p('Share', 'שיתוף'),
@@ -1064,7 +1069,10 @@ export const STRINGS = {
   'install.demoDone': p('Open it from the icon', 'פתיחה מהאייקון'),
   'install.copyLink': p('Copy the link', 'העתקת הקישור'),
   'install.copied': p('Copied — now paste it in Safari', 'הועתק — כעת להדביק ב-Safari'),
-  'install.already': p('Already added it? Open Shift from the icon.', 'כבר הוספת? פתחי את Shift מהאייקון.'),
+  'install.already': p(
+    'Already added it? Open Shift from the icon.',
+    'כבר הוספת? אפשר לפתוח את Shift מהאייקון.',
+  ),
   // The optional card in Settings → More, for a browser that is not gated
   // (desktop, or a preview build) but can still install.
   'install.cardTitle': p('Install Shift', 'התקנת Shift'),

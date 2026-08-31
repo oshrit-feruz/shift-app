@@ -68,7 +68,7 @@ const REASONS = {
   },
   rateLimited: {
     en: 'SnapTrade rate-limited this request. Try again in a minute.',
-    he: 'SnapTrade הגבילה את קצב הבקשות. נסי שוב בעוד דקה.',
+    he: 'SnapTrade הגבילה את קצב הבקשות. אפשר לנסות שוב בעוד דקה.',
   },
   unreachable: {
     en: 'Could not reach SnapTrade.',

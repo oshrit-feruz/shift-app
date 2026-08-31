@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Tag } from '../../components/Tag';
@@ -55,6 +56,29 @@ export function AdvisoryChat(_: ScreenProps) {
   const asking = ans.length < 4;
   const profileKey = mapProfile(ans);
 
+  // The conversation grows downward past the fold, and the app scrolls in one
+  // shared container — so without this the next question and the options that
+  // answer it arrive off-screen, and the reply the motion promises is a reply
+  // the user has to go looking for.
+  //
+  // Keyed on the number of answers, not on every render: the only thing that
+  // adds a turn is an answer landing.
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const turns = ans.length;
+  // The first paint is not a turn — the screen has just opened and belongs at
+  // its top, showing the intro card. Only answers scroll.
+  const settled = useRef(false);
+  useEffect(() => {
+    if (!settled.current) {
+      settled.current = true;
+      return;
+    }
+    // Matches how spring.ts and base.css treat the setting: the outcome
+    // without the journey, rather than no outcome at all.
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    bottomRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'end' });
+  }, [turns]);
+
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <FlowStepper />
@@ -72,13 +96,27 @@ export function AdvisoryChat(_: ScreenProps) {
         </p>
       </Card>
 
-      {ans.map((v, i) => (
-        <span key={i} style={{ display: 'contents' }}>
-          <ChatBubble who="bot">{t(QUESTIONS[i].q)}</ChatBubble>
-          <ChatBubble who="me">{t(QUESTIONS[i].opts.find((o) => o[0] === v)![1])}</ChatBubble>
+      {/* One keyed list over the questions reached so far, rather than a map
+          over the answers plus a separate bubble for the one being asked.
+          Split that way, answering moved a question from the second slot into
+          the first — a different position in a different list, so React
+          unmounted it and mounted a copy, and the question the user had just
+          answered arrived a second time while the bubble below it silently
+          swapped to the next one. Here a question keeps its key from the
+          moment it is asked, so only genuinely new turns animate in. */}
+      {QUESTIONS.slice(0, asking ? ans.length + 1 : ans.length).map((question, i) => (
+        <span key={question.q} style={{ display: 'contents' }}>
+          {/* The first question arrives with the screen; every later one is a
+              reply to an answer, and waits the beat that makes it read as
+              one. */}
+          <ChatBubble who="bot" delayMs={i === 0 ? 0 : 140}>
+            {t(question.q)}
+          </ChatBubble>
+          {ans[i] != null && (
+            <ChatBubble who="me">{t(question.opts.find((o) => o[0] === ans[i])![1])}</ChatBubble>
+          )}
         </span>
       ))}
-      {asking && <ChatBubble who="bot">{t(QUESTIONS[ans.length].q)}</ChatBubble>}
 
       {asking && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7, paddingTop: 2 }}>
@@ -204,6 +242,11 @@ export function AdvisoryChat(_: ScreenProps) {
           </Card>
         </>
       )}
+      {/* The scroll target. A zero-height sentinel after everything rather
+          than the last bubble: what the user needs in view is the new
+          question AND the options that answer it, and only the end of the
+          screen is reliably below both. */}
+      <div ref={bottomRef} aria-hidden="true" />
     </div>
   );
 }
