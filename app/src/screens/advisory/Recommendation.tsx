@@ -266,6 +266,13 @@ function RadarCard({ amount, pct }: { amount: number; pct: number }) {
       {/* Whose radar, and how often it runs — the brand's own mark inline,
           because this is the one screen where the product is the thing doing
           the looking. */}
+      {/* The count, said plainly and at reading size. It is the whole point of
+          the card, and on a profile with no sleeve it is the only figure the
+          card carries at all. */}
+      <RadarCount signals={sat.state.status === 'ok' ? sat.state.data.length : null} />
+      {!allocated && (
+        <p style={{ fontSize: 'var(--text-row)', margin: 0, lineHeight: 1.55 }}>{t('rec.satInfoOnly')}</p>
+      )}
       {/* The mark is the subject of this line, so it is set well above the
           words around it — at body size it read as a smudge, and at the line's
           own size it read as a word rather than as the brand. The line is one
@@ -274,7 +281,6 @@ function RadarCard({ amount, pct }: { amount: number; pct: number }) {
         {t('rec.radarLineStart')} <GlitchMark height={28} />
         {t('rec.radarLineEnd')}
       </p>
-      {!allocated && <Note>{t('rec.satInfoOnly')}</Note>}
 
       <DataState state={sat.state} onRetry={sat.retry} skeleton={<SkeletonList count={3} minHeight={52} />}>
         {(signals) =>
@@ -348,6 +354,22 @@ function RadarCard({ amount, pct }: { amount: number; pct: number }) {
         }
       </DataState>
     </div>
+  );
+}
+
+/**
+ * How many names cleared the checks today, in the radar's own green with the
+ * figure carrying the weight. Renders nothing until the read lands, or on a
+ * day when nothing passed — the empty state below says that better than a
+ * zero does.
+ */
+function RadarCount({ signals }: { signals: number | null }) {
+  const t = useT();
+  if (signals === null || signals === 0) return null;
+  return (
+    <p style={{ fontSize: 'var(--text-row)', margin: 0, fontWeight: 600 }}>
+      {t('rec.radarPassed', { n: signals })}
+    </p>
   );
 }
 

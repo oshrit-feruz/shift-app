@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import { Card, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Tag } from '../components/Tag';
-import { Icon } from '../components/Icon';
 import { Num } from '../components/Num';
 import { AreaChart } from '../components/AreaChart';
 import { MetricStrip } from '../components/MetricStrip';
@@ -73,37 +72,6 @@ export function HomeScreen({ openSearch }: ScreenProps) {
           <ProgressTrack pct={setup.pct} label={t('setup.stepOf', { n: setup.stepLabel })} />
         </Card>
       )}
-
-      {/* What is left of the two-tracks card. The advisory half moved to the
-          band at the top of the screen, so this is now orientation rather
-          than a choice: it says which track the screen you are looking at
-          belongs to. */}
-      <Card padding={16} gap={10}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span
-            style={{
-              width: 26,
-              height: 26,
-              flex: 'none',
-              borderRadius: 8,
-              background: 'var(--sunk)',
-              display: 'grid',
-              placeItems: 'center',
-              color: 'var(--color-accent-200)',
-            }}
-            aria-hidden="true"
-          >
-            <Icon name="trend" size={14} />
-          </span>
-          <span style={{ fontSize: 'var(--text-title)', fontWeight: 600, flex: 1 }}>
-            {t('home.trackSelf')}
-          </span>
-          <Tag variant="outline">{t('home.trackHere')}</Tag>
-        </div>
-        <p className="text-muted" style={{ fontSize: 'var(--text-row)', margin: 0, lineHeight: 1.5 }}>
-          {t('home.trackSelfSub')}
-        </p>
-      </Card>
 
       {beg && (
         <Card padding={13} highlight row gap={11} onClick={() => dispatch({ type: 'go', screen: 'learn' })}>

@@ -73,7 +73,7 @@ function Invitation() {
       >
         {t('home.trackAdvisorSub')}
       </p>
-      <RadarLine wording="home.radarToday" />
+      <RadarLine wording="rec.radarPassed" />
     </button>
   );
 }
@@ -142,7 +142,7 @@ function Result({ profile }: { profile: ProfileKey }) {
           portfolio — if any — goes behind what it finds. Only the wording
           changes: with a sleeve this is her own radar's result, without one it
           is simply what today's check turned up. */}
-      <RadarLine wording={p.satellitePct > 0 ? 'home.radarYours' : 'home.radarToday'} />
+      <RadarLine wording={p.satellitePct > 0 ? 'home.radarYours' : 'rec.radarPassed'} />
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px' }}>
         {bands.map((b) => (
           <span
@@ -177,14 +177,19 @@ function Result({ profile }: { profile: ProfileKey }) {
  * number would — and "0 passed today" is a true sentence that reads on a home
  * screen as a broken feature rather than as a quiet market.
  */
-function RadarLine({ wording }: { wording: 'home.radarYours' | 'home.radarToday' }) {
+function RadarLine({ wording }: { wording: 'home.radarYours' | 'rec.radarPassed' }) {
   const t = useT();
   const sat = useLoadable(() => demoService.satelliteSignals(), []);
   if (sat.state.status !== 'ok' || sat.state.data.length === 0) return null;
   return (
     <span
-      className="text-muted"
-      style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--text-caption)' }}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        fontSize: 'var(--text-row)',
+        fontWeight: 500,
+      }}
     >
       {/* The dish rides in a 26px slot — the width of the band's icon plate —
           so this line's text starts on the same edge as the line above it

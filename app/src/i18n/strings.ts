@@ -95,7 +95,6 @@ export const STRINGS = {
    * daily check found — the list is the same for everyone, and what a profile
    * decides is how much of a portfolio, if any, goes behind it. */
   'home.radarYours': p('Stock Radar · {n} passed today', 'ראדר מניות · {n} עברו היום'),
-  'home.radarToday': p('{n} names cleared today’s radar', '{n} מניות עברו את הראדר היומי'),
   'home.startHere': p('New to investing? Start here', 'חדשה בהשקעות? מתחילים כאן'),
   'home.startHereSub': p('A short guide, then the steps', 'מדריך קצר, ואחריו הצעדים'),
   'home.watchlist': p('Watchlist', 'ווטצ׳ליסט'),
@@ -258,6 +257,7 @@ export const STRINGS = {
   /* Only a few of the day's names get a tile. On a day when more clear the
    * checks, this says so rather than letting the tiles read as the whole
    * list — and as the whole sleeve, which they no longer add up to. */
+  'rec.radarPassed': p('{n} names cleared today’s radar', '{n} מניות עברו את הראדר היומי'),
   'rec.radarShowing': p(
     'Showing {shown} of {total} that passed today',
     'מוצגות {shown} מתוך {total} שעברו היום',
