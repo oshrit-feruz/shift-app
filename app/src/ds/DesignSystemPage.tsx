@@ -4,6 +4,8 @@ import { Icon } from '../components/Icon';
 import { Num } from '../components/Num';
 import { ListRow, RowValues } from '../components/ListRow';
 import { TickerTile } from '../components/TickerTile';
+import { LiveBadge } from '../components/LiveBadge';
+import { GlitchMark } from '../components/GlitchMark';
 import { MetricStrip } from '../components/MetricStrip';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { ProgressTrack } from '../components/Progress';
@@ -578,6 +580,66 @@ export function DesignSystemPage() {
               <Note>
                 The accent border plus the 14%-alpha fill is the only "look at this" treatment in the system.
                 One per screen, at most.
+              </Note>
+            </Cell>
+
+            <Cell title="Band">
+              {/* The band bleeds by the app's 16px gutter, so the demo gives it
+                  that gutter back and clips what still reaches past this
+                  column — the cell is narrower than a phone. */}
+              <div style={{ paddingInline: 16, overflow: 'hidden' }}>
+                <button type="button" className="band">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
+                    <span className="band-icon" aria-hidden="true">
+                      <Icon name="list" size={14} />
+                    </span>
+                    <span style={{ fontSize: 'var(--text-title)', fontWeight: 600, flex: 1 }}>
+                      Get a recommendation
+                    </span>
+                    <span style={{ opacity: 0.5, fontSize: 'var(--text-title)' }}>›</span>
+                  </div>
+                  <p
+                    className="text-muted"
+                    style={{ fontSize: 'var(--text-row)', margin: 0, paddingInlineStart: 34 }}
+                  >
+                    Four questions, then a suggested portfolio.
+                  </p>
+                </button>
+              </div>
+              <Note>
+                The one surface that is not a card: edge to edge, no radius, no blur, on a tint of its own.
+                Its negative inline margin is the scroll container's 16px gutter, so it reaches the screen
+                edges while its content keeps the same measure. For the single block that has to outrank a
+                page of equal glass panes without being bigger than any of them.
+              </Note>
+            </Cell>
+
+            <Cell title="Live badge & mark">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <LiveBadge />
+                <GlitchMark height={19} />
+              </div>
+              <Note>
+                The badge is the only green that does not mean "up", which is why it spells the word out and
+                appears in exactly one place. The mark is the splash's own tear and flicker at reading size —
+                same two keyframes, so the brand glitches one way in this app and not two.
+              </Note>
+            </Cell>
+
+            <Cell title="Amount slider">
+              <input
+                type="range"
+                className="amount-slider"
+                min={0}
+                max={100}
+                defaultValue={35}
+                aria-label="Amount"
+                style={{ ['--fill' as string]: '35%' }}
+              />
+              <Note>
+                A native range input, restyled: draggable by mouse, finger and arrow key, announced to a
+                screen reader, mirrored under RTL for free. The filled part of the track is passed in as a
+                percentage because a gradient has a physical direction and this app runs in both.
               </Note>
             </Cell>
           </div>

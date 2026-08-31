@@ -79,6 +79,17 @@ export const STRINGS = {
   'home.trackHere': p('You are here', 'את כאן'),
   'home.trackAdvisor': p('Get a recommendation', 'קבלי המלצה'),
   'home.trackAdvisorSub': p('Four questions, then a suggested portfolio.', 'ארבע שאלות, ואז הצעה לתיק.'),
+  /* The home band's own copy — the recommendation track's place on the home
+   * screen, before the flow has been run and after it has. */
+  'home.recYours': p('Your recommendation', 'ההמלצה שלך'),
+  'home.recPassed': p('{n} passed today', '{n} עברו היום'),
+  'home.recDeveloped': p('Developed', 'מפותחים'),
+  'home.recSp500': p('S&P 500', 'S&P 500'),
+  'home.recBonds': p('Gov bonds', 'אג״ח ממשלתי'),
+  'home.recCorporate': p('Corporate', 'אג״ח קונצרני'),
+  'home.recCash': p('Cash', 'מזומן'),
+  'home.recEmerging': p('Emerging', 'מתעוררים'),
+  'home.recRadar': p('Radar', 'ראדר'),
   'home.startHere': p('New to investing? Start here', 'חדשה בהשקעות? מתחילים כאן'),
   'home.startHereSub': p('A short guide, then the steps', 'מדריך קצר, ואחריו הצעדים'),
   'home.watchlist': p('Watchlist', 'ווטצ׳ליסט'),
@@ -227,6 +238,18 @@ export const STRINGS = {
     'לא לשים הכול במקום אחד: כמה שווקים שאינם קשורים זה לזה — וטעות אחת לא קובעת את התוצאה.',
   ),
   'rec.satellite': p('Individual stocks', 'מניות בודדות'),
+  /* The sleeve's name where it is a section of the product, alongside
+   * rec.satellite, which stays the plain description and is what the
+   * explanatory lines keep saying ("your profile holds no individual
+   * stocks"). A screen that called it only "Stock Radar" would have named the
+   * thing without ever saying what it is. */
+  'rec.radar': p('Stock Radar', 'ראדר מניות'),
+  'rec.radarLive': p('LIVE', 'LIVE'),
+  /* Rendered around the wordmark: {start} <GlitchMark /> {end}. Split rather
+   * than interpolated because the mark is an image, and because the two
+   * languages want it in different places in the sentence. */
+  'rec.radarLineStart': p('The names picked up today by', 'המניות שעלו על הראדר היומי של'),
+  'rec.radarLineEnd': p("'s daily radar", ''),
   'rec.ofPortfolio': p('of the portfolio', 'מהתיק'),
   'rec.dailyTag': p('Checked daily', 'בדיקה יומית'),
   'rec.satHelp': p(
@@ -261,6 +284,12 @@ export const STRINGS = {
     'מוצג למידע בלבד: הפרופיל שלך לא מחזיק מניות בודדות, ולכן שום דבר מכאן אינו חלק מההמלצה שלך.',
   ),
   'rec.noPositions': p('No stock passed every check today', 'אף מניה לא עברה היום את כל הבדיקות'),
+  'rec.ifInvested': p('If you invested', 'אם היית משקיעה'),
+  'rec.illustration': p(
+    'An illustration of the split only — arithmetic on the allocation, not a forecast of any result.',
+    'המחשה של החלוקה בלבד — חישוב על ההקצאה, לא תחזית לתוצאה כלשהי.',
+  ),
+  'rec.noFund': p('Fund not yet assigned', 'עוד לא נבחרה קרן'),
   'rec.nextStep': p('Next: where the account lives', 'הצעד הבא: איפה החשבון ייפתח'),
   'rec.nextStepHelp': p(
     'Nothing is executed inside Shift. Acting on this means choosing a broker and connecting it read-only — the next two steps, both skippable.',

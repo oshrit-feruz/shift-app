@@ -82,7 +82,7 @@ export function AdvisoryFirstPurchase(_: ScreenProps) {
               <Tag variant="accent" fontSize={15}>
                 {t('rec.dailyTag')}
               </Tag>
-              <span style={{ flex: 1 }}>{t('rec.satellite')}</span>
+              <span style={{ flex: 1 }}>{t('rec.radar')}</span>
               <Num size={16} style={{ color: 'var(--muted)' }}>
                 {'$' + (profile.satellitePct * 100).toLocaleString('en-US')}
               </Num>
