@@ -62,6 +62,15 @@ const INERT: BackStack = { sync: () => {} };
 
 const Ctx = createContext<BackStack>(INERT);
 
+/**
+ * Owns the stack and the one `popstate` listener the whole app shares.
+ *
+ * Wrap it around the part of the app that has somewhere to go back to. The
+ * entries live in a ref rather than state because nothing renders from them:
+ * they exist to be counted against the session history, and re-rendering the
+ * whole subtree every time a sheet opened would be a real cost for a number
+ * nobody displays.
+ */
 export function BackStackProvider({ children }: { children: ReactNode }) {
   const entries = useRef<Entry[]>([]);
   /** A `history.go` is in flight. `history.state` still reads as the old entry
@@ -70,6 +79,11 @@ export function BackStackProvider({ children }: { children: ReactNode }) {
   /** One reconcile per tick, however many owners synced within it. */
   const queued = useRef(false);
 
+  /**
+   * Move the session history to exactly as deep as the stack: push an entry
+   * per undoable thing we have taken since, or go back over the ones we have
+   * given up. The single point where this module writes to the history.
+   */
   const reconcile = useCallback(() => {
     if (settling.current) return;
     const want = entries.current.length;
@@ -95,6 +109,11 @@ export function BackStackProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  /**
+   * Reconcile at the end of the tick, once, however many owners synced within
+   * it — which is what lets a release and a take in the same commit cancel out
+   * instead of making a visible round trip through the history.
+   */
   const schedule = useCallback(() => {
     if (queued.current) return;
     queued.current = true;
@@ -104,6 +123,12 @@ export function BackStackProvider({ children }: { children: ReactNode }) {
     });
   }, [reconcile]);
 
+  /**
+   * Bring one owner's holding to `count` entries, taking or giving up however
+   * many that needs. The declarative half of the contract: callers state what
+   * they hold now, never what changed, so two owners moving in opposite
+   * directions in the same commit cannot land in the wrong order.
+   */
   const sync = useCallback(
     (owner: string, count: number, onBack: () => void) => {
       const list = entries.current;
