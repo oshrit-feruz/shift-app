@@ -1,0 +1,98 @@
+/*
+ * Prototype-surface styles: the desk the phone sits on, the harness strip, and
+ * the few keyframes the variants need (keyframes cannot be written inline, so
+ * they live here rather than in the variant files).
+ *
+ * Nothing in the app imports this file. It is loaded only by proto-recs.html.
+ */
+
+/* ── The desk ──────────────────────────────────────────────────────────── */
+.proto-desk {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0 0;
+  background: #0a0d16;
+}
+
+/* The phone. Sized to leave the picker its own air at the bottom of the
+   window, so harness chrome never covers the work being judged. */
+.proto-phone {
+  position: relative;
+  width: 390px;
+  max-width: 100vw;
+  height: min(780px, calc(100dvh - 150px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 0;
+  border-radius: 30px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .07), 0 30px 70px rgba(0, 0, 0, .5);
+}
+
+/* ── The harness strip ─────────────────────────────────────────────────── */
+/* Same reasoning as the picker: monospace, neutral, obviously not the product.
+   It carries the one thing the picker cannot — which state of the user's
+   journey the home page is being judged in. */
+.proto-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 11px ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: rgba(255, 255, 255, .45);
+  direction: ltr;
+}
+.proto-bar-label { letter-spacing: .08em; text-transform: uppercase; }
+.proto-bar-btn {
+  height: 22px;
+  padding: 0 9px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, .5);
+  font: inherit;
+  cursor: pointer;
+  transition: color 150ms ease-out, border-color 150ms ease-out;
+}
+.proto-bar-btn:hover { color: rgba(255, 255, 255, .8); }
+.proto-bar-btn[data-active] {
+  color: #fff;
+  border-color: rgba(255, 255, 255, .4);
+  background: rgba(255, 255, 255, .1);
+}
+
+/* ── Variant motion ────────────────────────────────────────────────────── */
+/* Entrances only, transform/opacity only, ease-out, all well under 300ms.
+   base.css's reduced-motion block collapses every one of them. */
+
+/* Beacon's allocation ribbon: each band wipes out from the start edge. The
+   origin has to follow the writing direction — a ribbon that always grows
+   from the left grows backwards in Hebrew. */
+@keyframes protoRibbon {
+  from { transform: scaleX(0); }
+  to { transform: none; }
+}
+.proto-ribbon-seg {
+  transform-origin: left center;
+  animation: protoRibbon .26s var(--ease-out) both;
+}
+[dir='rtl'] .proto-ribbon-seg { transform-origin: right center; }
+.proto-ribbon-seg:nth-child(2) { animation-delay: 40ms; }
+.proto-ribbon-seg:nth-child(3) { animation-delay: 80ms; }
+.proto-ribbon-seg:nth-child(4) { animation-delay: 120ms; }
+
+/* Briefing's candidate chips and Inline's answer rows: the same short rise.
+   Capped at the fourth child for the same reason base.css caps the card
+   stagger — past that it reads as lag, not as arrival. */
+@keyframes protoRise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.proto-rise { animation: protoRise .18s var(--ease-out) both; }
+.proto-rise:nth-child(2) { animation-delay: 30ms; }
+.proto-rise:nth-child(3) { animation-delay: 60ms; }
+.proto-rise:nth-child(n + 4) { animation-delay: 90ms; }
