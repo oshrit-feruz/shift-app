@@ -193,6 +193,42 @@ describe('the back trail', () => {
     expect(where(reducer(s, { type: 'back' })).at).toBe('stock:T198');
   });
 
+  // The ticker drifts as you browse, and only the stock page is selected by
+  // it. Comparing it everywhere meant the home the user started on — filed
+  // under whatever stock was current then — went unrecognised, so back landed
+  // on home, then a stock page, then an indistinguishable home again.
+  it('recognises a non-stock view whatever stock was current when it was left', () => {
+    const s = walk({ type: 'openStock', ticker: 'AMD' }, { type: 'go', screen: 'home' });
+    expect(where(s)).toEqual({ at: 'home', trail: [] });
+  });
+
+  // The pill that leads back to the checklist is set by the navigation that
+  // opened the screen, not by the screen — so a screen returned to without it
+  // is not the screen the user left.
+  it('restores the chrome the view was opened with', () => {
+    let s = walk(
+      { type: 'go', screen: 'steps' },
+      { type: 'go', screen: 'learn', fromSteps: true },
+      { type: 'go', screen: 'pf' },
+    );
+    expect(s.fromSteps).toBe(false);
+    s = reducer(s, { type: 'back' });
+    expect(where(s).at).toBe('learn');
+    expect(s.fromSteps).toBe(true);
+  });
+
+  it('restores whether the advisory step was opened on its own', () => {
+    let s = walk(
+      { type: 'advGoto', screen: 'advConnect', solo: true },
+      // The next step of the flow, which is where advSolo is cleared.
+      { type: 'advGoto', screen: 'advDash' },
+    );
+    expect(s.advSolo).toBe(false);
+    s = reducer(s, { type: 'back' });
+    expect(where(s).at).toBe('advConnect');
+    expect(s.advSolo).toBe(true);
+  });
+
   it('is not persisted — a new session starts at home with nothing behind it', () => {
     expect(PERSISTED).not.toContain('navStack');
   });

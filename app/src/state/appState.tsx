@@ -101,6 +101,16 @@ export interface ManualTransaction {
 export interface NavEntry {
   screen: Screen;
   ticker: string;
+  /**
+   * Chrome that belongs to the view rather than to the screen component: the
+   * "back to the steps" pill, and whether the advisory connect screen was
+   * opened on its own rather than as a step of the flow. Both are set by the
+   * navigation that opened the view, so returning to it without them lands on
+   * a differently-dressed version of the screen the user left — a step opened
+   * from the checklist loses its way back to the checklist.
+   */
+  fromSteps: boolean;
+  advSolo: boolean;
 }
 
 export interface AppState {
@@ -209,6 +219,20 @@ export type Action =
 const MAX_TRAIL = 25;
 
 /**
+ * Whether a view *is* a given destination.
+ *
+ * The ticker is part of a view's identity only on the stock page, the one
+ * screen it selects. Everywhere else it is merely whichever stock was looked
+ * at last, and it drifts: opening AMD and going home would otherwise not
+ * recognise the home the user started on (filed under NVDA), and would stack a
+ * second, indistinguishable home behind the first. Back would then land on
+ * home twice with a stock page in between.
+ */
+function isView(view: NavEntry, screen: Screen, ticker: string): boolean {
+  return view.screen === screen && (screen !== 'stock' || view.ticker === ticker);
+}
+
+/**
  * The trail behind the view the app is moving to.
  *
  * A view already on the trail is *returned to* rather than stacked on: the
@@ -223,10 +247,14 @@ const MAX_TRAIL = 25;
 export function trailTo(s: AppState, screen: Screen, ticker: string): NavEntry[] {
   // Navigating to where we already are (tapping the current tab) is not a
   // navigation and must not leave a back press that appears to do nothing.
-  if (s.screen === screen && s.ticker === ticker) return s.navStack;
-  const at = s.navStack.findIndex((x) => x.screen === screen && x.ticker === ticker);
+  if (isView(s, screen, ticker)) return s.navStack;
+  const at = s.navStack.findIndex((x) => isView(x, screen, ticker));
   if (at >= 0) return s.navStack.slice(0, at);
-  const trail = [...s.navStack, { screen: s.screen, ticker: s.ticker }];
+  // The whole view, not just where it was: see NavEntry.
+  const trail = [
+    ...s.navStack,
+    { screen: s.screen, ticker: s.ticker, fromSteps: s.fromSteps, advSolo: s.advSolo },
+  ];
   return trail.length > MAX_TRAIL ? trail.slice(trail.length - MAX_TRAIL) : trail;
 }
 
@@ -250,12 +278,9 @@ export function reducer(s: AppState, a: Action): AppState {
     case 'back': {
       const previous = s.navStack[s.navStack.length - 1];
       if (previous == null) return s;
-      return {
-        ...s,
-        screen: previous.screen,
-        ticker: previous.ticker,
-        navStack: s.navStack.slice(0, -1),
-      };
+      // Spread whole: an entry is every field that makes the view what it was,
+      // so nothing can be added to NavEntry and then quietly not restored.
+      return { ...s, ...previous, navStack: s.navStack.slice(0, -1) };
     }
     case 'advAnswer':
       return { ...s, advAnswers: [...s.advAnswers, a.value] };

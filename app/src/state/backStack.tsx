@@ -1,4 +1,13 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  type ReactNode,
+} from 'react';
 
 /**
  * The Android back button, for an app that has no routes.
@@ -27,7 +36,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, typ
 
 /** One thing the back button can undo. Ordered by when it became undoable. */
 interface Entry {
-  owner: symbol;
+  owner: string;
   onBack: () => void;
 }
 
@@ -40,7 +49,7 @@ function readDepth(state: unknown): number {
 
 interface BackStack {
   /** Hold exactly `count` entries for `owner`; each is undone by `onBack`. */
-  sync: (owner: symbol, count: number, onBack: () => void) => void;
+  sync: (owner: string, count: number, onBack: () => void) => void;
 }
 
 /**
@@ -96,7 +105,7 @@ export function BackStackProvider({ children }: { children: ReactNode }) {
   }, [reconcile]);
 
   const sync = useCallback(
-    (owner: symbol, count: number, onBack: () => void) => {
+    (owner: string, count: number, onBack: () => void) => {
       const list = entries.current;
       let held = 0;
       for (const entry of list) {
@@ -124,17 +133,25 @@ export function BackStackProvider({ children }: { children: ReactNode }) {
       settling.current = false;
       const depth = readDepth(event.state);
       const list = entries.current;
-      // Deeper than the history now goes: the user pressed back (possibly
-      // several times). Undo down to it. When it was our own `history.go`
-      // landing, the depths already agree and this loop does nothing.
-      while (list.length > depth) {
-        const entry = list.pop();
-        entry?.onBack();
+      try {
+        // Deeper than the history now goes: the user pressed back (possibly
+        // several times). Undo down to it. When it was our own `history.go`
+        // landing, the depths already agree and this loop does nothing.
+        while (list.length > depth) {
+          const entry = list.pop();
+          entry?.onBack();
+        }
+      } finally {
+        // Undoing can itself take entries — closing a sheet that reveals a
+        // screen with a trail behind it — and a forward press can leave the
+        // history deeper than the stack. Either way the next tick settles it.
+        //
+        // In a `finally` because an `onBack` that throws would otherwise
+        // abandon the unwind halfway with the two depths disagreeing and
+        // nothing scheduled to notice: every later back press would then be
+        // spent re-syncing rather than undoing anything.
+        schedule();
       }
-      // Undoing can itself take entries — closing a sheet that reveals a
-      // screen with a trail behind it — and a forward press can leave the
-      // history deeper than the stack. Either way the next tick settles it.
-      schedule();
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
@@ -152,12 +169,19 @@ export function BackStackProvider({ children }: { children: ReactNode }) {
  */
 export function useBackEntries(count: number, onBack: () => void) {
   const { sync } = useContext(Ctx);
-  const owner = useRef<symbol | null>(null);
-  owner.current ??= Symbol('backEntries');
+  // Identity for this component instance: stable across renders, unique across
+  // the app, and — unlike a value minted during render — nothing this hook has
+  // to write to while React is rendering.
+  const id = useId();
   const latest = useRef(onBack);
-  latest.current = onBack;
+  // In an effect rather than during render: a back press can only arrive after
+  // the commit that changed it, so an effect is early enough, and writing to a
+  // ref mid-render is the kind of thing that stops being harmless the moment a
+  // render is thrown away.
   useEffect(() => {
-    const id = owner.current!;
+    latest.current = onBack;
+  });
+  useEffect(() => {
     sync(id, count, () => latest.current());
     // Giving the entries back on unmount is what stops a sheet that was
     // unmounted while open from leaving a back press that undoes nothing.
@@ -165,7 +189,7 @@ export function useBackEntries(count: number, onBack: () => void) {
     // the reconcile above sees the net zero rather than a trip through the
     // history.
     return () => sync(id, 0, () => {});
-  }, [count, sync]);
+  }, [id, count, sync]);
 }
 
 /**
