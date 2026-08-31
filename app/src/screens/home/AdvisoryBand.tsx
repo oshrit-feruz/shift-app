@@ -136,7 +136,13 @@ function Result({ profile }: { profile: ProfileKey }) {
           <span key={b.key} style={{ display: 'block', width: `${b.pct}%`, background: b.color }} />
         ))}
       </span>
-      {p.satellitePct > 0 && <RadarLine wording="home.radarYours" />}
+      {/* Shown whatever the profile holds, for the reason the recommendation
+          screen shows the list itself: the radar runs the same rules over the
+          same names for everyone, and a profile decides how much of a
+          portfolio — if any — goes behind what it finds. Only the wording
+          changes: with a sleeve this is her own radar's result, without one it
+          is simply what today's check turned up. */}
+      <RadarLine wording={p.satellitePct > 0 ? 'home.radarYours' : 'home.radarToday'} />
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px' }}>
         {bands.map((b) => (
           <span
