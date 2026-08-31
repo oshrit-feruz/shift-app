@@ -91,17 +91,28 @@ function SheetBody({
         // intercepting taps even though it is still mounted for its exit.
         pointerEvents: closing ? 'none' : undefined,
       }}
-      onClick={onClose}
     >
       {/* Its own layer rather than a background on the flex parent, so the
           dimming can fade with the drag without taking the sheet's opacity
           down with it. Opacity is written by useSheetDrag, which is why it is
           absent here — a value in this style object would be reapplied on
-          every re-render, clobbering the animation mid-flight. */}
-      <div ref={veilRef} style={{ position: 'absolute', inset: 0, background: 'var(--veil)' }} />
+          every re-render, clobbering the animation mid-flight.
+
+          Dismissal hangs off this element and not the container, because a
+          click is delivered to the nearest common ancestor of where the press
+          started and where it ended. An upward drag moves the sheet out from
+          under the pointer, so the release lands on the veil and the click
+          resolves to the container — which used to close the sheet at the end
+          of a gesture whose entire message was that there is nothing further
+          up here. As a sibling painted underneath, this layer only ever
+          receives clicks that both began and ended outside the sheet. */}
+      <div
+        ref={veilRef}
+        onClick={onClose}
+        style={{ position: 'absolute', inset: 0, background: 'var(--veil)' }}
+      />
       <div
         ref={sheetRef}
-        onClick={(e) => e.stopPropagation()}
         {...dragHandlers}
         className="glass-sheet"
         style={{
