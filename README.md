@@ -444,7 +444,7 @@ filings:
 
 | Tab | Source | Notes |
 | --- | --- | --- |
-| סקירה / Overview | demo adapter + real holdings + both mirrors | real price, 52-week high, chart, and the key-stats rows a daily bar answers (open, prev close, day range, volume, avg vol, RSI); day change, market cap, P/E and analyst ratings still demo |
+| סקירה / Overview | demo adapter + real holdings + `/api/quote` + `/api/candles` | real live price and day change, real chart, and the key-stats rows either source answers — open, prev close and day range from the quote, volume, avg vol and RSI from the bars; market cap, P/E and analyst ratings still demo |
 | דוחות / Reports | `/api/stock/{ticker}/fundamentals` (live, un-mirrored) | branches purely on the engine's `status` |
 | חדשות / News | `/api/news` (this repo's Vercel function) | excerpts only, never a full article body |
 
@@ -454,10 +454,11 @@ for a healthy snapshot that simply does not cover this stock, which renders
 as "not covered today" with no retry — deliberately not `unavailable`, since
 nothing failed and there is nothing to retry. Day-change percent is **not**
 in the ranking payload, so it is not shown there rather than being borrowed
-from demo data.
+from demo data — and the header beside it no longer needs to: it prints the
+quote's own day change.
 
-All three mirror readers — the Satellite card's BUY list, a single stock's
-ranking row, and the quote map behind every price in the app — share one
+The mirror readers that remain — the Satellite card's BUY list, a single
+stock's ranking row, and the list of tickers the engine has a view on — share one
 `readMirror` helper so transport, freshness and honesty handling cannot drift
 between them. One serving a snapshot the other rejects is exactly the class of
 bug the mirror's verification exists to prevent.

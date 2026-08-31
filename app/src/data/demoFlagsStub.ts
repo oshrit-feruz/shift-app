@@ -4,20 +4,22 @@ import { DEMO_FLAGS } from './demoFlags';
 /**
  * Test-only: put the `demoData` flag in a known state.
  *
- * DEMO_FLAGS reads localStorage synchronously, and vitest provides none — so
- * an unstubbed run reads false, which is itself the assertion for every "off"
- * case. This installs a minimal store for the cases that need it on.
+ * DEMO_FLAGS reads localStorage synchronously and vitest provides none, so an
+ * unstubbed run gets the flag's DEFAULT — which for `demoData` is ON. Every
+ * suite that depends on the switch therefore has to say which state it means,
+ * in BOTH directions: this writes '0' for off rather than leaving the key
+ * absent, because absent is "no choice yet" and reads back as on.
  *
- * Shared rather than copied into each suite: two suites need it, and the same
- * thirteen lines in both is what SonarCloud's duplication gate flagged. Pair
- * every call with `vi.unstubAllGlobals()` in an afterEach.
+ * Shared rather than copied into each suite: several suites need it, and the
+ * same thirteen lines in each is what SonarCloud's duplication gate flagged.
+ * Pair every call with `vi.unstubAllGlobals()` in an afterEach.
  *
  * Not named `*.test.ts` on purpose — vitest's default include would then
  * collect it as a suite with no tests in it.
  */
 export function withDemoData(on: boolean): void {
   const store = new Map<string, string>();
-  if (on) store.set(DEMO_FLAGS.key.demoData, '1');
+  store.set(DEMO_FLAGS.key.demoData, on ? '1' : '0');
   vi.stubGlobal('localStorage', {
     getItem: (k: string) => store.get(k) ?? null,
     setItem: (k: string, v: string) => {
