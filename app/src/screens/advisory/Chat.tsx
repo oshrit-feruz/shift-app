@@ -126,7 +126,12 @@ export function AdvisoryChat(_: ScreenProps) {
               {t('adv.yourProfile')}
             </div>
             <div
-              style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-display)', lineHeight: 1.1 }}
+              style={{
+                fontFamily: 'var(--font-heading)',
+                fontSize: 'var(--text-display)',
+                letterSpacing: 'var(--track-display)',
+                lineHeight: 'var(--lead-display)',
+              }}
             >
               {t(`profile.${profileKey}` as StringKey)}
             </div>

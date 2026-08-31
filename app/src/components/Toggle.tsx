@@ -1,4 +1,15 @@
-/** Switch toggle (settings). */
+/**
+ * Switch toggle (settings).
+ *
+ * The knob slides rather than jumping between the two ends. It used to flip
+ * `justify-content` from start to end, which is not an animatable property —
+ * so the one control in the app whose entire job is to show a state changing
+ * showed nothing changing at all.
+ *
+ * The travel is a transform rather than a flex or inset change, so it stays
+ * on the compositor, and its direction comes from a variable in base.css so
+ * the control mirrors with the interface instead of always sliding right.
+ */
 export function Toggle({
   on,
   onChange,
@@ -15,6 +26,7 @@ export function Toggle({
       aria-checked={on}
       aria-label={label}
       onClick={() => onChange(!on)}
+      className="switch"
       style={{
         width: 38,
         height: 22,
@@ -24,11 +36,15 @@ export function Toggle({
         cursor: 'pointer',
         padding: 2,
         display: 'flex',
-        justifyContent: on ? 'flex-end' : 'flex-start',
+        // The knob starts at the leading edge in both directions and is moved
+        // by the transform; `flex-end` would be a second, unanimatable source
+        // of truth for the same position.
+        justifyContent: 'flex-start',
         background: on ? 'var(--color-accent-800)' : 'transparent',
       }}
     >
       <span
+        className="switch-knob"
         style={{
           width: 16,
           height: 16,

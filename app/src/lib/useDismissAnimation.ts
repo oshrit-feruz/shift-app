@@ -11,8 +11,12 @@ function parseCssDurationMs(value: string): number {
 /** base.css's `--dur-exit` — the single source of truth this hook's default
  *  reads from, so raising the CSS duration can never leave the JS timer
  *  cutting the exit animation off mid-fade (or the reverse: the JS default
- *  outliving an animation that finished sooner). */
-function readExitDurationMs(): number {
+ *  outliving an animation that finished sooner).
+ *
+ *  Exported for the toast, which drives its own two-phase timer rather than
+ *  going through this hook but needs its unmount tied to the same token for
+ *  exactly the same reason. */
+export function readExitDurationMs(): number {
   if (typeof window === 'undefined') return 180;
   const raw = getComputedStyle(document.documentElement).getPropertyValue('--dur-exit');
   return raw ? parseCssDurationMs(raw) : 180;

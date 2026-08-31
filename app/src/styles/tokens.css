@@ -15,6 +15,15 @@
   /* Surfaces & ground */
   --g1: #1E293B; /* gradient top */
   --g2: #0F172A; /* page ground */
+
+  /* The app's ground, in the boot splash's language — see .app-bg. Three
+   * stops of one deep vignette plus the scanline's ink. The splash is
+   * deliberately theme-independent because its artwork is light-on-dark;
+   * this has to work in both, so it is tokenised where the splash is not. */
+  --bg-core: #16223E; /* the lit centre */
+  --bg-mid: #0B1224;
+  --bg-edge: #05080F; /* falls off to near-black at the corners */
+  --bg-scan: rgba(255, 255, 255, 0.035);
   --color-bg: #0F172A;
   --color-surface: rgba(30, 41, 59, .35); /* glass card fill */
   --color-text: #FFFFFF;
@@ -111,15 +120,48 @@
    * raw literals this replaces sat inside a 2.5px band (15–17.5px) meaning
    * three or four different things by accident: a "row title" was 17 in one
    * screen, 17.5 in another, 18 in a third. Picking one number per role is
-   * what makes them the same size again. */
-  --text-micro: 12.5px; /* eyebrow labels, tiny meta */
-  --text-caption: 14px; /* secondary/muted line under a title */
-  --text-body: 14.5px; /* paragraph copy, ordinary row text */
-  --text-row: 15.5px; /* list-row title, primary label */
-  --text-title: 16.5px; /* section/card title, header-row emphasis */
-  --text-heading: 20.5px; /* onboarding/overlay heading */
-  --text-display: 26px; /* sign-in / large display heading */
-  --text-hero: 38px; /* the one hero number (Home's portfolio total) */
+   * what makes them the same size again.
+   *
+   * In rem, not px. Each value is the exact px it replaces at the default
+   * 16px root, so nothing moves for anyone who has not changed a setting —
+   * but a reader who raises their browser's text size now gets larger text
+   * instead of being ignored. Spacing is still px, so a very large setting
+   * tightens the padding around the text rather than reflowing the layout;
+   * that is a worse outcome than scaling everything, and a much better one
+   * than a scale that cannot grow at all. */
+  --text-micro: 0.78125rem; /* 12.5px — eyebrow labels, tiny meta */
+  --text-caption: 0.875rem; /* 14px — secondary/muted line under a title */
+  --text-body: 0.90625rem; /* 14.5px — paragraph copy, ordinary row text */
+  --text-row: 0.96875rem; /* 15.5px — list-row title, primary label */
+  --text-title: 1.03125rem; /* 16.5px — section/card title, header-row emphasis */
+  --text-heading: 1.28125rem; /* 20.5px — onboarding/overlay heading */
+  --text-display: 1.625rem; /* 26px — sign-in / large display heading */
+  --text-hero: 2.375rem; /* 38px — the one hero number (Home's portfolio total) */
+
+  /* Tracking and leading for the ends of the scale.
+   *
+   * Letters read further apart as they grow, so large text has to be pulled
+   * in and small text opened up; one letter-spacing for the whole scale is
+   * wrong at one end or the other, and no single value is right at both.
+   *
+   * Only the ends get tokens. The correction the middle of the scale wants
+   * works out under a tenth of a pixel — caption through title would be
+   * carrying a value nobody can see, across roughly 260 call sites. The
+   * face is drawn for text that size; the ends are where it stops holding.
+   *
+   * Leading runs the other way to size: large text needs proportionally
+   * less room between its lines than body copy, which needs the air to stay
+   * readable across a full measure. Body's 1.5 is base.css's default and
+   * needs no token. */
+  --track-micro: 0.012em;
+  --track-heading: -0.012em;
+  --track-display: -0.016em;
+  --track-hero: -0.022em;
+
+  --lead-micro: 1.35;
+  --lead-heading: 1.2;
+  --lead-display: 1.12;
+  --lead-hero: 1.05;
 
   /* Motion — durations and easings base.css's animation classes share with
    * useDismissAnimation, so there is one source of truth for how long an
@@ -128,6 +170,7 @@
    * bottom-nav switching, which happens many times a session, so the fade
    * needs to clear fast enough to feel like the tap itself moved the screen. */
   --dur-screen: .16s;
+  --dur-card: .28s; /* a card's own entrance: longer, because it also moves */
   --dur-tab: .1s;
   --dur-exit: .18s;
   --dur-nav: .2s; /* the tab bar's own chrome: sliding pill + icon/label color */
@@ -150,6 +193,14 @@
 [data-theme="light"] {
   --g1: #ffffff;
   --g2: #F1F5F9;
+
+  /* Light's vignette runs the other way — brightest at the centre still, but
+   * falling to a soft grey rather than to black, and the scanline is drawn in
+   * ink instead of light. */
+  --bg-core: #FFFFFF;
+  --bg-mid: #F1F5F9;
+  --bg-edge: #DFE6EF;
+  --bg-scan: rgba(15, 23, 42, 0.028);
   --line: rgba(41, 43, 49, .15);
   --grid: rgba(41, 43, 49, .09);
   --muted: #3d4050;

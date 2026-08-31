@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BackgroundShapes } from '../components/BackgroundShapes';
+import { AppBackground } from '../components/AppBackground';
 import { Button } from '../components/Button';
 import { AppleLogo } from '../components/Icon';
 import { useAuth } from '../auth/AuthProvider';
@@ -62,7 +62,7 @@ export function SignInScreen() {
         }}
         data-screen-label="signIn"
       >
-        <BackgroundShapes />
+        <AppBackground />
         <div
           className="anim-fade-up"
           style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 10 }}
@@ -78,7 +78,8 @@ export function SignInScreen() {
               margin: 0,
               fontFamily: 'var(--font-heading)',
               fontSize: 'var(--text-display)',
-              lineHeight: 1.2,
+              letterSpacing: 'var(--track-display)',
+              lineHeight: 'var(--lead-display)',
             }}
           >
             {t('auth.title')}

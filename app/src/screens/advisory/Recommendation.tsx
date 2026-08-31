@@ -37,7 +37,14 @@ export function AdvisoryRecommendation(_: ScreenProps) {
           </Tag>
         </div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-heading)' }}>
+          <div
+            style={{
+              fontFamily: 'var(--font-heading)',
+              fontSize: 'var(--text-heading)',
+              letterSpacing: 'var(--track-heading)',
+              lineHeight: 'var(--lead-heading)',
+            }}
+          >
             {t(`profile.${profileKey}` as StringKey)}
           </div>
           <span style={{ marginInlineStart: 'auto' }}>

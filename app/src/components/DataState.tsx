@@ -14,6 +14,13 @@ import { Button } from './Button';
  * on load is in-place rather than a jump. Skeletons are decorative and
  * aria-hidden; the announcement stays on the role="status" wrapper here, which
  * carries the loading text for assistive tech either way.
+ *
+ * Nothing here marks the swap for animation. Loaded cards are newly inserted
+ * elements, and base.css animates `.anim-fade-up .card` at any depth, so they
+ * pick up the same entrance every other card gets. An earlier pass cloned an
+ * entrance class onto each child from here; the rule made that unnecessary,
+ * and dropping it also drops the fragment handling it needed and the second
+ * animation it laid over the screen's own.
  */
 export function DataState<T>({
   state,

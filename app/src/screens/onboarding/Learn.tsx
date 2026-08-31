@@ -157,7 +157,14 @@ export function LearnScreen(_: ScreenProps) {
       )}
 
       <div>
-        <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-heading)', lineHeight: 1.25 }}>
+        <div
+          style={{
+            fontFamily: 'var(--font-heading)',
+            fontSize: 'var(--text-heading)',
+            letterSpacing: 'var(--track-heading)',
+            lineHeight: 'var(--lead-heading)',
+          }}
+        >
           {page.title[language]}
         </div>
         <p style={{ fontSize: 'var(--text-row)', lineHeight: 1.55, margin: '9px 0 0', opacity: 0.85 }}>

@@ -163,7 +163,8 @@ export function StepsScreen(_: ScreenProps) {
             style={{
               fontFamily: 'var(--font-heading)',
               fontSize: 'var(--text-heading)',
-              lineHeight: 1.3,
+              letterSpacing: 'var(--track-heading)',
+              lineHeight: 'var(--lead-heading)',
               marginTop: 11,
               whiteSpace: 'normal',
             }}
@@ -201,7 +202,14 @@ export function StepsScreen(_: ScreenProps) {
         </Card>
       ) : (
         <Card padding={18} gap={8} highlight>
-          <div style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-heading)' }}>
+          <div
+            style={{
+              fontFamily: 'var(--font-heading)',
+              fontSize: 'var(--text-heading)',
+              letterSpacing: 'var(--track-heading)',
+              lineHeight: 'var(--lead-heading)',
+            }}
+          >
             {t('steps.allDone')}
           </div>
           <p style={{ fontSize: 'var(--text-body)', margin: 0, opacity: 0.85 }}>{t('steps.allDoneBody')}</p>

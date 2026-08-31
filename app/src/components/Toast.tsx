@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { SHELL_ID } from './Sheet';
+import { readExitDurationMs } from '../lib/useDismissAnimation';
 
 /**
  * The app's one transient confirmation.
@@ -24,7 +25,6 @@ const ToastCtx = createContext<ToastFn>(() => {});
 export const useToast = () => useContext(ToastCtx);
 
 const VISIBLE_MS = 2200;
-const FADE_MS = 200;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   // `seq` is what makes an identical repeat message re-announce and re-animate:
@@ -33,16 +33,28 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<{ message: string; seq: number; closing: boolean } | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const seq = useRef(0);
+  // How long to leave the toast mounted after it starts closing, read from
+  // `--dur-exit` rather than written down again here. The two had already
+  // drifted — a local constant said 200 against the token's 180 — which costs
+  // nothing while the exit animation fills forwards, and would cut the toast
+  // off mid-flight the moment anyone raised the token. Read on mount, not at
+  // module scope, so the stylesheet is guaranteed to have landed.
+  const fadeMs = useRef(readExitDurationMs()).current;
 
-  const show = useCallback((message: string) => {
-    for (const t of timers.current) clearTimeout(t);
-    seq.current += 1;
-    setToast({ message, seq: seq.current, closing: false });
-    timers.current = [
-      setTimeout(() => setToast((t) => (t ? { ...t, closing: true } : t)), VISIBLE_MS),
-      setTimeout(() => setToast(null), VISIBLE_MS + FADE_MS),
-    ];
-  }, []);
+  const show = useCallback(
+    (message: string) => {
+      for (const t of timers.current) clearTimeout(t);
+      seq.current += 1;
+      setToast({ message, seq: seq.current, closing: false });
+      timers.current = [
+        setTimeout(() => setToast((t) => (t ? { ...t, closing: true } : t)), VISIBLE_MS),
+        setTimeout(() => setToast(null), VISIBLE_MS + fadeMs),
+      ];
+      // fadeMs is a ref's value and so stable for the provider's life; listing
+      // it keeps the dependency honest rather than relying on that.
+    },
+    [fadeMs],
+  );
 
   // Timers outlive the component otherwise, and a setState after unmount is a
   // warning at best and a leak at worst.
@@ -92,7 +104,12 @@ function ToastHost({ message, closing }: { message: string; closing: boolean }) 
         // so it should wait its turn rather than interrupt.
         role="status"
         aria-live="polite"
-        className={closing ? 'anim-fade-out' : 'anim-fade-up'}
+        // Rises from the bottom edge and leaves back through it, rather than
+        // fading in place: a thing that appears one way is expected to go the
+        // way it came, and this one lives at the bottom of the screen. Safe to
+        // transform where screens are not — a toast is a single solid pane
+        // with no glass descendant to detach (see base.css's Motion note).
+        className={closing ? 'anim-toast-out' : 'anim-toast-in'}
         style={{
           maxWidth: '100%',
           padding: '10px 15px',

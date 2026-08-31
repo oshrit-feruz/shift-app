@@ -118,25 +118,32 @@ export function TabBar({
       }}
     >
       {/* Painted before the buttons, so their (transparent-background)
-          content naturally layers on top without needing z-index. Left/width
-          animate directly (not transform): this element has no descendant
-          and is not an ancestor of any glass card, so it carries none of the
-          backdrop-filter-detachment risk the app-wide transform rule guards
-          against (see base.css's Motion note) — a plain layout transition is
-          fine here. */}
+          content naturally layers on top without needing z-index.
+
+          The travel is a transform and only the width is a layout property,
+          because the distance across the bar is the part the eye follows and
+          animating `left` re-lays-out the bar on every frame of it. Safe to
+          transform: this element has no descendants and is not an ancestor of
+          any glass card, so none of the backdrop-filter detachment the
+          app-wide rule guards against applies (see base.css's Motion note).
+          `left` stays at zero and the measured physical offset goes through
+          translate, which keeps this correct under RTL for the same reason
+          the measurement is — getBoundingClientRect is physical either way. */}
       {indicator && (
         <span
           aria-hidden
           style={{
             position: 'absolute',
-            left: indicator.left - 10,
+            left: 0,
             top: indicator.top - 2,
             width: indicator.width + 20,
             height: indicator.height + 4,
             borderRadius: 99,
             background: 'var(--fill-selected)',
+            transform: `translateX(${indicator.left - 10}px)`,
+            willChange: 'transform',
             transition:
-              'left var(--dur-nav) cubic-bezier(.3, 1.05, .4, 1), width var(--dur-nav) cubic-bezier(.3, 1.05, .4, 1)',
+              'transform var(--dur-nav) cubic-bezier(.3, 1.05, .4, 1), width var(--dur-nav) cubic-bezier(.3, 1.05, .4, 1)',
             pointerEvents: 'none',
           }}
         />
@@ -147,6 +154,7 @@ export function TabBar({
           <button
             key={t.screen}
             type="button"
+            className="tab-btn"
             aria-label={translate(t.label)}
             onClick={() => onGo(t.screen)}
             style={{
@@ -165,6 +173,7 @@ export function TabBar({
               ref={(el) => {
                 itemRefs.current[i] = el;
               }}
+              className="tab-item"
               style={{
                 position: 'relative',
                 display: 'flex',
@@ -173,7 +182,6 @@ export function TabBar({
                 gap: 3,
                 padding: '7px 13px',
                 borderRadius: 999,
-                transition: 'color var(--dur-nav) ease',
                 color: active
                   ? 'var(--color-accent-200)'
                   : 'color-mix(in srgb, var(--color-text) 45%, transparent)',
@@ -200,6 +208,9 @@ export function TabBar({
               <span
                 style={{
                   fontSize: 'var(--text-micro)',
+                  letterSpacing: 'var(--track-micro)',
+                  // Not --lead-micro: this is one word in a fixed-height pill,
+                  // and leading meant for wrapped text only makes it taller.
                   lineHeight: 1,
                   fontWeight: active ? 600 : 400,
                 }}

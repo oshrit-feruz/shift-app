@@ -272,6 +272,7 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
 
 /* Segmented control */
 .seg {
+  position: relative;
   display: flex;
   padding: 3px;
   gap: 3px;
@@ -280,6 +281,7 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
   border: 1px solid var(--color-divider);
 }
 .seg-opt {
+  position: relative;
   flex: 1;
   display: flex;
   align-items: center;
@@ -296,7 +298,46 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
   background: transparent;
   font-family: var(--font-body);
 }
-.seg-opt[data-active="true"] { background: var(--color-accent); color: #fff; font-weight: 600; }
+/* The active option no longer paints its own background — .seg-pill does,
+ * and it slides. What stays here is what genuinely belongs to the option:
+ * its colour and weight, which cross-fade under the moving pill. */
+.seg-opt[data-active="true"] { color: #fff; font-weight: 600; }
+/* Painted before the options and layered under them: the options carry
+ * `position: relative` so their labels stay above this without a z-index. */
+.seg-pill {
+  position: absolute;
+  border-radius: 8px;
+  background: var(--color-accent);
+  pointer-events: none;
+  will-change: transform;
+  transition:
+    transform var(--dur-nav) cubic-bezier(.3, 1.05, .4, 1),
+    width var(--dur-nav) cubic-bezier(.3, 1.05, .4, 1);
+}
+
+/* ── Switch ────────────────────────────────────────────────────────────── */
+/* The knob's travel is the button's content box (38px) less its border and
+ * padding (6px) less the knob itself (16px). Kept as a variable because the
+ * sign has to flip with the writing direction: a switch that always slides
+ * right reads backwards in Hebrew, where "on" is the left end. */
+.switch {
+  --switch-travel: 16px;
+
+  transition:
+    background-color var(--dur-nav) ease,
+    border-color var(--dur-nav) ease;
+}
+[dir='rtl'] .switch { --switch-travel: -16px; }
+.switch-knob {
+  transition:
+    transform var(--dur-nav) cubic-bezier(.3, 1.05, .4, 1),
+    background-color var(--dur-nav) ease;
+}
+/* Driven off the ARIA state rather than a second data attribute: the switch
+ * has to carry aria-checked anyway, so there is only one thing to keep true. */
+.switch[aria-checked='true'] .switch-knob {
+  transform: translateX(var(--switch-travel));
+}
 
 /* ── Motion ────────────────────────────────────────────────────────────── */
 /* Opacity-only: every screen's .anim-fade-up wrapper is an ancestor of glass
@@ -320,13 +361,38 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
  * not — it holds no glass descendants, so there is no backdrop-filter for a
  * containing block to detach. */
 
-/* Screen change. The wrapper itself stays untouched at full opacity; its
- * direct children each fade. ease-out front-loads the fade, so the screen is
- * legible early and the last third only settles — linear or ease-in-out at
- * the same duration reads as a slower blink. */
-.anim-fade-up > * {
-  animation: fadeUp var(--dur-screen) var(--ease-out) both;
+/* Screen change. The cards arrive — they rise a little and land in sequence,
+ * which reads as content settling into place rather than the whole screen
+ * blinking on. Nothing else animates: the chrome around them did not change,
+ * and fading a heading in alongside its own cards is the blink this replaces.
+ *
+ * The transform is on the card itself, which is the element carrying the
+ * backdrop-filter. That is the one place a transform is known-safe here — the
+ * sheet has shipped doing exactly this. On a wrapper it makes the wrapper a
+ * containing block, which detaches its descendant cards' blur (see the Motion
+ * note above), and that is why the wrapper still animates nothing.
+ *
+ * Any depth, not `> *`: cards that arrive later — a DataState swapping its
+ * skeleton for real content — are newly inserted elements, so the animation
+ * runs for them too without anything having to mark the swap. */
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
 }
+.anim-fade-up .card,
+.anim-tab-in .card {
+  animation: cardIn var(--dur-card) var(--ease-out) both;
+}
+/* The stagger, capped at the fifth card. Uncapped, a long list cascades for
+ * most of a second and the last rows read as lagging rather than arriving. */
+.anim-fade-up .card:nth-child(2),
+.anim-tab-in .card:nth-child(2) { animation-delay: 35ms; }
+.anim-fade-up .card:nth-child(3),
+.anim-tab-in .card:nth-child(3) { animation-delay: 70ms; }
+.anim-fade-up .card:nth-child(4),
+.anim-tab-in .card:nth-child(4) { animation-delay: 105ms; }
+.anim-fade-up .card:nth-child(n + 5),
+.anim-tab-in .card:nth-child(n + 5) { animation-delay: 140ms; }
 
 /* Exit, paired with useDismissAnimation's --dur-exit default (read from this
  * same token, not a duplicated number): shorter than the entrance so a close
@@ -337,14 +403,8 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
   animation: fadeOut var(--dur-exit) var(--ease-in) both;
 }
 
-/* Tab re-activation inside a screen. Shorter than a screen change because the
- * chrome around it never moved — the screen-change duration here reads as
- * sluggish. Restarts on each activation because display:none resets the
- * animation. Same child-level targeting: TabPanel is an ancestor of glass
- * cards too. */
-.anim-tab-in > * {
-  animation: fadeUp var(--dur-tab) var(--ease-out) both;
-}
+/* Tab re-activation inside a screen shares the card entrance above, and
+ * restarts on each activation because display:none resets the animation. */
 
 
 /* Interactive polish: colour/opacity/background only — never transform on
@@ -366,6 +426,49 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
 .tap { transition: opacity .12s ease; }
 .tap:active { opacity: .6; }
 
+/* The toast: in and out through the bottom edge it lives against, rather
+ * than a fade in place. Enter and exit are the same path in reverse, which
+ * is the whole point — a thing that arrives one way is expected to leave the
+ * way it came. Exit is the shorter of the two, like every other exit here. */
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes toastOut {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(14px); }
+}
+.anim-toast-in { animation: toastIn var(--dur-nav) var(--ease-out) both; }
+.anim-toast-out { animation: toastOut var(--dur-exit) var(--ease-in) both; }
+
+/* Tab bar. Every other control in the app answers a press the instant it
+ * lands; the tabs were the one place that waited for the screen to change
+ * before showing anything, which on a slow route reads as a missed tap.
+ * Dimming rather than scaling: the tabs sit in a tight pill where a scale
+ * would visibly crowd its neighbours. */
+.tab-item {
+  transition:
+    color var(--dur-nav) ease,
+    opacity .12s ease;
+}
+.tab-btn:active .tab-item { opacity: .55; }
+
+/* Onboarding progress. Width and flex-grow are layout properties and there is
+ * no transform that says "this pill got wider", so these animate layout on
+ * purpose — two 6px dots and a 4px bar, on a step change that happens a
+ * handful of times in a session. */
+.progress-dot {
+  transition:
+    width var(--dur-nav) var(--ease-out),
+    background-color var(--dur-nav) ease;
+}
+.progress-seg {
+  transition:
+    flex-grow var(--dur-nav) var(--ease-out),
+    background-color var(--dur-nav) ease;
+}
+
+
 /* One place decides that motion is unwelcome. Durations collapse rather than
  * animations being removed, so nothing depends on an animationend that would
  * then never fire. */
@@ -374,6 +477,11 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
   *::before,
   *::after {
     animation-duration: .01ms !important;
+    /* Delays too, not just durations. A staggered entrance whose duration is
+     * collapsed but whose delay is not leaves the later cards sitting at
+     * opacity 0 for their whole delay and then popping — which is a worse
+     * flash than the animation this setting is asking us to remove. */
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
     scroll-behavior: auto !important;
@@ -434,6 +542,26 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
  * chaining to the document, which is what let iOS rubber-band the whole app
  * — shell, header and tab bar together — away from the screen edges. */
 .scroll-y { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+
+/* The floating header's material, kept off the header's own element so the
+ * fill and the blur can fade out at the bottom without the title fading with
+ * them. It reaches past the header's content and dissolves over that tail: a
+ * translucent bar that simply stops draws a hard line across the content
+ * behind it, which reads as a seam stuck to the glass rather than as chrome
+ * the content is passing under. Fading the blur along with the fill is what
+ * makes it a scroll edge rather than a gradient laid on top of one. */
+.header-material {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  /* The tail is exactly the gap the scroll area leaves above its content
+   * (see App.tsx), so at rest the first row sits clear of the material and
+   * only dissolves into it once it scrolls up. A longer tail would tint the
+   * top row while nothing is even moving. */
+  bottom: -16px;
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent);
+}
 .scroll-x { overflow-x: auto; scrollbar-width: none; }
 .scroll-x::-webkit-scrollbar { display: none; }
 
@@ -462,6 +590,44 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .skeleton { animation: none; }
+}
+
+/* ── App ground ────────────────────────────────────────────────────────── */
+/* Behind every screen, and built from the boot splash's vignette + scanline
+ * rather than from decorative shapes. Every card above it is a
+ * backdrop-filter surface, so what matters here is that it is low-frequency:
+ * blurred, a broad gradient becomes a soft tint the pane sits in, where a
+ * hard-edged shape becomes a smear crossing it.
+ *
+ * Sits at z-index -1 inside the shell, which is a stacking context of its own,
+ * so this paints above the shell's background and below all of its content. */
+.app-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  background: radial-gradient(120% 78% at 50% 38%, var(--bg-core) 0%, var(--bg-mid) 46%, var(--bg-edge) 100%);
+}
+/* The colour. Two very diffuse fields with no edge anywhere in them — the
+ * brand violet where the old gradient put its light, and a far fainter green
+ * low and opposite so the frame is not lit from one corner only. Kept this
+ * weak on purpose: it should be findable, not noticeable. */
+.app-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(72% 46% at 14% -4%, color-mix(in srgb, var(--color-accent) 26%, transparent) 0%, transparent 68%),
+    radial-gradient(58% 38% at 94% 82%, color-mix(in srgb, var(--up) 12%, transparent) 0%, transparent 72%);
+}
+/* The scanline, at the splash's exact rhythm. One pixel lit, two dark: fine
+ * enough to read as the texture of a screen rather than as stripes, and it
+ * dissolves into a flat tint under any card's blur. */
+.app-bg-scan {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(to bottom, var(--bg-scan) 0 1px, transparent 1px 3px);
 }
 
 /* Boot splash: the brand's dark plate, full bleed, with the CRT scanline
