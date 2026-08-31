@@ -264,6 +264,23 @@ function AppShell() {
   // scrollTop — e.g. arriving at a fresh stock page already scrolled halfway
   // down because that is where Home happened to be.
   const scrollRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  // The header floats over the scroll area rather than taking a strip out of
+  // it, so the scroller carries its height as top padding — the same
+  // arrangement the tab bar already has at the bottom. Measured rather than
+  // hardcoded: the header grows with the safe-area inset, with a long screen
+  // title that wraps, and with the reader's text size, and a fixed number
+  // would clip content under any of the three.
+  const [headerH, setHeaderH] = useState(0);
+  useLayoutEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const measure = () => setHeaderH(el.offsetHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
   // useLayoutEffect, not useEffect: the reset has to land before the browser
   // paints. With a passive effect React is free to paint the newly mounted
   // screen first, which shows it for one frame at the *previous* screen's
@@ -302,21 +319,43 @@ function AppShell() {
         id={SHELL_ID}
       >
         <BackgroundShapes />
-        <AppHeader
-          kicker={kicker}
-          title={title}
-          unreadCount={unread}
-          onSearch={openSearch}
-          onNotifications={() => setNotifOpen(true)}
-        />
+        {/* Chrome, not layout: the header is a translucent layer the content
+            passes beneath, which is what makes the app read as one continuous
+            surface instead of three stacked strips. Below the tab bar (50) and
+            sheets (80) — a sheet covers the header, never the reverse.
+
+            The wrapper takes no pointer events because the material below
+            reaches past the header's content, and a strip of invisible chrome
+            must not swallow a tap meant for the first row under it. */}
+        <div
+          ref={headerRef}
+          style={{ position: 'absolute', insetInline: 0, top: 0, zIndex: 40, pointerEvents: 'none' }}
+        >
+          {/* The material is its own layer so it can be faded out at the
+              bottom without taking the title with it — see .header-material. */}
+          <div aria-hidden className="glass-bar header-material" />
+          <div style={{ position: 'relative', pointerEvents: 'auto' }}>
+            <AppHeader
+              kicker={kicker}
+              title={title}
+              unreadCount={unread}
+              onSearch={openSearch}
+              onNotifications={() => setNotifOpen(true)}
+            />
+          </div>
+        </div>
         <div
           ref={scrollRef}
           className="scroll-y"
           style={{
             flex: 1,
             minHeight: 0,
-            // Bottom padding clears the floating TabBar, which is out of flow.
+            // Both the header and the TabBar are out of flow, so the scroll
+            // area clears each of them itself.
             padding: '6px 16px calc(90px + env(safe-area-inset-bottom))',
+            // The 16 matches .header-material's tail, so content comes to
+            // rest clear of the fade rather than under the end of it.
+            paddingTop: headerH + 16,
           }}
         >
           {/* A compact skeleton, not null: on a warm cache the chunk resolves

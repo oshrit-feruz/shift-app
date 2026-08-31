@@ -298,6 +298,29 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
 }
 .seg-opt[data-active="true"] { background: var(--color-accent); color: #fff; font-weight: 600; }
 
+/* ── Switch ────────────────────────────────────────────────────────────── */
+/* The knob's travel is the button's content box (38px) less its border and
+ * padding (6px) less the knob itself (16px). Kept as a variable because the
+ * sign has to flip with the writing direction: a switch that always slides
+ * right reads backwards in Hebrew, where "on" is the left end. */
+.switch {
+  --switch-travel: 16px;
+  transition:
+    background-color var(--dur-nav) ease,
+    border-color var(--dur-nav) ease;
+}
+[dir='rtl'] .switch { --switch-travel: -16px; }
+.switch-knob {
+  transition:
+    transform var(--dur-nav) cubic-bezier(.3, 1.05, .4, 1),
+    background-color var(--dur-nav) ease;
+}
+/* Driven off the ARIA state rather than a second data attribute: the switch
+ * has to carry aria-checked anyway, so there is only one thing to keep true. */
+.switch[aria-checked='true'] .switch-knob {
+  transform: translateX(var(--switch-travel));
+}
+
 /* ── Motion ────────────────────────────────────────────────────────────── */
 /* Opacity-only: every screen's .anim-fade-up wrapper is an ancestor of glass
  * .card elements. Animating `transform` here (the original translateY) gives
@@ -442,6 +465,26 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
  * chaining to the document, which is what let iOS rubber-band the whole app
  * — shell, header and tab bar together — away from the screen edges. */
 .scroll-y { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+
+/* The floating header's material, kept off the header's own element so the
+ * fill and the blur can fade out at the bottom without the title fading with
+ * them. It reaches past the header's content and dissolves over that tail: a
+ * translucent bar that simply stops draws a hard line across the content
+ * behind it, which reads as a seam stuck to the glass rather than as chrome
+ * the content is passing under. Fading the blur along with the fill is what
+ * makes it a scroll edge rather than a gradient laid on top of one. */
+.header-material {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  /* The tail is exactly the gap the scroll area leaves above its content
+   * (see App.tsx), so at rest the first row sits clear of the material and
+   * only dissolves into it once it scrolls up. A longer tail would tint the
+   * top row while nothing is even moving. */
+  bottom: -16px;
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent);
+}
 .scroll-x { overflow-x: auto; scrollbar-width: none; }
 .scroll-x::-webkit-scrollbar { display: none; }
 
