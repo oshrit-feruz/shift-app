@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
-import { Card, CardTitle, Divider } from '../components/Card';
+import { Card, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Tag } from '../components/Tag';
-import { Icon } from '../components/Icon';
 import { Num } from '../components/Num';
 import { AreaChart } from '../components/AreaChart';
 import { MetricStrip } from '../components/MetricStrip';
@@ -13,6 +12,7 @@ import { DataState, EmptyState } from '../components/DataState';
 import { Skeleton, SkeletonChart, SkeletonLine, SkeletonList, SkeletonText } from '../components/Skeleton';
 import { ProgressTrack } from '../components/Progress';
 import { DemoOnly } from '../components/DemoOnly';
+import { AdvisoryBand } from './home/AdvisoryBand';
 import { useAppState, useDispatch, setupProgress } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
@@ -42,6 +42,9 @@ export function HomeScreen({ openSearch }: ScreenProps) {
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* The advisory track, first and full-bleed — see home/AdvisoryBand. */}
+      <AdvisoryBand />
+
       {/* A real connected account outranks the sample-data switch: it is
           not sample data, so the hero shows even with that switch off. */}
       {beg && (live || demo ? <HeroPortfolio /> : <DemoOnly feature="home.pfToday" />)}
@@ -67,127 +70,6 @@ export function HomeScreen({ openSearch }: ScreenProps) {
             </span>
           </div>
           <ProgressTrack pct={setup.pct} label={t('setup.stepOf', { n: setup.stepLabel })} />
-        </Card>
-      )}
-
-      {/* Two tracks */}
-      <Card padding={16} gap={10}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span
-            style={{
-              width: 26,
-              height: 26,
-              flex: 'none',
-              borderRadius: 8,
-              background: 'var(--sunk)',
-              display: 'grid',
-              placeItems: 'center',
-              color: 'var(--color-accent-200)',
-            }}
-            aria-hidden="true"
-          >
-            <Icon name="trend" size={14} />
-          </span>
-          <span style={{ fontSize: 'var(--text-title)', fontWeight: 600, flex: 1 }}>
-            {t('home.trackSelf')}
-          </span>
-          <Tag variant="outline">{t('home.trackHere')}</Tag>
-        </div>
-        <p className="text-muted" style={{ fontSize: 'var(--text-row)', margin: 0, lineHeight: 1.5 }}>
-          {t('home.trackSelfSub')}
-        </p>
-        <Divider />
-        <button
-          type="button"
-          onClick={() =>
-            dispatch({
-              type: 'advGoto',
-              screen: setup.resumeScreen,
-              solo: false,
-            })
-          }
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 10,
-            border: 0,
-            background: 'transparent',
-            textAlign: 'start',
-            font: 'inherit',
-            color: 'inherit',
-            cursor: 'pointer',
-            padding: 0,
-            minHeight: 44,
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              width: '100%',
-            }}
-          >
-            <span
-              style={{
-                width: 26,
-                height: 26,
-                flex: 'none',
-                borderRadius: 8,
-                background: 'var(--color-accent-800)',
-                display: 'grid',
-                placeItems: 'center',
-                color: 'var(--color-accent-200)',
-              }}
-              aria-hidden="true"
-            >
-              <Icon name="list" size={14} />
-            </span>
-            <span
-              style={{
-                fontSize: 'var(--text-title)',
-                fontWeight: 600,
-                flex: 1,
-                color: 'var(--color-accent-300)',
-              }}
-            >
-              {t('home.trackAdvisor')}
-            </span>
-            <Tag variant="accent">{t('adv.tag')}</Tag>
-          </div>
-          <p className="text-muted" style={{ fontSize: 'var(--text-row)', margin: 0, lineHeight: 1.5 }}>
-            {t('home.trackAdvisorSub')}
-          </p>
-        </button>
-      </Card>
-
-      {beg && (
-        <Card padding={13} highlight row gap={11} onClick={() => dispatch({ type: 'go', screen: 'learn' })}>
-          <span
-            style={{
-              width: 30,
-              height: 30,
-              flex: 'none',
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--color-accent-800)',
-              color: 'var(--color-accent-200)',
-              display: 'grid',
-              placeItems: 'center',
-              fontSize: 'var(--text-title)',
-            }}
-          >
-            ◉
-          </span>
-          <span style={{ flex: 1 }}>
-            <span style={{ display: 'block', fontSize: 'var(--text-title)' }}>{t('home.startHere')}</span>
-            <span
-              className="text-muted"
-              style={{ display: 'block', fontSize: 'var(--text-row)', marginTop: 2 }}
-            >
-              {t('home.startHereSub')}
-            </span>
-          </span>
-          <span style={{ opacity: 0.5, fontSize: 'var(--text-title)' }}>›</span>
         </Card>
       )}
 
@@ -240,6 +122,40 @@ export function HomeScreen({ openSearch }: ScreenProps) {
           }
         </DataState>
       </Card>
+
+      {/* The learning library sits below the watchlist rather than above it:
+          it is a standing invitation, not news, and a client who opens the app
+          to look at her own list should reach that list before being offered
+          a guide. */}
+      {beg && (
+        <Card padding={13} highlight row gap={11} onClick={() => dispatch({ type: 'go', screen: 'learn' })}>
+          <span
+            style={{
+              width: 30,
+              height: 30,
+              flex: 'none',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--color-accent-800)',
+              color: 'var(--color-accent-200)',
+              display: 'grid',
+              placeItems: 'center',
+              fontSize: 'var(--text-title)',
+            }}
+          >
+            ◉
+          </span>
+          <span style={{ flex: 1 }}>
+            <span style={{ display: 'block', fontSize: 'var(--text-title)' }}>{t('home.startHere')}</span>
+            <span
+              className="text-muted"
+              style={{ display: 'block', fontSize: 'var(--text-row)', marginTop: 2 }}
+            >
+              {t('home.startHereSub')}
+            </span>
+          </span>
+          <span style={{ opacity: 0.5, fontSize: 'var(--text-title)' }}>›</span>
+        </Card>
+      )}
 
       {demo ? <MoversPreview beg={beg} /> : <DemoOnly feature="title.movers" />}
 

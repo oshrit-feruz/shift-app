@@ -200,6 +200,234 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
 .select-card { box-shadow: var(--shadow-btn); }
 .select-card:active { box-shadow: var(--shadow-btn-active); }
 
+/* ── Band ──────────────────────────────────────────────────────────────── */
+/* The second content surface, and the only one that is not a card.
+ *
+ * A card is an object floating on the page; a band is a slice of the page —
+ * edge to edge, no radius, no blur, hairlines top and bottom, on a tint of
+ * its own. It exists for the one block that has to outrank six equal glass
+ * panes without being bigger than any of them: the advisory track's place on
+ * the home screen.
+ *
+ * The negative inline margin is exactly the shared scroll container's 16px
+ * gutter (App.tsx), so the band reaches the screen's edges while its content
+ * stays on the same measure as every card beside it. Anything else placed in
+ * that scroller keeps the gutter; only this opts out.
+ */
+.band {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-inline: -16px;
+  padding: 13px 16px;
+  border: 0;
+  border-top: 1px solid var(--color-divider);
+  border-bottom: 1px solid var(--color-divider);
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--color-accent) 13%, transparent),
+    color-mix(in srgb, var(--color-accent) 4%, transparent)
+  );
+  color: inherit;
+  font: inherit;
+  text-align: start;
+}
+/* Only the band that is a button answers a press. The surface is used both
+ * ways: a tappable entry point on home, a static section on the
+ * recommendation screen. */
+button.band {
+  cursor: pointer;
+  transition: background-color .18s ease;
+}
+button.band:active { background-color: color-mix(in srgb, var(--color-accent) 8%, transparent); }
+/* The band's leading glyph plate — the same 26px accent square the tracks
+ * card gives its rows, so the two read as the same family of entry point. */
+.band-icon {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 8px;
+  background: var(--color-accent-800);
+  display: grid;
+  place-items: center;
+  color: var(--color-accent-200);
+}
+/* It is not a .card, so the screen entrance in the Motion section never
+ * reaches it — without this it would appear instantly while every card around
+ * it rose into place. Same keyframe, same duration: it holds no glass, so the
+ * transform is safe here. */
+.anim-fade-up .band { animation: cardIn var(--dur-card) var(--ease-out) both; }
+
+/* ── Live badge ────────────────────────────────────────────────────────── */
+/* Green, and the only green that does not mean "up" — which is why it is
+ * spelled out rather than being a colour on its own, and why it is used in
+ * exactly one place (the radar header). */
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 3px 7px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--up) 45%, transparent);
+  background: color-mix(in srgb, var(--up) 14%, transparent);
+  color: var(--up);
+  font-size: var(--text-micro);
+  letter-spacing: .08em;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.live-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--up);
+  /* Breathing, not blinking: a hard on/off in the corner of a screen full of
+   * numbers reads as an error light. Opacity only. */
+  animation: livePulse 1.8s ease-in-out infinite;
+}
+@keyframes livePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .35; }
+}
+
+/* ── Radar sweep ───────────────────────────────────────────────────────── */
+/* A dish that keeps turning beside the live badge: two range rings and a beam
+ * that sweeps them, which is what a live feed looks like when it is drawn
+ * rather than described.
+ *
+ * The beam is a conic gradient rotating inside a clipped circle — one animated
+ * transform on one small element, and nothing about it reflows. It is the only
+ * thing on the screen that moves on its own, which is why it is this small and
+ * this slow: at 2.6s a turn it reads as an instrument idling, where a fast
+ * sweep reads as a progress spinner and would promise something is about to
+ * finish. */
+.radar-sweep {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--up) 40%, transparent);
+  background:
+    radial-gradient(circle, transparent 0 28%, color-mix(in srgb, var(--up) 22%, transparent) 28% 30%, transparent 30%),
+    radial-gradient(circle, transparent 0 58%, color-mix(in srgb, var(--up) 18%, transparent) 58% 60%, transparent 60%),
+    color-mix(in srgb, var(--up) 9%, transparent);
+}
+.radar-sweep-beam {
+  position: absolute;
+  inset: 0;
+  background: conic-gradient(
+    from 0deg,
+    color-mix(in srgb, var(--up) 62%, transparent) 0deg,
+    color-mix(in srgb, var(--up) 12%, transparent) 38deg,
+    transparent 62deg,
+    transparent 360deg
+  );
+  animation: radarSweep 2.6s linear infinite;
+}
+@keyframes radarSweep {
+  to { transform: rotate(1turn); }
+}
+/* The blip at the centre, so the dish still reads as switched on when a
+ * reduced-motion setting has stopped the beam. */
+.radar-sweep::after {
+  content: '';
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--up);
+}
+
+/* ── Glitch mark ───────────────────────────────────────────────────────── */
+/* The wordmark inline in a sentence, wearing the splash's own tear and
+ * flicker — the same two keyframes, so the brand glitches one way in this app
+ * and not two. Sized by the caller's height; the image fills it. */
+.glitch-mark {
+  position: relative;
+  display: inline-block;
+  vertical-align: -0.16em;
+  line-height: 0;
+  animation: splash-flicker 1.9s ease-in-out infinite;
+}
+.glitch-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.glitch-mark .glitch-tear {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  animation: splash-tear 1.9s steps(1, end) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .glitch-mark,
+  .glitch-mark .glitch-tear { animation: none; }
+}
+
+/* ── Amount slider ─────────────────────────────────────────────────────── */
+/* A native <input type="range">, restyled. Native because the control has to
+ * be draggable by mouse, finger and arrow key, announce itself to a screen
+ * reader, and mirror itself under RTL — all of which a hand-built drag would
+ * have to re-earn.
+ *
+ * The filled part of the track arrives as --fill, a percentage, because a
+ * gradient has a physical direction: the fill grows to the right in English
+ * and to the left in Hebrew, and that is the one thing the browser's own
+ * mirroring does not do for a custom background. */
+.amount-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 24px;
+  margin: 0;
+  background: transparent;
+  cursor: grab;
+}
+.amount-slider:active { cursor: grabbing; }
+.amount-slider:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 4px; }
+.amount-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, var(--color-accent) 0 var(--fill), var(--line) var(--fill) 100%);
+}
+[dir='rtl'] .amount-slider::-webkit-slider-runnable-track {
+  background: linear-gradient(to left, var(--color-accent) 0 var(--fill), var(--line) var(--fill) 100%);
+}
+.amount-slider::-moz-range-track { height: 6px; border-radius: 3px; background: var(--line); }
+.amount-slider::-moz-range-progress { height: 6px; border-radius: 3px; background: var(--color-accent); }
+/* Sized past the 6px track and centred on it by hand — a webkit thumb has no
+ * alignment of its own. */
+.amount-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  margin-top: -8px;
+  border-radius: 999px;
+  border: 2px solid var(--color-accent);
+  background: var(--color-text);
+  box-shadow: var(--shadow-btn);
+  transition: transform .12s var(--ease-out);
+}
+.amount-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 2px solid var(--color-accent);
+  background: var(--color-text);
+  box-shadow: var(--shadow-btn);
+}
+/* The one piece of motion the control has: the handle grows under the finger
+ * holding it, and nothing else moves — every figure on the screen is
+ * re-rendering while the drag runs, and a shifting layout under a live drag
+ * reads as lag. */
+.amount-slider:active::-webkit-slider-thumb { transform: scale(1.12); }
+
 /* ── Tags ──────────────────────────────────────────────────────────────── */
 .tag {
   display: inline-flex;
