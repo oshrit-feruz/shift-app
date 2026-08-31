@@ -72,13 +72,27 @@ export function AdvisoryChat(_: ScreenProps) {
         </p>
       </Card>
 
-      {ans.map((v, i) => (
-        <span key={i} style={{ display: 'contents' }}>
-          <ChatBubble who="bot">{t(QUESTIONS[i].q)}</ChatBubble>
-          <ChatBubble who="me">{t(QUESTIONS[i].opts.find((o) => o[0] === v)![1])}</ChatBubble>
+      {/* One keyed list over the questions reached so far, rather than a map
+          over the answers plus a separate bubble for the one being asked.
+          Split that way, answering moved a question from the second slot into
+          the first — a different position in a different list, so React
+          unmounted it and mounted a copy, and the question the user had just
+          answered arrived a second time while the bubble below it silently
+          swapped to the next one. Here a question keeps its key from the
+          moment it is asked, so only genuinely new turns animate in. */}
+      {QUESTIONS.slice(0, asking ? ans.length + 1 : ans.length).map((question, i) => (
+        <span key={question.q} style={{ display: 'contents' }}>
+          {/* The first question arrives with the screen; every later one is a
+              reply to an answer, and waits the beat that makes it read as
+              one. */}
+          <ChatBubble who="bot" delayMs={i === 0 ? 0 : 140}>
+            {t(question.q)}
+          </ChatBubble>
+          {ans[i] != null && (
+            <ChatBubble who="me">{t(question.opts.find((o) => o[0] === ans[i])![1])}</ChatBubble>
+          )}
         </span>
       ))}
-      {asking && <ChatBubble who="bot">{t(QUESTIONS[ans.length].q)}</ChatBubble>}
 
       {asking && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7, paddingTop: 2 }}>

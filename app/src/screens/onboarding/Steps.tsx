@@ -116,10 +116,18 @@ export function StepsScreen(_: ScreenProps) {
       className="anim-fade-up"
       style={{ display: 'flex', flexDirection: 'column', gap: 13, paddingTop: 4 }}
     >
+      {/* `progress-seg` rather than bare spans: this is the same bar
+          Progress.tsx's SegmentDots draws, and it was the one copy without
+          the class that transitions it — so the app's own onboarding spine
+          was the single progress bar in the app that jumped between two
+          frames. Not swapped for SegmentDots itself, whose fill rule
+          (`i <= current`) is not this one: a step here can be ticked off out
+          of order, so a segment is filled by its own done flag. */}
       <div style={{ display: 'flex', gap: 4 }}>
         {STEPS.map((x, i) => (
           <span
             key={x.key}
+            className="progress-seg"
             style={{
               height: 4,
               borderRadius: 3,
@@ -250,6 +258,7 @@ export function StepsScreen(_: ScreenProps) {
               }}
             >
               <span
+                className="step-mark"
                 style={{
                   width: 22,
                   height: 22,
@@ -258,14 +267,25 @@ export function StepsScreen(_: ScreenProps) {
                   display: 'grid',
                   placeItems: 'center',
                   fontSize: 'var(--text-caption)',
+                  // backgroundColor, not the `background` shorthand, for the
+                  // reason Card.tsx uses the longhand too: the shorthand
+                  // resets every other background longhand along with it, and
+                  // naming the one property .step-mark transitions keeps the
+                  // style and the transition talking about the same thing.
                   border: `1px solid ${done ? 'transparent' : 'var(--color-divider)'}`,
-                  background: done ? 'var(--color-accent-800)' : 'transparent',
+                  backgroundColor: done ? 'var(--color-accent-800)' : 'transparent',
                   color: done ? 'var(--color-accent-200)' : 'inherit',
                 }}
               >
-                {done ? '✓' : i + 1}
+                {/* Keyed on the state, so React replaces the node instead of
+                    patching the character in place — a remount is what gives
+                    the new glyph an entrance to animate. */}
+                <span key={done ? 'done' : 'todo'} className="step-tick">
+                  {done ? '✓' : i + 1}
+                </span>
               </span>
               <span
+                className="step-title"
                 style={{
                   flex: 1,
                   fontSize: 'var(--text-row)',
