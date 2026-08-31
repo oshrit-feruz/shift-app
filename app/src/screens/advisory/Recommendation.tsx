@@ -29,6 +29,10 @@ const MIN = 1000;
 const MAX = 50000;
 const STEP = 500;
 
+/** How many of the day's names get a tile. Three fits a phone row without the
+ *  logos and the buy buttons crowding; the rest are counted, not hidden. */
+const TILES = 3;
+
 /** The rotating accent palette used for allocation series (AllocationBar). */
 const BAND_COLORS = ['var(--color-accent)', 'var(--acc-lite)', 'var(--acc-dim)', 'var(--color-accent-700)'];
 
@@ -264,20 +268,8 @@ function RadarCard({ amount, pct }: { amount: number; pct: number }) {
           the looking. */}
       {/* Body size, not caption: at 14px the mark beside the words read as a
           smudge rather than as the brand. */}
-      <p
-        style={{
-          fontSize: 'var(--text-body)',
-          margin: 0,
-          lineHeight: 1.6,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          flexWrap: 'wrap',
-          opacity: 0.9,
-        }}
-      >
-        {t('rec.radarLineStart')}
-        <GlitchMark height={19} />
+      <p style={{ fontSize: 'var(--text-body)', margin: 0, lineHeight: 1.6, opacity: 0.9 }}>
+        {t('rec.radarLineStart')} <GlitchMark height={19} />
         {t('rec.radarLineEnd')}
       </p>
       {!allocated && <Note>{t('rec.satInfoOnly')}</Note>}
@@ -287,55 +279,68 @@ function RadarCard({ amount, pct }: { amount: number; pct: number }) {
           signals.length === 0 ? (
             <EmptyState>{t('rec.noPositions')}</EmptyState>
           ) : (
-            <div style={{ display: 'flex', gap: 7 }}>
-              {signals.slice(0, 3).map((x) => (
-                <div
-                  key={x.ticker}
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 5,
-                    padding: '10px 4px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--color-divider)',
-                    background: 'var(--sunk)',
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <div style={{ display: 'flex', gap: 7 }}>
+                {signals.slice(0, TILES).map((x) => (
+                  <div
+                    key={x.ticker}
                     style={{
+                      flex: 1,
+                      minWidth: 0,
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
                       gap: 5,
-                      minHeight: 44,
-                      border: 0,
-                      padding: 0,
-                      background: 'transparent',
-                      color: 'inherit',
-                      font: 'inherit',
-                      cursor: 'pointer',
+                      padding: '10px 4px',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--color-divider)',
+                      background: 'var(--sunk)',
                     }}
                   >
-                    <TickerTile ticker={x.ticker} size={28} />
-                    {/* With a sleeve, the tile leads with this amount's share
+                    <button
+                      type="button"
+                      onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 5,
+                        minHeight: 44,
+                        border: 0,
+                        padding: 0,
+                        background: 'transparent',
+                        color: 'inherit',
+                        font: 'inherit',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <TickerTile ticker={x.ticker} size={28} />
+                      {/* With a sleeve, the tile leads with this amount's share
                         of it; without one, with the name and the live price.
                         A missing price renders as an em dash — never guessed,
                         never back-filled. */}
-                    <Num size="var(--text-row)" weight={700}>
-                      {allocated ? money(amount / Math.min(signals.length, 3), 0) : x.ticker}
-                    </Num>
-                    <Num size="var(--text-caption)" style={{ color: 'var(--muted)' }}>
-                      {allocated ? x.ticker : x.price === null ? '—' : money(x.price)}
-                    </Num>
-                  </button>
-                  <BuyAtBrokerButton ticker={x.ticker} />
-                </div>
-              ))}
+                      <Num size="var(--text-row)" weight={700}>
+                        {/* The sleeve is split across every name that passed
+                          today, not across the three with tiles — dividing by
+                          the visible count would overstate each position on
+                          any day more than three clear the checks. */}
+                        {allocated ? money(amount / signals.length, 0) : x.ticker}
+                      </Num>
+                      <Num size="var(--text-caption)" style={{ color: 'var(--muted)' }}>
+                        {allocated ? x.ticker : x.price === null ? '—' : money(x.price)}
+                      </Num>
+                    </button>
+                    <BuyAtBrokerButton ticker={x.ticker} />
+                  </div>
+                ))}
+              </div>
+              {/* Only the first few names get a tile, so on a day when more
+                  clear the checks the tiles no longer add up to the sleeve
+                  above them. Say how many there are rather than letting three
+                  of eight read as all of them. */}
+              {signals.length > TILES && (
+                <Note>{t('rec.radarShowing', { shown: TILES, total: signals.length })}</Note>
+              )}
             </div>
           )
         }

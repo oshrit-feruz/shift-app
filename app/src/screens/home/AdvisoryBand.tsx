@@ -28,8 +28,20 @@ import type { StringKey } from '../../i18n/strings';
 export function AdvisoryBand() {
   const s = useAppState();
   const profile = mapProfile(s.advAnswers);
-  return profile === null ? <Invitation /> : <Result profile={profile} />;
+  // The answers alone are not the recommendation. `advAnswer` fills
+  // `advAnswers` without touching `advStage`, so a client who answered the
+  // fourth question and left the chat has a mappable profile she has never
+  // been shown — and reporting it here would also hand her a way into the
+  // dashboard around the disclosure step, which the flow puts before it on
+  // purpose. Stage 2 is set by Disclosure's own continue button, so it is
+  // exactly "she has accepted the disclosure and reached her recommendation".
+  const delivered = profile !== null && s.advStage >= ADV_STAGE_DASHBOARD;
+  return delivered && profile !== null ? <Result profile={profile} /> : <Invitation />;
 }
+
+/** `advStage` once Disclosure has handed the client to the recommendation
+ *  (screens/advisory/Disclosure.tsx dispatches this stage with the screen). */
+const ADV_STAGE_DASHBOARD = 2;
 
 /** Before the four questions: two lines and a chevron. */
 function Invitation() {

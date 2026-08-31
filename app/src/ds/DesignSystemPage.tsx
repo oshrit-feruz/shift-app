@@ -631,6 +631,9 @@ export function DesignSystemPage() {
             </Cell>
 
             <Cell title="Amount slider">
+              {/* The fill follows the thumb here too. A demo that documents
+                  the --fill contract in the note below it and then ignores it
+                  is worse than no demo. */}
               <input
                 type="range"
                 className="amount-slider"
@@ -639,6 +642,10 @@ export function DesignSystemPage() {
                 defaultValue={35}
                 aria-label="Amount"
                 style={{ ['--fill' as string]: '35%' }}
+                onInput={(e) => {
+                  const el = e.currentTarget;
+                  el.style.setProperty('--fill', `${el.value}%`);
+                }}
               />
               <Note>
                 A native range input, restyled: draggable by mouse, finger and arrow key, announced to a

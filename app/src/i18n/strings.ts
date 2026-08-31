@@ -249,6 +249,13 @@ export const STRINGS = {
    * than interpolated because the mark is an image, and because the two
    * languages want it in different places in the sentence. */
   'rec.radarLineStart': p('The names picked up today by', 'המניות שעלו על הראדר היומי של'),
+  /* Only a few of the day's names get a tile. On a day when more clear the
+   * checks, this says so rather than letting the tiles read as the whole
+   * list — and as the whole sleeve, which they no longer add up to. */
+  'rec.radarShowing': p(
+    'Showing {shown} of {total} that passed today',
+    'מוצגות {shown} מתוך {total} שעברו היום',
+  ),
   'rec.radarLineEnd': p("'s daily radar", ''),
   'rec.ofPortfolio': p('of the portfolio', 'מהתיק'),
   'rec.dailyTag': p('Checked daily', 'בדיקה יומית'),
