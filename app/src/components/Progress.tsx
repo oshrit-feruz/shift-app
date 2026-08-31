@@ -1,12 +1,17 @@
 import { Num } from './Num';
 
-/** Pill dots — current step wide + accent, done dim, rest line. */
+/** Pill dots — current step wide + accent, done dim, rest line.
+ *
+ * The widening and the colour change are transitioned. Completing a step is
+ * the one thing worth showing in a flow whose whole subject is progress, and
+ * it used to happen between two frames with nothing in between. */
 export function ProgressDots({ total, current, done }: { total: number; current: number; done?: number }) {
   return (
     <div style={{ display: 'flex', gap: 4, alignItems: 'center', justifyContent: 'center' }}>
       {Array.from({ length: total }, (_, i) => (
         <span
           key={i}
+          className="progress-dot"
           style={{
             width: i === current ? 18 : 6,
             height: 6,
@@ -24,13 +29,17 @@ export function ProgressDots({ total, current, done }: { total: number; current:
   );
 }
 
-/** Flex segment bar — segments up to `current` filled (open-account guide). */
+/** Flex segment bar — segments up to `current` filled (open-account guide).
+ *
+ * Same reasoning as ProgressDots: the segment grows into place rather than
+ * being a different width on the next frame. */
 export function SegmentDots({ total, current }: { total: number; current: number }) {
   return (
     <div style={{ display: 'flex', gap: 4 }}>
       {Array.from({ length: total }, (_, i) => (
         <span
           key={i}
+          className="progress-seg"
           style={{
             height: 4,
             borderRadius: 3,

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { Children, cloneElement, isValidElement, type ReactNode } from 'react';
 import type { Loadable } from '../data/types';
 import { useT } from '../i18n/useT';
 import { useTheme } from '../theme/ThemeProvider';
@@ -14,6 +14,13 @@ import { Button } from './Button';
  * on load is in-place rather than a jump. Skeletons are decorative and
  * aria-hidden; the announcement stays on the role="status" wrapper here, which
  * carries the loading text for assistive tech either way.
+ *
+ * The swap itself fades. Everything above exists to stop the layout moving on
+ * load, and then the content arrived in a single frame anyway — the one place
+ * left where a screen still blinked. The class goes onto each top-level child
+ * rather than a wrapper around them, for the same reason the loading branch
+ * has no wrapper: one would become a flex item and swallow the parent's row
+ * gaps, which is the layout shift this component is built to avoid.
  */
 export function DataState<T>({
   state,
@@ -28,6 +35,17 @@ export function DataState<T>({
 }) {
   const t = useT();
   const { language } = useTheme();
+  /** Adds the entrance class to each child that can carry one. A child that
+   *  is a component ignoring `className` simply arrives without the fade,
+   *  which is the old behaviour and costs nothing. */
+  const faded = (node: ReactNode) =>
+    Children.map(node, (child) =>
+      isValidElement<{ className?: string }>(child)
+        ? cloneElement(child, {
+            className: [child.props.className, 'anim-data-in'].filter(Boolean).join(' '),
+          })
+        : child,
+    );
   if (state.status === 'loading') {
     if (skeleton) {
       // No wrapper element: a wrapper would collapse the skeleton into a
@@ -74,7 +92,7 @@ export function DataState<T>({
       </div>
     );
   }
-  return <>{children(state.data)}</>;
+  return <>{faded(children(state.data))}</>;
 }
 
 /** Honest empty state for ok-but-empty lists (e.g. no open satellite positions). */
