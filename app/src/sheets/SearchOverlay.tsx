@@ -12,8 +12,18 @@ import { useBackGuard } from '../state/backStack';
 import { useT } from '../i18n/useT';
 import { useToast } from '../components/Toast';
 import { demoService } from '../data/demoAdapter';
+import { fetchQuotes } from '../data/quotes';
 import { useLoadable } from '../data/useLoadable';
 import type { WatchRow } from '../data/types';
+
+/**
+ * How many visible rows are priced at once.
+ *
+ * Matches the batch the quote route accepts in one request, so a long result
+ * list costs one round trip rather than several. Rows past it render "—",
+ * which is honest and, at twenty-five deep in a search result, unseen.
+ */
+const PRICED_ROWS = 25;
 
 /**
  * Full-screen ticker search — and the app's one way onto the watchlist.
@@ -24,9 +34,15 @@ import type { WatchRow } from '../data/types';
  *
  * Every row carries an add/added toggle, so a stock can be followed without a
  * detour through its page, and the searchable set is the whole universe the
- * app can price (data/demoAdapter.searchUniverse) rather than the ten rows of
+ * app knows of (data/demoAdapter.searchUniverse) rather than the ten rows of
  * the sample table — a watchlist you may only fill from ten names is a demo
  * with extra steps.
+ *
+ * PRICES ARE FETCHED FOR THE VISIBLE ROWS ONLY. The universe is a hundred-odd
+ * tickers and a live quote costs one provider request each, so it arrives
+ * unpriced and the handful of rows actually on screen are priced here. A row
+ * whose quote has not landed yet — or could not be read — renders "—" rather
+ * than a stale price for a symbol the reader just typed.
  */
 /** Rows whose ticker or company name contains the (already lowercased) query. */
 function matches(rows: WatchRow[], query: string): WatchRow[] {
@@ -69,6 +85,17 @@ function SearchOverlayBody({ closing, onClose }: { closing: boolean; onClose: ()
   const universeFor = useRef(s.watchlist).current;
   const symbols = useLoadable(() => demoService.searchUniverse(universeFor), []);
   const query = q.trim().toLowerCase();
+
+  // The rows the list will actually render, computed here rather than inside
+  // the render prop so their prices can be fetched. Quotes are cached per
+  // ticker for a few seconds, so typing through a result set re-reads almost
+  // nothing.
+  const rows = symbols.state.status === 'ok' ? symbols.state.data : [];
+  const hits = query ? matches(rows, query) : rows.slice(0, 5);
+  const priced = hits.slice(0, PRICED_ROWS).map((x) => x.ticker);
+  const quotes = useLoadable(() => fetchQuotes(priced), [priced.join(',')]);
+  const quoteFor = (ticker: string) =>
+    quotes.state.status === 'ok' ? (quotes.state.data[ticker] ?? null) : null;
 
   return (
     <div
@@ -131,13 +158,12 @@ function SearchOverlayBody({ closing, onClose }: { closing: boolean; onClose: ()
           onRetry={symbols.retry}
           skeleton={<SkeletonList count={5} minHeight={52} firstDivider />}
         >
-          {(syms) => {
+          {() => {
             // One list, whatever the user follows. An earlier version swapped
             // in the watchlist once it had anything on it, so adding a stock
             // replaced the list being browsed with a list of one — the row
             // the user had just tapped. The list stays put; the row's own
             // button is what changes to say it was added.
-            const hits = query ? matches(syms, query) : syms.slice(0, 5);
             const heading = query ? t('search.matches', { n: hits.length }) : t('search.recent');
             return (
               <>
@@ -160,7 +186,7 @@ function SearchOverlayBody({ closing, onClose }: { closing: boolean; onClose: ()
                       leading={<TickerTile ticker={x.ticker} size={26} />}
                       title={x.ticker}
                       subtitle={x.name ? `${x.name} · ${x.sector}` : t('search.rankedOnly')}
-                      right={<WatchRowValues row={x} />}
+                      right={<WatchRowValues row={{ ...x, quote: quoteFor(x.ticker) }} />}
                       trailing={
                         <button
                           type="button"

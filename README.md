@@ -181,45 +181,49 @@ the `DataService` interface (`service.ts`) carrying the prototype's numbers. A
 real backend drops in by implementing that interface; no UI changes needed.
 
 **Prices are not among them any more.** `SymbolInfo` is split by provenance:
-`quote` (price, 52-week high, drawdown) is real, read from the daily mirror;
-`demo` (day change, volume, market cap, P/E, RSI) is still the prototype's.
-The split is the point — a call site writes `x.demo.changePct`, which says
-what the number is at the moment it is rendered, where a flat `x.changePct`
-sitting next to a real price would not. There is no price literal left
-outside `demo`, so a failed mirror read has nothing to fall back to: `quote`
-is null and every price on screen renders `—` through `moneyOrDash`. The
-prototype price survives only as the basis for the still-demo figures derived
-from it (the stock page's OHLC strip, after-hours line and dollar day-change)
-and for valuing the demo portfolio, and never as *the* price.
+`quote` (last price, day change, previous close, session high/low/open) is
+**real and live**, read per ticker from `/api/quote`; `demo` (volume, market
+cap, P/E, RSI) is still the prototype's. The split is the point — a call site
+writes `x.demo.marketCap`, which says what the number is at the moment it is
+rendered, where a flat `x.marketCap` sitting next to a real price would not.
+There is no price literal left outside `demo`, so a failed quote read has
+nothing to fall back to: `quote` is null and every price on screen renders `—`
+through `moneyOrDash`. The prototype price survives only for valuing the demo
+portfolio, and never as *the* price.
 
-Day change is the notable absence from `quote`: **the ranking has no
-day-change field**, so it cannot be made real from this source and is not
-borrowed from anywhere either. It stays demo until an intraday quote source
-exists — which is why the standing on-screen note now names both halves
-("prices are real … day change, volume, charts and portfolio figures are
-still sample data") instead of calling the whole screen sample data, which
-would have been the same failure in the other direction.
+**Day change used to be the notable absence, and is not any more.** The
+snapshot that once stood in for a price carried no day-change field, so every
+percentage beside a real price was a demo figure. The live quote carries one,
+so the watchlist rows, the movers ranking (Gainers and Losers alike) and the
+stock header all print and sort by the actual session. Volume is what is left:
+the quote has none, so the "Most active" tab, the Vol column and RVol are
+still prototype numbers, and the Movers screen stays behind the sample-data
+switch until they have a source.
 
-**Where the prices come from, and why it cost nothing.** The mirrored ranking
-already carries `price` and `high_52w` for ~100 names and is refreshed daily
-by the job that feeds the Satellite card. `fetchQuotes()` reads that same
-snapshot through the same `readMirror` helper, so real prices arrived with no
-new API key, no new quota, no browser-visible network call beyond the one the
-app already made — which is why prices went real before anything else on the
-list did. A ticker the ranking does not cover is simply absent from the map
-and renders `—`; that is deliberately indistinguishable on screen from an
-unreadable snapshot, because in both cases the app genuinely does not know
-the price. The freshness gate is shared too: a snapshot too old for the
-Satellite card is too old to price a watchlist with.
+**Where the prices come from.** `app/src/data/quotes.ts` batches a screen's
+tickers into one call to `app/api/quote.ts`, which fans out to Finnhub's
+`/quote` — one upstream request per symbol, at most 25 per call, six at a
+time. Quotes are cached per ticker for 15 seconds and the price screens
+re-read every 20 (`useLoadable`'s `refreshMs`, which refreshes silently, keeps
+the last good data through a failed poll, and stops while the tab is hidden).
+A ticker the provider does not price is simply absent from the map and renders
+`—`; a ticker whose fetch failed is named in the response's `unavailable`, so
+the two never collapse into one dash. The key is server-side because a
+provider key is the account's whole quota in one string.
 
-**The charts are real too, from a second mirror.** Everything the stock
-page's chart and the movers' sparklines draw is a published trading session:
-`app/src/data/priceHistory.ts` reads `app/public/data/series/<TICKER>.json`,
-written daily by `.github/workflows/mirror-prices.yml` via
-`scripts/mirror-prices.mjs`. What that replaced was a seeded pseudo-random
-walk — and not only the line. The candle bodies were derived from the close
-series (open was *yesterday's* close, the wicks a fixed ±1.6), the volume pane
-was `8 + ((i * 37) % 26)`, a sawtooth that repeated every 26 candles for every
+**Two failure modes the provider has, handled rather than papered over.**
+Finnhub answers an unknown symbol with HTTP 200 and every field zeroed, which
+a status-code check reads as a real `$0.00` — so a quote with no timestamp or
+no price is refused outright (`api/_lib/finnhub.ts`). And a quote with a price
+but no previous close has no true day change, so it is refused rather than
+printed as `0.00%`, which a reader would act on.
+
+**The charts are real too, and from the same provider.**
+`app/src/data/priceHistory.ts` reads `/api/candles`, which maps Finnhub's
+parallel-array daily bars. What that replaced was a seeded pseudo-random walk
+— and not only the line. The candle bodies were derived from the close series
+(open was *yesterday's* close, the wicks a fixed ±1.6), the volume pane was
+`8 + ((i * 37) % 26)`, a sawtooth that repeated every 26 candles for every
 stock in the app, and "RSI" was `50 + (close - ma12) * 3.6`, which is not RSI
 by any definition: unbounded, with no notion of gains against losses, and
 scaled by the stock's own price, so the 30 and 70 lines drawn across its pane
@@ -228,26 +232,35 @@ on the actual closes, and they start where their window fills rather than
 averaging whatever happens to sit at the left edge under a label claiming
 fifty sessions.
 
-**Why a separate mirror, and why a script.** Alpha Vantage's free key allows
-tens of requests a day and must stay server-side, so the browser can never
-call it — one visitor walking a few stock pages would spend the day's
-allowance for everyone. Daily bars also change once a day by definition. The
-screener mirror answers the same problem with a dozen `jq` assertions in YAML,
-which is as far as that approach stretches; this job has to map a nested
-payload into a sorted series, tolerate a symbol the provider does not cover
-while *stopping* on a spent quota, and leave the previous good file untouched
-in both cases. That is program logic, so it lives in a script with tests
-(`app/src/data/mirrorPrices.test.ts`) that assert what the publisher writes is
-what the reader accepts, rather than in a workflow runner.
+**One thing to know about the plan.** Finnhub serves `/quote` on a free key
+but keeps `/stock/candle` for its paid tiers, where a free key gets a 403.
+That is classified as `upstream_forbidden` and reaches the reader as "this
+subscription may not include this data" — the one sentence true of it — rather
+than as an empty chart or a "try again later" that never will come true. The
+charts light up the moment the key's plan covers candles, with no code change.
 
-Its publishing contract, and the honest states that follow from it:
+**What this replaced, and why.** Both prices and bars used to come from
+**mirrors**: GitHub Actions that fetched once a night and committed static
+JSON into the repo, because Alpha Vantage's free key allowed tens of requests
+a day and had to stay server-side. Two costs were paid daily for that. Only
+the ten tickers listed in `coveredTickers.json` had a chart at all, and when
+Alpha Vantage moved `outputsize=full` behind a subscription the price job
+stopped publishing anything — no screen could tell that from a quiet market,
+and the charts had been dark ever since. A route serves any symbol the reader
+opens and cannot silently stop. The screener mirror stays, because it is not a
+price feed: it is the Recovery Detector engine's own daily ranking, and what
+the app still reads from it is the engine's opinion — the Satellite card's BUY
+candidates, a stock's ranking row, and which tickers the engine has a view on.
 
-| Mirror content | App shows |
+The route's contract, and the honest states that follow from it:
+
+| What the provider answers | App shows |
 | --- | --- |
-| a fresh file for the ticker | the real sessions, and the key-stats rows a bar can answer |
-| no file for the ticker | "no price history is published for this symbol yet" — a fact, not a failure, and not a retry prompt |
-| a file whose newest session is over `MAX_SERIES_AGE_DAYS` old | "unavailable" with the age, never the stale sessions |
-| unreadable, or any row in it unreadable | "unavailable" — the whole file, because a chart is read as a whole and a series with sessions silently dropped is a picture of price action that never happened |
+| a series for the ticker | the real sessions, and the key-stats rows a bar can answer |
+| `no_data` for the ticker | "no price history for this symbol" — a fact, not a failure, and not a retry prompt |
+| a series whose newest session is over `MAX_SERIES_AGE_DAYS` old | "unavailable" with the age, never the stale sessions |
+| 403, because the key's plan excludes candles | "this subscription may not include this data" — never "try again later" |
+| unreadable, or any row in it unreadable | "unavailable" — the whole series, because a chart is read as a whole and one with sessions silently dropped is a picture of price action that never happened |
 
 `MAX_SERIES_AGE_DAYS` is 7 where the screener's gate is 4, deliberately.
 `as_of` is the last *trading* session, so a Friday close read on the Tuesday
@@ -261,19 +274,19 @@ missing its last few is still an honest year of history.
 day is a single dot, and a 1D tab could only be filled by inventing the
 intraday path. That needs an intraday feed, not a narrower slice of this one.
 `MDA` is the standing example of the other gap: it trades in Toronto, the
-provider has no US tape for it, and the publisher skips it rather than failing
-the other nine tickers' refresh.
+provider has no US tape for it, and both the quote and the chart say so for
+that one symbol rather than the whole screen failing.
 
-**One inconsistency worth knowing about.** The headline price comes from the
-screener mirror and the chart's last close from this one, so on a given day
-they can be a session apart. Both are real, and the OHLC strip is stamped with
-the session it describes for exactly that reason. What is no longer possible
-is the key-stats grid disagreeing with the chart above it: Open, Prev close,
-Day range, Volume, Avg vol and RSI(14) are read from the same bars the chart
-draws. They used to be `price - 1.9`, `price * 0.99`, `price - 3.1` to
-`price + 2.4` and a frozen `162.4M` that was the same figure for every stock,
-which put an "Open 231.85" directly beneath a chart strip reading "O 232.80"
-for the same session.
+**The headline and the chart describe different moments, on purpose.** The
+header is the live quote — today's session as it stands — while the newest
+daily bar is the last *completed* one, so during market hours they legitimately
+differ. The OHLC strip is stamped with the session it describes for exactly
+that reason. The key-stats grid follows the header rather than the chart for
+the four rows the quote actually answers (Open, Prev close, Day range), so it
+cannot show yesterday's open under today's price; Volume, Avg vol and RSI(14)
+stay on the bars, which are the only source that has them. They all used to be
+`price - 1.9`, `price * 0.99`, `price - 3.1` to `price + 2.4` and a frozen
+`162.4M` that was the same figure for every stock.
 
 **Two surfaces carry real engine data.** The second is the Satellite card:
 `satelliteSignals()` delegates to `app/src/data/recoveryDetector.ts`, which
@@ -549,7 +562,8 @@ first two are required; the third only changes the language of the news:
 | --- | --- |
 | `EODHD_API_KEY` | `/api/news` — the news feed |
 | `GOOGLE_TRANSLATE_API_KEY` | `/api/news?lang=he` — Hebrew headlines, via the Cloud Translation API. **Optional**: without it the news is served in the provider's English rather than failing. The key travels as the API's `key=` query parameter, so restrict it **to the Cloud Translation API** in the Google Cloud console — an HTTP-referrer restriction would break it, since the call is server-side. The first 500k characters a month are free, but the project still needs billing enabled. |
-| `ALPHAVANTAGE_API_KEY` | `/api/earnings` — the calendar and per-stock history; also a **GitHub Actions secret**, where `mirror-prices.yml` spends one call per covered ticker per day. If it is the same key, the earnings route lives on what is left of the daily allowance. |
+| `ALPHAVANTAGE_API_KEY` | `/api/earnings` — the calendar and per-stock history. |
+| `FINNHUB_API_KEY` | `/api/quote` — the last price and day change on every screen — and `/api/candles`, the charts. **Required for prices.** A free key covers quotes; historical candles are on the paid tiers, and a free key gets a 403 there, which the app reports as a plan problem rather than an outage. |
 
 All three are read only server-side and none may be given a `VITE_` prefix,
 which would bundle it into the client build.

@@ -2,10 +2,10 @@
  * LIVE data source — Recovery Detector engine, read from a daily mirror.
  *
  * Three readers share this file, because they share one snapshot: the
- * Satellite card's BUY candidates, a single stock's ranking row, and the
- * quote map that gives every screen in the app a real last-traded price
- * instead of the prototype's frozen one. Everything else still comes from
- * the clearly-labeled demo adapter.
+ * Satellite card's BUY candidates, a single stock's ranking row, and the list
+ * of tickers the engine has a view on. Prices are NOT among them any more —
+ * they come from data/quotes.ts, live, per ticker. This file is the engine's
+ * opinion, not a price feed.
  *
  * WHY A MIRROR RATHER THAN A LIVE CALL:
  * The engine runs on Render's free tier, which sleeps after ~15 minutes idle
@@ -14,8 +14,8 @@
  * bought nothing but latency. A GitHub Action fetches the day's result and
  * commits it to this repo (.github/workflows/mirror-screener.yml), and the app
  * reads that static file from Vercel's edge — no Render round trip at all.
- * Anything that genuinely has to be fresh (news, live prices) goes through
- * Vercel functions instead, not through here.
+ * Anything that genuinely has to be fresh — news, and every price in the app —
+ * goes through Vercel functions instead, not through here.
  *
  * WHICH ENDPOINT AND WHY:
  * The engine exposes both /api/screener (today's ranked candidates) and
@@ -44,7 +44,7 @@
  */
 
 import { cachedLoadable } from './loadableCache';
-import { ok, unavailable, type Loadable, type Quote, type SatelliteSignal } from './types';
+import { ok, unavailable, type Loadable, type SatelliteSignal } from './types';
 
 /**
  * The mirrored snapshot, served as a static file from the same origin as the
@@ -394,51 +394,49 @@ export async function fetchRankingRow(
 }
 
 /**
- * Every ranked ticker's real numbers, keyed by upper-case ticker.
+ * Every ticker the day's ranking covers, upper-cased.
  *
- * The ranking is the app's only free source of real prices: it already
- * carries `price` and `high_52w` for ~100 names, refreshed daily by the same
- * job that feeds the Satellite card, and reading it costs no API call and no
- * Render round trip. That is the whole reason prices stopped being demo
- * figures here first rather than waiting on a quote provider.
+ * This used to be a quote map: the ranking carried a `price` and a
+ * `high_52w` for its ~100 names, and that was the app's only free source of
+ * real prices, so every screen's price came from a file that refreshed once a
+ * day. Prices are live now (data/quotes.ts), and what is left of this read is
+ * the one thing the ranking is actually authoritative about — which symbols
+ * the engine has a view on. Search offers them, and a watchlist row shows
+ * that it is ranked.
  *
  * Returns null for a body without a recognisable `full_ranking`, which the
  * shared reader turns into 'unavailable'. Rows with no usable ticker are
- * dropped; a row whose price the engine omitted is kept with a null price,
- * because "ranked, price unknown" is a different fact from "not ranked" and
- * the UI renders the two differently.
+ * dropped; a row whose numbers the engine omitted is still a ranked ticker,
+ * so it is kept.
  */
-export function extractQuotes(body: unknown): Record<string, Quote> | null {
+export function extractRankedTickers(body: unknown): string[] | null {
   if (body === null || typeof body !== 'object' || Array.isArray(body)) return null;
   const ranking = (body as Record<string, unknown>).full_ranking;
   if (!Array.isArray(ranking)) return null;
 
-  const out: Record<string, Quote> = {};
+  const out: string[] = [];
+  const seen = new Set<string>();
   for (const raw of ranking) {
     const mapped = mapSignal(raw);
-    // First row wins: a duplicated ticker keeps its highest-ranked entry
-    // rather than whichever happened to be last in the file.
-    if (mapped && !(mapped.ticker in out)) {
-      out[mapped.ticker] = {
-        price: mapped.price,
-        high52w: mapped.high52w,
-        drawdownPct: mapped.drawdownPct,
-      };
+    if (mapped && !seen.has(mapped.ticker)) {
+      seen.add(mapped.ticker);
+      out.push(mapped.ticker);
     }
   }
   return out;
 }
 
 /**
- * Read the day's quote map from the mirrored snapshot. Never throws.
+ * Read the day's ranked tickers from the mirrored snapshot. Never throws.
  *
- * A ticker the ranking does not cover is simply absent from the map — the
- * caller renders "—" for it. An unreadable or stale snapshot is
- * 'unavailable' for every ticker at once, and still never a demo price.
+ * An unreadable or stale snapshot is 'unavailable', and the screens that use
+ * this treat that as "the engine has no view today" — search still lists the
+ * sample table and the user's own watchlist, because neither depends on the
+ * engine to exist.
  */
-export async function fetchQuotes(
+export async function fetchRankedTickers(
   fetchImpl: typeof fetch = fetch,
   now: Date = new Date(),
-): Promise<Loadable<Record<string, Quote>>> {
-  return readMirror(extractQuotes, fetchImpl, now);
+): Promise<Loadable<string[]>> {
+  return readMirror(extractRankedTickers, fetchImpl, now);
 }

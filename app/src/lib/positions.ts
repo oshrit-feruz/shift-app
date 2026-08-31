@@ -53,10 +53,10 @@ export interface Position {
 /**
  * A position priced against the market, or explicitly not priced.
  *
- * `price`, `value` and `plPct` are `null` — never 0 — for all three ways a
- * price can be missing: the quote snapshot is unavailable, the ticker is not
- * in the ~100-name ranking, or it is ranked with a null price. Zero is a
- * number a reader will believe; `—` is the truth.
+ * `price`, `value` and `plPct` are `null` — never 0 — for both ways a price
+ * can be missing: the quote read failed, or it succeeded and the provider has
+ * no price for this ticker. Zero is a number a reader will believe; `—` is
+ * the truth.
  */
 export interface ValuedPosition extends Position {
   price: number | null;

@@ -20,9 +20,10 @@ import { demoService } from '../data/demoAdapter';
 import { appService } from '../data/appService';
 import { useDemoFlag } from '../data/useDemoFlag';
 import { useLoadable } from '../data/useLoadable';
+import { PRICE_REFRESH_MS } from '../data/quotes';
 import { fetchWeekEarnings } from '../data/earnings';
 import { useDemoMode } from '../lib/DemoModeProvider';
-import { money, moneyOrDash, pct, signalColor } from '../lib/format';
+import { money, moneyOrDash, pct, pctOrDash, signalColor } from '../lib/format';
 import { ROW_BUTTON_STYLE } from '../lib/rowButton';
 import type { ScreenProps } from '../App';
 
@@ -35,7 +36,11 @@ export function HomeScreen({ openSearch }: ScreenProps) {
   // The preview shows the user's own list — the same rows the watchlist tab
   // does, capped. It used to show the top of the sample symbol table, which
   // looked identical whether or not the user had followed anything.
-  const watched = useLoadable(() => demoService.watchRows(s.watchlist), [s.watchlist.join(',')]);
+  const watched = useLoadable(
+    () => demoService.watchRows(s.watchlist),
+    [s.watchlist.join(',')],
+    PRICE_REFRESH_MS,
+  );
   const setup = setupProgress(s);
   const demo = useDemoMode();
   const live = useDemoFlag('liveAccount');
@@ -557,14 +562,16 @@ function MetricStripDemo() {
 }
 
 /**
- * The movers preview. Ordered and populated by `demo.changePct` and
- * `demo.volume` — the same fabricated ranking the Movers screen shows.
+ * The movers preview: the biggest movers by the day's ACTUAL change, from the
+ * live quote, same as the Movers screen. The volume printed beside the price
+ * is still a demo figure — the provider's quote carries no volume — and is
+ * the only fabricated number left on this card.
  */
 function MoversPreview({ beg }: { beg: boolean }) {
   const dispatch = useDispatch();
   const { language } = useTheme();
   const t = useT();
-  const symbols = useLoadable(() => demoService.symbols(), []);
+  const symbols = useLoadable(() => demoService.symbols(), [], PRICE_REFRESH_MS);
 
   return (
     <>
@@ -591,7 +598,17 @@ function MoversPreview({ beg }: { beg: boolean }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {syms
                 .slice()
-                .sort((a, b) => Math.abs(b.demo.changePct) - Math.abs(a.demo.changePct))
+                // Biggest absolute move first. A symbol the provider could
+                // not price has no move to rank and sorts last, rather than
+                // counting as a 0% day it never had.
+                .sort((a, b) => {
+                  const x = a.quote?.changePct ?? null;
+                  const y = b.quote?.changePct ?? null;
+                  if (x === null && y === null) return 0;
+                  if (x === null) return 1;
+                  if (y === null) return -1;
+                  return Math.abs(y) - Math.abs(x);
+                })
                 .slice(0, beg ? 3 : 5)
                 .map((x) => (
                   <button
@@ -628,8 +645,8 @@ function MoversPreview({ beg }: { beg: boolean }) {
                     >
                       {beg ? x.why[language] : `${moneyOrDash(x.quote?.price)} · vol ${x.demo.volume}`}
                     </span>
-                    <Num size={18} style={{ color: signalColor(x.demo.changePct) }}>
-                      {pct(x.demo.changePct)}
+                    <Num size={18} style={{ color: signalColor(x.quote?.changePct) }}>
+                      {pctOrDash(x.quote?.changePct)}
                     </Num>
                   </button>
                 ))}

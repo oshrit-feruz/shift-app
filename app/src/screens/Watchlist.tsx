@@ -14,6 +14,7 @@ import { useT, type TFn } from '../i18n/useT';
 import { useToast } from '../components/Toast';
 import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
+import { PRICE_REFRESH_MS } from '../data/quotes';
 import type { ScreenProps } from '../App';
 
 /**
@@ -39,7 +40,11 @@ export function WatchlistScreen({ openAlert, openSearch }: ScreenProps) {
   const beg = mode === 'beginner';
   // Keyed on the list's contents, so adding or removing a stock refetches the
   // rows; the quote map behind it is cached, so this costs no extra request.
-  const rows = useLoadable(() => demoService.watchRows(s.watchlist), [s.watchlist.join(',')]);
+  const rows = useLoadable(
+    () => demoService.watchRows(s.watchlist),
+    [s.watchlist.join(',')],
+    PRICE_REFRESH_MS,
+  );
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
