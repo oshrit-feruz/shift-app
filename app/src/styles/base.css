@@ -231,10 +231,15 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
   color: inherit;
   font: inherit;
   text-align: start;
+}
+/* Only the band that is a button answers a press. The surface is used both
+ * ways: a tappable entry point on home, a static section on the
+ * recommendation screen. */
+button.band {
   cursor: pointer;
   transition: background-color .18s ease;
 }
-.band:active { background-color: color-mix(in srgb, var(--color-accent) 8%, transparent); }
+button.band:active { background-color: color-mix(in srgb, var(--color-accent) 8%, transparent); }
 /* The band's leading glyph plate — the same 26px accent square the tracks
  * card gives its rows, so the two read as the same family of entry point. */
 .band-icon {
@@ -284,6 +289,56 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
 @keyframes livePulse {
   0%, 100% { opacity: 1; }
   50% { opacity: .35; }
+}
+
+/* ── Radar sweep ───────────────────────────────────────────────────────── */
+/* A dish that keeps turning beside the live badge: two range rings and a beam
+ * that sweeps them, which is what a live feed looks like when it is drawn
+ * rather than described.
+ *
+ * The beam is a conic gradient rotating inside a clipped circle — one animated
+ * transform on one small element, and nothing about it reflows. It is the only
+ * thing on the screen that moves on its own, which is why it is this small and
+ * this slow: at 2.6s a turn it reads as an instrument idling, where a fast
+ * sweep reads as a progress spinner and would promise something is about to
+ * finish. */
+.radar-sweep {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--up) 40%, transparent);
+  background:
+    radial-gradient(circle, transparent 0 28%, color-mix(in srgb, var(--up) 22%, transparent) 28% 30%, transparent 30%),
+    radial-gradient(circle, transparent 0 58%, color-mix(in srgb, var(--up) 18%, transparent) 58% 60%, transparent 60%),
+    color-mix(in srgb, var(--up) 9%, transparent);
+}
+.radar-sweep-beam {
+  position: absolute;
+  inset: 0;
+  background: conic-gradient(
+    from 0deg,
+    color-mix(in srgb, var(--up) 62%, transparent) 0deg,
+    color-mix(in srgb, var(--up) 12%, transparent) 38deg,
+    transparent 62deg,
+    transparent 360deg
+  );
+  animation: radarSweep 2.6s linear infinite;
+}
+@keyframes radarSweep {
+  to { transform: rotate(1turn); }
+}
+/* The blip at the centre, so the dish still reads as switched on when a
+ * reduced-motion setting has stopped the beam. */
+.radar-sweep::after {
+  content: '';
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--up);
 }
 
 /* ── Glitch mark ───────────────────────────────────────────────────────── */

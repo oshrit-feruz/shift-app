@@ -6,6 +6,7 @@ import { ListRow, RowValues } from '../components/ListRow';
 import { TickerTile } from '../components/TickerTile';
 import { LiveBadge } from '../components/LiveBadge';
 import { GlitchMark } from '../components/GlitchMark';
+import { RadarSweep } from '../components/RadarSweep';
 import { MetricStrip } from '../components/MetricStrip';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { ProgressTrack } from '../components/Progress';
@@ -614,15 +615,18 @@ export function DesignSystemPage() {
               </Note>
             </Cell>
 
-            <Cell title="Live badge & mark">
+            <Cell title="Live badge, dish & mark">
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <RadarSweep />
                 <LiveBadge />
                 <GlitchMark height={19} />
               </div>
               <Note>
                 The badge is the only green that does not mean "up", which is why it spells the word out and
-                appears in exactly one place. The mark is the splash's own tear and flicker at reading size —
-                same two keyframes, so the brand glitches one way in this app and not two.
+                appears in exactly one place. The dish beside it says the same thing to a glance rather than a
+                read, and turns slowly on purpose: a fast sweep reads as a progress spinner and would promise
+                that something is about to finish. The mark is the splash's own tear and flicker at reading
+                size — same two keyframes, so the brand glitches one way in this app and not two.
               </Note>
             </Cell>
 

@@ -3,9 +3,9 @@ import { Card, CardTitle } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Tag } from '../../components/Tag';
 import { Num } from '../../components/Num';
-import { Icon } from '../../components/Icon';
 import { GlitchMark } from '../../components/GlitchMark';
 import { LiveBadge } from '../../components/LiveBadge';
+import { RadarSweep } from '../../components/RadarSweep';
 import { TickerTile } from '../../components/TickerTile';
 import { DataState, EmptyState } from '../../components/DataState';
 import { SkeletonList } from '../../components/Skeleton';
@@ -237,23 +237,13 @@ function RadarCard({ amount, pct }: { amount: number; pct: number }) {
   const allocated = pct > 0;
 
   return (
-    <Card padding={13} gap={10} outlined={allocated}>
+    // The band, not a card: the same full-bleed purple section the home screen
+    // gives the advisory track, so the daily half of the recommendation is the
+    // one thing on this screen that is not a floating glass pane. Static here
+    // — it holds its own buttons, so the surface itself is not a target.
+    <div className="band" style={{ gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <span
-          style={{
-            width: 26,
-            height: 26,
-            flex: 'none',
-            borderRadius: 8,
-            background: 'var(--color-accent-800)',
-            display: 'grid',
-            placeItems: 'center',
-            color: 'var(--color-accent-200)',
-          }}
-          aria-hidden="true"
-        >
-          <Icon name="trend" size={14} />
-        </span>
+        <RadarSweep />
         <CardTitle>{t('rec.radar')}</CardTitle>
         <LiveBadge />
         {allocated && (
@@ -350,7 +340,7 @@ function RadarCard({ amount, pct }: { amount: number; pct: number }) {
           )
         }
       </DataState>
-    </Card>
+    </div>
   );
 }
 
