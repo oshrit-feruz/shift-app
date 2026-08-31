@@ -32,8 +32,9 @@ function readExitDurationMs(): number {
  *
  * `durationMs` defaults to `--dur-exit`, read once per mount. Pass it
  * explicitly only when an overlay's own exit animation genuinely runs a
- * different duration than the shared token (see Sheet.tsx, whose veil/sheet
- * animations are hand-timed at 200ms).
+ * different duration than the shared token — see Sheet.tsx, which springs out
+ * rather than running a CSS animation and so has no duration to share, and
+ * passes a value timed a little past where that spring comes to rest.
  */
 export function useDismissAnimation(open: boolean, durationMs?: number) {
   const [mounted, setMounted] = useState(open);
