@@ -123,17 +123,16 @@ export function AdvisoryRecommendation(_: ScreenProps) {
         <Note>{t('rec.illustration')}</Note>
       </Card>
 
-      {/* The daily half, first and framed. */}
-      {profile.satellitePct > 0 ? (
-        <RadarCard amount={(amount * profile.satellitePct) / 100} pct={profile.satellitePct} />
-      ) : (
-        <Card padding={13} gap={7}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <CardTitle>{t('rec.radar')}</CardTitle>
-          </div>
-          <Note>{t('rec.satInfoOnly')}</Note>
-        </Card>
-      )}
+      {/* The daily half, first and framed.
+          Shown for every profile, including the ones with no sleeve at all.
+          The radar runs the same published rules over the same universe for
+          everyone; what a profile decides is how much of a portfolio — if any
+          — is allocated to what it finds. Hiding the list from a Conservative
+          client would say the check does not happen for her, which is false.
+          It says so in a line instead, and drops the money column, because
+          nothing is allocated and "$0" against three names is a worse answer
+          than no column at all. */}
+      <RadarCard amount={(amount * profile.satellitePct) / 100} pct={profile.satellitePct} />
 
       {/* Core — a specific fund per category, not just a percentage. Fund
           names are placeholders pending product sign-off (lib/advisory.ts). */}
@@ -234,9 +233,11 @@ function RadarCard({ amount, pct }: { amount: number; pct: number }) {
   const dispatch = useDispatch();
   const t = useT();
   const sat = useLoadable(() => demoService.satelliteSignals(), []);
+  /** Whether this profile puts any money behind what the radar finds. */
+  const allocated = pct > 0;
 
   return (
-    <Card padding={13} gap={10} outlined>
+    <Card padding={13} gap={10} outlined={allocated}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <span
           style={{
@@ -255,13 +256,17 @@ function RadarCard({ amount, pct }: { amount: number; pct: number }) {
         </span>
         <CardTitle>{t('rec.radar')}</CardTitle>
         <LiveBadge />
-        <span style={{ flex: 1 }} />
-        <Num size="var(--text-title)" weight={700}>
-          {money(amount, 0)}
-        </Num>
-        <Num size={15.5} style={{ color: 'var(--muted)' }}>
-          {pct}%
-        </Num>
+        {allocated && (
+          <>
+            <span style={{ flex: 1 }} />
+            <Num size="var(--text-title)" weight={700}>
+              {money(amount, 0)}
+            </Num>
+            <Num size={15.5} style={{ color: 'var(--muted)' }}>
+              {pct}%
+            </Num>
+          </>
+        )}
       </div>
 
       {/* Whose radar, and how often it runs — the brand's own mark inline,
@@ -285,6 +290,7 @@ function RadarCard({ amount, pct }: { amount: number; pct: number }) {
         <GlitchMark height={19} />
         {t('rec.radarLineEnd')}
       </p>
+      {!allocated && <Note>{t('rec.satInfoOnly')}</Note>}
 
       <DataState state={sat.state} onRetry={sat.retry} skeleton={<SkeletonList count={3} minHeight={52} />}>
         {(signals) =>
@@ -326,11 +332,15 @@ function RadarCard({ amount, pct }: { amount: number; pct: number }) {
                     }}
                   >
                     <TickerTile ticker={x.ticker} size={28} />
+                    {/* With a sleeve, the tile leads with this amount's share
+                        of it; without one, with the name and the live price.
+                        A missing price renders as an em dash — never guessed,
+                        never back-filled. */}
                     <Num size="var(--text-row)" weight={700}>
-                      {money(amount / Math.min(signals.length, 3), 0)}
+                      {allocated ? money(amount / Math.min(signals.length, 3), 0) : x.ticker}
                     </Num>
                     <Num size="var(--text-caption)" style={{ color: 'var(--muted)' }}>
-                      {x.ticker}
+                      {allocated ? x.ticker : x.price === null ? '—' : money(x.price)}
                     </Num>
                   </button>
                   <BuyAtBrokerButton ticker={x.ticker} />
