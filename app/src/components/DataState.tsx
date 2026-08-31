@@ -1,4 +1,4 @@
-import { Children, cloneElement, isValidElement, type ReactNode } from 'react';
+import { Children, Fragment, cloneElement, isValidElement, type ReactNode } from 'react';
 import type { Loadable } from '../data/types';
 import { useT } from '../i18n/useT';
 import { useTheme } from '../theme/ThemeProvider';
@@ -37,15 +37,21 @@ export function DataState<T>({
   const { language } = useTheme();
   /** Adds the entrance class to each child that can carry one. A child that
    *  is a component ignoring `className` simply arrives without the fade,
-   *  which is the old behaviour and costs nothing. */
-  const faded = (node: ReactNode) =>
-    Children.map(node, (child) =>
-      isValidElement<{ className?: string }>(child)
-        ? cloneElement(child, {
-            className: [child.props.className, 'anim-data-in'].filter(Boolean).join(' '),
-          })
-        : child,
-    );
+   *  which is the old behaviour and costs nothing.
+   *
+   *  Fragments are descended into rather than cloned. `Children.map` counts a
+   *  fragment as one child but it is no element on the page, so cloning it
+   *  puts a className on something React will only ignore and warn about,
+   *  while the cards actually inside it get nothing — which is exactly what
+   *  happened to the connected-account screen, whose callback returns one. */
+  const faded = (node: ReactNode): ReactNode =>
+    Children.map(node, (child) => {
+      if (!isValidElement<{ className?: string; children?: ReactNode }>(child)) return child;
+      if (child.type === Fragment) return <>{faded(child.props.children)}</>;
+      return cloneElement(child, {
+        className: [child.props.className, 'anim-data-in'].filter(Boolean).join(' '),
+      });
+    });
   if (state.status === 'loading') {
     if (skeleton) {
       // No wrapper element: a wrapper would collapse the skeleton into a
