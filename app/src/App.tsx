@@ -13,6 +13,7 @@ import { AppHeader } from './components/AppHeader';
 import { TabBar } from './components/TabBar';
 import { BackgroundShapes } from './components/BackgroundShapes';
 import { useAppState, useDispatch, type Screen } from './state/appState';
+import { BackStackProvider, useBackEntries } from './state/backStack';
 import { useT } from './i18n/useT';
 import type { StringKey } from './i18n/strings';
 import { demoService } from './data/demoAdapter';
@@ -178,7 +179,14 @@ function gateContent({
   if (session.status === 'loading' || splashHeld) return <AuthSplash />;
   if (blockedUntilInstalled) return <InstallGateScreen />;
   if (session.status === 'unavailable' || session.data == null) return <SignInScreen />;
-  return <AppShell />;
+  // The back stack wraps only the shell: the gates above it are single screens
+  // with nothing to go back to, and a user pressing back on the sign-in screen
+  // means to leave the app.
+  return (
+    <BackStackProvider>
+      <AppShell />
+    </BackStackProvider>
+  );
 }
 
 /** How long the splash stays up at minimum. Long enough for the wordmark to
@@ -273,6 +281,14 @@ function AppShell() {
           : t('title.homeAnon')
         : t(titleKey);
   const kicker = s.screen === 'stock' ? s.ticker : t(kickerKey);
+
+  // One back press per view behind this one, so Android's back button walks
+  // the trail the reducer keeps instead of closing the app on the first press.
+  // Sheets claim their own presses (components/Sheet.tsx, SearchOverlay) and,
+  // being taken later, are always undone first. With the trail empty — home,
+  // nothing opened — no press is claimed and back leaves the app, which is
+  // what a home-screen app is expected to do.
+  useBackEntries(s.navStack.length, () => dispatch({ type: 'back' }));
 
   const unread = unreadNotifications(s.notificationsRead, demo);
   const ScreenView = SCREENS[s.screen];

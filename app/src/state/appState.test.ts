@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { reducer, readLegacyLedger, PERSISTED, type AppState, type ManualTransaction } from './appState';
+import {
+  reducer,
+  readLegacyLedger,
+  initial,
+  PERSISTED,
+  type Action,
+  type AppState,
+  type ManualTransaction,
+} from './appState';
 import { todayLocal } from '../sheets/TxSheet';
 
 const base = reducer({ pfIndex: 3 } as AppState, { type: 'pfIndex', index: 3 });
@@ -119,5 +127,88 @@ describe('todayLocal', () => {
   it('is the viewer’s own day, not UTC’s', () => {
     const justAfterMidnight = new Date(2026, 7, 29, 0, 30);
     expect(todayLocal(justAfterMidnight)).toBe('2026-08-29');
+  });
+});
+
+describe('the back trail', () => {
+  /** Walk a fresh state through a run of navigations. */
+  const walk = (...actions: Action[]) => actions.reduce(reducer, initial);
+  /** The trail as `screen` names, plus the view actually on screen. */
+  const where = (s: AppState) => ({
+    at: s.screen === 'stock' ? `stock:${s.ticker}` : s.screen,
+    trail: s.navStack.map((x) => (x.screen === 'stock' ? `stock:${x.ticker}` : x.screen)),
+  });
+
+  it('starts with nothing behind it, so the first back press leaves the app', () => {
+    expect(initial.navStack).toEqual([]);
+    expect(reducer(initial, { type: 'back' })).toBe(initial);
+  });
+
+  it('records the view you came from', () => {
+    const s = walk({ type: 'go', screen: 'pf' }, { type: 'openStock', ticker: 'AMD' });
+    expect(where(s)).toEqual({ at: 'stock:AMD', trail: ['home', 'pf'] });
+  });
+
+  it('walks back through it, one press per view', () => {
+    let s = walk({ type: 'go', screen: 'pf' }, { type: 'openStock', ticker: 'AMD' });
+    s = reducer(s, { type: 'back' });
+    expect(where(s)).toEqual({ at: 'pf', trail: ['home'] });
+    s = reducer(s, { type: 'back' });
+    expect(where(s)).toEqual({ at: 'home', trail: [] });
+  });
+
+  // Two stock pages are two views even though the screen name never changes,
+  // so back from one must land on the other rather than skipping past both.
+  it('tells two stock pages apart', () => {
+    const s = walk({ type: 'openStock', ticker: 'NVDA' }, { type: 'openStock', ticker: 'AMD' });
+    expect(where(s)).toEqual({ at: 'stock:AMD', trail: ['home', 'stock:NVDA'] });
+    expect(where(reducer(s, { type: 'back' }))).toEqual({ at: 'stock:NVDA', trail: ['home'] });
+  });
+
+  // Otherwise every tap on the tab you are already on would leave a back
+  // press that visibly does nothing.
+  it('does not stack a navigation to where you already are', () => {
+    const s = walk({ type: 'go', screen: 'pf' }, { type: 'go', screen: 'pf' });
+    expect(where(s)).toEqual({ at: 'pf', trail: ['home'] });
+  });
+
+  // The rule that keeps a tab bar behaving like a tab bar: back walks toward
+  // where you started, not through every tap that got you here.
+  it('returns to a view already on the trail instead of stacking onto it', () => {
+    const s = walk(
+      { type: 'go', screen: 'pf' },
+      { type: 'go', screen: 'watch' },
+      { type: 'go', screen: 'home' },
+    );
+    expect(where(s)).toEqual({ at: 'home', trail: [] });
+  });
+
+  it('cannot grow without bound while someone flips between tabs', () => {
+    let s: AppState = initial;
+    for (let i = 0; i < 200; i++) {
+      s = reducer(s, { type: 'openStock', ticker: `T${i}` });
+    }
+    expect(s.navStack.length).toBeLessThanOrEqual(25);
+    // The oldest views are what is dropped; the recent ones still work.
+    expect(where(reducer(s, { type: 'back' })).at).toBe('stock:T198');
+  });
+
+  it('is not persisted — a new session starts at home with nothing behind it', () => {
+    expect(PERSISTED).not.toContain('navStack');
+  });
+
+  // The trail is where the user has been, not something the server knows: a
+  // sync landing mid-session must not turn their next back press into an exit.
+  it('survives the signed-in state arriving from the server', () => {
+    const s = walk({ type: 'go', screen: 'pf' }, { type: 'openStock', ticker: 'AMD' });
+    const synced = reducer(s, { type: 'replaceState', persisted: { watchlist: ['NVDA'] } });
+    expect(where(synced)).toEqual({ at: 'stock:AMD', trail: ['home', 'pf'] });
+  });
+
+  // Sign-out drops it with everything else; the shell then hands the history
+  // entries back (state/backStack.tsx) rather than leaving dead back presses.
+  it('is dropped on sign-out', () => {
+    const s = walk({ type: 'go', screen: 'pf' }, { type: 'openStock', ticker: 'AMD' });
+    expect(reducer(s, { type: 'resetPersisted' }).navStack).toEqual([]);
   });
 });
