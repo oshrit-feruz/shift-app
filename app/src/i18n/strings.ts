@@ -51,7 +51,7 @@ export const STRINGS = {
   'title.advDisc': p('Disclosure', 'גילוי נאות'),
   'kicker.advDisc': p('Recommendation', 'קבלי המלצה'),
   'title.advDash': p('Your recommendation', 'ההמלצה שלך'),
-  'kicker.advDash': p('Core-Satellite', 'Core-Satellite'),
+  'kicker.advDash': p('Updated daily', 'מתעדכן כל יום'),
   'title.advConnect': p('Broker & accounts', 'ברוקר וחיבור חשבונות'),
   'kicker.advConnect': p('Read-only', 'קריאה בלבד'),
   'title.advBuy': p('First purchase', 'הקנייה הראשונה'),
@@ -165,16 +165,16 @@ export const STRINGS = {
   'profile.bal': p('Balanced', 'מאוזן'),
   'profile.growth': p('Growth', 'צמיחה'),
   'profile.cons.blurb': p(
-    'Capital preservation first. Mostly bonds and a broad developed-market index, no satellite sleeve.',
-    'שמירה על הכסף קודם כול. בעיקר אג״ח ומדד עולמי רחב, בלי רכיב Satellite.',
+    'Capital preservation first. Mostly bonds and a broad developed-market index, with no individual stocks.',
+    'שמירה על הכסף קודם כול. בעיקר אג״ח ומדד עולמי רחב, בלי מניות בודדות.',
   ),
   'profile.bal.blurb': p(
-    'A broad index core with a bond cushion, plus a small rules-based satellite sleeve.',
-    'ליבה של מדדים רחבים עם כרית אג״ח, ועוד רכיב Satellite קטן שמנוהל לפי כללים.',
+    'A broad index core with a bond cushion, plus a small share in individual stocks chosen by fixed rules.',
+    'ליבה של מדדים רחבים עם כרית אג״ח, ולצידה חלק קטן במניות בודדות שנבחרות לפי כללים קבועים.',
   ),
   'profile.growth.blurb': p(
-    'Equity-heavy core across regions, with the largest satellite sleeve the rules allow.',
-    'ליבה מנייתית רחבה על פני אזורים, עם רכיב Satellite בגודל המקסימלי שהכללים מתירים.',
+    'Equity-heavy core across regions, with the largest share in individual stocks the rules allow.',
+    'ליבה מנייתית רחבה על פני אזורים, עם החלק הגדול ביותר במניות בודדות שהכללים מתירים.',
   ),
   'profile.hardNote': p(
     '(A horizon under 2 years or no safety net always maps to Conservative.)',
@@ -203,8 +203,8 @@ export const STRINGS = {
     'הפרופיל נגזר ממיפוי קבוע של ארבע התשובות. אין כאן יועץ אנושי ואין שיקול דעת.',
   ),
   'disc.p3': p(
-    'The satellite sleeve follows one published rule set, identical for every client, and is capped at 15% of the portfolio.',
-    'רכיב ה-Satellite פועל לפי מערכת כללים אחת, זהה לכל לקוח, ומוגבל ל-15% מהתיק.',
+    'The individual stocks come from one published rule set, identical for every client, rechecked every trading day and capped at 15% of the portfolio.',
+    'המניות הבודדות נבחרות לפי מערכת כללים אחת, זהה לכל לקוח, שנבדקת מחדש בכל יום מסחר ומוגבלת ל-15% מהתיק.',
   ),
   'disc.p4': p(
     'Past behaviour of these rules is not a promise about the future. You can lose money.',
@@ -214,8 +214,8 @@ export const STRINGS = {
 
   // ── Recommendation dashboard ──────────────────────────────────────────
   'rec.coreSatIntro': p(
-    'A Core-Satellite split: a broad index core, and — where the profile allows it — a small rules-based satellite sleeve.',
-    'חלוקת Core-Satellite: ליבה של מדדים רחבים, ובמקום שהפרופיל מתיר — רכיב Satellite קטן שמנוהל לפי כללים.',
+    'Two parts: a broad index core, and — where the profile allows it — a small share in individual stocks picked by fixed rules that are rechecked every trading day.',
+    'שני חלקים: ליבה של מדדים רחבים, ובמקום שהפרופיל מתיר — חלק קטן במניות בודדות שנבחרות לפי כללים קבועים, שנבדקים מחדש בכל יום מסחר.',
   ),
   'rec.core': p('Core', 'ליבה (Core)'),
   'rec.coreHelp': p(
@@ -226,39 +226,41 @@ export const STRINGS = {
     'Never put it all in one place: several unrelated markets means no single mistake decides your result.',
     'לא לשים הכול במקום אחד: כמה שווקים שאינם קשורים זה לזה — וטעות אחת לא קובעת את התוצאה.',
   ),
-  'rec.satellite': p('Satellite', 'Satellite (רכיב לווין)'),
+  'rec.satellite': p('Individual stocks', 'מניות בודדות'),
   'rec.ofPortfolio': p('of the portfolio', 'מהתיק'),
+  'rec.dailyTag': p('Checked daily', 'בדיקה יומית'),
   'rec.satHelp': p(
-    'Recovery Detector is a deterministic strategy — no discretion, no per-person tuning.',
-    'Recovery Detector היא אסטרטגיה דטרמיניסטית — בלי שיקול דעת ובלי התאמה אישית.',
+    'Fixed rules, the same for every client — no personal tuning and no one deciding case by case.',
+    'כללים קבועים, זהים לכל לקוח — בלי התאמה אישית ובלי החלטה נקודתית של מישהו.',
   ),
-  'rec.satRule1': p('S&P 500 large caps only', 'מניות גדולות במדד S&P 500 בלבד'),
+  'rec.satRule1': p('Only large, well-known S&P 500 companies', 'רק חברות גדולות ומוכרות ממדד S&P 500'),
   'rec.satRule2': p(
-    'Entry when the price is 40–60% below its 52-week high',
-    'כניסה כשהמחיר נמוך ב-40%–60% מהשיא של 52 שבועות',
+    'Bought only after a deep, prolonged fall in the share price',
+    'קנייה רק אחרי ירידה עמוקה וממושכת במחיר המניה',
   ),
   'rec.satRule3': p(
-    'Held for a fixed 180 days, then closed by rule',
-    'החזקה קבועה של 180 יום, ואז סגירה לפי הכלל',
+    'Held for a fixed period and then closed — by rule, not by feel',
+    'החזקה לתקופה קבועה ואז סגירה — לפי הכלל, לא לפי תחושה',
   ),
   'rec.satRule4': p(
-    'The same rules for every client — nothing is customised per person',
-    'אותם כללים לכל לקוח — אין התאמה אישית',
+    'The list is rechecked every trading day and capped at 15% of the portfolio',
+    'הרשימה נבדקת מחדש בכל יום מסחר ומוגבלת ל-15% מהתיק',
   ),
-  'rec.satRule5': p('Capped at 15% of the portfolio', 'מוגבל ל-15% מהתיק'),
-  'rec.satOpenPositions': p(
-    'Recovery Detector — open positions right now',
-    'Recovery Detector — פוזיציות פתוחות כרגע',
-  ),
-  'rec.satPositions': p("Today's candidates", 'המועמדות של היום'),
+  'rec.satPositions': p("Passed today's checks", 'עברו את הבדיקות של היום'),
   'rec.livePrices': p('Live prices', 'מחירים חיים'),
-  'rec.satInfoOnly': p(
-    'Information only — your profile has no satellite sleeve, so these are not part of your recommendation.',
-    'מידע בלבד — בפרופיל שלך אין רכיב Satellite, ולכן אלה לא חלק מההמלצה שלך.',
+  'rec.updatedDaily': p(
+    'Every trading day, 100 large S&P 500 companies are put through the same checks — how deep and how long the fall in the share price has been, where the price is heading, and how heavily the stock is traded. These are the few names that passed every check today.',
+    'בכל יום מסחר עוברות 100 חברות גדולות ממדד S&P 500 את אותן בדיקות — כמה עמוקה וממושכת הייתה הירידה במחיר המניה, לאן המחיר מתקדם, ובאיזה היקף נסחרת המניה. אלה השמות הבודדים שעברו היום את כל הבדיקות.',
   ),
-  'rec.noPositions': p('No candidates today', 'אין מועמדות היום'),
-  'rec.fromHigh': p('from high', 'מהשיא'),
-  'rec.score': p('score', 'ציון'),
+  'rec.notAnOrder': p(
+    'A shortlist to look into yourself — not an instruction to buy. After the next trading day it can look different.',
+    'זו רשימה קצרה להתעמק בה בעצמך — לא הוראת קנייה. ביום המסחר הבא היא יכולה להיראות אחרת.',
+  ),
+  'rec.satInfoOnly': p(
+    'Shown for information only: your profile holds no individual stocks, so none of this is part of your recommendation.',
+    'מוצג למידע בלבד: הפרופיל שלך לא מחזיק מניות בודדות, ולכן שום דבר מכאן אינו חלק מההמלצה שלך.',
+  ),
+  'rec.noPositions': p('No stock passed every check today', 'אף מניה לא עברה היום את כל הבדיקות'),
   'rec.nextStep': p('Next: where the account lives', 'הצעד הבא: איפה החשבון ייפתח'),
   'rec.nextStepHelp': p(
     'Nothing is executed inside Shift. Acting on this means choosing a broker and connecting it read-only — the next two steps, both skippable.',
@@ -367,13 +369,18 @@ export const STRINGS = {
     'Excerpts only — the full article opens at its source.',
     'תקצירים בלבד — הכתבה המלאה נפתחת באתר המקור.',
   ),
-  'stock.engineTitle': p('Recovery Detector view', 'מבט Recovery Detector'),
-  'stock.drawdown': p('Below 52-week high', 'מתחת לשיא 52 שבועות'),
+  'stock.engineTitle': p("Today's rules check", 'הבדיקה של היום לפי הכללים'),
   'stock.high52w': p('52-week high', 'שיא 52 שבועות'),
-  'stock.score': p('Composite score', 'ציון משוקלל'),
+  'stock.checkedDaily': p(
+    'This stock goes through the same checks every trading day, so the result can change at the next one.',
+    'המניה הזו עוברת את אותן בדיקות בכל יום מסחר, ולכן התוצאה יכולה להשתנות בבדיקה הבאה.',
+  ),
+  'stock.sigBuy': p('A candidate today', 'מועמדת היום'),
+  'stock.sigWatch': p('Being watched', 'במעקב'),
+  'stock.sigSkip': p('Not a candidate today', 'לא מועמדת היום'),
   'stock.notRanked': p(
-    'This stock is not in the current Recovery Detector ranking, so there are no engine figures for it today.',
-    'מניה זו אינה מופיעה בדירוג הנוכחי של Recovery Detector, ולכן אין עבורה נתוני מנוע היום.',
+    'This stock was not among the 100 companies checked today, so there is nothing to report on it. The list is rebuilt every trading day.',
+    'המניה הזו לא הייתה בין 100 החברות שנבדקו היום, ולכן אין עליה מה לדווח. הרשימה נבנית מחדש בכל יום מסחר.',
   ),
   'stock.history': p('Reported quarters', 'רבעונים שדווחו'),
   'stock.historyEmpty': p('No reported quarters on record.', 'אין רבעונים מדווחים ברשומות.'),
@@ -823,7 +830,6 @@ export const STRINGS = {
   // ── Onboarding: tour / steps / learn / open ───────────────────────────
 
   'steps.progress': p('{done} of {total} done', '{done} מתוך {total} הושלמו'),
-  'steps.howItWorks': p('How the app works', 'איך האפליקציה בנויה'),
   'steps.now': p('Do this now', 'הצעד הבא'),
   'steps.markDone': p('Mark as done', 'סמני כבוצע'),
   'steps.allDone': p('Every step done', 'כל הצעדים הושלמו'),
@@ -980,6 +986,50 @@ export const STRINGS = {
   'live.connState': p('Connection: {state}', 'החיבור: {state}'),
   'live.connActive': p('active', 'פעיל'),
   'live.connDisabled': p('disabled', 'מושבת'),
+  // ── Home-screen gate (lib/install.ts, screens/InstallGate.tsx) ─────────
+  // Shown instead of the whole app on a phone that opened it in a browser
+  // tab. It is a dead end by design, so the copy has to carry the reason and
+  // the exact route out — on iOS there is no button that can do it for you.
+  'install.kicker': p('Add to home screen', 'הוספה למסך הבית'),
+  'install.title': p('Shift runs from your home screen', 'Shift פועלת ממסך הבית'),
+  'install.sub': p(
+    'On a phone, Shift opens from its own icon — not from a browser tab. One step, nothing to download from a store.',
+    'בטלפון Shift נפתחת מהאייקון שלה, לא מלשונית בדפדפן. שלב אחד, בלי להוריד כלום מחנות.',
+  ),
+  'install.cta': p('Add to home screen', 'הוספה למסך הבית'),
+  'install.working': p('Opening the dialog…', 'פותח את החלון…'),
+  'install.dismissed': p(
+    'Closed without installing — you can open it again.',
+    'נסגר בלי להתקין — אפשר לפתוח שוב.',
+  ),
+  'install.done': p('Added. Open Shift from its new icon.', 'נוסף. פתחי את Shift מהאייקון החדש.'),
+  'install.stepsTitle': p('Three taps', 'שלוש הקשות'),
+  // iOS Safari — the only route, and it is manual.
+  'install.ios1': p('Share', 'שיתוף'),
+  'install.ios2': p('Add to Home Screen', 'הוספה למסך הבית'),
+  'install.ios3': p('Add', 'הוספה'),
+  // Everything on iOS that cannot add to the home screen itself: an in-app
+  // browser (Instagram, Facebook, Gmail) at any version, and Chrome/Firefox/
+  // Edge below iOS 16.4, which is where Apple gave them the item at all.
+  'install.iosSafariOnly': p(
+    'This browser cannot add to the home screen — open the page in Safari.',
+    'הדפדפן הזה לא יכול להוסיף למסך הבית — כדאי לפתוח את הדף ב-Safari.',
+  ),
+  // Anything else: the item exists but each browser names it differently.
+  'install.manual': p('Browser menu → “Install app”', 'תפריט הדפדפן ← ״התקנת אפליקציה״'),
+  'install.demoMenu': p('Menu', 'תפריט'),
+  'install.demoInstall': p('Install app', 'התקנת אפליקציה'),
+  'install.demoDone': p('Open it from the icon', 'פתיחה מהאייקון'),
+  'install.copyLink': p('Copy the link', 'העתקת הקישור'),
+  'install.copied': p('Copied — now paste it in Safari', 'הועתק — כעת להדביק ב-Safari'),
+  'install.already': p('Already added it? Open Shift from the icon.', 'כבר הוספת? פתחי את Shift מהאייקון.'),
+  // The optional card in Settings → More, for a browser that is not gated
+  // (desktop, or a preview build) but can still install.
+  'install.cardTitle': p('Install Shift', 'התקנת Shift'),
+  'install.cardHelp': p(
+    'Opens in its own window, without browser chrome.',
+    'נפתחת בחלון משלה, בלי סרגלי הדפדפן.',
+  ),
   'more.snaptrade': p('Connected account (demo)', 'חשבון מקושר (הדגמה)'),
   'more.snaptradeHelp': p('One real account, read-only', 'חשבון אמיתי אחד, קריאה בלבד'),
 } as const;

@@ -8,6 +8,7 @@ import { TickerTile } from '../components/TickerTile';
 import { DataState } from '../components/DataState';
 import { SkeletonList } from '../components/Skeleton';
 import { useAppState, useDispatch } from '../state/appState';
+import { useBackGuard } from '../state/backStack';
 import { useT } from '../i18n/useT';
 import { useToast } from '../components/Toast';
 import { demoService } from '../data/demoAdapter';
@@ -35,6 +36,10 @@ function matches(rows: WatchRow[], query: string): WatchRow[] {
 }
 
 export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
+  // Not built on Sheet (it is a full-screen overlay, not a bottom sheet), so
+  // it claims the back press itself — otherwise back would close the app from
+  // over the search field.
+  useBackGuard(open, onClose);
   const { mounted, closing } = useDismissAnimation(open);
   // The body (and its symbols fetch) exists only while the overlay is
   // actually shown — the always-mounted wrapper must not fetch on app boot.

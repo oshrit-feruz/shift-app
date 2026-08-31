@@ -295,8 +295,8 @@ export function SettingsScreen(_: ScreenProps) {
           label={language === 'he' ? 'הדגמה: נתונים לא זמינים' : 'Demo: data unavailable'}
           help={
             language === 'he'
-              ? 'מדמה כשל מקור נתונים — המסכים מציגים מצב "לא זמין" כן. לא חל על פוזיציות Satellite, שהן נתונים חיים.'
-              : 'Simulates a data-source failure — screens show the honest unavailable state. Does not apply to Satellite positions, which are live.'
+              ? 'מדמה כשל מקור נתונים — המסכים מציגים מצב "לא זמין" כן. לא חל על רשימת המועמדות היומית, שהיא נתונים חיים.'
+              : 'Simulates a data-source failure — screens show the honest unavailable state. Does not apply to the daily candidates list, which is live.'
           }
           on={flags.unavailable}
           onChange={(v) => {

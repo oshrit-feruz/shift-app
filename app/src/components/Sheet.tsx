@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Icon } from './Icon';
 import { useDismissAnimation } from '../lib/useDismissAnimation';
 import { useSheetDrag } from '../lib/useSheetDrag';
+import { useBackGuard } from '../state/backStack';
 
 /** The phone-frame element sheets mount into (set in App.tsx). */
 export const SHELL_ID = 'app-shell';
@@ -44,6 +45,14 @@ export function Sheet({
   children: ReactNode;
   maxHeight?: string;
 }) {
+  // Every sheet in the app is built on this one, so claiming the back press
+  // here is what makes Android's back button dismiss a sheet — all of them —
+  // rather than close the app out from under an open one. Keyed on `open`, not
+  // `mounted`: the press must stop being claimed the moment the sheet starts
+  // closing, not when its exit animation finishes. A sheet flicked away is
+  // still `open` until it lands (see useSheetDrag), so a back press during
+  // that flight closes it, which is what it looks like is happening anyway.
+  useBackGuard(open, onClose);
   // Stays mounted through the exit so closing is animated, not a cut. Timed a
   // little past where the dismiss spring comes to rest.
   const { mounted, closing } = useDismissAnimation(open, 380);
