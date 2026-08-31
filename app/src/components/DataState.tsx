@@ -1,4 +1,4 @@
-import { Children, Fragment, cloneElement, isValidElement, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import type { Loadable } from '../data/types';
 import { useT } from '../i18n/useT';
 import { useTheme } from '../theme/ThemeProvider';
@@ -15,12 +15,12 @@ import { Button } from './Button';
  * aria-hidden; the announcement stays on the role="status" wrapper here, which
  * carries the loading text for assistive tech either way.
  *
- * The swap itself fades. Everything above exists to stop the layout moving on
- * load, and then the content arrived in a single frame anyway — the one place
- * left where a screen still blinked. The class goes onto each top-level child
- * rather than a wrapper around them, for the same reason the loading branch
- * has no wrapper: one would become a flex item and swallow the parent's row
- * gaps, which is the layout shift this component is built to avoid.
+ * Nothing here marks the swap for animation. Loaded cards are newly inserted
+ * elements, and base.css animates `.anim-fade-up .card` at any depth, so they
+ * pick up the same entrance every other card gets. An earlier pass cloned an
+ * entrance class onto each child from here; the rule made that unnecessary,
+ * and dropping it also drops the fragment handling it needed and the second
+ * animation it laid over the screen's own.
  */
 export function DataState<T>({
   state,
@@ -35,23 +35,6 @@ export function DataState<T>({
 }) {
   const t = useT();
   const { language } = useTheme();
-  /** Adds the entrance class to each child that can carry one. A child that
-   *  is a component ignoring `className` simply arrives without the fade,
-   *  which is the old behaviour and costs nothing.
-   *
-   *  Fragments are descended into rather than cloned. `Children.map` counts a
-   *  fragment as one child but it is no element on the page, so cloning it
-   *  puts a className on something React will only ignore and warn about,
-   *  while the cards actually inside it get nothing — which is exactly what
-   *  happened to the connected-account screen, whose callback returns one. */
-  const faded = (node: ReactNode): ReactNode =>
-    Children.map(node, (child) => {
-      if (!isValidElement<{ className?: string; children?: ReactNode }>(child)) return child;
-      if (child.type === Fragment) return <>{faded(child.props.children)}</>;
-      return cloneElement(child, {
-        className: [child.props.className, 'anim-data-in'].filter(Boolean).join(' '),
-      });
-    });
   if (state.status === 'loading') {
     if (skeleton) {
       // No wrapper element: a wrapper would collapse the skeleton into a
@@ -98,7 +81,7 @@ export function DataState<T>({
       </div>
     );
   }
-  return <>{faded(children(state.data))}</>;
+  return <>{children(state.data)}</>;
 }
 
 /** Honest empty state for ok-but-empty lists (e.g. no open satellite positions). */

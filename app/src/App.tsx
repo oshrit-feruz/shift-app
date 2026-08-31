@@ -11,7 +11,7 @@ import {
 } from 'react';
 import { AppHeader } from './components/AppHeader';
 import { TabBar } from './components/TabBar';
-import { BackgroundShapes } from './components/BackgroundShapes';
+import { AppBackground } from './components/AppBackground';
 import { useAppState, useDispatch, type Screen } from './state/appState';
 import { useT } from './i18n/useT';
 import type { StringKey } from './i18n/strings';
@@ -307,7 +307,10 @@ function AppShell() {
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
-          background: 'radial-gradient(120% 60% at 15% -6%, var(--g1) 0%, var(--g2) 55%)',
+          // Flat: the gradient moved into .app-bg, which paints over this and
+          // owns the ground now. This is only what shows if that layer is ever
+          // absent.
+          background: 'var(--color-bg)',
           color: 'var(--color-text)',
           position: 'relative',
           overflow: 'hidden',
@@ -318,7 +321,7 @@ function AppShell() {
         // see components/Sheet.tsx.
         id={SHELL_ID}
       >
-        <BackgroundShapes />
+        <AppBackground />
         {/* Chrome, not layout: the header is a translucent layer the content
             passes beneath, which is what makes the app read as one continuous
             surface instead of three stacked strips. Below the tab bar (50) and

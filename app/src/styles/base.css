@@ -369,13 +369,38 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
   to { opacity: 1; }
 }
 
-/* Screen change. The wrapper itself stays untouched at full opacity; its
- * direct children each fade. ease-out front-loads the fade, so the screen is
- * legible early and the last third only settles — linear or ease-in-out at
- * the same duration reads as a slower blink. */
-.anim-fade-up > * {
-  animation: fadeUp var(--dur-screen) var(--ease-out) both;
+/* Screen change. The cards arrive — they rise a little and land in sequence,
+ * which reads as content settling into place rather than the whole screen
+ * blinking on. Nothing else animates: the chrome around them did not change,
+ * and fading a heading in alongside its own cards is the blink this replaces.
+ *
+ * The transform is on the card itself, which is the element carrying the
+ * backdrop-filter. That is the one place a transform is known-safe here — the
+ * sheet has shipped doing exactly this. On a wrapper it makes the wrapper a
+ * containing block, which detaches its descendant cards' blur (see the Motion
+ * note above), and that is why the wrapper still animates nothing.
+ *
+ * Any depth, not `> *`: cards that arrive later — a DataState swapping its
+ * skeleton for real content — are newly inserted elements, so the animation
+ * runs for them too without anything having to mark the swap. */
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
 }
+.anim-fade-up .card,
+.anim-tab-in .card {
+  animation: cardIn var(--dur-card) var(--ease-out) both;
+}
+/* The stagger, capped at the fifth card. Uncapped, a long list cascades for
+ * most of a second and the last rows read as lagging rather than arriving. */
+.anim-fade-up .card:nth-child(2),
+.anim-tab-in .card:nth-child(2) { animation-delay: 35ms; }
+.anim-fade-up .card:nth-child(3),
+.anim-tab-in .card:nth-child(3) { animation-delay: 70ms; }
+.anim-fade-up .card:nth-child(4),
+.anim-tab-in .card:nth-child(4) { animation-delay: 105ms; }
+.anim-fade-up .card:nth-child(n + 5),
+.anim-tab-in .card:nth-child(n + 5) { animation-delay: 140ms; }
 
 /* Exit, paired with useDismissAnimation's --dur-exit default (read from this
  * same token, not a duplicated number): shorter than the entrance so a close
@@ -386,14 +411,8 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
   animation: fadeOut var(--dur-exit) var(--ease-in) both;
 }
 
-/* Tab re-activation inside a screen. Shorter than a screen change because the
- * chrome around it never moved — the screen-change duration here reads as
- * sluggish. Restarts on each activation because display:none resets the
- * animation. Same child-level targeting: TabPanel is an ancestor of glass
- * cards too. */
-.anim-tab-in > * {
-  animation: fadeUp var(--dur-tab) var(--ease-out) both;
-}
+/* Tab re-activation inside a screen shares the card entrance above, and
+ * restarts on each activation because display:none resets the animation. */
 
 
 /* Interactive polish: colour/opacity/background only — never transform on
@@ -457,18 +476,6 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
     background-color var(--dur-nav) ease;
 }
 
-/* Loaded data replacing its skeleton. Opacity only, and for the same reason
- * the screen fade is: these children are very often glass cards, and giving
- * them a transform for the animation's duration detaches their
- * backdrop-filter (see the Motion note above). Short — the layout does not
- * move, so this only has to take the edge off the swap, not narrate it. */
-@keyframes dataIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-.anim-data-in {
-  animation: dataIn var(--dur-screen) var(--ease-out) both;
-}
 
 /* One place decides that motion is unwelcome. Durations collapse rather than
  * animations being removed, so nothing depends on an animationend that would
@@ -478,6 +485,11 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
   *::before,
   *::after {
     animation-duration: .01ms !important;
+    /* Delays too, not just durations. A staggered entrance whose duration is
+     * collapsed but whose delay is not leaves the later cards sitting at
+     * opacity 0 for their whole delay and then popping — which is a worse
+     * flash than the animation this setting is asking us to remove. */
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
     scroll-behavior: auto !important;
@@ -586,6 +598,44 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .skeleton { animation: none; }
+}
+
+/* ── App ground ────────────────────────────────────────────────────────── */
+/* Behind every screen, and built from the boot splash's vignette + scanline
+ * rather than from decorative shapes. Every card above it is a
+ * backdrop-filter surface, so what matters here is that it is low-frequency:
+ * blurred, a broad gradient becomes a soft tint the pane sits in, where a
+ * hard-edged shape becomes a smear crossing it.
+ *
+ * Sits at z-index -1 inside the shell, which is a stacking context of its own,
+ * so this paints above the shell's background and below all of its content. */
+.app-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  background: radial-gradient(120% 78% at 50% 38%, var(--bg-core) 0%, var(--bg-mid) 46%, var(--bg-edge) 100%);
+}
+/* The colour. Two very diffuse fields with no edge anywhere in them — the
+ * brand violet where the old gradient put its light, and a far fainter green
+ * low and opposite so the frame is not lit from one corner only. Kept this
+ * weak on purpose: it should be findable, not noticeable. */
+.app-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(72% 46% at 14% -4%, color-mix(in srgb, var(--color-accent) 26%, transparent) 0%, transparent 68%),
+    radial-gradient(58% 38% at 94% 82%, color-mix(in srgb, var(--up) 12%, transparent) 0%, transparent 72%);
+}
+/* The scanline, at the splash's exact rhythm. One pixel lit, two dark: fine
+ * enough to read as the texture of a screen rather than as stripes, and it
+ * dissolves into a flat tint under any card's blur. */
+.app-bg-scan {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(to bottom, var(--bg-scan) 0 1px, transparent 1px 3px);
 }
 
 /* Boot splash: the brand's dark plate, full bleed, with the CRT scanline
