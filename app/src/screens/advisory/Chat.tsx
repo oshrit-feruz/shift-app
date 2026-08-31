@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Tag } from '../../components/Tag';
@@ -54,6 +55,29 @@ export function AdvisoryChat(_: ScreenProps) {
   const ans = s.advAnswers;
   const asking = ans.length < 4;
   const profileKey = mapProfile(ans);
+
+  // The conversation grows downward past the fold, and the app scrolls in one
+  // shared container — so without this the next question and the options that
+  // answer it arrive off-screen, and the reply the motion promises is a reply
+  // the user has to go looking for.
+  //
+  // Keyed on the number of answers, not on every render: the only thing that
+  // adds a turn is an answer landing.
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const turns = ans.length;
+  // The first paint is not a turn — the screen has just opened and belongs at
+  // its top, showing the intro card. Only answers scroll.
+  const settled = useRef(false);
+  useEffect(() => {
+    if (!settled.current) {
+      settled.current = true;
+      return;
+    }
+    // Matches how spring.ts and base.css treat the setting: the outcome
+    // without the journey, rather than no outcome at all.
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    bottomRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'end' });
+  }, [turns]);
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -218,6 +242,11 @@ export function AdvisoryChat(_: ScreenProps) {
           </Card>
         </>
       )}
+      {/* The scroll target. A zero-height sentinel after everything rather
+          than the last bubble: what the user needs in view is the new
+          question AND the options that answer it, and only the end of the
+          screen is reliably below both. */}
+      <div ref={bottomRef} aria-hidden="true" />
     </div>
   );
 }

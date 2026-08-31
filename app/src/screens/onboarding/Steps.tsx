@@ -240,6 +240,10 @@ export function StepsScreen(_: ScreenProps) {
             <button
               key={st.key}
               type="button"
+              // Same press primitive the list rows carry. Without it this row
+              // answered a tap with only the mark's colour change, which is
+              // 22px of the row reacting and the other 300 saying nothing.
+              className="tap"
               onClick={() => dispatch({ type: 'stepDone', key: st.key, done: !done })}
               style={{
                 display: 'flex',
