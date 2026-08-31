@@ -67,14 +67,18 @@ export function ListRow({
   // A skeleton row and the real row that replaces it are different elements
   // (different content, sometimes a different tag), so React unmounts one and
   // mounts the other rather than patching in place — the swap is a hard cut
-  // with no transition to hook into. Fading every row in on mount (opacity
-  // only — the class list rows already use at screen level) turns that cut
-  // into a settle: skeleton rows fade in while loading, real rows fade in
+  // with no transition to hook into. Fading every row in on mount turns that
+  // cut into a settle: skeleton rows fade in while loading, real rows fade in
   // over the same rows once data lands, instead of the flash of gray bars
   // becoming ticker data. A row that survives a re-render (price ticking,
   // same key, same element) keeps its DOM node, so the animation doesn't
   // replay — this only fires on the swap.
-  const anim = 'anim-fade-up';
+  //
+  // `row-in`, not the `anim-fade-up` this used to carry. That class animates
+  // nothing itself; it is a selector hook whose rules reach `.card`
+  // descendants only, and a row contains no card — so the fade this comment
+  // describes had silently stopped playing. See the rule in base.css.
+  const anim = 'row-in';
   if (onClick) {
     // `borderTop` is pulled out of the spread on purpose. A re-assignment
     // cannot reorder a key that the spread already introduced, so writing
@@ -89,10 +93,18 @@ export function ListRow({
     // UA default is `2px outset`. That drew a black line across the top of
     // every clickable row that had no divider of its own.
     const { borderTop, ...base } = style;
+    // `tap` on the button, never on the wrapper. base.css clears the mobile
+    // browsers' own grey tap overlay on every button in the app, so a control
+    // that declares no press state of its own answers a tap with nothing at
+    // all until the next screen renders — and rows are the most-tapped
+    // control here. The wrapper is the wrong element for it: it also holds
+    // the trailing +/✕ buttons, which own their own press feedback, and
+    // dimming the pair together would say the whole row was pressed when only
+    // one icon was.
     const button = (
       <button
         type="button"
-        className={trailing == null ? anim : undefined}
+        className={trailing == null ? `${anim} tap` : 'tap'}
         onClick={onClick}
         style={{
           ...base,

@@ -57,6 +57,12 @@ export function Card({
       <button
         type="button"
         onClick={onClick}
+        // The hook base.css presses against. It is an attribute rather than a
+        // class because the styles it selects are about the card *being a
+        // button*, not about a variant of the surface — and because the rule
+        // was written against this attribute long before anything set it,
+        // which is why clickable cards had no press feedback at all.
+        data-clickable="true"
         className={`card elev-sm ${className}`}
         style={{ ...base, textAlign: 'start', font: 'inherit', color: 'inherit', cursor: 'pointer' }}
       >

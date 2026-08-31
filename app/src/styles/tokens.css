@@ -109,6 +109,15 @@
   /* Every consumer of these three is a glass pane, so the specular rim
    * rides along with the elevation rather than needing its own class. */
   --shadow-sm: var(--glass-specular), 0 0 0 1px rgba(146, 155, 172, .2), 0 8px 32px rgba(0, 0, 0, .25);
+  /* A card being pressed, for the cards that are buttons. The specular rim
+   * and the hairline ring are held and only the halo collapses: the rim is
+   * what makes the pane read as glass, and dropping it would make a press
+   * look like the material changed rather than like the card moved down.
+   * Opacity, which is how rows answer a press, is not available here — the
+   * card is the element carrying the backdrop-filter, and an element at
+   * opacity < 1 is a backdrop root, so dimming it would flatten its own blur
+   * for the length of the press. */
+  --shadow-sm-active: var(--glass-specular), 0 0 0 1px rgba(146, 155, 172, .2), 0 2px 8px rgba(0, 0, 0, .25);
   --shadow-md: var(--glass-specular), 0 0 0 1px rgba(146, 155, 172, .25), 0 12px 36px rgba(0, 0, 0, .3);
   --shadow-lg: var(--glass-specular), 0 0 0 1px rgba(146, 155, 172, .3), 0 16px 40px rgba(0, 0, 0, .4);
 
@@ -235,6 +244,7 @@
   --shadow-btn: 0 1px 2px rgba(18, 24, 41, .18), 0 6px 16px rgba(18, 24, 41, .16);
   --shadow-btn-active: 0 1px 2px rgba(18, 24, 41, .2);
   --shadow-sm: var(--glass-specular), 0 0 0 1px rgba(146, 155, 172, .25), 0 8px 24px rgba(18, 24, 41, .25);
+  --shadow-sm-active: var(--glass-specular), 0 0 0 1px rgba(146, 155, 172, .25), 0 2px 8px rgba(18, 24, 41, .25);
   --shadow-md: var(--glass-specular), 0 0 0 1px rgba(146, 155, 172, .25), 0 8px 24px rgba(18, 24, 41, .3);
   --shadow-lg: var(--glass-specular), 0 0 0 1px rgba(146, 155, 172, .3), 0 16px 40px rgba(18, 24, 41, .35);
   /* Cards stay dark in light mode, so the rim stays a white highlight; the
