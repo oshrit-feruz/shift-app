@@ -1,0 +1,314 @@
+/* ── Harness frame ──────────────────────────────────────────────────────
+ * Everything here is the stage, not a variant. It is identical for all four
+ * so the only difference on screen is the surface treatment being judged.
+ */
+.p-page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 30px 20px;
+  background: #07090f;
+}
+
+.p-phone {
+  position: relative;
+  z-index: 0;
+  width: 393px;
+  height: 852px;
+  max-height: calc(100dvh - 60px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 42px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .09), 0 40px 90px rgba(0, 0, 0, .65);
+}
+
+.p-header {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 16px 12px;
+  /* The app fades its header material out at the bottom rather than ending
+   * it on a hard line; same idea, one gradient. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 76%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 76%, transparent 100%);
+}
+
+.p-icon-btn {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: var(--sunk);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.p-scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 78px 16px 96px;
+}
+
+.p-tabbar {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 50;
+  display: flex;
+  padding: 8px 6px 14px;
+}
+.p-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted-2);
+  font: 500 var(--text-micro) var(--font-body);
+  cursor: pointer;
+}
+.p-tab[data-active] {
+  color: var(--color-accent-200);
+  background: var(--fill-selected);
+}
+
+/* The screen column. Gap is a variant decision, so each one sets its own. */
+.p-col {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Rows are shared; only the rule between them belongs to the variant that
+ * has no pane to do the separating. */
+.p-row {
+  padding: 5px 0;
+}
+.p-row[data-ruled] + .p-row[data-ruled] {
+  border-top: 1px solid var(--color-divider);
+  padding-top: 10px;
+  margin-top: 5px;
+}
+
+/* Every variant's entrance is staggered the way the app's is, capped at the
+ * fourth surface so a screen never cascades for most of a second. */
+.p-col > * { animation-delay: 0ms; }
+.p-col > *:nth-child(2) { animation-delay: 35ms; }
+.p-col > *:nth-child(3) { animation-delay: 70ms; }
+.p-col > *:nth-child(n + 4) { animation-delay: 105ms; }
+
+/* Panes that are buttons must not look like buttons. */
+.pane {
+  display: flex;
+  flex-direction: column;
+  text-align: start;
+  font: inherit;
+  color: inherit;
+  border: 0;
+  width: 100%;
+}
+button.pane { cursor: pointer; }
+
+
+/* ── 1. Sunken ──────────────────────────────────────────────────────────
+ * Depth inverted: content is cut into the ground rather than floating above
+ * it. No drop shadow anywhere — the only light is the rim at the bottom of
+ * the well, and the ground's own vignette darkening as it falls in.
+ */
+.v-sunken { gap: 10px; }
+.v-sunken .pane {
+  gap: 8px;
+  padding: 14px;
+  border-radius: var(--radius-lg);
+  background: var(--sunk);
+  -webkit-backdrop-filter: blur(7px) saturate(1.15) brightness(.9);
+  backdrop-filter: blur(7px) saturate(1.15) brightness(.9);
+  box-shadow:
+    inset 0 2px 5px rgba(0, 0, 0, .45),
+    inset 0 0 0 1px rgba(0, 0, 0, .3),
+    inset 0 -1px 0 rgba(255, 255, 255, .07);
+  animation: sunkenIn var(--dur-card) var(--ease-out) both;
+  transition: box-shadow .18s ease;
+}
+/* A well does not rise into place — it deepens. Scale is on the pane itself,
+ * which is the element carrying the backdrop-filter, so no ancestor becomes
+ * a containing block and detaches the blur. */
+@keyframes sunkenIn {
+  from { opacity: 0; transform: scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+.v-sunken button.pane:active {
+  box-shadow:
+    inset 0 3px 8px rgba(0, 0, 0, .58),
+    inset 0 0 0 1px rgba(0, 0, 0, .34),
+    inset 0 -1px 0 rgba(255, 255, 255, .05);
+}
+.v-sunken .pane--accent {
+  background: color-mix(in srgb, var(--acc-fill) 30%, var(--sunk));
+  box-shadow:
+    inset 0 2px 5px rgba(0, 0, 0, .4),
+    inset 0 0 0 1px var(--color-accent-700),
+    inset 0 0 22px -6px var(--color-accent);
+}
+
+
+/* ── 2. Edgeless ────────────────────────────────────────────────────────
+ * No surface at all. Structure comes from an eyebrow label, a hairline and
+ * air; the ground shows through unbroken and nothing blurs, so there is no
+ * backdrop-filter left on the screen.
+ */
+.v-edgeless { gap: 26px; }
+.v-edgeless .sect {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  animation: edgelessIn var(--dur-screen) var(--ease-out) both;
+}
+/* Nothing moves: there is no pane whose arrival the movement would describe. */
+@keyframes edgelessIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.v-edgeless .sect-label {
+  font-size: var(--text-micro);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--muted-2);
+}
+.v-edgeless .sect--accent {
+  border-inline-start: 2px solid var(--color-accent);
+  padding-inline-start: 12px;
+  margin-inline-start: -14px;
+}
+.v-edgeless .sect--accent .sect-label { color: var(--acc-lite); }
+.v-edgeless .sect-rule {
+  height: 1px;
+  background: var(--color-divider);
+  opacity: .55;
+}
+
+
+/* ── 3. Slab ────────────────────────────────────────────────────────────
+ * Opaque. No blur, no translucency, no sampling of the ground: a solid
+ * object with a lit top edge and a tight contact shadow. Because nothing on
+ * the screen carries a backdrop-filter any more, the pane is free to move
+ * and scale on press without detaching anything.
+ */
+.v-slab { gap: 12px; }
+.v-slab .pane {
+  gap: 9px;
+  padding: 15px;
+  border-radius: 14px;
+  background: var(--surface-solid);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .07),
+    0 1px 3px rgba(0, 0, 0, .45),
+    0 14px 24px -16px rgba(0, 0, 0, .9);
+  animation: slabIn .2s var(--ease-out) both;
+  transition: transform .12s var(--ease-out), box-shadow .12s var(--ease-out);
+}
+@keyframes slabIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.v-slab button.pane:active {
+  transform: scale(.988);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .05),
+    0 1px 2px rgba(0, 0, 0, .5);
+}
+.v-slab .pane--accent {
+  background: #232F49;
+  border-inline-start: 3px solid var(--color-accent);
+  padding-inline-start: 12px;
+}
+.v-slab .p-row[data-ruled] + .p-row[data-ruled] { border-top-color: rgba(146, 155, 172, .2); }
+
+
+/* ── 4. Lifted ──────────────────────────────────────────────────────────
+ * The glass, further. More blur and saturation, a brighter rim, an accent
+ * bloom across the leading corner, and a real drop. The entrance carries a
+ * specular pass over the pane — inside the same 280ms as the arrival, not
+ * a flourish of its own.
+ */
+.v-lifted { gap: 13px; }
+.v-lifted .pane {
+  position: relative;
+  isolation: isolate;
+  gap: 9px;
+  padding: 15px;
+  border-radius: 20px;
+  background: var(--color-surface);
+  background-image: var(--glass-sheen);
+  -webkit-backdrop-filter: blur(20px) saturate(2) brightness(1.12);
+  backdrop-filter: blur(20px) saturate(2) brightness(1.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .45),
+    inset 0 -1px 0 rgba(255, 255, 255, .09),
+    0 0 0 1px rgba(146, 155, 172, .22),
+    0 20px 46px -14px rgba(0, 0, 0, .6);
+  animation: liftedIn var(--dur-card) var(--ease-out) both;
+  transition: transform .14s var(--ease-out), box-shadow .14s var(--ease-out);
+}
+@keyframes liftedIn {
+  from { opacity: 0; transform: translateY(8px) scale(.99); }
+  to { opacity: 1; transform: none; }
+}
+/* The bloom: the pane reads as lit from the leading top corner rather than
+ * evenly tinted. Static — it is material, not motion. */
+.v-lifted .pane::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(78% 100% at 8% 0%, color-mix(in srgb, var(--color-accent) 22%, transparent), transparent 62%);
+}
+/* The specular pass, on the same clock as the entrance. Opacity and
+ * transform only, on an overlay that holds no glass of its own. */
+.v-lifted .pane::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(102deg, transparent 34%, rgba(255, 255, 255, .16) 50%, transparent 66%);
+  animation: liftedSheen var(--dur-card) var(--ease-out) both;
+}
+@keyframes liftedSheen {
+  from { opacity: 0; transform: translateX(-32%); }
+  45% { opacity: 1; }
+  to { opacity: 0; transform: translateX(32%); }
+}
+.v-lifted button.pane:active {
+  transform: scale(.99);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .32),
+    0 0 0 1px rgba(146, 155, 172, .22),
+    0 6px 16px -8px rgba(0, 0, 0, .6);
+}
+.v-lifted .pane--accent {
+  background: var(--fill-selected);
+  background-image: var(--glass-sheen);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .45),
+    0 0 0 1px var(--color-accent),
+    0 0 34px -10px var(--color-accent),
+    0 20px 46px -14px rgba(0, 0, 0, .6);
+}
