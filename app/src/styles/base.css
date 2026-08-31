@@ -305,6 +305,7 @@ h1, h2, h3, h4 { font-family: var(--font-heading); margin: 0; }
  * right reads backwards in Hebrew, where "on" is the left end. */
 .switch {
   --switch-travel: 16px;
+
   transition:
     background-color var(--dur-nav) ease,
     border-color var(--dur-nav) ease;
