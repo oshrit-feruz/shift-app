@@ -190,10 +190,12 @@ function withQuote(row: SymbolRow, quotes: Loadable<Record<string, Quote>>): Sym
 }
 
 /**
- * Describe one ticker with everything actually known about it, and nothing
- * else. The sample table supplies a name, a sector and the demo day change
- * when it has a row; a symbol it does not cover keeps those null rather than
- * borrowing another company's.
+ * Creates a normalized watchlist row with available symbol metadata, quote data, and ranking membership.
+ *
+ * @param rawTicker - The ticker symbol to normalize.
+ * @param quotes - The loaded quote data for symbols.
+ * @param ranked - The set of ranked ticker symbols.
+ * @returns A watchlist row with `null` for unavailable metadata or quote data.
  */
 function watchRow(
   rawTicker: string,
@@ -216,7 +218,12 @@ function watchRow(
   };
 }
 
-/** Deterministic seeded pseudo-random walk — same math as the prototype charts. */
+/**
+ * Creates a deterministic pseudo-random value generator from a seed.
+ *
+ * @param seed - The initial generator state
+ * @returns A function that produces values between 0 and 1
+ */
 function rng(seed: number) {
   let s = seed;
   return () => {
@@ -226,12 +233,9 @@ function rng(seed: number) {
 }
 
 /**
- * The tickers the engine ranks today, as a set. Never throws.
+ * Provides the tickers currently ranked by the engine.
  *
- * An unavailable ranking becomes an EMPTY set rather than a failure: the flag
- * it feeds says "the engine has a view on this stock", and the honest answer
- * when the snapshot cannot be read is that we do not know of one — which is
- * what an absent flag already means. Nothing on screen claims otherwise.
+ * @returns A set of ranked ticker symbols, or an empty set when ranking data is unavailable.
  */
 async function rankedSet(): Promise<ReadonlySet<string>> {
   const ranked = await fetchRankedTickers();

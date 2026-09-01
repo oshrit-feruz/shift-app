@@ -108,13 +108,10 @@ const SERIES_CACHE_MS = 5 * 60_000;
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
 /**
- * Map one row of the route's response into a Bar, or null when it is not one.
+ * Converts a response row into a validated daily price bar.
  *
- * The route already enforces this shape, so a row failing here means the
- * response came from something other than this app's route or was corrupted
- * in transit. Either way the honest response is to refuse it, not to draw
- * whatever survived: a chart is read as a whole, and a series with silently
- * dropped sessions is a picture of price action that never happened.
+ * @param raw - The response value to validate and convert
+ * @returns The validated price bar, or `null` if the value is malformed
  */
 function mapBar(raw: unknown): Bar | null {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return null;
@@ -127,12 +124,10 @@ function mapBar(raw: unknown): Bar | null {
 }
 
 /**
- * Pull the bars out of the route's response, or null when the body is not one.
+ * Extracts and chronologically sorts validated daily bars from a response body.
  *
- * An empty `bars` list comes back as an empty array, not as null: on the
- * route it means the provider genuinely has no series for this symbol, which
- * the caller turns into ok(null) — "no history for this ticker" — and that is
- * a real answer rather than the unreadable-body case null stands for.
+ * @param body - The response body containing a `bars` array
+ * @returns The validated bars, an empty array when no bars are available, or `null` for a malformed response
  */
 export function extractBars(body: unknown): Bar[] | null {
   if (body === null || typeof body !== 'object' || Array.isArray(body)) return null;
@@ -154,13 +149,11 @@ export function extractBars(body: unknown): Bar[] | null {
 }
 
 /**
- * Whole days between a YYYY-MM-DD stamp and now, in UTC, or null when the
- * stamp is missing or is not a real calendar date.
+ * Calculates the whole-day UTC age of a calendar date.
  *
- * Same shape and the same round-trip check as snapshotAgeDays in
- * recoveryDetector.ts, and for the same reason: Date.UTC rolls an impossible
- * date forward, which yields a negative age that sails straight past the
- * staleness gate.
+ * @param asOf - The date to measure in `YYYY-MM-DD` format
+ * @param now - The reference date and time
+ * @returns The number of whole UTC days between `asOf` and `now`, or `null` for a missing or invalid calendar date
  */
 export function seriesAgeDays(asOf: unknown, now: Date = new Date()): number | null {
   if (typeof asOf !== 'string') return null;
@@ -179,11 +172,9 @@ export function seriesAgeDays(asOf: unknown, now: Date = new Date()): number | n
 }
 
 /**
- * One ticker's daily history. Never throws.
+ * Loads daily price history for a ticker.
  *
- * ok(null) means "the provider has no history for this symbol" — a real
- * answer, and distinct from 'unavailable', which means the app could not find
- * out.
+ * @returns A loadable bar series; `ok(null)` indicates that the provider has no history, while `unavailable` indicates that the history could not be retrieved.
  */
 export async function fetchDailySeries(
   ticker: string,
@@ -204,7 +195,14 @@ export async function fetchDailySeries(
     : readSeries(ticker, fetchImpl, now);
 }
 
-/** The uncached read. Never throws. */
+/**
+ * Loads and validates the daily price history for a ticker without using the cache.
+ *
+ * @param ticker - The symbol whose price history should be loaded
+ * @param fetchImpl - The fetch implementation used to request the history
+ * @param now - The reference time used to assess whether the history is current
+ * @returns A loadable series, `null` when the symbol has no history, or an unavailable result when the data cannot be trusted
+ */
 async function readSeries(
   ticker: string,
   fetchImpl: typeof fetch,

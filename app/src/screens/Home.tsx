@@ -27,6 +27,11 @@ import { money, moneyOrDash, pct, pctOrDash, signalColor } from '../lib/format';
 import { ROW_BUTTON_STYLE } from '../lib/rowButton';
 import type { ScreenProps } from '../App';
 
+/**
+ * Renders the home screen with mode-specific portfolio metrics, setup progress, watchlist, market movers, and upcoming earnings.
+ *
+ * @param openSearch - Opens the search interface for adding a symbol to the watchlist.
+ */
 export function HomeScreen({ openSearch }: ScreenProps) {
   const s = useAppState();
   const dispatch = useDispatch();
@@ -450,7 +455,9 @@ function HeroPortfolio() {
   );
 }
 
-/** The advanced-mode counterpart of the hero — six hard-coded figures. */
+/**
+ * Renders the advanced-mode portfolio metrics using localized labels.
+ */
 function MetricStripDemo() {
   const { language } = useTheme();
 
@@ -483,10 +490,9 @@ function MetricStripDemo() {
 }
 
 /**
- * The movers preview: the biggest movers by the day's ACTUAL change, from the
- * live quote, same as the Movers screen. The volume printed beside the price
- * is still a demo figure — the provider's quote carries no volume — and is
- * the only fabricated number left on this card.
+ * Displays a preview of the largest stock price movers, ranked by the absolute live quote change.
+ *
+ * @param beg - Whether to use the beginner layout and display three movers instead of five
  */
 function MoversPreview({ beg }: { beg: boolean }) {
   const dispatch = useDispatch();

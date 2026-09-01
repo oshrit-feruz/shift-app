@@ -35,20 +35,20 @@ const SECTORS: Array<[string, StringKey]> = [
 ];
 
 /**
- * Split so the hooks below never run with sample data off.
+ * Renders the movers screen when demo mode is enabled and otherwise displays the demo-only gate.
  *
- * The day change this screen ranks by is REAL now — it comes from the live
- * quote, like the price beside it. What is still demonstration data is
- * volume: the provider's quote carries no volume figure, so the "Most active"
- * tab, the Vol column and RVol are all prototype numbers, and the gate stays
- * until they have a source. Gainers and Losers are ordered by the actual
- * session.
+ * @param props - Screen properties passed to the movers content.
  */
 export function MoversScreen(props: ScreenProps) {
   const demo = useDemoMode();
   return demo ? <MoversBody {...props} /> : <DemoOnly feature="title.movers" />;
 }
 
+/**
+ * Displays stock movers with tab, sector, loading, and presentation-mode controls.
+ *
+ * @param _ - Screen properties reserved for screen component compatibility
+ */
 function MoversBody(_: ScreenProps) {
   const dispatch = useDispatch();
   const { mode, language } = useTheme();

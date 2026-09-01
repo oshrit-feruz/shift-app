@@ -94,12 +94,7 @@ const cache = new Map<string, CacheEntry>();
 const BATCH_KEY_PREFIX = 'quotes:';
 
 /**
- * Drop every cached quote.
- *
- * Both halves: the per-ticker map above, and the batch responses shared
- * through loadableCache. Clearing only the first left the next read free to
- * replay the same batch payload for the rest of its TTL — a "clear" that
- * handed back exactly the quotes it was asked to forget.
+ * Clears all cached quote data, including individual ticker entries and shared batch responses.
  */
 export function clearQuoteCache(): void {
   cache.clear();
@@ -120,14 +115,10 @@ export function normaliseTickers(tickers: readonly string[]): string[] {
 }
 
 /**
- * Map one wire quote into a Quote, or null when it is not one.
+ * Converts a raw quote record into a validated quote.
  *
- * Every field is required. The route only ever sends a complete quote — the
- * adapter behind it drops a partial one — so a row failing here means the
- * response came from something other than this app's route, and refusing it
- * is the only honest answer. A price that arrived without its previous close
- * cannot have a real day change, and printing 0.00% for one is worse than a
- * dash because a reader acts on it.
+ * @param raw - The value to validate and convert
+ * @returns A complete quote, or `null` when required numeric fields or the timestamp are missing or invalid
  */
 export function mapQuote(raw: unknown): Quote | null {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return null;
@@ -178,7 +169,11 @@ function extractUnavailable(body: unknown): Set<string> {
   return out;
 }
 
-/** One batch's round trip. Never throws. */
+/**
+ * Fetches and validates quote data for one ticker batch.
+ *
+ * @returns The batch quotes and explicitly unavailable tickers, or an unavailable result when the request fails or the response is invalid.
+ */
 async function readBatch(tickers: string[], fetchImpl: typeof fetch): Promise<Loadable<BatchData>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -207,12 +202,12 @@ async function readBatch(tickers: string[], fetchImpl: typeof fetch): Promise<Lo
 type BatchData = { quotes: Record<string, Quote>; unavailable: Set<string> };
 
 /**
- * Split the wanted tickers into what the cache can already answer and what
- * still has to be fetched.
+ * Separates tickers covered by fresh cache entries from those requiring a fetch.
  *
- * `cached` carries only the tickers with a live quote — a cached "no price
- * for this symbol" is remembered (so the next render does not ask again) but
- * has nothing to put in the map.
+ * @param wanted - The normalized tickers to look up
+ * @param useCache - Whether cached entries should be considered
+ * @param now - The current timestamp used to determine cache freshness
+ * @returns Cached quotes and tickers without fresh cache coverage
  */
 function partitionByCache(
   wanted: string[],
@@ -233,13 +228,10 @@ function partitionByCache(
 }
 
 /**
- * The requests one list of missing tickers becomes.
+ * Groups ticker symbols into sorted batches for quote requests.
  *
- * Sorted first, so the same set of tickers always produces the same URL. The
- * route's response is cached at the edge per URL, and two screens asking for
- * the same symbols in a different order would otherwise be two cache entries
- * — and two fan-outs — for one identical answer. Order is irrelevant to the
- * caller, which gets a map back.
+ * @param missing - Ticker symbols that require quotes
+ * @returns Sorted ticker batches containing at most the request limit per batch
  */
 function batchTickers(missing: string[]): string[][] {
   const sorted = [...missing].sort((a, b) => a.localeCompare(b));
@@ -265,17 +257,14 @@ function rememberBatch(batch: string[], data: BatchData, now: number): void {
 }
 
 /**
- * Live quotes for a list of tickers, keyed by upper-case ticker.
+ * Loads live quotes for the requested tickers.
  *
- * An empty list is ok({}) with no request at all — a new account with an
- * empty watchlist should cost nothing, and "you have not added anything" is
- * not a failure to report.
+ * Tickers are normalized and deduplicated. An empty input returns an empty
+ * successful result without making a request. If any required batch fails, the
+ * entire read is reported as unavailable.
  *
- * A failure is reported for the whole read rather than per ticker: the
- * symbols share one key, one quota and one provider, so when the route fails
- * it has failed for all of them, and a map that quietly contained only the
- * cached half would be a screen where some prices are live, some are a minute
- * old, and nothing says which.
+ * @param tickers - Tickers for which to load quotes
+ * @returns A loadable map of normalized ticker symbols to quotes
  */
 export async function fetchQuotes(
   tickers: readonly string[],

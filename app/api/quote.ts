@@ -67,11 +67,10 @@ type SymbolOutcome =
   | { kind: 'failed'; symbol: string; failure: UpstreamFailure };
 
 /**
- * Parse and validate the `symbols` parameter.
+ * Validates and normalizes the comma-separated `symbols` query parameter.
  *
- * Returns the normalised list, or the error to answer with. Duplicates are
- * collapsed rather than fetched twice — a watchlist with the same ticker on
- * it twice must not cost two requests out of the minute's allowance.
+ * @param raw - The raw query parameter value.
+ * @returns An object containing unique uppercase symbols, or an error message for invalid input.
  */
 export function parseSymbols(raw: string | undefined): { symbols: string[] } | { error: string } {
   const trimmed = (raw ?? '').trim();
@@ -96,7 +95,14 @@ export function parseSymbols(raw: string | undefined): { symbols: string[] } | {
   return { symbols };
 }
 
-/** One symbol's round trip. Never throws — every failure is classified. */
+/**
+ * Fetches and classifies the quote outcome for a symbol.
+ *
+ * @param symbol - The ticker symbol to fetch
+ * @param apiKey - The Finnhub API key
+ * @param timeoutMs - The upstream request timeout in milliseconds
+ * @returns The symbol's quote, absence, or classified upstream failure
+ */
 async function fetchOne(
   symbol: string,
   apiKey: string,
@@ -116,11 +122,11 @@ async function fetchOne(
 }
 
 /**
- * Run `work` over the symbols with a fixed number of workers in flight.
+ * Processes symbol work with a bounded number of concurrent operations.
  *
- * A plain Promise.all over twenty-five symbols opens twenty-five sockets at
- * once and is the fastest way to trip a per-minute rate limit; this keeps the
- * same total work under a ceiling.
+ * @param symbols - The symbols to process
+ * @param work - The operation to perform for each symbol
+ * @returns The outcomes produced for all symbols
  */
 async function inBatches(symbols: string[], work: (s: string) => Promise<SymbolOutcome>) {
   const out: SymbolOutcome[] = [];
@@ -137,8 +143,11 @@ async function inBatches(symbols: string[], work: (s: string) => Promise<SymbolO
 }
 
 /**
- * Builds the handler with an injectable upstream budget and fetch, the way
- * the other routes do, so a timeout can be exercised without waiting one out.
+ * Creates a handler for retrieving quotes with configurable upstream request settings.
+ *
+ * @param timeoutMs - Maximum duration allowed for each upstream quote request
+ * @param fetchImpl - Fetch implementation used for upstream requests
+ * @returns A request handler for the quote endpoint
  */
 export function createHandler(timeoutMs: number, fetchImpl: typeof fetch = fetch) {
   return async function handler(req: ApiRequest, res: ApiResponse) {

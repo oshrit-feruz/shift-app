@@ -72,18 +72,9 @@ const sessionsFor = (key: Timeframe): number => TIMEFRAMES.find((f) => f.key ===
 type StockTab = 'overview' | 'reports' | 'news';
 
 /**
- * A single ticker's page: live price and day change, watchlist/alert
- * actions, chart with timeframe and indicator toggles, the user's own
- * position in it across portfolios, key statistics, analyst ratings and
- * related news.
+ * Renders a ticker detail page with live pricing, charted price history, holdings, statistics, earnings, rankings, reports, and news.
  *
- * The holdings card sits right under the chart — reading price action then
- * checking your own position against it is the natural next step, ahead of
- * the more reference-like stats below.
- *
- * Beginner mode hides the indicator controls and swaps the denser tables for
- * plain-language cards; it no longer hides analyst ratings, which read the
- * same in both modes.
+ * Provides watchlist and price-alert actions, timeframe selection, and advanced chart indicator controls.
  */
 export function StockScreen({ openAlert }: ScreenProps) {
   const s = useAppState();

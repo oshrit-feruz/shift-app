@@ -364,13 +364,10 @@ export async function fetchSatelliteSignals(
 }
 
 /**
- * Read one ticker's row from the mirrored ranking. Never throws.
+ * Retrieves a ticker's signal from the mirrored ranking.
  *
- * Resolves to ok(null) when the snapshot is perfectly good but does not rank
- * this ticker — the common case, since the ranking is 100 names and the app
- * can open any symbol. That is deliberately NOT 'unavailable': there is
- * nothing wrong and nothing to retry, the engine simply has no view on this
- * stock, and the screen says so rather than implying a failure.
+ * @param ticker - Ticker symbol to find.
+ * @returns The ticker's ranked signal, or `null` when the ticker is absent from a valid snapshot.
  */
 export async function fetchRankingRow(
   ticker: string,
@@ -394,20 +391,10 @@ export async function fetchRankingRow(
 }
 
 /**
- * Every ticker the day's ranking covers, upper-cased.
+ * Extracts the unique tickers covered by the daily ranking.
  *
- * This used to be a quote map: the ranking carried a `price` and a
- * `high_52w` for its ~100 names, and that was the app's only free source of
- * real prices, so every screen's price came from a file that refreshed once a
- * day. Prices are live now (data/quotes.ts), and what is left of this read is
- * the one thing the ranking is actually authoritative about — which symbols
- * the engine has a view on. Search offers them, and a watchlist row shows
- * that it is ranked.
- *
- * Returns null for a body without a recognisable `full_ranking`, which the
- * shared reader turns into 'unavailable'. Rows with no usable ticker are
- * dropped; a row whose numbers the engine omitted is still a ranked ticker,
- * so it is kept.
+ * @param body - The parsed screener response
+ * @returns Uppercase ranked tickers, or `null` when `full_ranking` is missing or invalid
  */
 export function extractRankedTickers(body: unknown): string[] | null {
   if (body === null || typeof body !== 'object' || Array.isArray(body)) return null;
@@ -427,12 +414,9 @@ export function extractRankedTickers(body: unknown): string[] | null {
 }
 
 /**
- * Read the day's ranked tickers from the mirrored snapshot. Never throws.
+ * Retrieves the tickers covered by the day's mirrored ranking snapshot.
  *
- * An unreadable or stale snapshot is 'unavailable', and the screens that use
- * this treat that as "the engine has no view today" — search still lists the
- * sample table and the user's own watchlist, because neither depends on the
- * engine to exist.
+ * @returns A successful result containing ranked tickers, or an unavailable result when the snapshot cannot be read or is stale.
  */
 export async function fetchRankedTickers(
   fetchImpl: typeof fetch = fetch,

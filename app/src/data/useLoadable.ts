@@ -1,34 +1,17 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { loading, type Loadable } from './types';
 
-/** Fetch-once hook around a DataService method, with retry for the honest
- *  'unavailable' state, and an optional silent refresh for live data.
+/**
+ * Loads a value and optionally refreshes it silently at a fixed interval.
  *
- *  The fetch is kicked off in a LAYOUT effect on purpose. A passive effect
- *  runs after paint, so even a fetcher that resolves immediately — demo data,
- *  or a loadableCache hit whose promise has already settled — painted one
- *  frame of skeleton before the result landed: a visible flash on every
- *  screen entry and tab return. A layout effect runs before paint, and an
- *  already-settled promise delivers its result in a microtask of the same
- *  task, so the re-render with real data commits before the browser paints —
- *  cached data shows from the first frame, while a genuinely slow fetch still
- *  paints the skeleton exactly as before.
+ * Initial loads report loading, success, or failure. Refreshes replace the
+ * current value only when successful, pause while the document is hidden, and
+ * run immediately when visibility returns.
  *
- *  `refreshMs` re-reads on an interval, for the screens whose numbers move
- *  while they are on screen: prices. Three properties make it safe to point at
- *  a live source:
- *
- *  - It is SILENT. A refresh never resets to 'loading', so a screen showing
- *    prices does not blink back to skeletons every few seconds.
- *  - A failed refresh KEEPS the last good data rather than replacing a screen
- *    of real prices with an error because one poll timed out. The first read
- *    still reports its failure honestly — that is the state the reader needs
- *    to see, and there is nothing behind it to keep.
- *  - It does not run while the tab is hidden — it never starts there either,
- *    not just stops on the way — and reads once on return. Polling a
- *    backgrounded tab spends the provider's quota on numbers nobody is
- *    looking at, and coming back to a minute-old price is the thing the
- *    interval exists to prevent.
+ * @param fetcher - Function that retrieves the loadable value
+ * @param deps - Values that trigger a new initial load when they change
+ * @param refreshMs - Refresh interval in milliseconds, or undefined to disable refreshing
+ * @returns The current loadable state and a function that retries the initial load
  */
 export function useLoadable<T>(
   fetcher: () => Promise<Loadable<T>>,

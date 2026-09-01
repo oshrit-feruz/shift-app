@@ -18,18 +18,10 @@ import { PRICE_REFRESH_MS } from '../data/quotes';
 import type { ScreenProps } from '../App';
 
 /**
- * The user's own watchlist and the alerts they have created.
+ * Displays the user's tracked stocks and saved alerts.
  *
- * Nothing on this screen is seeded. A new account arrives here with an empty
- * list and an empty alert card, both saying so and both offering the action
- * that fills them — a screen that opened with eight stocks nobody chose, and
- * four alerts nobody created, taught the user that adding a stock does
- * nothing, because the list looked the same before and after.
- *
- * Rows are driven by `s.watchlist`, not by an intersection with the sample
- * symbol table: the user can add any symbol, and one the table does not cover
- * renders with its real price and no invented company details rather than
- * silently vanishing from the list they just added it to.
+ * @param openAlert - Opens the alert editor, optionally for a specific ticker
+ * @param openSearch - Opens stock search
  */
 export function WatchlistScreen({ openAlert, openSearch }: ScreenProps) {
   const s = useAppState();

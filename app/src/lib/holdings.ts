@@ -102,34 +102,12 @@ export interface TickerPosition {
 }
 
 /**
- * Where the user actually holds `ticker`, across every real portfolio —
- * powers the Stock page's "your holdings" card so viewing NVDA while it's
- * sitting in Blink shows that position right there, not just on the
- * Portfolio tab.
+ * Finds current positions for a ticker across eligible service and manual portfolios.
  *
- * The aggregate ("All accounts") pseudo-portfolio is deliberately excluded:
- * it is a rollup of the others, not a separate place the ticker is held, so
- * listing it alongside its own constituents would double-count by
- * definition regardless of what the demo numbers happen to show.
- *
- * The user's own manual portfolios are included alongside the service-reported
- * ones. They have no service holdings — appService.holdings() returns an
- * empty list for an id it doesn't know — so their positions come entirely from
- * the manual transaction log, exactly as the Portfolio tab builds them. Leaving
- * them out would mean a ticker you logged yourself showed up on the Portfolio
- * tab but not on its own stock page.
- *
- * If any portfolio's holdings call fails, the whole result is 'unavailable'
- * rather than silently treating that portfolio as empty — under the global
- * demo failure flag every call fails together, and reporting "no position"
- * from a failure would misrepresent "we don't know" as "you hold none".
- *
- * The demo portfolios and their holdings are read only while sample data is
- * on. Without that check, gating the Portfolio tab would still leave the same
- * invented positions ("Blink · 14 sh · avg $131.36") on every stock page —
- * the same fabrication, one screen over. The flag is read here rather than
- * passed in because this is the data layer, the same way priceHistory.ts and
- * earnings.ts read it.
+ * @param ticker - The ticker to match.
+ * @param manualTransactions - Manual transactions grouped by portfolio identifier.
+ * @param manualPortfolios - Manual portfolios to include in the search.
+ * @returns The matching positions with their portfolio-list indexes, or an unavailable result if holdings cannot be loaded.
  */
 export async function fetchYourPositions(
   ticker: string,
@@ -205,6 +183,13 @@ export interface PortfolioHoldings {
   valuation: PortfolioValuation;
 }
 
+/**
+ * Loads and values holdings for a portfolio, including positions from manual transactions.
+ *
+ * @param portfolioId - The portfolio whose holdings are loaded
+ * @param transactions - Manual transactions associated with the portfolio
+ * @returns The merged holdings and portfolio valuation, or an unavailable result if holdings cannot be loaded
+ */
 export async function fetchPortfolioHoldings(
   portfolioId: string,
   transactions: ManualTransaction[],

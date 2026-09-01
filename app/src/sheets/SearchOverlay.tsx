@@ -64,9 +64,10 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
 }
 
 /**
- * The overlay's contents, split from the wrapper above so that mounting them —
- * and with them the symbol fetch — happens only while the overlay is actually
- * open, rather than on every app boot.
+ * Renders the searchable symbol overlay and its result rows.
+ *
+ * @param closing - Whether the overlay is playing its closing animation.
+ * @param onClose - Closes the overlay.
  */
 function SearchOverlayBody({ closing, onClose }: { closing: boolean; onClose: () => void }) {
   const dispatch = useDispatch();

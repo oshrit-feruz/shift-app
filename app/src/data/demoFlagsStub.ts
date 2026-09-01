@@ -2,20 +2,9 @@ import { vi } from 'vitest';
 import { DEMO_FLAGS } from './demoFlags';
 
 /**
- * Test-only: put the `demoData` flag in a known state.
+ * Stubs `localStorage` with the specified `demoData` flag state for tests.
  *
- * DEMO_FLAGS reads localStorage synchronously and vitest provides none, so an
- * unstubbed run gets the flag's DEFAULT — which for `demoData` is ON. Every
- * suite that depends on the switch therefore has to say which state it means,
- * in BOTH directions: this writes '0' for off rather than leaving the key
- * absent, because absent is "no choice yet" and reads back as on.
- *
- * Shared rather than copied into each suite: several suites need it, and the
- * same thirteen lines in each is what SonarCloud's duplication gate flagged.
- * Pair every call with `vi.unstubAllGlobals()` in an afterEach.
- *
- * Not named `*.test.ts` on purpose — vitest's default include would then
- * collect it as a suite with no tests in it.
+ * @param on - Whether to enable the `demoData` flag
  */
 export function withDemoData(on: boolean): void {
   const store = new Map<string, string>();

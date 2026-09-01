@@ -59,16 +59,10 @@ const API_ROOT = 'https://finnhub.io/api/v1';
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
 /**
- * The ISO instant for a UNIX-second stamp, or null when that is not a date.
+ * Converts a UNIX timestamp in seconds to an ISO 8601 timestamp.
  *
- * `isNum` accepts any finite number, and JavaScript's Date covers only ±8.64e15
- * ms — so a stamp a few orders of magnitude too large builds an Invalid Date
- * whose toISOString() throws a RangeError. Thrown from inside a mapper that is
- * documented never to throw, that became a 500 from the platform instead of
- * this app's own honest JSON: the quote route lost the whole batch, and the
- * candle route never reached the `bad_response` it exists to send. Returning
- * null keeps a nonsense timestamp on the same path as any other unreadable
- * field.
+ * @param seconds - The UNIX timestamp in seconds
+ * @returns The corresponding ISO timestamp, or `null` for an invalid or out-of-range timestamp.
  */
 function isoFromUnixSeconds(seconds: number): string | null {
   const date = new Date(seconds * 1000);
@@ -90,11 +84,13 @@ export function quoteUrl(symbol: string, apiKey: string): URL {
 }
 
 /**
- * The candle URL for one symbol over a UNIX-second window.
+ * Builds a Finnhub daily-candle URL for a symbol and UNIX-second time window.
  *
- * Resolution is fixed at 'D' by the only caller: everything the app draws is
- * built on daily bars (see the timeframe row on the stock screen), and an
- * intraday resolution would need a chart that can draw one.
+ * @param symbol - The ticker symbol to query
+ * @param from - The start of the time window in UNIX seconds
+ * @param to - The end of the time window in UNIX seconds
+ * @param apiKey - The Finnhub API token
+ * @returns A URL configured for the requested daily candle data
  */
 export function candleUrl(symbol: string, from: number, to: number, apiKey: string): URL {
   const url = new URL(`${API_ROOT}/stock/candle`);
@@ -107,17 +103,10 @@ export function candleUrl(symbol: string, from: number, to: number, apiKey: stri
 }
 
 /**
- * Map a /quote body into a QuoteRow, or null when it is not one.
+ * Converts a Finnhub quote response into a normalized quote row.
  *
- * Null covers two cases that look identical on the wire and are identical in
- * meaning to a caller: a body of a shape we do not recognise, and Finnhub's
- * all-zero answer for a symbol it does not carry. Both mean "no price for
- * this symbol", which the app renders as "—".
- *
- * `dp` (percent) is recomputed from `c` and `pc` rather than trusted, for the
- * one case where the provider sends the price and the previous close but
- * leaves the derived fields at zero: a real -3% shown as 0.00% is worse than
- * a dash, because a reader acts on it.
+ * @param body - The response body to validate and convert
+ * @returns A normalized quote row, or `null` when the response is malformed, unavailable, or contains no usable quote
  */
 export function mapQuote(body: unknown): QuoteRow | null {
   if (body === null || typeof body !== 'object' || Array.isArray(body)) return null;
@@ -163,17 +152,10 @@ export function mapQuote(body: unknown): QuoteRow | null {
 }
 
 /**
- * Map a /stock/candle body into bars.
+ * Converts a Finnhub candle response into chronologically ordered daily bars.
  *
- * Three outcomes, kept apart because the app renders them differently:
- *   - an array of bars       -> real history
- *   - []  (`s: 'no_data'`)   -> the provider genuinely has no series for this
- *                               symbol; a real answer, not a failure
- *   - null                   -> a body we do not recognise, reported as such
- *
- * A single unreadable row invalidates the whole series rather than being
- * dropped: a chart is read as a whole, and a series with silently missing
- * sessions is a picture of price action that never happened.
+ * @param body - The Finnhub candle response to validate and convert
+ * @returns The converted bars, an empty array for a valid `no_data` response, or `null` for an unrecognized or invalid response
  */
 export function mapCandles(body: unknown): CandleRow[] | null {
   if (body === null || typeof body !== 'object' || Array.isArray(body)) return null;

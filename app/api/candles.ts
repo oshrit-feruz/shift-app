@@ -44,7 +44,12 @@ const DEFAULT_UPSTREAM_TIMEOUT_MS = 15_000;
 export const DEFAULT_DAYS = 400;
 export const MAX_DAYS = 1_830;
 
-/** Parse and bound the `days` parameter. */
+/**
+ * Parses the requested history range and applies the configured default when omitted.
+ *
+ * @param raw - The raw `days` query parameter.
+ * @returns The validated number of days, the default range when omitted, or `null` when invalid.
+ */
 export function parseDays(raw: string | undefined): number | null {
   if (raw === undefined || raw.trim() === '') return DEFAULT_DAYS;
   if (!/^\d{1,5}$/.test(raw.trim())) return null;
@@ -62,6 +67,13 @@ export interface CandlesBody {
   bars: CandleRow[];
 }
 
+/**
+ * Builds a normalized candle response for a ticker.
+ *
+ * @param ticker - The uppercase ticker symbol
+ * @param bars - The ticker's candle bars in chronological order
+ * @returns The response body with the latest bar date, data source, and candle bars
+ */
 export function buildBody(ticker: string, bars: CandleRow[]): CandlesBody {
   return {
     ticker,
@@ -71,7 +83,13 @@ export function buildBody(ticker: string, bars: CandleRow[]): CandlesBody {
   };
 }
 
-/** Builds the handler with an injectable budget and fetch, as the other routes do. */
+/**
+ * Creates a request handler for retrieving validated candle history.
+ *
+ * @param timeoutMs - Maximum time allowed for the upstream price-history request
+ * @param fetchImpl - Fetch implementation used for the upstream request
+ * @returns A request handler for the candles API route
+ */
 export function createHandler(timeoutMs: number, fetchImpl: typeof fetch = fetch) {
   return async function handler(req: ApiRequest, res: ApiResponse) {
     if (req.method !== 'GET') {

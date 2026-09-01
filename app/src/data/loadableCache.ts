@@ -72,19 +72,17 @@ export function cachedLoadable<T>(
   return promise;
 }
 
-/** Drop every cached entry. For tests. */
+/**
+ * Clears all cached Loadable fetch entries.
+ */
 export function clearLoadableCache(): void {
   entries.clear();
 }
 
 /**
- * Drop the entries whose key starts with `prefix`.
+ * Removes cached entries whose keys start with the specified prefix.
  *
- * One caller's cache and this shared one can hold two halves of the same
- * answer — the quote layer keys a batch response here while keeping the
- * per-ticker quotes itself — and clearing only its own half leaves the batch
- * to be replayed for the rest of the TTL. A caller that owns a key prefix can
- * drop both halves together.
+ * @param prefix - The key prefix identifying entries to remove
  */
 export function clearLoadableCachePrefix(prefix: string): void {
   for (const key of entries.keys()) {
