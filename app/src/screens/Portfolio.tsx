@@ -25,7 +25,7 @@ import { appService } from '../data/appService';
 import { useDemoFlag } from '../data/useDemoFlag';
 import { loading, ok, unavailable, type Holding, type Loadable } from '../data/types';
 import { useLoadable } from '../data/useLoadable';
-import { isoDate, money, moneyOrDash, pctOrDash, signalColor } from '../lib/format';
+import { isoDate, money, moneyOrDash, pctOrDash, signalColor, signedCurrency } from '../lib/format';
 import { TxSheet } from '../sheets/TxSheet';
 import { NewPortfolioSheet } from '../sheets/NewPortfolioSheet';
 import { fetchPortfolioHoldings, portfolioList, sumTotals } from '../lib/holdings';
@@ -137,11 +137,13 @@ export function PortfolioScreen(_: ScreenProps) {
           const aggTotal = sumTotals(inAgg);
           // No seeded walk over a real account: invented performance under a
           // real total is the one thing this app's data contract forbids.
-          const series =
-            demo && !live
-              ? demoService.series(`pf-${pf.id}`, 70, (pf.dayPct ?? 0) >= 0 ? 0.5 : 0.16, 2.4)
-              : [];
-          const bench = demo && !live ? demoService.series('bench-spy', 70, 0.22, 1.4) : [];
+          // A manual portfolio is that same case — its total is its own
+          // positions at live prices — so it is excluded here too.
+          const invented = demo && !live && !isManual;
+          const series = invented
+            ? demoService.series(`pf-${pf.id}`, 70, (pf.dayPct ?? 0) >= 0 ? 0.5 : 0.16, 2.4)
+            : [];
+          const bench = invented ? demoService.series('bench-spy', 70, 0.22, 1.4) : [];
           const holdings = <Holdings pfId={pf.id} />;
 
           return (
@@ -354,6 +356,18 @@ export function PortfolioScreen(_: ScreenProps) {
                   >
                     {t('live.noHistory')}
                   </p>
+                ) : isManual ? (
+                  // A manual portfolio's total is real, so the chart above it
+                  // may not be a seeded walk — the same rule that already
+                  // holds for a connected account. The return itself is a
+                  // number (see ManualValue); only the line through time is
+                  // missing, and this says which of the two is which.
+                  <p
+                    className="text-muted"
+                    style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}
+                  >
+                    {t('pf.noReturnHistory')}
+                  </p>
                 ) : demo ? (
                   <>
                     <AreaChart values={series} height={110} pad={8} benchmark={bench} />
@@ -529,6 +543,27 @@ function ManualValue({ pfId }: { pfId: string }) {
           {moneyOrDash(valuation?.total ?? null)}
         </Num>
       </div>
+      {/* How much they made, in the currency they think in and as a share of
+          what they put in. Both come from the same valuation as the total
+          above, so the three figures can never disagree: an unpriced holding
+          makes all of them "—" together rather than leaving a confident
+          profit under an unknown worth. */}
+      {valuation && valuation.positions.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+          <span className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
+            {t('pf.totalReturn')}
+          </span>
+          <span style={{ fontSize: 'var(--text-row)', color: signalColor(valuation.pl) }}>
+            <Num>{valuation.pl === null ? '—' : signedCurrency(valuation.pl)}</Num>{' '}
+            <Num>{valuation.plPct === null ? '' : `(${pctOrDash(valuation.plPct)})`}</Num>
+          </span>
+          {valuation.invested > 0 && (
+            <span className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
+              {t('pf.returnBasis', { invested: money(valuation.invested) })}
+            </span>
+          )}
+        </div>
+      )}
       {/* Why the total is an em dash, said where the reader is looking when
           they wonder. A silent "—" over a list of real positions reads as a
           broken app; naming what could not be priced is the difference

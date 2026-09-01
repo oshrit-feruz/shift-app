@@ -187,3 +187,70 @@ describe('total return', () => {
     expect(v.positions[0].plPct).toBeNull();
   });
 });
+
+describe('portfolio-level return', () => {
+  it('sums unrealised, realised and dividends into one profit figure', () => {
+    // NVDA: 10 @ 100, now 150 → 1500 held against 1000 of cost, +500.
+    // GONE: bought 5 @ 20 and sold 5 @ 30 → +50 booked, nothing left to hold.
+    // Invested = 1000 + 100. Profit = 500 + 50 = 550.
+    const pos = buildPositions([
+      tx('buy', 'NVDA', 10, 100),
+      tx('buy', 'GONE', 5, 20),
+      tx('sell', 'GONE', 5, 30),
+    ]);
+    const v = valuePositions(pos, { NVDA: quote(150) });
+    expect(v.invested).toBe(1100);
+    expect(v.pl).toBe(550);
+    expect(v.plPct).toBeCloseTo(50, 6);
+  });
+
+  it('counts a dividend as profit without a sale behind it', () => {
+    const v = valuePositions(buildPositions([tx('buy', 'NVDA', 10, 100), tx('div', 'NVDA', 0, 40)]), {
+      NVDA: quote(100),
+    });
+    expect(v.pl).toBe(40);
+    expect(v.plPct).toBeCloseTo(4, 6);
+  });
+
+  // The whole point of the null: a profit computed over the legs that happen
+  // to be priced is not a smaller profit, it is a wrong one — and flattering
+  // whenever the leg we could not read is the one that is down.
+  it('refuses a profit while any held position is unpriced', () => {
+    const pos = buildPositions([tx('buy', 'NVDA', 10, 100), tx('buy', 'MDA', 5, 20)]);
+    const v = valuePositions(pos, { NVDA: quote(150) });
+    expect(v.total).toBeNull();
+    expect(v.pl).toBeNull();
+    expect(v.plPct).toBeNull();
+    // Invested is the user's own arithmetic and stays knowable regardless.
+    expect(v.invested).toBe(1100);
+  });
+
+  it('still reports a profit when only a CLOSED position is unpriced', () => {
+    const pos = buildPositions([
+      tx('buy', 'NVDA', 10, 100),
+      tx('buy', 'MDA', 5, 20),
+      tx('sell', 'MDA', 5, 30),
+    ]);
+    const v = valuePositions(pos, { NVDA: quote(150) });
+    expect(v.pl).toBe(550);
+  });
+
+  it('reports a loss as a negative, not as an absent number', () => {
+    const v = valuePositions(buildPositions([tx('buy', 'NVDA', 10, 100)]), { NVDA: quote(80) });
+    expect(v.pl).toBe(-200);
+    expect(v.plPct).toBeCloseTo(-20, 6);
+  });
+
+  it('has no percentage to report when nothing was ever invested', () => {
+    const v = valuePositions(buildPositions([tx('div', 'NVDA', 0, 12)]), { NVDA: quote(150) });
+    expect(v.invested).toBe(0);
+    expect(v.plPct).toBeNull();
+  });
+
+  it('is zero, not null, for a portfolio with no transactions at all', () => {
+    const v = valuePositions(buildPositions([]), {});
+    expect(v.total).toBe(0);
+    expect(v.pl).toBe(0);
+    expect(v.plPct).toBeNull();
+  });
+});
