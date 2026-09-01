@@ -230,6 +230,16 @@ export function AdvisoryRecommendation(_: ScreenProps) {
 }
 
 /**
+ * A price as a tile shows it: the live figure, or an em dash when the read did
+ * not carry one. Never guessed and never back-filled — a fabricated price is
+ * indistinguishable from a real one, which is what makes it worth a branch of
+ * its own rather than a fallback inline.
+ */
+function priceLabel(price: number | null) {
+  return price === null ? '—' : money(price);
+}
+
+/**
  * The Stock Radar: the names that cleared today's checks, live from the daily
  * screener mirror, with this amount's share of the sleeve against each.
  *
@@ -240,7 +250,7 @@ export function AdvisoryRecommendation(_: ScreenProps) {
  * An empty list is an honest answer on a quiet day, not a failure, so it gets
  * its own state rather than being hidden.
  */
-function RadarCard({ amount, pct }: { amount: number; pct: number }) {
+function RadarCard({ amount, pct }: Readonly<{ amount: number; pct: number }>) {
   const dispatch = useDispatch();
   const t = useT();
   const sat = useLoadable(() => demoService.satelliteSignals(), []);
@@ -347,7 +357,7 @@ function RadarCard({ amount, pct }: { amount: number; pct: number }) {
                         {allocated ? money(amount / signals.length, 0) : x.ticker}
                       </Num>
                       <Num size="var(--text-caption)" style={{ color: 'var(--muted)' }}>
-                        {allocated ? x.ticker : x.price === null ? '—' : money(x.price)}
+                        {allocated ? x.ticker : priceLabel(x.price)}
                       </Num>
                     </button>
                     <BuyAtBrokerButton ticker={x.ticker} />
@@ -375,7 +385,7 @@ function RadarCard({ amount, pct }: { amount: number; pct: number }) {
  * day when nothing passed — the empty state below says that better than a
  * zero does.
  */
-function RadarCount({ signals }: { signals: number | null }) {
+function RadarCount({ signals }: Readonly<{ signals: number | null }>) {
   const t = useT();
   if (signals === null || signals === 0) return null;
   return (
@@ -393,7 +403,7 @@ function RadarCount({ signals }: { signals: number | null }) {
  * that matter on arrival — informational only, nothing executed — stay at the
  * top of the screen, and this block keeps its own card and body-size type.
  */
-function Disclosures({ satellitePct, broker }: { satellitePct: number; broker: string | null }) {
+function Disclosures({ satellitePct, broker }: Readonly<{ satellitePct: number; broker: string | null }>) {
   const t = useT();
   return (
     <Card padding={13} gap={7}>
@@ -454,7 +464,7 @@ function Disclosures({ satellitePct, broker }: { satellitePct: number; broker: s
  * track, passed down as a percentage because a gradient has a physical
  * direction and this app runs in both.
  */
-function AmountSlider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+function AmountSlider({ value, onChange }: Readonly<{ value: number; onChange: (v: number) => void }>) {
   const t = useT();
   const fill = ((value - MIN) / (MAX - MIN)) * 100;
   return (
@@ -483,7 +493,7 @@ function AmountSlider({ value, onChange }: { value: number; onChange: (v: number
 }
 
 /** One caption paragraph — the screen carries several and they share a look. */
-function Note({ children }: { children: ReactNode }) {
+function Note({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
       {children}
