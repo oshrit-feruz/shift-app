@@ -137,14 +137,27 @@ export function mapQuote(body: unknown): QuoteRow | null {
   const asOf = isoFromUnixSeconds(t);
   if (asOf === null) return null;
   const change = c - pc;
+  const dayHigh = isNum(h) && h > 0 ? h : c;
+  const dayLow = isNum(l) && l > 0 ? l : c;
+  const open = isNum(o) && o > 0 ? o : c;
+  // The session numbers have to describe a session that could happen. An
+  // inverted range renders on the stock page as "Day range 12.00–9.00", and
+  // an open above the day's high is a number the reader has no way to tell
+  // is impossible. The fallbacks above can produce either from a provider
+  // row that is individually well-formed, so the check belongs after them.
+  //
+  // The last price is deliberately NOT range-checked: extended-hours trading
+  // legitimately puts `c` outside a high and low that cover the regular
+  // session, so rejecting on that would throw away good quotes.
+  if (dayHigh < dayLow || open < dayLow || open > dayHigh) return null;
   return {
     price: c,
     change,
     changePct: (change / pc) * 100,
     prevClose: pc,
-    dayHigh: isNum(h) && h > 0 ? h : c,
-    dayLow: isNum(l) && l > 0 ? l : c,
-    open: isNum(o) && o > 0 ? o : c,
+    dayHigh,
+    dayLow,
+    open,
     asOf,
   };
 }

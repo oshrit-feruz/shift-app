@@ -43,13 +43,29 @@ export function useLoadable<T>(
   const latest = useRef(fetcher);
   latest.current = fetcher;
 
+  /**
+   * Which read is the current one. Shared by BOTH paths below, because the
+   * race crosses them.
+   *
+   * Reads are not ordered by when they were started. Leaving a tab with a
+   * poll in flight and coming straight back fires a second read while the
+   * first is still on the wire — and the second usually answers first, out of
+   * the quote layer's short cache, while the first is still waiting on the
+   * network. Without this, that first read then lands on top of the newer one
+   * and puts an older price back on screen, which is exactly what a live
+   * price may not do. Every read takes a number and only the newest may
+   * write.
+   */
+  const generation = useRef(0);
+
   useLayoutEffect(() => {
     let alive = true;
     // Reset for the slow path (a deps change to data not yet cached); on the
     // fast path the settled result overwrites this before anything paints.
     setState(loading());
+    const mine = ++generation.current;
     latest.current().then((r) => {
-      if (alive) setState(r);
+      if (alive && mine === generation.current) setState(r);
     });
     return () => {
       alive = false;
@@ -61,10 +77,12 @@ export function useLoadable<T>(
     if (!refreshMs) return;
     let alive = true;
     const refresh = () => {
+      const mine = ++generation.current;
       latest.current().then((r) => {
-        // Only a good read replaces what is on screen. See the note above:
-        // one failed poll must not take a screenful of real prices away.
-        if (alive && r.status === 'ok') setState(r);
+        // Only a good read replaces what is on screen, and only the newest
+        // one. See the notes above: one failed poll must not take a screenful
+        // of real prices away, and a slow read must not undo a fast one.
+        if (alive && mine === generation.current && r.status === 'ok') setState(r);
       });
     };
     // Not started at all while the document is hidden. Mounting in a

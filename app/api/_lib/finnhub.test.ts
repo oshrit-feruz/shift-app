@@ -71,6 +71,21 @@ describe('mapQuote', () => {
     expect([q?.dayHigh, q?.dayLow, q?.open]).toEqual([150, 150, 150]);
   });
 
+  it('refuses a session whose numbers describe an impossible day', () => {
+    // The fallbacks can build these from a row whose fields are each
+    // individually well-formed, so the check has to come after them. An
+    // inverted range prints on the stock page as "Day range 12.00–9.00".
+    expect(mapQuote({ ...body, h: 9, l: 12 })).toBeNull();
+    expect(mapQuote({ ...body, h: 151, l: 144, o: 200 })).toBeNull();
+    expect(mapQuote({ ...body, h: 151, l: 144, o: 1 })).toBeNull();
+  });
+
+  it('keeps a last price outside the session range — extended hours is real', () => {
+    // `c` can legitimately sit outside a high and low that cover only the
+    // regular session, so range-checking it would throw away good quotes.
+    expect(mapQuote({ ...body, c: 200, h: 151, l: 144, o: 145 })?.price).toBe(200);
+  });
+
   it('refuses a body that is not a quote', () => {
     expect(mapQuote(null)).toBeNull();
     expect(mapQuote([body])).toBeNull();
