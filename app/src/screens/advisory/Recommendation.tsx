@@ -36,6 +36,9 @@ const STEP = 500;
  *  it sits above, so the rest stay counted, not hidden. */
 const TILE_COLUMNS = 3;
 const TILES = TILE_COLUMNS * 2;
+/** The gutter between tiles, in px. Shared by the row's `gap` and by the tile
+ *  width that has to subtract it, so the two cannot drift apart. */
+const TILE_GAP = 7;
 
 /** The rotating accent palette used for allocation series (AllocationBar). */
 const BAND_COLORS = ['var(--color-accent)', 'var(--acc-lite)', 'var(--acc-dim)', 'var(--color-accent-700)'];
@@ -292,20 +295,17 @@ function RadarCard({ amount, pct }: { amount: number; pct: number }) {
             <EmptyState>{t('rec.noPositions')}</EmptyState>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              {/* A grid rather than a row: the columns are fixed, so a short
-                  last row keeps the tiles the same width as the one above it
-                  instead of stretching two names across the whole card. */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: `repeat(${TILE_COLUMNS}, minmax(0, 1fr))`,
-                  gap: 7,
-                }}
-              >
+              {/* Wrapping flex rather than a grid: the width is pinned to a
+                  third of the row either way, so a full row still runs edge to
+                  edge and the tiles stay one size — but a short last row
+                  centres under the one above it instead of hanging off the
+                  leading edge with a hole beside it. */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: TILE_GAP }}>
                 {signals.slice(0, TILES).map((x) => (
                   <div
                     key={x.ticker}
                     style={{
+                      flex: `0 0 calc((100% - ${(TILE_COLUMNS - 1) * TILE_GAP}px) / ${TILE_COLUMNS})`,
                       minWidth: 0,
                       display: 'flex',
                       flexDirection: 'column',
