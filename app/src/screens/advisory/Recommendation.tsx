@@ -29,9 +29,13 @@ const MIN = 1000;
 const MAX = 50000;
 const STEP = 500;
 
-/** How many of the day's names get a tile. Three fits a phone row without the
- *  logos and the buy buttons crowding; the rest are counted, not hidden. */
-const TILES = 3;
+/** How many of the day's names get a tile: two rows of three. Three across is
+ *  what fits a phone without the logos and the buy buttons crowding, and the
+ *  grid below wraps, so a day with four or five names fills a second row
+ *  instead of hiding the remainder. Past six the card would out-weigh the core
+ *  it sits above, so the rest stay counted, not hidden. */
+const TILE_COLUMNS = 3;
+const TILES = TILE_COLUMNS * 2;
 
 /** The rotating accent palette used for allocation series (AllocationBar). */
 const BAND_COLORS = ['var(--color-accent)', 'var(--acc-lite)', 'var(--acc-dim)', 'var(--color-accent-700)'];
@@ -288,12 +292,20 @@ function RadarCard({ amount, pct }: { amount: number; pct: number }) {
             <EmptyState>{t('rec.noPositions')}</EmptyState>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <div style={{ display: 'flex', gap: 7 }}>
+              {/* A grid rather than a row: the columns are fixed, so a short
+                  last row keeps the tiles the same width as the one above it
+                  instead of stretching two names across the whole card. */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: `repeat(${TILE_COLUMNS}, minmax(0, 1fr))`,
+                  gap: 7,
+                }}
+              >
                 {signals.slice(0, TILES).map((x) => (
                   <div
                     key={x.ticker}
                     style={{
-                      flex: 1,
                       minWidth: 0,
                       display: 'flex',
                       flexDirection: 'column',
@@ -329,9 +341,9 @@ function RadarCard({ amount, pct }: { amount: number; pct: number }) {
                         never back-filled. */}
                       <Num size="var(--text-row)" weight={700}>
                         {/* The sleeve is split across every name that passed
-                          today, not across the three with tiles — dividing by
+                          today, not across the ones with tiles — dividing by
                           the visible count would overstate each position on
-                          any day more than three clear the checks. */}
+                          any day more than six clear the checks. */}
                         {allocated ? money(amount / signals.length, 0) : x.ticker}
                       </Num>
                       <Num size="var(--text-caption)" style={{ color: 'var(--muted)' }}>
@@ -342,10 +354,10 @@ function RadarCard({ amount, pct }: { amount: number; pct: number }) {
                   </div>
                 ))}
               </div>
-              {/* Only the first few names get a tile, so on a day when more
+              {/* Only the first two rows get tiles, so on a day when more
                   clear the checks the tiles no longer add up to the sleeve
-                  above them. Say how many there are rather than letting three
-                  of eight read as all of them. */}
+                  above them. Say how many there are rather than letting six
+                  of eleven read as all of them. */}
               {signals.length > TILES && (
                 <Note>{t('rec.radarShowing', { shown: TILES, total: signals.length })}</Note>
               )}
