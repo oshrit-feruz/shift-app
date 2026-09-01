@@ -184,7 +184,16 @@ export function mapCandles(body: unknown): CandleRow[] | null {
     const iso = isoFromUnixSeconds(ts);
     if (iso === null) return null;
     if (!isNum(o[i]) || !isNum(h[i]) || !isNum(l[i]) || !isNum(c[i]) || !isNum(v[i])) return null;
-    if (h[i] < l[i]) return null;
+    // A candle has to be a shape that can exist. The high is the highest the
+    // session traded and the low the lowest, so the open and the close both
+    // sit between them; a row with an open outside its own range draws a wick
+    // pointing the wrong way, which a reader cannot see is wrong. Checking
+    // only `h < l` let that through. Prices are positive by definition and a
+    // negative volume is not a smaller volume — both are refused rather than
+    // clamped, because the honest response to a nonsense bar is not to guess
+    // which field was wrong.
+    if (o[i] <= 0 || h[i] <= 0 || l[i] <= 0 || c[i] <= 0 || v[i] < 0) return null;
+    if (l[i] > h[i] || o[i] < l[i] || o[i] > h[i] || c[i] < l[i] || c[i] > h[i]) return null;
     rows.push({
       d: iso.slice(0, 10),
       o: o[i],

@@ -123,6 +123,24 @@ describe('mapCandles', () => {
     expect(mapCandles({ ...ok, t: [1_756_600_000, 0] })).toBeNull();
   });
 
+  it('refuses a bar whose open or close sits outside its own range', () => {
+    // A high is the highest the session traded, so an open above it is a
+    // candle that cannot exist — and it draws as a wick pointing the wrong
+    // way, which a reader cannot see through. Checking only high-below-low
+    // let this through.
+    expect(mapCandles({ ...ok, o: [100, 9] })).toBeNull();
+    expect(mapCandles({ ...ok, c: [1, 10] })).toBeNull();
+  });
+
+  it('refuses non-positive prices and negative volume', () => {
+    // A traded price is positive by definition, and a negative volume is not
+    // a smaller volume. Refused rather than clamped: the honest answer to a
+    // nonsense bar is not a guess about which field was wrong.
+    expect(mapCandles({ ...ok, l: [0, 8] })).toBeNull();
+    expect(mapCandles({ ...ok, c: [-11, 10] })).toBeNull();
+    expect(mapCandles({ ...ok, v: [-1, 90] })).toBeNull();
+  });
+
   it('refuses a series carrying a timestamp outside the Date range', () => {
     // Same trap as the quote's, on the path that formats a session date.
     expect(mapCandles({ ...ok, t: [1_756_600_000, 8_640_000_000_001] })).toBeNull();
