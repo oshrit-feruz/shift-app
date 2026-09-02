@@ -531,12 +531,19 @@ function PerformanceSlot({
     </p>
   );
 
-  // A live read of an account's current state: the brokerage reports no
-  // priced history through the integration at all.
-  if (live) return note(t('live.noHistory'));
+  // isManual is asked FIRST because the two are not the same kind of fact:
+  // `live` is a switch on the whole app, while a manual portfolio is a
+  // property of the row the user has selected — and a manual portfolio can be
+  // open while that switch is on. Asked the other way round, the Sandbox
+  // explained itself as a brokerage that reports no priced history, which is
+  // not what it is.
+  //
   // A manual portfolio's return IS a number (see ManualValue); only the line
   // through time is missing, and this says which of the two is which.
   if (isManual) return note(t('pf.noReturnHistory'));
+  // A live read of a connected account's current state: the brokerage reports
+  // no priced history through the integration at all.
+  if (live) return note(t('live.noHistory'));
   // The line and its benchmark are both seeded walks, so with sample data off
   // there is nothing honest left to draw.
   if (!demo) return <DemoOnly feature="pf.performance" card={false} />;
