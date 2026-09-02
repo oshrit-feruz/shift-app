@@ -250,6 +250,13 @@ describe('mapUsStats', () => {
     });
   });
 
+  it('refuses a negative session volume, which is the RVol numerator', () => {
+    // A negative volume is not a smaller volume, and relativeVolume would
+    // divide it by a positive average and print a signed multiple beside a
+    // real price.
+    expect(mapUsStats({ ...row, volume: -1 })!.volume).toBeNull();
+  });
+
   it('keeps a zero session volume but refuses a zero average', () => {
     // A session that has genuinely traded nothing is a real zero. A zero
     // average is the provider having no history to average — seen on newly

@@ -354,7 +354,15 @@ function LiveOnlyStock({ ticker, openAlert }: Readonly<{ ticker: string; openAle
   const { mode } = useTheme();
   const beg = mode === 'beginner';
   const demo = useDemoMode();
-  const [tab, setTab] = useState<StockTab>('overview');
+  // Scoped to the ticker, for the same reason StockScreen's is (see there).
+  // This component stays mounted when `openStock` changes the ticker — it is
+  // rendered from the same position — so plain state would survive the change:
+  // open an unknown ticker, select News, then open another from a news chip,
+  // and you would land on the new symbol's News panel rather than its
+  // Overview, with that panel mounting and fetching immediately.
+  const [tabFor, setTabFor] = useState<{ ticker: string; tab: StockTab }>({ ticker, tab: 'overview' });
+  const tab = tabFor.ticker === ticker ? tabFor.tab : 'overview';
+  const setTab = (next: StockTab) => setTabFor({ ticker, tab: next });
   const inWl = s.watchlist.includes(ticker);
 
   // The row the sample table could not provide, built from the live quote

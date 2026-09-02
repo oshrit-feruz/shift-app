@@ -3,9 +3,11 @@
 Decision document, 2026-09-02. No application code was changed for this;
 the point is to settle facts before choosing what to build.
 
-Account: `pixelize.app@gmail.com`, plan **EOD+Intraday — All World Extended**
-($29.99/mo), `subscriptionMode: paid`, `dailyRateLimit: 100000`,
-`extraLimit: 430` (re-verified this session via `get_user_details`).
+Plan: **EOD+Intraday — All World Extended** ($29.99/mo), paid, with a
+100,000-call daily allowance — re-verified against the live account via
+`get_user_details`. The account's own identity and its running usage counter
+are deliberately not recorded here: neither is needed to decide what to build,
+and a repository is the wrong place to keep either.
 
 Evidence hierarchy used throughout: a tool call that returned real data is
 proof; an HTTP 403 is proof of the opposite; documentation is weaker than
@@ -50,8 +52,8 @@ calendar, if stacking is allowed: **+$19.99/mo**.
 API-call budget (from the rate-limit doc): EOD, dividends, live quote, US
 extended quote = 1 call per symbol; intraday and technical = 5 per request;
 news = 5 + 5 per ticker; fundamentals would be 10. 1,000 requests/minute.
-Today's usage counter: 9 calls before this session. 100,000/day is not a
-constraint for this app at any plausible traffic.
+Measured usage was a negligible fraction of the allowance, so 100,000/day is
+not a constraint for this app at any plausible traffic.
 
 Where the sources disagree. The pricing page, as rendered by the fetch tool,
 marks WebSockets, the US extended quote and the news feed as **not** included
@@ -64,8 +66,12 @@ pricing page in mind only if EODHD ever tightens enforcement.
 ## 2. The REST live-quote delay, measured
 
 **US regular hours could not be measured in this session** (probes ran
-09:28–09:36 UTC; the US session opens 13:30 UTC). A wake-up is scheduled for
-13:50 UTC today to repeat the measurement and append a section below.
+2026-09-02 09:28–09:36 UTC; the US session opens 13:30 UTC). **STILL PENDING
+as of 2026-09-02 13:20 UTC:** a scheduled run at 2026-09-02 13:50 UTC repeats
+the measurement during the open session and appends its results, with absolute
+UTC timestamps, as a section at the end of this document. Until that section
+exists, the delay figures below are from non-US exchanges only, and the
+provider choice rests on them.
 
 What was measured instead:
 

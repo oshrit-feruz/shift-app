@@ -191,7 +191,7 @@ back to: `quote` is null and every price on screen renders `—` through
 `moneyOrDash`. The prototype price survives only for valuing the demo
 portfolio, and never as *the* price.
 
-**That bag keeps shrinking, and volume is what is left in it.** Market cap and
+**That bag is nearly empty now.** Market cap and
 P/E left for a route of their own (`app/api/stats.ts`, EODHD's delayed US
 extended quote), taking with them a forward P/E that was literally `pe * 0.62`
 and three string constants — beta `2.14`, dividend yield `0.02%`, short float

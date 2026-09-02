@@ -124,7 +124,12 @@ const ADV_STATS = (
   const rsiNow = bars ? ([...rsi(bars.map((b) => b.close))].reverse().find((v) => v !== null) ?? null) : null;
   // Average volume over the published window, not a frozen "162.4M" that was
   // the same figure for every stock in the app.
-  const avgVol = bars ? bars.reduce((a, b) => a + b.volume, 0) / bars.length : null;
+  // `bars` can be a non-null EMPTY array — the candles route answers one for a
+  // symbol the provider publishes nothing for — and an empty window has no
+  // average. compactCount would render the NaN as "—" anyway, but a figure
+  // this grid prints should be null because there is nothing to average, not
+  // because a formatter caught it downstream.
+  const avgVol = bars && bars.length > 0 ? bars.reduce((a, b) => a + b.volume, 0) / bars.length : null;
 
   const or = (v: string | null) => v ?? '—';
 

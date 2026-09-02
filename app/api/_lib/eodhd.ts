@@ -262,6 +262,10 @@ export function mapUsStats(raw: unknown): UsStats | null {
     const n = numOrNull(v);
     return n !== null && n > 0 ? n : null;
   };
+  const nonNegative = (v: unknown): number | null => {
+    const n = numOrNull(v);
+    return n !== null && n >= 0 ? n : null;
+  };
   return {
     marketCap: positive(row.marketCap),
     pe: positive(row.pe),
@@ -272,11 +276,14 @@ export function mapUsStats(raw: unknown): UsStats | null {
     fiftyTwoWeekHigh: positive(row.fiftyTwoWeekHigh),
     fiftyTwoWeekLow: positive(row.fiftyTwoWeekLow),
     // A session that has genuinely traded nothing yet is a real zero, so
-    // volume is read as any finite number. The average is not: a zero there
-    // is the provider having no history to average (seen on recently listed
-    // names), and it is also the denominator of the relative-volume ratio,
-    // where zero would divide into infinity.
-    volume: numOrNull(row.volume),
+    // volume is read as any finite number that is not negative — a negative
+    // volume is not a smaller volume, and this is the NUMERATOR of the
+    // relative-volume ratio, so one would render as a signed multiple beside
+    // a real price. The average is not read the same way: a zero there is the
+    // provider having no history to average (seen on recently listed names),
+    // and it is the ratio's denominator, where zero would divide into
+    // infinity.
+    volume: nonNegative(row.volume),
     averageVolume: positive(row.averageVolume),
   };
 }
