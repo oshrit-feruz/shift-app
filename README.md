@@ -575,6 +575,8 @@ Both were caught by looking at the rendered screen, not by a passing test.
 | Every price on screen (`SymbolInfo.quote`) | `/api/quote?symbols=` — live, batched per screen | 1 Finnhub call per symbol, shared for 20s |
 | Stock page · chart, and the movers' sparklines | `/api/candles?symbol=` — live, per ticker | 1 EODHD call per ticker, cached an hour at the edge |
 | Stock page · chart, 1D tab | `/api/intraday?symbol=` — 5-minute bars, one session | 5 credits per ticker, cached 2 min at the edge and in the client |
+| Movers screen · one board | `/api/movers?board=` — EODHD's screener over the US market | 5 credits per board, cached 30 min at the edge and in the client |
+| Home · movers preview | the same two boards (gainers + losers), merged | none beyond the above — the reads are shared |
 
 **Route tests live in `app/api/_tests/`, and that is not a style choice.**
 Vercel turns every `.ts` file under `api/` into its own Serverless Function,
@@ -585,8 +587,6 @@ build that had succeeded. A leading underscore is Vercel's own convention for a
 path under `api/` that is not an endpoint (the same reason `api/_lib/` has
 never deployed), and both `npm test` and `npm run typecheck:api` still reach
 them. A new route's tests belong there too.
-| Movers screen · one board | `/api/movers?board=` — EODHD's screener over the US market | 5 credits per board, cached 30 min at the edge and in the client |
-| Home · movers preview | the same two boards (gainers + losers), merged | none beyond the above — the reads are shared |
 
 The general feed is why the browsable news screen is cheap: EODHD's `s`
 parameter takes **one** symbol at a time and a per-ticker call costs double,
@@ -665,10 +665,10 @@ first two are required; the third only changes the language of the news:
 
 | Variable | Used by |
 | --- | --- |
-| `EODHD_API_KEY` | `/api/news` — the news feed |
+| `EODHD_API_KEY` | `/api/news` (the news feed), `/api/candles` (daily bars — every chart and sparkline), `/api/intraday` (the chart's 1D tab), `/api/movers` (the market-movers boards) and `/api/stats` (market cap, P/E, volume, the 52-week range). **Required for every chart and for the movers screen.** A plan refusal comes back as 402/403 and is reported as a plan problem rather than as an outage. |
 | `GOOGLE_TRANSLATE_API_KEY` | `/api/news?lang=he` — Hebrew headlines, via the Cloud Translation API. **Optional**: without it the news is served in the provider's English rather than failing. The key travels as the API's `key=` query parameter, so restrict it **to the Cloud Translation API** in the Google Cloud console — an HTTP-referrer restriction would break it, since the call is server-side. The first 500k characters a month are free, but the project still needs billing enabled. |
 | `ALPHAVANTAGE_API_KEY` | `/api/earnings` — the calendar and per-stock history. |
-| `FINNHUB_API_KEY` | `/api/quote` — the last price and day change on every screen — and `/api/candles`, the charts. **Required for prices.** A free key covers quotes; historical candles are on the paid tiers, and a free key gets a 403 there, which the app reports as a plan problem rather than an outage. |
+| `FINNHUB_API_KEY` | `/api/quote` — the last price and day change on every screen, and nothing else. **Required for prices.** A free key covers quotes; its historical candles are a paid tier, which is why the charts moved to EODHD. |
 
 All three are read only server-side and none may be given a `VITE_` prefix,
 which would bundle it into the client build.

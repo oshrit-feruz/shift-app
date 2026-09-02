@@ -51,6 +51,9 @@ const TIMEFRAMES = [
 
 type Timeframe = (typeof TIMEFRAMES)[number]['key'];
 
+/** The window a stock page opens on, and the one 1D falls back to when hidden. */
+const DEFAULT_TIMEFRAME = '3M' as const satisfies Timeframe;
+
 /** Sessions to show for a timeframe. Meaningless for 1D, which is one session. */
 const sessionsFor = (key: Timeframe): number => TIMEFRAMES.find((f) => f.key === key)?.sessions ?? 66;
 
@@ -83,7 +86,7 @@ export function PriceChart({
 }>) {
   const t = useT();
   const demo = useDemoMode();
-  const [tf, setTf] = useState<Timeframe>('3M');
+  const [tf, setTf] = useState<Timeframe>(DEFAULT_TIMEFRAME);
   const [ind, setInd] = useState({ ma: true, rsi: true, macd: false });
 
   /**
@@ -97,7 +100,18 @@ export function PriceChart({
    * being absent. It comes back the moment the sample charts do.
    */
   const intradayOffered = !demo;
-  const showIntraday = intradayOffered && tf === '1D';
+  /**
+   * The timeframe actually in force.
+   *
+   * `tf` survives the sample-data switch being flipped, so someone on 1D who
+   * turns sample data on would keep a selection whose chip has just
+   * disappeared. That is not merely cosmetic: sessionsFor('1D') is 0 and
+   * `slice(-0)` is `slice(0)`, so the chart would quietly draw the entire
+   * daily history with no chip active. Falling back to the default window
+   * keeps the picture and the chips agreeing.
+   */
+  const tfInForce: Timeframe = tf === '1D' && !intradayOffered ? DEFAULT_TIMEFRAME : tf;
+  const showIntraday = tfInForce === '1D';
   // Read only while the tab is on screen: the route costs five credits a call,
   // so every stock page opened on 3M would otherwise pay for a day nobody
   // asked to see. The refresh is what makes this the one chart in the app that
@@ -115,7 +129,7 @@ export function PriceChart({
     <>
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
         {TIMEFRAMES.filter((f) => f.key !== '1D' || intradayOffered).map((f) => (
-          <Chip key={f.key} active={tf === f.key} onClick={() => setTf(f.key)}>
+          <Chip key={f.key} active={tfInForce === f.key} onClick={() => setTf(f.key)}>
             <Num>{f.key}</Num>
           </Chip>
         ))}
@@ -130,7 +144,7 @@ export function PriceChart({
         {(bars) => {
           // 1D is already exactly one session, so it is drawn whole; the daily
           // windows take their last N sessions.
-          const window = (showIntraday ? bars : bars?.slice(-sessionsFor(tf))) ?? [];
+          const window = (showIntraday ? bars : bars?.slice(-sessionsFor(tfInForce))) ?? [];
           // A window with one bar in it has no line to draw and no change to
           // quote, so it is treated as no chart rather than rendered as a dot.
           if (window.length < 2) {

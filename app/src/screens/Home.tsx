@@ -505,6 +505,12 @@ function MetricStripDemo() {
  * universe somebody picked during design.
  */
 
+/** The merged board, with the freshness claim its two halves agree on. */
+interface BiggestMovers {
+  rows: MoverRow[];
+  lastClose: boolean;
+}
+
 /** The session's volume for the preview line, or a dash when there is none. */
 function volumeLabel(volume: number | null | undefined): string {
   return volume === null || volume === undefined ? '—' : compactCount(volume);
@@ -517,14 +523,18 @@ function volumeLabel(volume: number | null | undefined): string {
  * half board: "the five biggest movers" drawn from gainers alone would be a
  * claim about the market that the card could not support.
  */
-async function fetchBiggestMovers(): Promise<Loadable<MoverRow[]>> {
+async function fetchBiggestMovers(): Promise<Loadable<BiggestMovers>> {
   const [up, down] = await Promise.all([fetchMovers('gainers'), fetchMovers('losers')]);
   if (up.status !== 'ok') return up;
   if (down.status !== 'ok') return down;
   const rows = [...up.data.rows, ...down.data.rows].sort(
     (a, b) => Math.abs(b.changePct) - Math.abs(a.changePct),
   );
-  return ok(rows);
+  // The claim comes from the boards, not from this card. Both are the last
+  // close's today, but a card that printed "from the last market close" over
+  // rows that were not would be making the exact wrong promise, so the line
+  // appears only when both boards say so.
+  return ok({ rows, lastClose: up.data.lastClose && down.data.lastClose });
 }
 
 function MoversPreview({ beg }: { beg: boolean }) {
@@ -544,9 +554,11 @@ function MoversPreview({ beg }: { beg: boolean }) {
             {t('home.moversHelp')}
           </p>
         )}
-        <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0 }}>
-          {t('movers.lastClose')}
-        </p>
+        {movers.state.status === 'ok' && movers.state.data.lastClose && (
+          <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0 }}>
+            {t('movers.lastClose')}
+          </p>
+        )}
         <DataState
           state={movers.state}
           onRetry={movers.retry}
@@ -558,7 +570,7 @@ function MoversPreview({ beg }: { beg: boolean }) {
             </div>
           }
         >
-          {(rows) =>
+          {({ rows }) =>
             rows.length === 0 ? (
               <EmptyState>{t('movers.empty')}</EmptyState>
             ) : (

@@ -50,6 +50,15 @@ describe('extractBoard', () => {
     expect(extractBoard({ ...body, lastClose: false })!.lastClose).toBe(false);
   });
 
+  it('requires the claim to be a boolean rather than coercing a missing one', () => {
+    // Coerced, a body without the field would read as "not the last close",
+    // and the screen would drop the line while still showing the last close's
+    // figures — the one outcome the field exists to prevent.
+    expect(extractBoard({ board: 'gainers', rows: [row] })).toBeNull();
+    expect(extractBoard({ ...body, lastClose: 'true' })).toBeNull();
+    expect(extractBoard({ ...body, lastClose: 1 })).toBeNull();
+  });
+
   it('reads a body it does not recognise as null', () => {
     expect(extractBoard(undefined)).toBeNull();
     expect(extractBoard([row])).toBeNull();

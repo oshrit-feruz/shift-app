@@ -29,6 +29,7 @@
  */
 
 import { cachedLoadable } from './loadableCache';
+import { isInstant, mapBarRow } from './barRow';
 import { readRoute } from './readRoute';
 import { ok, type Bar, type Loadable } from './types';
 
@@ -56,26 +57,6 @@ const FALLBACK_REASON = {
   he: 'היסטוריית המחירים של היום אינה זמינה כרגע.',
 };
 
-const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
-
-/**
- * Map one row of the route's response into a Bar, or null when it is not one.
- *
- * `d` is a full UTC instant here rather than the daily series' calendar date —
- * the same Bar type, carrying the moment instead of the day (see types.ts).
- * The route already enforces this shape, so a row failing here means the
- * response came from something other than this app's route, and the honest
- * answer is to refuse it rather than draw whatever survived.
- */
-function mapBar(raw: unknown): Bar | null {
-  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return null;
-  const { d, o, h, l, c, v } = raw as Record<string, unknown>;
-  if (typeof d !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(d)) return null;
-  if (!isNum(o) || !isNum(h) || !isNum(l) || !isNum(c) || !isNum(v)) return null;
-  if (h < l) return null;
-  return { date: d, open: o, high: h, low: l, close: c, volume: v };
-}
-
 /**
  * Pull the session's bars out of the route's response, or null when the body
  * is not one.
@@ -91,8 +72,8 @@ export function extractIntradayBars(body: unknown): Bar[] | null {
 
   const bars: Bar[] = [];
   for (const row of raw) {
-    const bar = mapBar(row);
-    // One unreadable bar invalidates the session — see mapBar.
+    const bar = mapBarRow(row, isInstant);
+    // One unreadable bar invalidates the session — see data/barRow.ts.
     if (bar === null) return null;
     bars.push(bar);
   }

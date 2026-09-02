@@ -40,6 +40,23 @@ describe('extractIntradayBars', () => {
     expect(extractIntradayBars({ ...body, bars: [{ ...row('2026-09-01', 1) }] })).toBeNull();
   });
 
+  it('refuses a stamp that is shaped like a moment but is not one', () => {
+    // Date rolls "2026-02-31" forward into March, so the shape test alone
+    // would draw a bar under a timestamp nobody meant.
+    expect(extractIntradayBars({ ...body, bars: [row('2026-02-31T13:30:00Z', 1)] })).toBeNull();
+    expect(extractIntradayBars({ ...body, bars: [row('2026-09-01T25:30:00Z', 1)] })).toBeNull();
+  });
+
+  it('refuses a bar that describes five minutes that could not have happened', () => {
+    const bar = { d: '2026-09-01T13:30:00Z', o: 10, h: 12, l: 9, c: 11, v: 100 };
+    expect(extractIntradayBars({ ...body, bars: [{ ...bar, o: 100 }] })).toBeNull(); // open above the high
+    expect(extractIntradayBars({ ...body, bars: [{ ...bar, c: 1 }] })).toBeNull(); // close below the low
+    expect(extractIntradayBars({ ...body, bars: [{ ...bar, l: 0 }] })).toBeNull();
+    expect(extractIntradayBars({ ...body, bars: [{ ...bar, v: -1 }] })).toBeNull();
+    // A genuinely quiet five minutes is a real zero and stays one.
+    expect(extractIntradayBars({ ...body, bars: [{ ...bar, v: 0 }] })).toHaveLength(1);
+  });
+
   it('refuses the whole session for one unreadable bar', () => {
     expect(extractIntradayBars({ ...body, bars: [body.bars[0], { d: '2026-09-01T13:35:00Z' }] })).toBeNull();
     expect(extractIntradayBars({ ...body, bars: [{ ...body.bars[0], h: 1, l: 2 }] })).toBeNull();

@@ -515,10 +515,14 @@ export function mapIntradayRow(raw: unknown): CandleRow | 'closing-print' | null
   if (open <= 0 || high <= 0 || low <= 0 || close <= 0) return null;
   if (low > high || open < low || open > high || close < low || close > high) return null;
 
-  if (!isNum(volume)) {
+  // NULL, not merely "not a number". The feed writes the closing print's
+  // volume as an explicit null; a string or an absent field is a row we do not
+  // understand, and calling that a closing print would drop it from the series
+  // instead of refusing the response.
+  if (volume === null) {
     return open === high && high === low && low === close ? 'closing-print' : null;
   }
-  if (volume < 0) return null;
+  if (!isNum(volume) || volume < 0) return null;
   return { d, o: open, h: high, l: low, c: close, v: volume };
 }
 

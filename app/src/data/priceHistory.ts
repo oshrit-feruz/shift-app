@@ -51,6 +51,7 @@
  * data on is not taking it for anything.
  */
 
+import { isCalendarDay, mapBarRow } from './barRow';
 import { cachedLoadable } from './loadableCache';
 import { DEMO_FLAGS } from './demoFlags';
 import { demoBars } from './demoBars';
@@ -109,27 +110,6 @@ const MAX_FUTURE_SKEW_DAYS = 1;
  */
 const SERIES_CACHE_MS = 5 * 60_000;
 
-const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
-
-/**
- * Map one row of the route's response into a Bar, or null when it is not one.
- *
- * The route already enforces this shape, so a row failing here means the
- * response came from something other than this app's route or was corrupted
- * in transit. Either way the honest response is to refuse it, not to draw
- * whatever survived: a chart is read as a whole, and a series with silently
- * dropped sessions is a picture of price action that never happened.
- */
-function mapBar(raw: unknown): Bar | null {
-  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return null;
-  const row = raw as Record<string, unknown>;
-  const { d, o, h, l, c, v } = row;
-  if (typeof d !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return null;
-  if (!isNum(o) || !isNum(h) || !isNum(l) || !isNum(c) || !isNum(v)) return null;
-  if (h < l) return null;
-  return { date: d, open: o, high: h, low: l, close: c, volume: v };
-}
-
 /**
  * Pull the bars out of the route's response, or null when the body is not one.
  *
@@ -146,8 +126,8 @@ export function extractBars(body: unknown): Bar[] | null {
 
   const bars: Bar[] = [];
   for (const row of raw) {
-    const bar = mapBar(row);
-    // One unreadable row invalidates the file — see mapBar.
+    const bar = mapBarRow(row, isCalendarDay);
+    // One unreadable row invalidates the file — see data/barRow.ts.
     if (!bar) return null;
     bars.push(bar);
   }

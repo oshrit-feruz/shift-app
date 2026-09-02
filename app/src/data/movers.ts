@@ -129,10 +129,14 @@ export function extractBoard(body: unknown): MoversBoard | null {
       averageVolume: numOrNull(row.averageVolume),
     });
   }
-  // Only ever true today, and read rather than assumed: if the board ever gains
-  // an intraday source, the screen's wording follows the route without a change
-  // here.
-  return { board, lastClose: raw.lastClose === true, rows };
+  // Read rather than assumed — only ever true today, but if the board ever
+  // gains an intraday source the screen's wording follows the route without a
+  // change here. REQUIRED as a boolean rather than coerced: a body missing the
+  // field would coerce to false, and the screen would then drop the "last
+  // close" line while still showing the last close's figures, which is the one
+  // outcome the field exists to prevent.
+  if (typeof raw.lastClose !== 'boolean') return null;
+  return { board, lastClose: raw.lastClose, rows };
 }
 
 /** One board, ranked by the provider. Never throws. */

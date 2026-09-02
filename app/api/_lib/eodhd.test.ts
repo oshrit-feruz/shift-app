@@ -444,6 +444,18 @@ describe('mapIntradayRow', () => {
     expect(mapIntradayRow({ ...row, volume: null })).toBeNull();
   });
 
+  it('reserves the closing print for an explicit null, not for any non-number', () => {
+    // A flat bar whose volume is absent or a string is a row we do not
+    // understand. Calling it a closing print would drop it from the series
+    // rather than refuse the response, which is the difference between a
+    // series with a hole in it and an honest failure.
+    const flat = { ...row, open: 166.61, high: 166.61, low: 166.61, close: 166.61 };
+    expect(mapIntradayRow({ ...flat, volume: null })).toBe('closing-print');
+    expect(mapIntradayRow({ ...flat, volume: undefined })).toBeNull();
+    expect(mapIntradayRow({ ...flat, volume: '0' })).toBeNull();
+    expect(mapIntradayRow({ ...flat, volume: NaN })).toBeNull();
+  });
+
   it('keeps a genuinely quiet five minutes as a real zero', () => {
     expect(mapIntradayRow({ ...row, volume: 0 })).toMatchObject({ v: 0 });
   });
