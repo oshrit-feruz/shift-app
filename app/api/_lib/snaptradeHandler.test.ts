@@ -1,49 +1,33 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import handler, { createHandler } from '../snaptrade.js';
 // The response stand-in is the shared one the other two route suites use —
-// a local copy of it was 28 duplicated lines for no benefit.
+// a local copy of it was 28 duplicated lines for no benefit. The session
+// scaffolding is shared with the link-route suite for the same reason.
 import { makeRes } from './failureContract.js';
-import { seal } from './secretBox.js';
-
-function jsonResponse(body: unknown, status = 200) {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    json: async () => body,
-  } as unknown as Response;
-}
+import {
+  AUTHED,
+  AUTH_USER_ID,
+  SUPABASE_URL,
+  USER_SECRET,
+  captureEnv,
+  jsonResponse,
+  linkedRow,
+  restoreEnv,
+  setEnv,
+} from './snaptradeTestKit.js';
 
 const ORIGINAL_FETCH = globalThis.fetch;
-const ENV_NAMES = [
-  'SNAPTRADE_CLIENT_ID',
-  'SNAPTRADE_CONSUMER_KEY',
-  'SNAPTRADE_PERSONAL_CLIENT_ID',
-  'SNAPTRADE_PERSONAL_CONSUMER_KEY',
-  'SNAPTRADE_SECRET_KEY',
-  'SUPABASE_URL',
-  'SUPABASE_SERVICE_ROLE_KEY',
-] as const;
-const ORIGINAL_ENV = Object.fromEntries(ENV_NAMES.map((n) => [n, process.env[n]]));
+const ORIGINAL_ENV = captureEnv();
 
-const SUPABASE_URL = 'https://project.supabase.co';
-/** 32 bytes, fixed so a sealed secret written in one test opens in the next. */
-const ENC_KEY_B64 = Buffer.alloc(32, 7).toString('base64');
-/** Who the access token resolves to. Never anything the request carried. */
-const AUTH_USER_ID = '11111111-2222-3333-4444-555555555555';
-const USER_SECRET = 'snaptrade-user-secret-abc';
-
-/** A signed-in GET. The token is opaque here — Supabase is what resolves it. */
-const REQ = { method: 'GET', query: {}, headers: { authorization: 'Bearer access-token' } };
+/** A signed-in GET. */
+const REQ = { method: 'GET', query: {}, headers: AUTHED };
 
 /**
  * What Supabase answers, by URL. Overridable per test so the unauthorised,
  * unreachable and never-linked paths can each be exercised.
  */
-let supabaseUser: () => Promise<Response> = async () => jsonResponse({ id: AUTH_USER_ID });
-let snaptradeRow: () => Promise<Response> = async () =>
-  jsonResponse([
-    { snaptrade_user_id: AUTH_USER_ID, user_secret: seal(USER_SECRET, Buffer.from(ENC_KEY_B64, 'base64')) },
-  ]);
+let supabaseUser: () => Promise<Response>;
+let snaptradeRow: () => Promise<Response>;
 
 /**
  * Installs a fetch mock that answers the session lookups itself and passes
@@ -61,7 +45,7 @@ function upstream(impl: (input: Parameters<typeof fetch>[0], init?: RequestInit)
     if (url.startsWith(`${SUPABASE_URL}/auth/v1/user`)) return supabaseUser();
     if (url.startsWith(`${SUPABASE_URL}/rest/v1/snaptrade_users`)) return snaptradeRow();
     return impl(input, init);
-  });
+  }) as unknown as typeof fetch;
 }
 
 const CONNECTION = {
@@ -82,18 +66,9 @@ const ACCOUNT = {
 };
 
 beforeEach(() => {
-  process.env.SNAPTRADE_CLIENT_ID = 'demo-client';
-  process.env.SNAPTRADE_CONSUMER_KEY = 'demo-key';
-  process.env.SNAPTRADE_SECRET_KEY = ENC_KEY_B64;
-  process.env.SUPABASE_URL = SUPABASE_URL;
-  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
-  delete process.env.SNAPTRADE_PERSONAL_CLIENT_ID;
-  delete process.env.SNAPTRADE_PERSONAL_CONSUMER_KEY;
+  setEnv();
   supabaseUser = async () => jsonResponse({ id: AUTH_USER_ID });
-  snaptradeRow = async () =>
-    jsonResponse([
-      { snaptrade_user_id: AUTH_USER_ID, user_secret: seal(USER_SECRET, Buffer.from(ENC_KEY_B64, 'base64')) },
-    ]);
+  snaptradeRow = async () => jsonResponse(linkedRow());
   vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
@@ -101,11 +76,7 @@ beforeEach(() => {
 afterEach(() => {
   globalThis.fetch = ORIGINAL_FETCH;
   vi.restoreAllMocks();
-  for (const name of ENV_NAMES) {
-    const value = ORIGINAL_ENV[name];
-    if (value === undefined) delete process.env[name];
-    else process.env[name] = value;
-  }
+  restoreEnv(ORIGINAL_ENV);
 });
 
 describe('/api/snaptrade handler', () => {

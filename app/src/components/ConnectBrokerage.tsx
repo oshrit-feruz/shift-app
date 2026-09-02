@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Card, CardTitle } from './Card';
 import { Button } from './Button';
+import { ReasonNote } from './ReasonNote';
 import { useAuth } from '../auth/AuthProvider';
 import { startBrokerageConnection } from '../data/snaptradeAccount';
 import { useT } from '../i18n/useT';
-import { useTheme } from '../theme/ThemeProvider';
 
 /**
  * The card that starts a real brokerage connection.
@@ -26,7 +26,6 @@ import { useTheme } from '../theme/ThemeProvider';
  */
 export function ConnectBrokerage() {
   const t = useT();
-  const { language } = useTheme();
   const { session } = useAuth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{ en: string; he: string } | null>(null);
@@ -63,14 +62,7 @@ export function ConnectBrokerage() {
         {t('link.permission')}
       </p>
 
-      {error && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <span style={{ fontSize: 'var(--text-row)' }}>{t('link.failedTitle')}</span>
-          <span className="text-muted" style={{ fontSize: 'var(--text-caption)', lineHeight: 1.5 }}>
-            {error[language]}
-          </span>
-        </div>
-      )}
+      <ReasonNote title={t('link.failedTitle')} reason={error} />
 
       <Button
         variant="primary"

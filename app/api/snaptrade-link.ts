@@ -28,7 +28,6 @@ import {
   LINK_PATHS,
   PROVIDER,
   UpstreamError,
-  readCreds,
   snapTradeRequest,
   type SnapTradeCreds,
 } from './_lib/snaptradeClient.js';
@@ -90,16 +89,12 @@ export function createHandler(timeoutMs: number) {
     // one-time portal URL, and the DELETE's answer is about one person.
     res.setHeader('Cache-Control', 'private, no-store');
 
-    const creds = readCreds();
-    if (!creds) {
-      console.error(`${ROUTE}: SNAPTRADE_CLIENT_ID / SNAPTRADE_CONSUMER_KEY are not both set`);
-      return res
-        .status(500)
-        .json({ error: 'not_configured', message: 'Connected accounts are not configured.' });
-    }
-
+    // Credentials, caller and link in one step — see resolveSession. Every
+    // failure it can produce already carries the body to return, so this
+    // route and /api/snaptrade answer them identically.
     const session = await resolveSession(req, ROUTE);
     if (!session.ok) return res.status(session.error.status).json(session.error.body);
+    const { creds } = session;
 
     try {
       return req.method === 'POST'

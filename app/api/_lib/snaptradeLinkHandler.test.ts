@@ -1,39 +1,29 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import handler from '../snaptrade-link.js';
 import { makeRes } from './failureContract.js';
-import { open, seal } from './secretBox.js';
-
-function jsonResponse(body: unknown, status = 200) {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    json: async () => body,
-  } as unknown as Response;
-}
+import { open } from './secretBox.js';
+// The environment, the fixed encryption key and the stubbed Supabase answers
+// are shared with the account-route suite: both routes resolve the caller the
+// same way, and two copies of that setup could drift into testing different
+// things.
+import {
+  AUTHED,
+  AUTH_USER_ID,
+  ENC_KEY,
+  SUPABASE_URL,
+  USER_SECRET,
+  captureEnv,
+  jsonResponse,
+  linkedRow,
+  restoreEnv,
+  setEnv,
+} from './snaptradeTestKit.js';
 
 const ORIGINAL_FETCH = globalThis.fetch;
-const ENV_NAMES = [
-  'SNAPTRADE_CLIENT_ID',
-  'SNAPTRADE_CONSUMER_KEY',
-  'SNAPTRADE_SECRET_KEY',
-  'SNAPTRADE_REDIRECT_URL',
-  'SUPABASE_URL',
-  'SUPABASE_SERVICE_ROLE_KEY',
-] as const;
-const ORIGINAL_ENV = Object.fromEntries(ENV_NAMES.map((n) => [n, process.env[n]]));
-
-const SUPABASE_URL = 'https://project.supabase.co';
-const ENC_KEY_B64 = Buffer.alloc(32, 7).toString('base64');
-const ENC_KEY = Buffer.from(ENC_KEY_B64, 'base64');
-const AUTH_USER_ID = '11111111-2222-3333-4444-555555555555';
-const USER_SECRET = 'snaptrade-user-secret-abc';
+const ORIGINAL_ENV = captureEnv();
 const PORTAL = 'https://app.snaptrade.com/portal/session-1';
 
-const POST = {
-  method: 'POST',
-  query: {},
-  headers: { authorization: 'Bearer access-token', host: 'shift.example' },
-};
+const POST = { method: 'POST', query: {}, headers: { ...AUTHED, host: 'shift.example' } };
 const DELETE = { ...POST, method: 'DELETE' };
 
 /** Every request the handler made, in order, so a test can assert the flow. */
@@ -70,12 +60,7 @@ function install() {
 }
 
 beforeEach(() => {
-  process.env.SNAPTRADE_CLIENT_ID = 'demo-client';
-  process.env.SNAPTRADE_CONSUMER_KEY = 'demo-key';
-  process.env.SNAPTRADE_SECRET_KEY = ENC_KEY_B64;
-  process.env.SUPABASE_URL = SUPABASE_URL;
-  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
-  delete process.env.SNAPTRADE_REDIRECT_URL;
+  setEnv();
   row = [];
   registerResponse = async () => jsonResponse({ userId: AUTH_USER_ID, userSecret: USER_SECRET });
   vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -85,14 +70,8 @@ beforeEach(() => {
 afterEach(() => {
   globalThis.fetch = ORIGINAL_FETCH;
   vi.restoreAllMocks();
-  for (const name of ENV_NAMES) {
-    const value = ORIGINAL_ENV[name];
-    if (value === undefined) delete process.env[name];
-    else process.env[name] = value;
-  }
+  restoreEnv(ORIGINAL_ENV);
 });
-
-const linked = () => [{ snaptrade_user_id: AUTH_USER_ID, user_secret: seal(USER_SECRET, ENC_KEY) }];
 
 const upstream = (fragment: string) => calls.filter((c) => c.url.includes(fragment));
 
@@ -157,7 +136,7 @@ describe('/api/snaptrade-link', () => {
   });
 
   it('does not register a second time for a user who already has a link', async () => {
-    row = linked();
+    row = linkedRow();
     const res = makeRes();
     await handler(POST, res);
     expect(res._status).toBe(200);
@@ -182,7 +161,7 @@ describe('/api/snaptrade-link', () => {
     globalThis.fetch = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
       const url = String(input);
       if (url.startsWith(`${SUPABASE_URL}/auth/v1/user`)) return jsonResponse({ id: AUTH_USER_ID });
-      if (url.startsWith(`${SUPABASE_URL}/rest/v1/snaptrade_users`)) return jsonResponse(linked());
+      if (url.startsWith(`${SUPABASE_URL}/rest/v1/snaptrade_users`)) return jsonResponse(linkedRow());
       return jsonResponse({ redirectURI: 'javascript:alert(1)' });
     }) as unknown as typeof fetch;
     const res = makeRes();
@@ -206,7 +185,7 @@ describe('/api/snaptrade-link', () => {
   it('revokes at SnapTrade, not just here', async () => {
     // A "disconnect" that only forgot our row would leave a live read
     // connection to the user's brokerage that nothing could revoke.
-    row = linked();
+    row = linkedRow();
     const res = makeRes();
     await handler(DELETE, res);
 
@@ -220,7 +199,7 @@ describe('/api/snaptrade-link', () => {
   });
 
   it('revokes upstream before forgetting the row', async () => {
-    row = linked();
+    row = linkedRow();
     await handler(DELETE, makeRes());
     const revoke = calls.findIndex((c) => c.url.includes('/snapTrade/deleteUser'));
     const forget = calls.findIndex((c) => c.method === 'DELETE' && c.url.includes('/rest/v1/'));
@@ -228,12 +207,12 @@ describe('/api/snaptrade-link', () => {
   });
 
   it('keeps the row when the upstream revoke fails', async () => {
-    row = linked();
+    row = linkedRow();
     globalThis.fetch = vi.fn(async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
       const url = String(input);
       calls.push({ url, method: init?.method ?? 'GET', body: null });
       if (url.startsWith(`${SUPABASE_URL}/auth/v1/user`)) return jsonResponse({ id: AUTH_USER_ID });
-      if (url.startsWith(`${SUPABASE_URL}/rest/v1/snaptrade_users`)) return jsonResponse(linked());
+      if (url.startsWith(`${SUPABASE_URL}/rest/v1/snaptrade_users`)) return jsonResponse(linkedRow());
       return jsonResponse({ detail: 'nope' }, 500);
     }) as unknown as typeof fetch;
 
@@ -249,13 +228,13 @@ describe('/api/snaptrade-link', () => {
     // A 404 means there is nothing left upstream to revoke. Refusing here
     // would leave the row — and the user — permanently stuck connected to an
     // account that no longer exists.
-    row = linked();
+    row = linkedRow();
     globalThis.fetch = vi.fn(async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
       const url = String(input);
       calls.push({ url, method: init?.method ?? 'GET', body: null });
       if (url.startsWith(`${SUPABASE_URL}/auth/v1/user`)) return jsonResponse({ id: AUTH_USER_ID });
       if (url.startsWith(`${SUPABASE_URL}/rest/v1/snaptrade_users`)) {
-        return init?.method === 'DELETE' ? jsonResponse(null, 204) : jsonResponse(linked());
+        return init?.method === 'DELETE' ? jsonResponse(null, 204) : jsonResponse(linkedRow());
       }
       return jsonResponse({ detail: 'not found' }, 404);
     }) as unknown as typeof fetch;

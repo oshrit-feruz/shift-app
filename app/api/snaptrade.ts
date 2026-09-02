@@ -10,7 +10,7 @@ import {
   type ConnectedPosition,
   type SnapTradeUser,
 } from './_lib/snaptrade.js';
-import { PROVIDER, UpstreamError, readCreds, snapTradeRequest } from './_lib/snaptradeClient.js';
+import { PROVIDER, UpstreamError, snapTradeRequest } from './_lib/snaptradeClient.js';
 import type { ApiRequest, ApiResponse } from './_lib/http.js';
 import { failureBody } from './_lib/upstream.js';
 import { resolveSession } from './_lib/snaptradeSession.js';
@@ -192,18 +192,12 @@ export function createHandler(timeoutMs: number) {
     // to the next caller.
     res.setHeader('Cache-Control', 'private, no-store');
 
-    const creds = readCreds();
-    if (!creds) {
-      // A deploy/config problem, not a caller error — specific in the log,
-      // generic in the body.
-      console.error(`${ROUTE}: SNAPTRADE_CLIENT_ID / SNAPTRADE_CONSUMER_KEY are not both set`);
-      return res
-        .status(500)
-        .json({ error: 'not_configured', message: 'Connected accounts are not configured.' });
-    }
-
+    // Credentials, caller and link in one step — a deployment fault, a bad
+    // token and an unreadable link each come back already phrased as the body
+    // to return, so both routes answer them identically.
     const session = await resolveSession(req, ROUTE);
     if (!session.ok) return res.status(session.error.status).json(session.error.body);
+    const { creds } = session;
 
     // Nobody has connected a brokerage for this user. A true, complete answer
     // — not an error, and not a reason for the app to show anything invented
