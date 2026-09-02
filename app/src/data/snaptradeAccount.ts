@@ -209,15 +209,20 @@ function parseConnection(raw: unknown): ConnectedConnection | null {
 }
 
 /**
- * The caller's access token, or null when nobody is signed in.
+ * The caller's access token and user id, or nulls when nobody is signed in.
  *
- * Read per request rather than held: Supabase refreshes it in the background,
- * and a token captured once would start failing an hour into a session.
+ * Read per request rather than held: Supabase refreshes the token in the
+ * background, and one captured on mount would start failing an hour into a
+ * session. The id rides along because every answer here is about a named
+ * person and must be recorded against them, never against "whoever is signed
+ * in by the time the response lands".
  */
-async function accessToken(): Promise<string | null> {
+async function currentUser(): Promise<{ token: string; userId: string } | null> {
   if (!supabase) return null;
   const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ?? null;
+  const token = data.session?.access_token;
+  const userId = data.session?.user?.id;
+  return token && userId ? { token, userId } : null;
 }
 
 /** The answer for someone with no connection: true, complete, and not an error. */
@@ -230,14 +235,13 @@ const NOT_LINKED: ConnectedAccountsResult = { linked: false, accounts: [], conne
 export async function fetchConnectedAccounts(
   fetchImpl: typeof fetch = fetch,
 ): Promise<Loadable<ConnectedAccountsResult>> {
-  const token = await accessToken();
+  const caller = await currentUser();
   // Signed out. Not a failure and not worth a request: there is no user for
   // the route to resolve, and the app's own data is what a signed-out reader
-  // sees anyway.
-  if (!token) {
-    setLinked(false);
-    return ok(NOT_LINKED);
-  }
+  // sees anyway. Nothing is recorded, because there is nobody to record it
+  // against — the auth layer clears the remembered answer on sign-out.
+  if (!caller) return ok(NOT_LINKED);
+  const { token, userId } = caller;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -264,9 +268,11 @@ export async function fetchConnectedAccounts(
     if (!Array.isArray(rawAccounts)) return unavailable(REASONS.badShape);
 
     // The server's word on whether anything is connected, remembered so the
-    // next load of every screen starts in the right shape (data/linkState.ts).
+    // next load of every screen starts in the right shape (data/linkState.ts)
+    // — and recorded against the user it is about, so a response that lands
+    // after a sign-out or an account switch cannot be read as the new user's.
     const linked = (body as { linked?: unknown })?.linked === true;
-    setLinked(linked);
+    setLinked(linked, userId);
 
     const accounts = rawAccounts.map(parseAccount).filter((a): a is ConnectedAccount => a !== null);
     const rawConnections = (body as { connections?: unknown })?.connections;
@@ -302,9 +308,13 @@ const LINK_REASONS = {
 } as const;
 
 /** One authenticated call to the link route, with the shared failure mapping. */
-async function linkRequest(method: 'POST' | 'DELETE', fetchImpl: typeof fetch): Promise<Loadable<unknown>> {
-  const token = await accessToken();
-  if (!token) return unavailable(LINK_REASONS.signedOut);
+async function linkRequest(
+  method: 'POST' | 'DELETE',
+  fetchImpl: typeof fetch,
+): Promise<Loadable<{ body: unknown; userId: string }>> {
+  const caller = await currentUser();
+  if (!caller) return unavailable(LINK_REASONS.signedOut);
+  const { token, userId } = caller;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), LINK_TIMEOUT_MS);
@@ -324,7 +334,7 @@ async function linkRequest(method: 'POST' | 'DELETE', fetchImpl: typeof fetch): 
       const code = body !== null && typeof body === 'object' ? (body as { error?: unknown }).error : null;
       return unavailable(code === 'link_reset' ? LINK_REASONS.conflict : reasonFor(code));
     }
-    return ok(body);
+    return ok({ body, userId });
   } catch (err) {
     return unavailable(
       err instanceof DOMException && err.name === 'AbortError' ? REASONS.timeout : REASONS.unreachable,
@@ -348,7 +358,7 @@ export async function startBrokerageConnection(
 ): Promise<Loadable<{ redirectURI: string }>> {
   const result = await linkRequest('POST', fetchImpl);
   if (result.status !== 'ok') return result;
-  const uri = (result.data as { redirectURI?: unknown })?.redirectURI;
+  const uri = (result.data.body as { redirectURI?: unknown })?.redirectURI;
   if (typeof uri !== 'string' || !uri) return unavailable(REASONS.badShape);
   return ok({ redirectURI: uri });
 }
@@ -363,9 +373,9 @@ export async function disconnectBrokerage(
 ): Promise<Loadable<{ disconnected: true }>> {
   const result = await linkRequest('DELETE', fetchImpl);
   if (result.status !== 'ok') return result;
-  if ((result.data as { disconnected?: unknown })?.disconnected !== true) {
+  if ((result.data.body as { disconnected?: unknown })?.disconnected !== true) {
     return unavailable(REASONS.badShape);
   }
-  setLinked(false);
+  setLinked(false, result.data.userId);
   return ok({ disconnected: true });
 }

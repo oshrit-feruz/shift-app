@@ -3,8 +3,8 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { loading, ok, unavailable, type Loadable } from '../data/types';
 import { readProfile, type UserProfile } from './profile';
-import { clearLinked } from '../data/linkState';
-import { disconnectBrokerage } from '../data/snaptradeAccount';
+import { clearLinked, linkedUserId } from '../data/linkState';
+import { disconnectBrokerage, fetchConnectedAccounts } from '../data/snaptradeAccount';
 import { resetConnectedAccountCache } from '../data/appService';
 
 /**
@@ -84,6 +84,45 @@ function consumeCallbackError(): { en: string; he: string } | null {
   }
 }
 
+/**
+ * Points the brokerage layer at whoever is signed in now.
+ *
+ * TWO THINGS GO WRONG WITHOUT THIS, and one of them is a leak.
+ *
+ * The leak: the remembered "is a brokerage connected" answer and the twenty
+ * second cache of the answer itself both live outside React, in module state
+ * and localStorage. A second person signing in on the same browser — or the
+ * same person switching accounts, which never passes through signOut —
+ * inherits both, so the previous user's holdings can render for the length of
+ * that cache. Clearing on a CHANGED id, rather than only on sign-out, is what
+ * closes it.
+ *
+ * The other: on a device that has never held the answer, nothing would ever
+ * ask. Every screen shaped around a real account is gated on the remembered
+ * flag, which starts false — so a user who connected a brokerage on their
+ * phone would open the app on their laptop, be shown the connect card, and
+ * have no way for the app to discover otherwise. The first read after sign-in
+ * is what makes the answer real rather than remembered, and it is also what
+ * greets someone returning from the connection portal.
+ *
+ * Fire and forget on purpose: nothing waits on it, and its own honest states
+ * (data/snaptradeAccount.ts) cover a failure. It writes the flag; it does not
+ * decide anything.
+ */
+function adoptUser(userId: string | undefined) {
+  if (userId === undefined) {
+    // Signed out. Forget it all rather than leave it for the next person.
+    clearLinked();
+    resetConnectedAccountCache();
+    return;
+  }
+  if (linkedUserId() !== userId) {
+    clearLinked();
+    resetConnectedAccountCache();
+  }
+  void fetchConnectedAccounts();
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Loadable<Session | null>>(
     supabase ? loading() : unavailable(NOT_CONFIGURED),
@@ -95,9 +134,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // getSession resolves from localStorage (and consumes an OAuth code in
     // the URL if one is present); onAuthStateChange keeps us live afterwards
     // — sign-in from the redirect, sign-out, token refresh.
-    supabase.auth.getSession().then(({ data }) => setSession(ok(data.session)));
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(ok(data.session));
+      adoptUser(data.session?.user?.id);
+    });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(ok(s));
+      adoptUser(s?.user?.id);
     });
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -128,12 +171,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut: async () => {
         if (!supabase) return;
         await supabase.auth.signOut();
-        // The next person to open this browser is not this one. Forgetting
-        // whether a brokerage was connected keeps a connected-account entry
-        // from being offered to someone who has no account, and drops the
-        // cached answer that entry was built from.
-        clearLinked();
-        resetConnectedAccountCache();
+        // The brokerage state is cleared by adoptUser(), which the sign-out
+        // event drives — one place decides what happens when the signed-in
+        // user changes, whichever way it changed.
       },
       deleteAccount: async (): Promise<DeleteResult> => {
         if (!supabase) return { ok: false, reason: NOT_CONFIGURED };
@@ -171,8 +211,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // keeps rendering as though the user still exists until the token
         // happens to expire.
         await supabase.auth.signOut();
-        clearLinked();
-        resetConnectedAccountCache();
         return { ok: true };
       },
       clearSignInError: () => setSignInError(null),

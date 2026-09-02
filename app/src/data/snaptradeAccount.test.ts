@@ -6,14 +6,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  * enough, and it keeps each test about the response it is describing.
  */
 let token: string | null = 'access-token';
+const USER_ID = 'user-1';
 vi.mock('../lib/supabase', () => ({
   supabase: {
-    auth: { getSession: async () => ({ data: { session: token ? { access_token: token } : null } }) },
+    auth: {
+      getSession: async () => ({
+        data: { session: token ? { access_token: token, user: { id: USER_ID } } : null },
+      }),
+    },
   },
 }));
 
 import { disconnectBrokerage, fetchConnectedAccounts, startBrokerageConnection } from './snaptradeAccount';
-import { isLinked } from './linkState';
+import { isLinked, linkedUserId } from './linkState';
 
 beforeEach(() => {
   token = 'access-token';
@@ -204,7 +209,15 @@ describe('fetchConnectedAccounts', () => {
     });
     expect(r).toEqual({ status: 'ok', data: { linked: false, accounts: [], connections: [] } });
     expect(called).toBe(false);
-    expect(isLinked()).toBe(false);
+  });
+
+  it('records the answer against the user it is about, not whoever is signed in later', async () => {
+    // A response that lands after a sign-out or an account switch must not be
+    // read as the new user's. The id travels with the answer so the auth layer
+    // can tell whose it is and drop it (auth/AuthProvider.tsx).
+    await fetchConnectedAccounts(async () => res({ linked: true, accounts: [ACCOUNT] }));
+    expect(isLinked()).toBe(true);
+    expect(linkedUserId()).toBe(USER_ID);
   });
 
   it("remembers the server's word on whether anything is connected", async () => {

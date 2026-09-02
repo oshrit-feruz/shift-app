@@ -796,10 +796,21 @@ prefix, which would bundle the secret into the client build.
 Then:
 
 1. Create the account at [snaptrade.com](https://snaptrade.com) and copy the
-   `clientId` and `consumerKey` from its dashboard. The free **Starter** plan
-   allows five connected accounts, which is a pilot rather than a launch —
-   past that it is $1/user/month for daily read-only data, $2 for real-time
+   `clientId` and `consumerKey` from its dashboard.
+
+   **Read the plan limits carefully, because one of them is not what it looks
+   like.** The free **Starter** plan is for *building and testing*: it allows
+   **one connected user** and up to five brokerage connections under that user
+   — not five users. So it covers development and a single real account end to
+   end, and it does **not** cover even a small pilot with several people. Past
+   that it is $1/user/month for daily read-only data, $2 for real-time
    ([pricing](https://snaptrade.com/pricing)).
+
+   **Personal and Commercial are account models, not plans.** An app that reads
+   accounts on behalf of end users is Commercial regardless of what it pays,
+   so this integration needs a SnapTrade **Commercial** account configured in
+   their dashboard — a test phase, then production keys after KYC — before it
+   serves anyone but its own developer.
 2. Add the variables above to Vercel and redeploy (environment variables are
    read at invocation, but a redeploy is the reliable way to pick them up
    everywhere).
@@ -816,12 +827,14 @@ still masked to its last four digits server-side before it is ever sent, and
 no other identifying field is returned.
 
 **What is deliberately still missing**, and should be decided before this
-carries a real user base beyond a pilot: SnapTrade's own webhooks (a
-connection can be disabled at the brokerage without the app hearing about it
-until the next read), a reconnect flow for exactly that case, and whatever
-disclosure and record-keeping the jurisdiction you operate in asks of an app
-that reads customer holdings. None of those are code the integration is
-missing — they are decisions.
+carries anyone but its own developer: a SnapTrade **Commercial** account (see
+the setup steps — the free plan is one connected user, so the current one does
+not reach a second person), SnapTrade's own webhooks (`USER_DELETED` confirms
+a disconnect completed, and a connection can be disabled at the brokerage
+without the app hearing about it until the next read), a reconnect flow for
+exactly that case, and whatever disclosure and record-keeping the jurisdiction
+you operate in asks of an app that reads customer holdings. Only the webhooks
+are code; the rest are decisions.
 
 Request signing lives in `app/api/_lib/snaptrade.ts` (unit-tested in
 `snaptrade.test.ts`, handler behaviour in `snaptradeHandler.test.ts` and

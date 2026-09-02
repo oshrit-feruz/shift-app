@@ -130,6 +130,26 @@ describe('/api/snaptrade handler', () => {
     expect(res._status).toBe(401);
   });
 
+  it('does not report a session check that stalled mid-body as an expired one', async () => {
+    // The subtle half of the same rule. The timeout stays armed through the
+    // body read, so an abort there rejects res.json() — and swallowing that
+    // as "empty body" makes resolveUserId find no id and answer 401, which
+    // signs the user out over a slow network.
+    supabaseUser = async () =>
+      ({
+        ok: true,
+        status: 200,
+        json: async () => {
+          throw new DOMException('The operation was aborted.', 'AbortError');
+        },
+      }) as unknown as Response;
+    upstream(async () => jsonResponse([]));
+    const res = makeRes();
+    await handler(REQ, res);
+    expect(res._status).toBe(502);
+    expect((res._body as { error: string }).error).toBe('session_unavailable');
+  });
+
   it('does not report an unverifiable session as an expired one', async () => {
     // The distinction matters because the two ask different things of the
     // user: "sign in again" versus "try again". Collapsing them signs someone

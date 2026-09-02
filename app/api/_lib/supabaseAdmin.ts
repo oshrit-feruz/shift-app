@@ -19,6 +19,8 @@
  * deliberately NOT VITE_-prefixed (the same convention as EODHD_API_KEY).
  */
 
+import { isAbortError } from './upstream.js';
+
 /**
  * Per-call budget. Well under the functions' 30s maxDuration so a hung
  * Supabase yields the route's own JSON error rather than the platform's 504
@@ -64,9 +66,19 @@ export async function fetchJsonWithTimeout(
     let body: unknown = null;
     try {
       body = await res.json();
-    } catch {
-      // Non-JSON or empty body — the status code still tells the story. A
-      // 204 from PostgREST is the normal case, not a fault.
+    } catch (err) {
+      // An abort HERE is the timeout firing mid-body-read, not an empty body,
+      // and the difference decides what the caller tells the user. Swallowed,
+      // it returns a 200 with a null body; resolveUserId then finds no id and
+      // reports 'unauthorized', so a stalled network hop signs someone out —
+      // exactly what the contract below forbids. Rethrown, it surfaces as the
+      // 'unreachable' it is. Keyed on the signal AND on the error itself:
+      // our own timer is the usual source, but an abort from anywhere else is
+      // still an abort, and isAbortError is the taxonomy the rest of the API
+      // already classifies them with.
+      if (controller.signal.aborted || isAbortError(err)) throw err;
+      // Genuinely non-JSON or empty. The status code still tells the story,
+      // and a 204 from PostgREST is the normal case, not a fault.
     }
     return { ok: res.ok, status: res.status, body };
   } finally {

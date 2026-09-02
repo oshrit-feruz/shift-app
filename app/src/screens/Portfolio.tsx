@@ -93,7 +93,11 @@ export function PortfolioScreen(_: ScreenProps) {
         }
       >
         {(pfs) => {
-          const list = portfolioList(demo ? pfs : [], s.manualPortfolios);
+          // `demo || live`, not `demo`: appService returns the real connected
+          // accounts for a linked user, and gating the list on sample data
+          // alone threw those away — real portfolios fetched, then none
+          // rendered.
+          const list = portfolioList(demo || live ? pfs : [], s.manualPortfolios);
 
           // Real, not hypothetical: with sample data off, a reader who has not
           // created a portfolio of their own has none at all. Guarded before

@@ -475,8 +475,8 @@ export const STRINGS = {
   // the movers ranking by "most active" is still sample data.
   'more.demoData': p('Sample data', 'נתוני דמו'),
   'more.demoDataHelp': p(
-    'Fills the app with sample figures: generated price charts, an illustrative earnings week, and the demo portfolio, market movers, analyst ratings, connected accounts and notifications. With it off, each of those says so in place and everything else uses real market data.',
-    'ממלא את האפליקציה בנתוני הדגמה: גרפים מומצאים, שבוע דוחות לדוגמה, וגם תיק הדמו, מובילי השוק, דירוגי האנליסטים, החשבונות המחוברים וההתראות. כשהוא כבוי, כל אחד מהם אומר זאת במקומו, וכל השאר משתמש בנתוני שוק אמיתיים.',
+    'Fills the app with sample figures: generated price charts, an illustrative earnings week, and the demo portfolio, market movers, analyst ratings and notifications. With it off, each of those says so in place and everything else uses real market data. A brokerage account you connected yourself is never sample data and is unaffected.',
+    'ממלא את האפליקציה בנתוני הדגמה: גרפים מומצאים, שבוע דוחות לדוגמה, וגם תיק הדמו, מובילי השוק, דירוגי האנליסטים וההתראות. כשהוא כבוי, כל אחד מהם אומר זאת במקומו, וכל השאר משתמש בנתוני שוק אמיתיים. חשבון ברוקר שחיברת בעצמך אינו נתוני הדגמה ואינו מושפע.',
   ),
   // The stand-in for a whole fabricated feature while sample data is off.
   // Verbless in Hebrew on purpose — see the note in components/DemoOnly.tsx
@@ -784,7 +784,10 @@ export const STRINGS = {
   'more.open': p('Open an investment account', 'לפתוח חשבון השקעות'),
   'more.openHelp': p('What a broker asks, in five questions', 'מה ברוקר מבקש, בחמש שאלות'),
   'more.connections': p('Broker connections', 'חיבורי ברוקר'),
-  'more.connectionsHelp': p('Three linked accounts, one theoretical', 'שלושה חשבונות מחוברים, אחד תיאורטי'),
+  'more.connectionsHelp': p(
+    'Connect a brokerage, or keep a theoretical portfolio',
+    'לחבר חשבון ברוקר, או לנהל תיק תיאורטי',
+  ),
   'more.advChat': p('Get a recommendation', 'לקבל המלצה'),
   'more.advChatHelp': p('Four questions, then a suggested portfolio', 'ארבע שאלות, ואז הצעה לתיק'),
   'more.settings': p('Settings', 'הגדרות'),
@@ -990,8 +993,8 @@ export const STRINGS = {
   'live.title': p('Connected account', 'חשבון מקושר'),
   'live.badge': p('Real data', 'נתונים אמיתיים'),
   'live.intro': p(
-    'Your own brokerage account, read live through SnapTrade. Every figure below comes from the brokerage.',
-    'חשבון הברוקר שלך, נקרא בזמן אמת דרך SnapTrade. כל נתון כאן מגיע מהברוקר.',
+    'Your own brokerage account, read through SnapTrade. Every figure below comes from the brokerage, and how current it is depends on how often they report — the freshness of what is on screen is stated with it.',
+    'חשבון הברוקר שלך, נקרא דרך SnapTrade. כל נתון כאן מגיע מהברוקר, ועד כמה הוא עדכני תלוי בקצב הדיווח שלו — מידת הרעננות מוצגת לצד הנתונים.',
   ),
   'live.readOnly': p(
     'Read-only: balances and positions only. Shift cannot place orders, move money, or see your brokerage password.',
@@ -999,8 +1002,8 @@ export const STRINGS = {
   ),
   'live.none': p('No brokerage account connected yet.', 'עדיין לא מקושר חשבון ברוקר.'),
   'live.noneHelp': p(
-    'Connecting one takes a minute: you approve a read-only connection at your brokerage, and the account appears here. Nothing is shown until you do.',
-    'החיבור לוקח דקה: מאשרים חיבור לקריאה בלבד אצל הברוקר, והחשבון מופיע כאן. עד אז לא מוצג דבר.',
+    'Connecting one takes a minute: you approve a read-only connection at your brokerage. Some brokerages then take a day or two to deliver their first report, and the screen says which state the connection is in. Nothing is shown until there is something real to show.',
+    'החיבור לוקח דקה: מאשרים חיבור לקריאה בלבד אצל הברוקר. אצל חלק מהברוקרים לוקח יום-יומיים עד שמגיע הדיווח הראשון, והמסך אומר באיזה מצב החיבור נמצא. עד שיהיה מה להציג באמת, לא מוצג דבר.',
   ),
   // ── Connecting and disconnecting ──────────────────────────────────────
   'link.title': p('Connect a brokerage account', 'חיבור חשבון ברוקר'),

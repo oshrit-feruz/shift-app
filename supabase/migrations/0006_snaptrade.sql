@@ -33,6 +33,14 @@ create table public.snaptrade_users (
 
 alter table public.snaptrade_users enable row level security;
 
+-- Belt and braces. RLS with no policy already denies both roles every row, so
+-- nothing here is exploitable today — but that denial is then the ONLY thing
+-- standing in the way, because Supabase grants table-level access to `anon`
+-- and `authenticated` on new tables in `public` by default. Taking the grant
+-- away too means a policy added here by mistake later cannot hand out the
+-- ciphertext on its own. This is the one table holding a credential.
+revoke all on public.snaptrade_users from anon, authenticated;
+
 -- DELIBERATELY NO POLICIES. Every other table in this schema grants the owner
 -- read access to their own row; this one grants nobody anything. With RLS on
 -- and no policy, the anon and authenticated roles are denied outright, so the

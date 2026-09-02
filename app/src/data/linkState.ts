@@ -23,8 +23,20 @@
 
 const KEY = 'shift.snaptrade.linked';
 
+/**
+ * WHOSE answer this is. Stored beside the boolean because the browser outlives
+ * the session: without it, signing in as a second person on the same device
+ * would start them on the first person's answer, and the app would offer a
+ * connected-account screen to someone who has connected nothing.
+ *
+ * The auth layer compares this against the current user on every session
+ * change and clears the moment they differ (auth/AuthProvider.tsx).
+ */
+const USER_KEY = 'shift.snaptrade.linkedUser';
+
 /** Before any answer has been seen, on a device with no storage. */
 let memory: boolean | null = null;
+let memoryUser: string | null = null;
 
 const listeners = new Set<() => void>();
 
@@ -45,14 +57,32 @@ export function isLinked(): boolean {
   }
 }
 
-/** Records the server's answer, and re-renders anything reading it. */
-export function setLinked(linked: boolean) {
-  if (isLinked() === linked && memory !== null) return;
+/** Who the remembered answer belongs to, or null when there is none. */
+export function linkedUserId(): string | null {
+  if (memoryUser !== null) return memoryUser;
+  try {
+    return localStorage.getItem(USER_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Records the server's answer for one named user, and re-renders anything
+ * reading it.
+ *
+ * The user id is required rather than optional: an answer with nobody attached
+ * is exactly the kind that outlives the person it was about.
+ */
+export function setLinked(linked: boolean, userId: string) {
+  if (isLinked() === linked && linkedUserId() === userId && memory !== null) return;
   // Recorded before the write, so the value still answers correctly for this
   // session when storage throws (Safari private mode, cookies blocked).
   memory = linked;
+  memoryUser = userId;
   try {
     localStorage.setItem(KEY, linked ? '1' : '0');
+    localStorage.setItem(USER_KEY, userId);
   } catch {
     /* no storage — the answer holds for this session but does not persist */
   }
@@ -60,14 +90,18 @@ export function setLinked(linked: boolean) {
 }
 
 /**
- * Forgets the remembered answer. Called on sign-out: the next person to use
- * this browser is not the previous one, and starting them on "linked" would
- * put a connected-account entry in front of someone who has no account.
+ * Forgets the remembered answer. Called on sign-out AND whenever the signed-in
+ * user changes: the next person to use this browser is not the previous one,
+ * and starting them on "linked" would put a connected-account entry — and, for
+ * the twenty seconds the data cache lives, the previous person's holdings — in
+ * front of someone else.
  */
 export function clearLinked() {
   memory = null;
+  memoryUser = null;
   try {
     localStorage.removeItem(KEY);
+    localStorage.removeItem(USER_KEY);
   } catch {
     /* nothing to clear */
   }

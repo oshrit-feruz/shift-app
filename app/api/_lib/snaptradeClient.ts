@@ -62,9 +62,21 @@ export interface SnapTradeCreds {
  * credentials actually are now.
  */
 export function readCreds(env: NodeJS.ProcessEnv = process.env): SnapTradeCreds | null {
-  const clientId = env.SNAPTRADE_CLIENT_ID ?? env.SNAPTRADE_PERSONAL_CLIENT_ID;
-  const consumerKey = env.SNAPTRADE_CONSUMER_KEY ?? env.SNAPTRADE_PERSONAL_CONSUMER_KEY;
-  return clientId && consumerKey ? { clientId, consumerKey } : null;
+  // Resolved as a PAIR, never a variable at a time. The consumer key is the
+  // HMAC key for the client id beside it; a half-finished rename that leaves
+  // the new client id next to the old consumer key would sign every request
+  // with a key that does not belong to it, and each one comes back
+  // `upstream_unauthorized` with nothing saying why.
+  if (env.SNAPTRADE_CLIENT_ID && env.SNAPTRADE_CONSUMER_KEY) {
+    return { clientId: env.SNAPTRADE_CLIENT_ID, consumerKey: env.SNAPTRADE_CONSUMER_KEY };
+  }
+  if (env.SNAPTRADE_PERSONAL_CLIENT_ID && env.SNAPTRADE_PERSONAL_CONSUMER_KEY) {
+    return {
+      clientId: env.SNAPTRADE_PERSONAL_CLIENT_ID,
+      consumerKey: env.SNAPTRADE_PERSONAL_CONSUMER_KEY,
+    };
+  }
+  return null;
 }
 
 export interface SnapTradeRequest {
