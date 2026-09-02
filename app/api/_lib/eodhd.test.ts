@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { eodUrl, isCalendarDate, isoDay, mapEodBars, resolveSymbol } from './eodhd.js';
+import {
+  eodUrl,
+  isCalendarDate,
+  isoDay,
+  mapEodBars,
+  mapUsStats,
+  readUsQuoteData,
+  resolveSymbol,
+  usQuoteUrl,
+} from './eodhd.js';
 
 describe('resolveSymbol', () => {
   it('sends a bare ticker to its US listing', () => {
@@ -147,5 +156,94 @@ describe('mapEodBars', () => {
     expect(mapEodBars({ error: 'nope' })).toBeNull();
     expect(mapEodBars('[]')).toBeNull();
     expect(mapEodBars([null])).toBeNull();
+  });
+});
+
+describe('usQuoteUrl', () => {
+  it('asks for the resolved symbols in one request', () => {
+    const url = usQuoteUrl(['nvda', 'BRK.B'], 'k');
+    expect(url.pathname).toBe('/api/us-quote-delayed');
+    expect(url.searchParams.get('s')).toBe('NVDA.US,BRK-B.US');
+    expect(url.searchParams.get('api_token')).toBe('k');
+  });
+});
+
+describe('readUsQuoteData', () => {
+  it('returns the per-symbol map', () => {
+    expect(readUsQuoteData({ meta: { count: 1 }, data: { 'NVDA.US': { pe: 1 } } })).toEqual({
+      'NVDA.US': { pe: 1 },
+    });
+  });
+
+  it('refuses a body that is not a quote response', () => {
+    expect(readUsQuoteData(null)).toBeNull();
+    expect(readUsQuoteData([])).toBeNull();
+    expect(readUsQuoteData({ meta: {} })).toBeNull();
+    expect(readUsQuoteData({ data: [] })).toBeNull();
+  });
+});
+
+describe('mapUsStats', () => {
+  const row = {
+    marketCap: 174752550000,
+    pe: 19.483429,
+    forwardPE: 16.835,
+    dividendYield: 0.0216,
+    fiftyTwoWeekHigh: 259.92,
+    fiftyTwoWeekLow: 121.99,
+    lastTradePrice: 166.431,
+  };
+
+  it('maps the figures the grid renders', () => {
+    expect(mapUsStats(row)).toEqual({
+      marketCap: 174752550000,
+      pe: 19.483429,
+      forwardPE: 16.835,
+      dividendYield: 0.0216,
+      fiftyTwoWeekHigh: 259.92,
+      fiftyTwoWeekLow: 121.99,
+    });
+  });
+
+  it('carries no price, however tempting the one in the row', () => {
+    // The header's price is live and this feed is delayed. A price from here
+    // sitting beside that one would be two different moments under one label.
+    expect(mapUsStats(row)).not.toHaveProperty('lastTradePrice');
+  });
+
+  it('keeps the provider nulls as nulls', () => {
+    // Real answers, all three: an ETF has no P/E (verified on VTI), and a
+    // company that pays nothing has no yield (verified on TSLA).
+    const etf = { ...row, pe: null, forwardPE: null, dividendYield: null };
+    expect(mapUsStats(etf)).toMatchObject({ pe: null, forwardPE: null, dividendYield: null });
+  });
+
+  it('reads a missing field as null rather than as a zero', () => {
+    expect(mapUsStats({})).toEqual({
+      marketCap: null,
+      pe: null,
+      forwardPE: null,
+      dividendYield: null,
+      fiftyTwoWeekHigh: null,
+      fiftyTwoWeekLow: null,
+    });
+  });
+
+  it('refuses a non-positive market cap, P/E or 52-week bound', () => {
+    // Quantities that cannot be zero for a listed company: a zero is the
+    // provider saying nothing, and "P/E 0.0" would be a claim.
+    const zeroed = mapUsStats({ ...row, marketCap: 0, pe: 0, fiftyTwoWeekLow: -1 })!;
+    expect(zeroed.marketCap).toBeNull();
+    expect(zeroed.pe).toBeNull();
+    expect(zeroed.fiftyTwoWeekLow).toBeNull();
+  });
+
+  it('keeps a zero dividend yield, which is a real answer', () => {
+    expect(mapUsStats({ ...row, dividendYield: 0 })!.dividendYield).toBe(0);
+  });
+
+  it('refuses a row that is not an object', () => {
+    expect(mapUsStats(null)).toBeNull();
+    expect(mapUsStats([row])).toBeNull();
   });
 });

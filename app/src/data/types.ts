@@ -50,29 +50,37 @@ export interface Bar {
 }
 
 /**
- * The market stats that are still demo figures, carried from the design
- * prototype.
+ * What is left of the design prototype's invented figures.
  *
  * They live behind their own key so no call site can render an invented
- * number while believing it is real: `x.demo.marketCap` says what it is at
- * the point of use, where a flat `x.marketCap` sitting beside a real price
- * would not. That naming is now the whole guard — the standing on-screen
- * note was removed, so nothing but the key tells a call site what it holds.
+ * number while believing it is real: `x.demo.volume` says what it is at the
+ * point of use, where a flat `x.volume` sitting beside a real price would
+ * not. That naming is now the whole guard — the standing on-screen note was
+ * removed, so nothing but the key tells a call site what it holds.
  *
- * Day change USED to live here, and no longer does: the live quote carries a
- * real one (Quote.changePct), so every screen that ranked, coloured or
- * printed a day change now does it from the actual session. It was the last
- * demo figure any screen showed beside a real price.
+ * This bag keeps shrinking as sources arrive, and each departure is the same
+ * story. Day change went first (the live quote carries one). Market cap and
+ * P/E followed, to a per-ticker route of their own (data/stats.ts), taking
+ * with them a forward P/E that was `pe * 0.62` and three string constants
+ * that read the same under every ticker in the app. Volume is what remains.
  */
 export interface SymbolDemoStats {
-  /** Prototype price. Kept only as the basis for the other demo figures and
-   *  for the demo portfolio's valuation — never rendered as *the* price,
-   *  which comes from `SymbolInfo.quote`. */
+  /** Prototype price. Kept only as the basis for the demo portfolio's
+   *  valuation — never rendered as *the* price, which comes from
+   *  `SymbolInfo.quote`. */
   price: number;
+  /**
+   * The last invented figure any screen still shows: the movers table ranks
+   * its "Most active" tab on this and prints it in the Vol column, and the
+   * home card repeats it beside the price. The live quote carries no volume,
+   * so it has no real source yet — the daily bars do carry one (see
+   * data/priceHistory.ts), which is what will retire this.
+   *
+   * `marketCap`, `pe` and `rsi` used to sit here and are gone: the first two
+   * are read live per ticker now (data/stats.ts) and the third was already
+   * unread, computed from real bars on the stock page instead.
+   */
   volume: string;
-  marketCap: string;
-  pe: number;
-  rsi: number;
 }
 
 /**
@@ -260,6 +268,35 @@ export interface Holding {
    * could not price still says what it cost, beside a worth that reads "—".
    */
   costBasis: number;
+}
+
+/**
+ * A US stock's key statistics, from data/stats.ts (EODHD, via /api/stats).
+ *
+ * Every field is nullable and every null is a real answer, not a gap: an ETF
+ * has no P/E, a company that pays nothing has no dividend yield, and a
+ * newly-listed one has no 52-week range yet. All of them render "—". The
+ * whole object is null for a symbol the provider carries no extended quote
+ * for, which is every non-US listing.
+ *
+ * `dividendYield` is a FRACTION — 0.0216 means 2.16%. The provider's own
+ * field table calls it a percent and its example agrees; the live API does
+ * not, and the live API is what ships. See api/_lib/eodhd.ts.
+ *
+ * There is deliberately no price here. This comes from the provider's
+ * delayed feed, which is right for figures that move on the scale of
+ * quarters and wrong for the one that moves every second — that stays
+ * `Quote.price`, live, from a different provider entirely.
+ */
+export interface StockStats {
+  marketCap: number | null;
+  /** Trailing P/E. */
+  pe: number | null;
+  forwardPE: number | null;
+  /** A fraction: 0.0216 is a 2.16% yield. */
+  dividendYield: number | null;
+  fiftyTwoWeekHigh: number | null;
+  fiftyTwoWeekLow: number | null;
 }
 
 export type PortfolioKind = 'aggregate' | 'linked' | 'manual' | 'institution';

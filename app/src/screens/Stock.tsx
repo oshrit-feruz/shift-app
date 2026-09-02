@@ -21,6 +21,7 @@ import { useLoadable } from '../data/useLoadable';
 import { PRICE_REFRESH_MS } from '../data/quotes';
 import { fetchYourPositions } from '../lib/holdings';
 import { fetchTickerEarnings } from '../data/earnings';
+import { fetchStockStats } from '../data/stats';
 import { useDemoMode } from '../lib/DemoModeProvider';
 import { compactCount, money, moneyOrDash, pct, pctOrDash, signalColor, signedMoney } from '../lib/format';
 import { ReportsTab, EarningsHistory } from './stock/ReportsTab';
@@ -28,25 +29,19 @@ import { NewsTab } from './stock/NewsTab';
 import { TabPanel } from '../components/TabPanel';
 import { EngineCard } from './stock/EngineCard';
 import type { ScreenProps } from '../App';
-import type { Bar, SymbolInfo } from '../data/types';
+import type { Bar, StockStats, SymbolInfo } from '../data/types';
 
-/**
- * The live price, or null when the provider has none for this ticker.
- *
- * It returns null rather than falling back to `x.demo.price`, and everything
- * built on it dashes out or disappears when it does. Caught by looking at the
- * rendered screen: a symbol with no price had a headline of "—" while the
- * line underneath it still read "after hours $112.92" — a concrete price on a
- * page that had just said it had none. A number the reader cannot reconcile
- * with the one above it is worse than no number. That after-hours line is
- * gone entirely now: it was the last price multiplied by 1.004, and there is
- * no after-hours source behind it to make real. The prototype price is
- * rendered nowhere on this screen.
- */
-const basisPrice = (x: SymbolInfo): number | null => x.quote?.price ?? null;
-
-/** A derived demo figure, or the dash owed when there is no price to derive it from. */
-const derived = (px: number | null, f: (p: number) => string): string => (px === null ? '—' : f(px));
+// A NOTE ABOUT THIS WHOLE FILE, not about what follows it: no price on this
+// screen is ever derived from another one. Everything built on the live price
+// dashes out or disappears when there is none. Caught by looking at the
+// rendered screen — a symbol with no price had a headline of "—" while the
+// line underneath it still read "after hours $112.92", a concrete price on a
+// page that had just said it had none, and a number the reader cannot
+// reconcile with the one above it is worse than no number. That after-hours
+// line is gone (it was the last price multiplied by 1.004), the prototype
+// price is rendered nowhere, and the key-stats grid no longer divides a price
+// by a P/E to publish an EPS. The `basisPrice` helper that used to carry this
+// note went with that EPS.
 
 /**
  * The windows a daily series can honestly draw, in trading sessions.
@@ -126,6 +121,14 @@ export function StockScreen({ openAlert }: ScreenProps) {
   // key-stats grid reads them too, so the figures a bar can answer agree with
   // the chart drawn from the same bars.
   const seriesBars = history.state.status === 'ok' ? history.state.data : null;
+
+  // REAL key statistics, per ticker. Not gated on `demo` the way the history
+  // above is: these have a live source now, so they are read in either
+  // position of the sample-data switch, exactly like the price. Null while
+  // loading, and null for a ticker the provider carries no extended quote for
+  // — every non-US listing — which the grid renders as "—".
+  const statsRead = useLoadable(() => fetchStockStats(s.ticker), [s.ticker]);
+  const stats = statsRead.state.status === 'ok' ? statsRead.state.data : null;
 
   // The app's symbol table covers a handful of tickers. Any other symbol —
   // and the earnings calendar opens plenty of them — has no row here at all,
@@ -341,12 +344,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
             <Card padding={12} gap={7}>
               <CardTitle>{beg ? t('stock.basics') : t('stock.keyStats')}</CardTitle>
               {beg ? (
-                BEG_STATS(
-                  x.quote?.price ?? null,
-                  x.demo.marketCap,
-                  seriesBars?.at(-1)?.volume ?? null,
-                  x.demo.pe,
-                ).map((row, i) => (
+                BEG_STATS(x.quote?.price ?? null, stats, seriesBars?.at(-1)?.volume ?? null).map((row, i) => (
                   <div key={i} style={{ padding: '7px 0', borderTop: '1px solid var(--color-divider)' }}>
                     <div
                       style={{
@@ -366,7 +364,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
                 ))
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
-                  {ADV_STATS(x, seriesBars).map(([k, v], i) => (
+                  {ADV_STATS(x, seriesBars, stats).map(([k, v], i) => (
                     <div
                       key={i}
                       style={{
@@ -443,27 +441,48 @@ export function StockScreen({ openAlert }: ScreenProps) {
   );
 }
 
-const BEG_STATS = (price: number | null, mc: string, vol: number | null, pe: number) => [
-  // Price and traded volume are real; market cap and P/E are still demo
-  // stats — see the `demo` key they are read from in data/types.ts.
+const BEG_STATS = (price: number | null, stats: StockStats | null, vol: number | null) => [
+  // Every figure here is real now. Company size and price-vs-earnings used to
+  // be the prototype's, and are read per ticker from /api/stats; both render
+  // "—" for a symbol that provider does not carry, which is every non-US
+  // listing and every instrument with no earnings to divide by.
   { k: 'Price', v: moneyOrDash(price), help: 'What one share costs right now' },
-  { k: 'Company size', v: mc, help: 'Every share added together — market cap' },
+  {
+    k: 'Company size',
+    v: statOrDash(stats?.marketCap, compactCount),
+    help: 'Every share added together — market cap',
+  },
   {
     k: 'Traded today',
     v: vol === null ? '—' : `${compactCount(vol)} shares`,
     help: 'How busy the stock is; high means lots of interest',
   },
-  { k: 'Price vs earnings', v: `${pe.toFixed(1)}×`, help: 'Years of current profit to pay for the share' },
+  {
+    k: 'Price vs earnings',
+    v: statOrDash(stats?.pe, (v) => `${v.toFixed(1)}×`),
+    help: 'Years of current profit to pay for the share',
+  },
 ];
+
+/**
+ * One statistic, or the em dash we owe the reader when the provider has none.
+ *
+ * `undefined` and `null` both land here and mean different things upstream —
+ * the read has not finished, or it finished and the provider carries nothing
+ * for this symbol — but neither is a number, and the grid says so the same
+ * way. Distinguishing them on screen would mean a loading skeleton per cell,
+ * which is more motion than a slow-moving figure is worth.
+ */
+function statOrDash(v: number | null | undefined, format: (n: number) => string): string {
+  return v === null || v === undefined ? '—' : format(v);
+}
 
 /**
  * Takes the whole symbol rather than loose numbers so the real figures and
  * the demo ones cannot be mixed up on the way in: `x.quote` is read for the
  * two rows that are real, `x.demo` for the rest.
  */
-const ADV_STATS = (x: SymbolInfo, bars: Bar[] | null): Array<[string, string]> => {
-  const { marketCap: mc, pe } = x.demo;
-  const price = basisPrice(x);
+const ADV_STATS = (x: SymbolInfo, bars: Bar[] | null, stats: StockStats | null): Array<[string, string]> => {
   const q = x.quote;
 
   // The newest published session, which is what volume is read from — the
@@ -489,13 +508,22 @@ const ADV_STATS = (x: SymbolInfo, bars: Bar[] | null): Array<[string, string]> =
     ['Day range', or(q && `${q.dayLow.toFixed(2)}–${q.dayHigh.toFixed(2)}`)],
     ['Volume', or(last && compactCount(last.volume))],
     ['Avg vol', or(avgVol === null ? null : compactCount(avgVol))],
-    ['Mkt cap', mc],
-    ['P/E', pe.toFixed(1)],
-    ['Fwd P/E', (pe * 0.62).toFixed(1)],
-    ['EPS (ttm)', derived(price, (p) => (p / pe).toFixed(2))],
-    ['Beta', '2.14'],
-    ['Div yield', '0.02%'],
-    ['Short float', '1.1%'],
+    // From /api/stats, per ticker. The provider's delayed feed is the right
+    // source for these and the wrong one for a price, so it supplies no price
+    // here — the three rows above come from the live quote and these do not
+    // pretend to describe the same instant.
+    ['Mkt cap', statOrDash(stats?.marketCap, compactCount)],
+    ['P/E', statOrDash(stats?.pe, (v) => v.toFixed(1))],
+    ['Fwd P/E', statOrDash(stats?.forwardPE, (v) => v.toFixed(1))],
+    // A fraction on the wire: 0.0216 is a 2.16% yield. See data/types.ts —
+    // the provider's own docs call this a percent and its own data does not.
+    ['Div yield', statOrDash(stats?.dividendYield, (v) => `${(v * 100).toFixed(2)}%`)],
+    [
+      '52w range',
+      stats?.fiftyTwoWeekLow != null && stats?.fiftyTwoWeekHigh != null
+        ? `${stats.fiftyTwoWeekLow.toFixed(2)}–${stats.fiftyTwoWeekHigh.toFixed(2)}`
+        : '—',
+    ],
     ['RSI(14)', or(rsiNow === null ? null : String(Math.round(rsiNow)))],
   ];
 };

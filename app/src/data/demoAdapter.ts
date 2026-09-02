@@ -12,9 +12,12 @@
  *      price, or a read that failed, gets `quote: null` and renders as "—".
  *      The prototype's frozen prices survive only under `SymbolInfo.demo`,
  *      which no screen renders as *the* price.
- * The rest — volume, market cap, P/E, RSI, portfolios, holdings, news, the
- * portfolio chart series — is still demonstration data; swap in a real
- * DataService implementation to take it live (see service.ts).
+ *   3. Market cap and P/E, which left this adapter entirely: the stock page
+ *      reads them per ticker from data/stats.ts, so the sample table no
+ *      longer carries them at all.
+ * The rest — volume, portfolios, holdings, news, the portfolio chart series
+ * — is still demonstration data; swap in a real DataService implementation
+ * to take it live (see service.ts).
  *
  * Two switches, both in data/demoFlags.ts:
  *   'demoData'    → the reader's own "sample data" switch, in the More tab.
@@ -61,16 +64,16 @@ type SymbolRow = Omit<SymbolInfo, 'quote'>;
 // left formatted by hand on purpose.
 // prettier-ignore
 const SYMS: SymbolRow[] = [
-  { ticker: 'NVDA', name: 'NVIDIA', sector: 'Technology', demo: { price: 182.44, volume: '148.2M', marketCap: '4.45T', pe: 52.1, rsi: 61 }, plain: { en: 'Chips that power AI data centres', he: 'שבבים שמריצים מרכזי נתונים של AI' }, why: { en: 'Data-centre revenue guide above consensus', he: 'תחזית הכנסות ממרכזי נתונים מעל הקונצנזוס' } },
-  { ticker: 'AAPL', name: 'Apple', sector: 'Technology', demo: { price: 226.79, volume: '41.6M', marketCap: '3.36T', pe: 34.8, rsi: 55 }, plain: { en: 'iPhone, Mac and services', he: 'אייפון, מק ושירותים' }, why: { en: 'Analyst raised target on iPhone 17 cycle', he: 'אנליסט העלה מחיר יעד לקראת אייפון 17' } },
-  { ticker: 'MSFT', name: 'Microsoft', sector: 'Technology', demo: { price: 508.12, volume: '18.9M', marketCap: '3.78T', pe: 36.2, rsi: 48 }, plain: { en: 'Windows, Office and Azure cloud', he: 'ווינדוס, אופיס וענן Azure' }, why: { en: 'Azure capacity spending questioned', he: 'סימני שאלה על הוצאות התרחבות ב-Azure' } },
-  { ticker: 'AMD', name: 'Advanced Micro', sector: 'Technology', demo: { price: 171.35, volume: '62.4M', marketCap: '277B', pe: 88.4, rsi: 72 }, plain: { en: 'Rival chipmaker to NVIDIA', he: 'יצרנית שבבים מתחרה ל-NVIDIA' }, why: { en: 'New MI400 accelerator design win', he: 'זכייה בעיצוב למאיץ MI400 החדש' } },
-  { ticker: 'TSLA', name: 'Tesla', sector: 'Consumer', demo: { price: 334.62, volume: '96.1M', marketCap: '1.08T', pe: 197.5, rsi: 38 }, plain: { en: 'Electric cars and energy storage', he: 'מכוניות חשמליות ואגירת אנרגיה' }, why: { en: 'European deliveries fell again in July', he: 'המסירות באירופה ירדו שוב ביולי' } },
-  { ticker: 'JPM', name: 'JPMorgan Chase', sector: 'Financials', demo: { price: 291.04, volume: '9.2M', marketCap: '812B', pe: 14.6, rsi: 58 }, plain: { en: 'The largest US bank', he: 'הבנק הגדול בארה״ב' }, why: { en: 'Net interest income outlook lifted', he: 'תחזית הכנסות מריבית עלתה' } },
-  { ticker: 'XOM', name: 'Exxon Mobil', sector: 'Energy', demo: { price: 112.47, volume: '15.7M', marketCap: '486B', pe: 14.1, rsi: 44 }, plain: { en: 'Oil and natural gas', he: 'נפט וגז טבעי' }, why: { en: 'Crude slipped on demand data', he: 'הנפט ירד על נתוני ביקוש' } },
-  { ticker: 'LLY', name: 'Eli Lilly', sector: 'Healthcare', demo: { price: 742.18, volume: '3.4M', marketCap: '705B', pe: 61.9, rsi: 63 }, plain: { en: 'Weight-loss and diabetes drugs', he: 'תרופות להרזיה וסוכרת' }, why: { en: 'Phase 3 readout for oral GLP-1', he: 'תוצאות שלב 3 ל-GLP-1 בכמוסה' } },
-  { ticker: 'TEVA', name: 'Teva Pharmaceutical', sector: 'Healthcare', demo: { price: 18.42, volume: '12.4M', marketCap: '21B', pe: 9.8, rsi: 58 }, plain: { en: 'Generic medicines maker', he: 'יצרנית תרופות גנריות' }, why: { en: 'Generics pricing outlook improved', he: 'תחזית מחירי הגנריקה השתפרה' } },
-  { ticker: 'MDA', name: 'MDA Space', sector: 'Industrials', demo: { price: 29.14, volume: '2.1M', marketCap: '3.6B', pe: 31.2, rsi: 47 }, plain: { en: 'Satellites and space robotics', he: 'לוויינים ורובוטיקה לחלל' }, why: { en: 'Contract award timing slipped', he: 'לוחות הזמנים לזכייה בחוזה נדחו' } },
+  { ticker: 'NVDA', name: 'NVIDIA', sector: 'Technology', demo: { price: 182.44, volume: '148.2M' }, plain: { en: 'Chips that power AI data centres', he: 'שבבים שמריצים מרכזי נתונים של AI' }, why: { en: 'Data-centre revenue guide above consensus', he: 'תחזית הכנסות ממרכזי נתונים מעל הקונצנזוס' } },
+  { ticker: 'AAPL', name: 'Apple', sector: 'Technology', demo: { price: 226.79, volume: '41.6M' }, plain: { en: 'iPhone, Mac and services', he: 'אייפון, מק ושירותים' }, why: { en: 'Analyst raised target on iPhone 17 cycle', he: 'אנליסט העלה מחיר יעד לקראת אייפון 17' } },
+  { ticker: 'MSFT', name: 'Microsoft', sector: 'Technology', demo: { price: 508.12, volume: '18.9M' }, plain: { en: 'Windows, Office and Azure cloud', he: 'ווינדוס, אופיס וענן Azure' }, why: { en: 'Azure capacity spending questioned', he: 'סימני שאלה על הוצאות התרחבות ב-Azure' } },
+  { ticker: 'AMD', name: 'Advanced Micro', sector: 'Technology', demo: { price: 171.35, volume: '62.4M' }, plain: { en: 'Rival chipmaker to NVIDIA', he: 'יצרנית שבבים מתחרה ל-NVIDIA' }, why: { en: 'New MI400 accelerator design win', he: 'זכייה בעיצוב למאיץ MI400 החדש' } },
+  { ticker: 'TSLA', name: 'Tesla', sector: 'Consumer', demo: { price: 334.62, volume: '96.1M' }, plain: { en: 'Electric cars and energy storage', he: 'מכוניות חשמליות ואגירת אנרגיה' }, why: { en: 'European deliveries fell again in July', he: 'המסירות באירופה ירדו שוב ביולי' } },
+  { ticker: 'JPM', name: 'JPMorgan Chase', sector: 'Financials', demo: { price: 291.04, volume: '9.2M' }, plain: { en: 'The largest US bank', he: 'הבנק הגדול בארה״ב' }, why: { en: 'Net interest income outlook lifted', he: 'תחזית הכנסות מריבית עלתה' } },
+  { ticker: 'XOM', name: 'Exxon Mobil', sector: 'Energy', demo: { price: 112.47, volume: '15.7M' }, plain: { en: 'Oil and natural gas', he: 'נפט וגז טבעי' }, why: { en: 'Crude slipped on demand data', he: 'הנפט ירד על נתוני ביקוש' } },
+  { ticker: 'LLY', name: 'Eli Lilly', sector: 'Healthcare', demo: { price: 742.18, volume: '3.4M' }, plain: { en: 'Weight-loss and diabetes drugs', he: 'תרופות להרזיה וסוכרת' }, why: { en: 'Phase 3 readout for oral GLP-1', he: 'תוצאות שלב 3 ל-GLP-1 בכמוסה' } },
+  { ticker: 'TEVA', name: 'Teva Pharmaceutical', sector: 'Healthcare', demo: { price: 18.42, volume: '12.4M' }, plain: { en: 'Generic medicines maker', he: 'יצרנית תרופות גנריות' }, why: { en: 'Generics pricing outlook improved', he: 'תחזית מחירי הגנריקה השתפרה' } },
+  { ticker: 'MDA', name: 'MDA Space', sector: 'Industrials', demo: { price: 29.14, volume: '2.1M' }, plain: { en: 'Satellites and space robotics', he: 'לוויינים ורובוטיקה לחלל' }, why: { en: 'Contract award timing slipped', he: 'לוחות הזמנים לזכייה בחוזה נדחו' } },
 ];
 
 /* NOTE: the demo satellite-positions array that used to live here (MRNA/ALB/

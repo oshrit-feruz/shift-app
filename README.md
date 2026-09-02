@@ -182,14 +182,27 @@ real backend drops in by implementing that interface; no UI changes needed.
 
 **Prices are not among them any more.** `SymbolInfo` is split by provenance:
 `quote` (last price, day change, previous close, session high/low/open) is
-**real and live**, read per ticker from `/api/quote`; `demo` (volume, market
-cap, P/E, RSI) is still the prototype's. The split is the point — a call site
-writes `x.demo.marketCap`, which says what the number is at the moment it is
-rendered, where a flat `x.marketCap` sitting next to a real price would not.
-There is no price literal left outside `demo`, so a failed quote read has
-nothing to fall back to: `quote` is null and every price on screen renders `—`
-through `moneyOrDash`. The prototype price survives only for valuing the demo
+**real and live**, read per ticker from `/api/quote`; `demo` is what is left
+of the prototype's. The split is the point — a call site writes
+`x.demo.volume`, which says what the number is at the moment it is rendered,
+where a flat `x.volume` sitting next to a real price would not. There is no
+price literal left outside `demo`, so a failed quote read has nothing to fall
+back to: `quote` is null and every price on screen renders `—` through
+`moneyOrDash`. The prototype price survives only for valuing the demo
 portfolio, and never as *the* price.
+
+**That bag keeps shrinking, and volume is what is left in it.** Market cap and
+P/E left for a route of their own (`app/api/stats.ts`, EODHD's delayed US
+extended quote), taking with them a forward P/E that was literally `pe * 0.62`
+and three string constants — beta `2.14`, dividend yield `0.02%`, short float
+`1.1%` — that read identically under every ticker in the app. Forward P/E and
+dividend yield are real now; beta and short float had no source on this
+subscription and their rows are gone rather than rendered as a dash that would
+never resolve. A delayed feed is the right source for figures that move on the
+scale of quarters and the wrong one for a price, so that route maps no price at
+all — nothing from it can sit beside the header's live one claiming to be the
+same instant. The endpoint is US-only, so a Toronto or London symbol renders
+those rows as `—`.
 
 **Day change used to be the notable absence, and is not any more.** The
 snapshot that once stood in for a price carried no day-change field, so every
@@ -458,7 +471,7 @@ filings:
 
 | Tab | Source | Notes |
 | --- | --- | --- |
-| סקירה / Overview | demo adapter + real holdings + `/api/quote` + `/api/candles` | real live price and day change, real chart, and the key-stats rows either source answers — open, prev close and day range from the quote, volume, avg vol and RSI from the bars; market cap, P/E and analyst ratings still demo |
+| סקירה / Overview | demo adapter + real holdings + `/api/quote` + `/api/candles` + `/api/stats` | real live price and day change, real chart, and a key-stats grid that is real throughout — open, prev close and day range from the quote, volume, avg vol and RSI from the bars, market cap, P/E, forward P/E, dividend yield and the 52-week range from the stats route (US listings; `—` elsewhere). Analyst ratings are still demo |
 | דוחות / Reports | `/api/stock/{ticker}/fundamentals` (live, un-mirrored) | branches purely on the engine's `status` |
 | חדשות / News | `/api/news` (this repo's Vercel function) | excerpts only, never a full article body |
 

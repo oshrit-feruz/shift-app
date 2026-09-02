@@ -157,6 +157,102 @@ export function eodUrl(symbol: string, from: string, to: string, apiKey: string)
 }
 
 /**
+ * The key statistics a US stock page shows, as this provider reports them.
+ *
+ * Every field is nullable, and each null is a real answer rather than a gap
+ * to paper over: an ETF has no P/E (verified — VTI comes back with `pe` and
+ * `forwardPE` null), a company that pays nothing has no dividend yield
+ * (Tesla's is null, not zero), and a newly listed one may have no 52-week
+ * range yet. Zero is a number a reader believes; the app renders these as
+ * "—" wherever they are null.
+ *
+ * Deliberately NOT here: a last price. This endpoint carries one, and it is
+ * the delayed quote the plan advertises — the app's live price comes from
+ * Finnhub and must keep coming from there. These are slow-moving figures
+ * where a quarter-hour is meaningless, which is exactly why they are the
+ * ones worth taking from a delayed feed.
+ */
+export interface UsStats {
+  marketCap: number | null;
+  /** Trailing P/E. */
+  pe: number | null;
+  forwardPE: number | null;
+  /**
+   * A FRACTION, not a percent — 0.0216 means 2.16%.
+   *
+   * The endpoint's own field table calls this "percent" and its example
+   * shows 0.51 for Apple, which would read as 0.51%. The live API disagrees
+   * with its documentation: Qualcomm answers 0.0216 while paying 3.68 on a
+   * 166.61 price (2.21%), and Apple answers 0.0034 while paying 1.08 on
+   * 324.79 (0.33%). Both check out as fractions, so the caller multiplies by
+   * 100. Taken at the documentation's word this would have rendered a 2%
+   * yield as "0.02%" — a real-looking number off by two orders of magnitude.
+   */
+  dividendYield: number | null;
+  fiftyTwoWeekHigh: number | null;
+  fiftyTwoWeekLow: number | null;
+}
+
+/** The delayed US extended-quote URL for one or more symbols. */
+export function usQuoteUrl(symbols: string[], apiKey: string): URL {
+  const url = new URL(`${API_ROOT}/us-quote-delayed`);
+  url.searchParams.set('s', symbols.map(resolveSymbol).join(','));
+  url.searchParams.set('fmt', 'json');
+  url.searchParams.set('api_token', apiKey);
+  return url;
+}
+
+/**
+ * The per-symbol map out of a us-quote-delayed body, or null when the body is
+ * not one.
+ *
+ * A symbol the endpoint does not carry is simply ABSENT from that map rather
+ * than present-and-empty — asking for TSLA.US, VTI.US, MDA.TO and a made-up
+ * ticker returns a map of two. So an absent key means "this endpoint has
+ * nothing for that symbol", which is a fact about the symbol and not a
+ * failure, and the caller renders it as "—" rather than as an error.
+ */
+export function readUsQuoteData(body: unknown): Record<string, unknown> | null {
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) return null;
+  const data = (body as Record<string, unknown>).data;
+  if (data === null || typeof data !== 'object' || Array.isArray(data)) return null;
+  return data as Record<string, unknown>;
+}
+
+/** A finite number, or null for anything else — including the provider's own nulls. */
+function numOrNull(v: unknown): number | null {
+  return typeof v === 'number' && Number.isFinite(v) ? v : null;
+}
+
+/**
+ * Map one symbol's row into UsStats, or null when the row is not an object.
+ *
+ * Individual fields are read leniently because the provider genuinely omits
+ * them per instrument type, but a non-positive market cap, P/E or price is
+ * refused rather than shown: those are quantities that cannot be zero or
+ * negative for a listed company, so a zero is the provider saying nothing
+ * rather than saying zero, and printing "P/E 0.0" would be a claim.
+ */
+export function mapUsStats(raw: unknown): UsStats | null {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const row = raw as Record<string, unknown>;
+  const positive = (v: unknown): number | null => {
+    const n = numOrNull(v);
+    return n !== null && n > 0 ? n : null;
+  };
+  return {
+    marketCap: positive(row.marketCap),
+    pe: positive(row.pe),
+    forwardPE: positive(row.forwardPE),
+    // Not `positive`: a zero yield is a real answer for a company that pays
+    // nothing, and this provider uses null for "no dividend at all".
+    dividendYield: numOrNull(row.dividendYield),
+    fiftyTwoWeekHigh: positive(row.fiftyTwoWeekHigh),
+    fiftyTwoWeekLow: positive(row.fiftyTwoWeekLow),
+  };
+}
+
+/**
  * Map one raw EODHD row into a CandleRow, or null when it is not one.
  *
  * Every field is required and every price must describe a session that could
