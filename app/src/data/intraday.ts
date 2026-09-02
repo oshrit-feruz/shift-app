@@ -8,12 +8,15 @@
  * yesterday's close and today's. The tab was absent rather than present and
  * lying; it is present now because the path is real.
  *
- * WHY IT MATTERS DURING A SESSION. The price in the stock header is a live
- * quote and re-reads every thirty seconds. The daily chart under it does not
- * move at all until the session closes and the provider publishes that day's
- * bar. This is the one series in the app meant to change while someone is
- * watching it, which is why it is the only one with a short cache and a
- * refresh interval behind it.
+ * IT IS THE LAST COMPLETED SESSION, NOT THE RUNNING ONE, and that is the
+ * feed's limit rather than a choice. Measured on 2026-09-02 against the open
+ * US session: thirty minutes after the 13:30 UTC open the provider still
+ * answered with the previous session and returned nothing at all for any
+ * window inside the running day — at 5m and 1m alike, probed directly and not
+ * through this app's cache, with nine readings a minute apart that never
+ * moved. So this was built expecting a series that changes while someone
+ * watches it, and it does not; the screen says which session it is drawing
+ * instead of implying it is today's, exactly as the movers board does.
  *
  * DATA HONESTY CONTRACT, matching data/priceHistory.ts:
  * - ok(null) means the provider has no intraday series for this symbol — the
@@ -40,17 +43,15 @@ export const INTRADAY_URL = '/api/intraday';
 const TIMEOUT_MS = 20_000;
 
 /**
- * How long one session's bars are shared.
+ * How long one session's bars are shared, matching the route's edge cache.
  *
- * Two minutes, matching the route's edge cache. Short because this series is
- * supposed to move while the page is open; not shorter because the bars are
- * five-minute ones and the request costs five credits, so asking more often
- * than the bar width can only return what the last read did.
+ * An hour, because the measurement above says the feed publishes once a day.
+ * This was two minutes, with a refresh interval to match, which spent five
+ * credits a time to be told the same thing about a day the provider had not
+ * published. There is no refresh interval any more for the same reason: a
+ * poll would imply the line was moving.
  */
-export const INTRADAY_CACHE_MS = 2 * 60_000;
-
-/** How often the chart re-reads while the 1D tab is on screen. */
-export const INTRADAY_REFRESH_MS = INTRADAY_CACHE_MS;
+export const INTRADAY_CACHE_MS = 60 * 60_000;
 
 const FALLBACK_REASON = {
   en: "Today's price history is unavailable right now.",

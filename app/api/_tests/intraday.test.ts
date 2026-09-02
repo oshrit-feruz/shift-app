@@ -112,9 +112,12 @@ describe('/api/intraday', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it('caches a success briefly, because this is the one series meant to move', async () => {
+  it('caches a success for an hour, because the feed publishes once a day', async () => {
+    // Measured, not assumed: thirty minutes into an open US session the
+    // provider still answered with the previous session and nothing for the
+    // running day. A two-minute TTL spent five credits to be told that.
     expect((await call({ symbol: 'QCOM' }, respondWith(twoSessions)))._headers['Cache-Control']).toContain(
-      's-maxage=120',
+      's-maxage=3600',
     );
     expect((await call({ symbol: 'QCOM' }, respondWith({}, 403)))._headers['Cache-Control']).toBeUndefined();
   });

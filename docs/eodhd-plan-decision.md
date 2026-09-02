@@ -322,3 +322,94 @@ Explicitly not doing, and why:
   if they ever do, All-In-One at +$70 is the better buy than stacking.
 - **Not re-proposing news or the earnings calendar.** Both are already real;
   the audit was stale on both.
+
+---
+
+## US regular-hours measurement, 2026-09-02
+
+The section the document promised. Every reading below was taken against the
+same wall clock (`date -u +%s` beside each call) with the US regular session
+open — it opened at 13:30:00 UTC — and the EODHD **WebSocket** is the reference
+for "now", because its trades arrived within a second of the wall clock and
+carried `"ms": "open"`.
+
+### Part A — how fresh is each quote source
+
+| Source | Reading | Stamp it carried | Wall clock | Behind by |
+| --- | --- | --- | --- | --- |
+| WebSocket `us_trades` | QCOM 165.95 | 13:50:58 | 13:51:06 | **~8 s** (the reference) |
+| WebSocket `us_trades` | QCOM 165.80 | 13:52:22 | 13:52:23 | **~1 s** |
+| Finnhub via `/api/quote` | QCOM 166.05 | 13:51:16 | 13:51:22 | **6 s** |
+| Finnhub via `/api/quote` | QCOM 165.36 | 13:59:14 | 13:59:25 | **11 s** |
+| EODHD REST `/real-time` | QCOM 165.90 | 13:30:00 | 13:51:22 | **21 min** |
+| EODHD REST `/real-time` | AAPL 325.24 | 13:36:00 | 13:51:22 | **15 min** |
+| EODHD REST `/real-time` | TSLA 354.55 | 13:36:00 | 13:51:22 | **15 min** |
+| EODHD `/us-quote-delayed` | QCOM 168.06 | 13:36:03 | 13:51:39 | **16 min** |
+
+Three REST rounds were taken about a minute apart (13:51:22, 13:52:17,
+13:52:39). **EODHD's stamps did not move between any of them** — QCOM stayed at
+13:30:00 and AAPL/TSLA at 13:36:00 across all three — while nine Finnhub
+readings a minute apart advanced every single time and tracked a real move
+(166.05 → 165.36 over eight minutes).
+
+**Conclusion, and it settles the open question: Finnhub stays.** EODHD's REST
+quote is 15–21 minutes behind where Finnhub is 6–11 seconds, which is three
+orders of magnitude. The "replace Finnhub quotes with EODHD" option is not a
+consolidation, it is a freshness regression, and it is now closed rather than
+merely doubted. The London measurement was not a quirk of that exchange.
+
+One observation not to over-read: `/us-quote-delayed` reported
+`lastTradePrice: 168.06` at 13:36:03 while `/real-time` had 165.90 at 13:30 and
+the tape was at 165.8–166.0 throughout. The two EODHD endpoints disagree by
+more than the time between them explains. This is a reason to keep taking no
+price at all from `/us-quote-delayed` — which `app/api/stats.ts` already does
+deliberately, and now for a second reason.
+
+### Part B — the intraday feed does not publish the running day
+
+This is the finding that changed code, and it contradicts the assumption the
+1D tab was built on.
+
+Thirty-one minutes into the open session, `/api/intraday` still answered with
+the **previous** session — eleven readings a minute apart, 13:52 to 14:01:
+
+```
+13:52:12  session 2026-09-01  78 bars  newest 2026-09-01T19:55:00Z
+13:53:14  session 2026-09-01  78 bars  newest 2026-09-01T19:55:00Z
+   ... ten readings, one a minute ...
+14:01:28  session 2026-09-01  78 bars  newest 2026-09-01T19:55:00Z
+```
+
+Not a caching artefact of this app: each reading used a distinct URL to bypass
+the edge, and the provider was then probed directly, outside the app entirely:
+
+- `QCOM.US`, 5m, window 12:00–13:53 UTC on 2026-09-02 → `[]`
+- `AAPL.US`, 1m, window 12:50–14:00 UTC on 2026-09-02 → `[]`
+
+Both intervals, both symbols, nothing for the running day.
+
+**What changed as a result** (`app/api/intraday.ts`, `app/src/data/intraday.ts`,
+`app/src/screens/stock/PriceChart.tsx`):
+
+- The route's edge cache went from **2 minutes to 1 hour**, matching
+  `/api/candles`, whose source publishes on the same schedule. A two-minute TTL
+  was spending 5 credits a time to be told the same thing about a day that had
+  not been published.
+- The client cache went the same way, and **the chart's 2-minute refresh is
+  gone**. Polling a series that cannot change implies a line is moving.
+- The 1D tab now carries the same line the movers board does — the figures are
+  the last market close's — because during market hours it draws the previous
+  session while the price in the header above it ticks. That gap is the feed's,
+  and a tab that showed yesterday under a live price without saying so would be
+  the exact failure this codebase exists to avoid.
+
+**What is still open.** This measurement covers 13:50–14:01 UTC only, so it
+cannot distinguish "publishes after the close" from "publishes with a lag
+longer than thirty minutes". Both readings justify the changes above; only the
+second would allow a same-day 1D chart, and it would need a TTL matched to the
+real lag. A later probe in the same session settles it.
+
+**What would make the 1D tab today's, if that is ever wanted:** the WebSocket,
+which this measurement shows is genuinely real-time on this plan. It needs a
+process that stays up, which a Vercel function is not — see the option already
+described above, unchanged in cost and unchanged in conclusion.

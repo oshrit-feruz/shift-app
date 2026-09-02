@@ -14,12 +14,20 @@ import { type ApiRequest, type ApiResponse } from './_lib/http.js';
  * and today's. The plan carries intraday history, so the path is now
  * available rather than imagined.
  *
- * WHAT THIS FIXES ON SCREEN. During a trading session the price in the stock
- * header moves — it is a live quote, re-read every thirty seconds — while the
- * chart under it did not, because its newest bar is the last completed
- * session and today's bar is only published after the close. A reader
- * watching a price tick against a chart that never moves is owed the day's
- * shape, and this is it.
+ * WHAT IT SHOWS, AND WHAT IT DOES NOT. The last COMPLETED session's shape, at
+ * five-minute resolution — not the running day's. That limit is the feed's,
+ * measured rather than assumed: on 2026-09-02, thirty minutes into the open US
+ * session, this endpoint answered with the previous session and returned an
+ * empty array for every window inside the running day, at both 5m and 1m,
+ * probed against the provider directly. Nine readings a minute apart never
+ * moved. So the chart's 1D tab draws yesterday's path and says so, exactly as
+ * the movers board does; it is still the day's shape the daily series cannot
+ * draw, and it is still not today's.
+ *
+ * WHAT WOULD MAKE IT TODAY'S: the live quote already is (Finnhub, measured at
+ * 11-42 seconds behind the tape in the same run), and EODHD's WebSocket is
+ * real-time on this plan — but a socket needs a process that stays up, which
+ * a serverless function is not. See docs/eodhd-plan-decision.md.
  *
  * FIVE MINUTES, NOT ONE. The plan carries 1m too, but one session of 5m bars
  * is 79 points — a legible line on a phone — where 1m is 390 for the same
@@ -33,6 +41,8 @@ import { type ApiRequest, type ApiResponse } from './_lib/http.js';
  * DATA HONESTY CONTRACT, the same one /api/candles keeps:
  *   - Real five-minute bars, or nothing. Nothing is interpolated and a gap in
  *     the session is served as the gap it is.
+ *   - `session` names the UTC day the bars belong to, so the screen can say
+ *     which session it is drawing rather than implying it is today's.
  *   - `bars: []` means the provider has no intraday series for this symbol —
  *     the normal answer for a listing it does not carry intraday, and a real
  *     one, rendered as "no series", never as an error.
@@ -57,14 +67,22 @@ const INTERVAL = '5m' as const;
 export const LOOKBACK_DAYS = 6;
 
 /**
- * Two minutes at the edge.
+ * An hour at the edge, and that number is a measurement rather than a guess.
  *
- * Short because this is the one series in the app that is supposed to change
- * while someone is looking at it. Not shorter, because the bars are
- * five-minute ones: below the bar width a new request can only ever return
- * what the last one did, at five credits a time.
+ * This was two minutes, on the assumption that an intraday feed publishes
+ * intraday. It does not, on this plan. Measured on 2026-09-02 against the open
+ * US session: thirty minutes after the 13:30 UTC open, `/api/intraday` for
+ * QCOM and AAPL still answered with the PREVIOUS session and nothing else —
+ * an empty array for any window inside the running day, at 5m and at 1m alike,
+ * confirmed against the provider directly and not through this route's cache.
+ * Nine readings a minute apart never moved.
+ *
+ * So a two-minute TTL was spending five credits to be told the same thing
+ * about a day that had not been published yet. An hour matches /api/candles,
+ * whose source publishes on the same schedule, and the evening's new session
+ * still lands promptly.
  */
-const CACHE_CONTROL = 'public, max-age=0, s-maxage=120, stale-while-revalidate=600';
+const CACHE_CONTROL = 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400';
 
 export interface IntradayBody {
   symbol: string;

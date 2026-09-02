@@ -9,7 +9,7 @@ import { SkeletonCard } from '../../components/Skeleton';
 import { useT } from '../../i18n/useT';
 import { useDemoMode } from '../../lib/DemoModeProvider';
 import { useLoadable } from '../../data/useLoadable';
-import { fetchIntradaySeries, INTRADAY_REFRESH_MS } from '../../data/intraday';
+import { fetchIntradaySeries } from '../../data/intraday';
 import { pct } from '../../lib/format';
 import { loading, type Bar, type Loadable } from '../../data/types';
 
@@ -113,14 +113,14 @@ export function PriceChart({
   const tfInForce: Timeframe = tf === '1D' && !intradayOffered ? DEFAULT_TIMEFRAME : tf;
   const showIntraday = tfInForce === '1D';
   // Read only while the tab is on screen: the route costs five credits a call,
-  // so every stock page opened on 3M would otherwise pay for a day nobody
-  // asked to see. The refresh is what makes this the one chart in the app that
-  // moves during a session; useLoadable keeps it silent, keeps the last good
-  // bars through a failed poll, and stops while the tab is hidden.
+  // so every stock page opened on 3M would otherwise pay for a session nobody
+  // asked to see. No refresh interval — this was built expecting a series that
+  // moves while someone watches it, and the feed measurably does not publish
+  // the running day (see data/intraday.ts); polling would spend credits to
+  // imply a line was moving when it cannot.
   const intraday = useLoadable(
     () => (showIntraday ? fetchIntradaySeries(ticker) : Promise.resolve(loading<Bar[] | null>())),
     [ticker, showIntraday],
-    showIntraday ? INTRADAY_REFRESH_MS : undefined,
   );
   const shown = showIntraday ? intraday.state : state;
   const retry = showIntraday ? intraday.retry : onRetry;
@@ -140,6 +140,17 @@ export function PriceChart({
           "unavailable" with the reason when it cannot be, and a plain
           sentence when the provider simply publishes nothing for this
           symbol. None of those draws a line. */}
+      {/* Which session the 1D tab is drawing, said rather than implied. The
+          feed publishes the completed session, not the running one, so during
+          market hours this is the previous day's path while the price in the
+          header above ticks — the same gap the movers board carries, and the
+          same sentence. */}
+      {showIntraday && (
+        <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, textAlign: 'center' }}>
+          {t('movers.lastClose')}
+        </p>
+      )}
+
       <DataState state={shown} onRetry={retry} skeleton={<SkeletonCard height={beg ? 188 : 240} lines={2} />}>
         {(bars) => {
           // 1D is already exactly one session, so it is drawn whole; the daily
