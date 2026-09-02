@@ -350,11 +350,13 @@ session cannot draw.
 
 **It is the last COMPLETED session, not the running one**, and that is the
 feed's limit rather than a choice. Measured on 2026-09-02 against the open US
-session: thirty-one minutes after the 13:30 UTC open, eleven readings a minute
-apart, the route still answered with the previous session — and the provider,
-probed directly, returned an empty array for every window inside the running
-day at 5m and at 1m, for two symbols. So the tab carries the same line the
-movers board does, whenever the session it draws is not today's.
+session, twice — thirty-one minutes in and again two and a half hours in — the
+route still answered with the previous session, and the provider probed
+directly returned an empty array for every window inside the running day at 5m
+and at 1m, for two symbols, while the WebSocket confirmed the market was open
+and the stock had moved 2.4% in between. It publishes after the close, not on a
+lag. So the tab carries the same line the movers board does, whenever the
+session it draws is not today's.
 
 Two details the feed forced, both verified against it rather than read off the
 documentation. Five minutes and not one: a session is 79 five-minute bars, a

@@ -418,11 +418,33 @@ Both intervals, both symbols, nothing for the running day.
   and a tab that showed yesterday under a live price without saying so would be
   the exact failure this codebase exists to avoid.
 
-**What is still open.** This measurement covers 13:50–14:01 UTC only, so it
-cannot distinguish "publishes after the close" from "publishes with a lag
-longer than thirty minutes". Both readings justify the changes above; only the
-second would allow a same-day 1D chart, and it would need a TTL matched to the
-real lag. A later probe in the same session settles it.
+**Settled at 16:00 UTC, in the same session.** The 13:50–14:01 window could not
+distinguish "publishes after the close" from "publishes with a lag longer than
+thirty minutes". A second probe two and a half hours into the session answers
+it:
+
+| 2026-09-02 16:00 UTC | Result |
+| --- | --- |
+| `QCOM.US` 5m, window 13:30 → 16:01 (the whole session so far) | `[]` |
+| `AAPL.US` 1m, window 15:00 → 16:01 (the last hour) | `[]` |
+| `/api/intraday?symbol=QCOM` on the preview | `session: 2026-09-01`, 78 bars, newest 19:55:00Z |
+
+With a control, because an empty answer would be trivially explained by a
+closed market: the WebSocket at the same instant returned trades stamped
+16:00:29–16:00:41 with `"ms": "open"`. The session was not merely open, it was
+moving — QCOM had gone 165.80 → 169.79 since the first probe, a 2.4% intraday
+move the 1D tab would have drawn if the feed published it.
+
+**So it is after the close, not a long lag.** The hour-long TTLs and the absent
+refresh are the right settings, and no TTL matched to a "real lag" is needed
+because there is no lag to match: there is nothing at all until the session
+ends. A same-day 1D chart is not available on this plan through this endpoint
+at any cache setting, which leaves the WebSocket as the only route to one — and
+that needs a process that stays up.
+
+The one edge this still does not cover is an exchange whose session spans UTC
+midnight, where `latestSession`'s "keep the last UTC day" rule gets ambiguous.
+Not reachable today: both listings verified here trade 13:30–20:00 UTC.
 
 **What would make the 1D tab today's, if that is ever wanted:** the WebSocket,
 which this measurement shows is genuinely real-time on this plan. It needs a

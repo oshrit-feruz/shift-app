@@ -16,11 +16,13 @@ import { type ApiRequest, type ApiResponse } from './_lib/http.js';
  *
  * WHAT IT SHOWS, AND WHAT IT DOES NOT. The last COMPLETED session's shape, at
  * five-minute resolution — not the running day's. That limit is the feed's,
- * measured rather than assumed: on 2026-09-02, thirty minutes into the open US
- * session, this endpoint answered with the previous session and returned an
- * empty array for every window inside the running day, at both 5m and 1m,
- * probed against the provider directly. Nine readings a minute apart never
- * moved. So the chart's 1D tab draws yesterday's path and says so, exactly as
+ * measured rather than assumed: on 2026-09-02 it answered with the previous
+ * session and returned an empty array for every window inside the running day,
+ * at both 5m and 1m, probed against the provider directly — first thirty
+ * minutes in, then again two and a half hours in, with the WebSocket
+ * confirming at that same instant that the market was open and the stock had
+ * moved 2.4% since the first probe. It publishes after the close, not on a
+ * lag. So the chart's 1D tab draws yesterday's path and says so, exactly as
  * the movers board does; it is still the day's shape the daily series cannot
  * draw, and it is still not today's.
  *

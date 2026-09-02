@@ -10,11 +10,12 @@
  *
  * IT IS THE LAST COMPLETED SESSION, NOT THE RUNNING ONE, and that is the
  * feed's limit rather than a choice. Measured on 2026-09-02 against the open
- * US session: thirty minutes after the 13:30 UTC open the provider still
- * answered with the previous session and returned nothing at all for any
- * window inside the running day — at 5m and 1m alike, probed directly and not
- * through this app's cache, with nine readings a minute apart that never
- * moved. So this was built expecting a series that changes while someone
+ * US session, twice: thirty minutes after the 13:30 UTC open and again two and
+ * a half hours in, the provider answered with the previous session and
+ * returned nothing at all for any window inside the running day — at 5m and 1m
+ * alike, probed directly and not through this app's cache. The WebSocket
+ * confirmed the market was open and moving at the same instant. The feed
+ * publishes after the close, not on a lag. So this was built expecting a series that changes while someone
  * watches it, and it does not. The chart says so rather than implying the
  * session is today's — it compares the day its own bars carry against today,
  * so the line describes exactly what is drawn and disappears by itself on the
