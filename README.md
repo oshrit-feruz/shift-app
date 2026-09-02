@@ -340,10 +340,30 @@ asymmetry is also about what the number is for: a stale "last price" is
 presented as today's and misleads directly, while a year of real sessions
 missing its last few is still an honest year of history.
 
-**What this deliberately does not cover: 1D.** The timeframe row offers 1W,
-1M, 3M and 1Y and no 1D, because a daily series is one point per session — a
-day is a single dot, and a 1D tab could only be filled by inventing the
-intraday path. That needs an intraday feed, not a narrower slice of this one.
+**1D is a different series, not a narrower slice.** The timeframe row offered
+1W, 1M, 3M and 1Y and no 1D for a long time, because a daily series is one
+point per session — a day is a single dot, and a 1D drawn from daily bars
+could only have been the invented path between yesterday's close and today's.
+It reads `/api/intraday?symbol=` now: five-minute bars, one session, from the
+same EODHD plan. That makes it the only chart in the app that moves while
+someone is watching it, which is the point — the price in the header is a live
+quote that re-reads every thirty seconds, and a daily chart under a ticking
+price cannot show the day it is ticking through.
+
+Two details the feed forced, both verified against it rather than read off the
+documentation. Five minutes and not one: a session is 79 five-minute bars, a
+legible line on a phone, where 1m is 390 points for the same picture at the
+same cost. And every session ends with a zero-width bar stamped at 20:00 UTC
+whose volume is `null` — the closing print, seen on five sessions across two
+symbols and never in an interior bar. It is dropped rather than drawn as five
+minutes in which nothing traded; a missing volume anywhere else still
+invalidates the series.
+
+The 1D tab is offered only with **sample data off**. Every other window still
+draws a generated walk when that switch is on, while the intraday series has no
+demo branch at all, so showing both under one row of chips would put a real
+session beside an invented month with nothing to tell them apart.
+
 `MDA` is the standing example of the other gap: it trades in Toronto, the
 provider has no US tape for it, and both the quote and the chart say so for
 that one symbol rather than the whole screen failing.
@@ -554,6 +574,7 @@ Both were caught by looking at the rendered screen, not by a passing test.
 | Satellite card | the daily mirror in this repo | none |
 | Every price on screen (`SymbolInfo.quote`) | `/api/quote?symbols=` — live, batched per screen | 1 Finnhub call per symbol, shared for 20s |
 | Stock page · chart, and the movers' sparklines | `/api/candles?symbol=` — live, per ticker | 1 EODHD call per ticker, cached an hour at the edge |
+| Stock page · chart, 1D tab | `/api/intraday?symbol=` — 5-minute bars, one session | 5 credits per ticker, cached 2 min at the edge and in the client |
 | Movers screen · one board | `/api/movers?board=` — EODHD's screener over the US market | 5 credits per board, cached 30 min at the edge and in the client |
 | Home · movers preview | the same two boards (gainers + losers), merged | none beyond the above — the reads are shared |
 

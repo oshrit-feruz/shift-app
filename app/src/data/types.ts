@@ -40,7 +40,13 @@ export interface Quote {
  * guessed price at least renders as a number they could question.
  */
 export interface Bar {
-  /** Session date, raw YYYY-MM-DD. */
+  /**
+   * When the bar is. A daily bar carries its session date as raw YYYY-MM-DD;
+   * an intraday one (data/intraday.ts) carries the full UTC instant its
+   * five minutes began, as YYYY-MM-DDTHH:MM:SSZ. Both sort lexicographically
+   * into chronological order, which is what every reader of this field does
+   * with it; anything that renders it has to tell the two apart.
+   */
   date: string;
   open: number;
   high: number;

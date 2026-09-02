@@ -442,3 +442,119 @@ export function mapEodBars(body: unknown): CandleRow[] | null {
   rows.sort((a, z) => a.d.localeCompare(z.d));
   return rows;
 }
+
+/**
+ * The intraday intervals this plan carries, with the depth each one reaches.
+ *
+ * Probed rather than taken from the docs: 1m answered for a day in 2020,
+ * deeper than the documented 120-day range, and 5m answered for both a US and
+ * a Toronto listing. Only 5m is used today — one session is 79 bars of it,
+ * which is a legible line without being a request for four hundred points.
+ */
+export type IntradayInterval = '1m' | '5m' | '1h';
+
+/**
+ * The intraday URL for one symbol and window.
+ *
+ * `from` and `to` are UNIX seconds, unlike `/api/eod`'s calendar dates. The
+ * window is inclusive of whole sessions at both ends, and the provider
+ * answers regular trading hours only for 5m and 1h — verified on QCOM and
+ * AAPL, whose 5m days start at 13:30 UTC and end at 20:00 UTC.
+ */
+export function intradayUrl(
+  ticker: string,
+  interval: IntradayInterval,
+  fromTs: number,
+  toTs: number,
+  apiKey: string,
+): URL {
+  const url = new URL(`${API_ROOT}/intraday/${resolveSymbol(ticker)}`);
+  url.searchParams.set('interval', interval);
+  url.searchParams.set('from', String(Math.floor(fromTs)));
+  url.searchParams.set('to', String(Math.floor(toTs)));
+  url.searchParams.set('fmt', 'json');
+  url.searchParams.set('api_token', apiKey);
+  return url;
+}
+
+/** "2026-09-01 13:30:00" (UTC, as the provider sends it) -> "2026-09-01T13:30:00Z". */
+function toInstant(datetime: unknown): string | null {
+  if (typeof datetime !== 'string') return null;
+  const match = /^(\d{4}-\d{2}-\d{2}) (\d{2}):(\d{2}):(\d{2})$/.exec(datetime.trim());
+  if (match === null || !isCalendarDate(match[1])) return null;
+  const [, day, hh, mm, ss] = match;
+  if (Number(hh) > 23 || Number(mm) > 59 || Number(ss) > 59) return null;
+  return `${day}T${hh}:${mm}:${ss}Z`;
+}
+
+/**
+ * Map one intraday row, or null when it is not one.
+ *
+ * The price rules are the daily mapper's, for the same reasons. The one
+ * difference is the session's closing print, and it is worth spelling out:
+ * the feed ends every session with a bar stamped exactly at the close whose
+ * open, high, low and close are the same number and whose volume is `null`.
+ * Verified on five sessions across two symbols — QCOM 5m and AAPL 1h — where
+ * a null volume appeared at 20:00:00 UTC and nowhere else, never in an
+ * interior bar. That bar is the closing price, not a five-minute session, and
+ * it carries no price its neighbour does not.
+ *
+ * So it is reported as a distinct outcome — 'closing-print' — rather than as
+ * a bar or as a broken row, and the caller drops it. A missing volume on any
+ * other row is still a row we do not understand, and still invalidates the
+ * series: dropping those would quietly close a gap in the line.
+ */
+export function mapIntradayRow(raw: unknown): CandleRow | 'closing-print' | null {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const row = raw as Record<string, unknown>;
+  const { open, high, low, close, volume } = row;
+
+  const d = toInstant(row.datetime);
+  if (d === null) return null;
+  if (!isNum(open) || !isNum(high) || !isNum(low) || !isNum(close)) return null;
+  if (open <= 0 || high <= 0 || low <= 0 || close <= 0) return null;
+  if (low > high || open < low || open > high || close < low || close > high) return null;
+
+  if (!isNum(volume)) {
+    return open === high && high === low && low === close ? 'closing-print' : null;
+  }
+  if (volume < 0) return null;
+  return { d, o: open, h: high, l: low, c: close, v: volume };
+}
+
+/**
+ * Map an `/api/intraday` body into bars, oldest first.
+ *
+ * Same three outcomes as mapEodBars, and the same rule about a row it cannot
+ * read: one bad bar invalidates the series. A chart is read as a whole
+ * whatever its resolution.
+ */
+export function mapIntradayBars(body: unknown): CandleRow[] | null {
+  if (!Array.isArray(body)) return null;
+  if (body.length === 0) return [];
+
+  const rows: CandleRow[] = [];
+  for (const raw of body) {
+    const bar = mapIntradayRow(raw);
+    if (bar === null) return null;
+    if (bar !== 'closing-print') rows.push(bar);
+  }
+  // ISO instants in a single zone, so lexicographic order is chronological.
+  rows.sort((a, z) => a.d.localeCompare(z.d));
+  return rows;
+}
+
+/**
+ * The bars belonging to the most recent session in a series.
+ *
+ * How "one day" is decided without a market calendar. Asked for a window of
+ * several days, the provider answers whole sessions; keeping the ones stamped
+ * with the last bar's own UTC date gives today's session while the market is
+ * open, Friday's over a weekend, and the day before a holiday after one —
+ * none of which this app would otherwise know.
+ */
+export function latestSession(bars: readonly CandleRow[]): CandleRow[] {
+  if (bars.length === 0) return [];
+  const day = bars[bars.length - 1].d.slice(0, 10);
+  return bars.filter((b) => b.d.startsWith(day));
+}

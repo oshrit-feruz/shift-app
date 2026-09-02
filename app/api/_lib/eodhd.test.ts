@@ -3,7 +3,11 @@ import {
   eodUrl,
   isCalendarDate,
   isoDay,
+  intradayUrl,
+  latestSession,
   mapEodBars,
+  mapIntradayBars,
+  mapIntradayRow,
   mapMoverRow,
   mapMoverRows,
   mapUsStats,
@@ -376,5 +380,135 @@ describe('mapMoverRows', () => {
     expect(mapMoverRows([row])).toBeNull();
     expect(mapMoverRows({ error: 'nope' })).toBeNull();
     expect(mapMoverRows({ data: 'nope' })).toBeNull();
+  });
+});
+
+describe('intradayUrl', () => {
+  it('resolves the symbol and asks for the interval over a UNIX-second window', () => {
+    // Unlike /api/eod, this endpoint takes timestamps rather than dates.
+    const url = intradayUrl(' nvda ', '5m', 1788269400.7, 1788292800.2, 'k');
+    expect(url.pathname).toBe('/api/intraday/NVDA.US');
+    expect(url.searchParams.get('interval')).toBe('5m');
+    expect(url.searchParams.get('from')).toBe('1788269400');
+    expect(url.searchParams.get('to')).toBe('1788292800');
+    expect(url.searchParams.get('fmt')).toBe('json');
+    expect(url.searchParams.get('api_token')).toBe('k');
+  });
+});
+
+describe('mapIntradayRow', () => {
+  const row = {
+    timestamp: 1788269400,
+    gmtoffset: 0,
+    datetime: '2026-09-01 13:30:00',
+    open: 165.666,
+    high: 166.649993,
+    low: 163.089996,
+    close: 163.270004,
+    volume: 670716,
+  };
+
+  it('turns the provider datetime into an unambiguous UTC instant', () => {
+    // "2026-09-01 13:30:00" with gmtoffset 0 is a UTC moment, and the app has
+    // readers in another zone: written without the Z, a browser would parse it
+    // as local time and shift the whole session by hours.
+    expect(mapIntradayRow(row)).toEqual({
+      d: '2026-09-01T13:30:00Z',
+      o: 165.666,
+      h: 166.649993,
+      l: 163.089996,
+      c: 163.270004,
+      v: 670716,
+    });
+  });
+
+  it("names the session's closing print rather than mapping or refusing it", () => {
+    // Verified on five sessions across two symbols: the feed ends each one
+    // with a zero-width bar at 20:00 UTC carrying no volume. It is the closing
+    // price, not five minutes of trading, and it carries nothing its
+    // neighbour does not.
+    const print = {
+      ...row,
+      datetime: '2026-09-01 20:00:00',
+      open: 166.61,
+      high: 166.61,
+      low: 166.61,
+      close: 166.61,
+      volume: null,
+    };
+    expect(mapIntradayRow(print)).toBe('closing-print');
+  });
+
+  it('refuses a missing volume on a bar that is not that print', () => {
+    // Dropping these would quietly close a gap in the line.
+    expect(mapIntradayRow({ ...row, volume: null })).toBeNull();
+  });
+
+  it('keeps a genuinely quiet five minutes as a real zero', () => {
+    expect(mapIntradayRow({ ...row, volume: 0 })).toMatchObject({ v: 0 });
+  });
+
+  it("applies the daily mapper's price rules", () => {
+    expect(mapIntradayRow({ ...row, open: 999 })).toBeNull(); // open above the high
+    expect(mapIntradayRow({ ...row, low: 0 })).toBeNull();
+    expect(mapIntradayRow({ ...row, high: 1 })).toBeNull(); // high below the low
+  });
+
+  it('refuses a stamp that is not a real moment', () => {
+    expect(mapIntradayRow({ ...row, datetime: '2026-02-31 13:30:00' })).toBeNull();
+    expect(mapIntradayRow({ ...row, datetime: '2026-09-01 25:30:00' })).toBeNull();
+    expect(mapIntradayRow({ ...row, datetime: '2026-09-01' })).toBeNull();
+    expect(mapIntradayRow({ ...row, datetime: 1788269400 })).toBeNull();
+    expect(mapIntradayRow(null)).toBeNull();
+  });
+});
+
+describe('mapIntradayBars', () => {
+  const at = (datetime: string, volume: number | null = 10) => ({
+    datetime,
+    open: 1,
+    high: 1,
+    low: 1,
+    close: 1,
+    volume,
+  });
+
+  it('drops the closing print and keeps the session, oldest first', () => {
+    const bars = mapIntradayBars([
+      at('2026-09-01 13:35:00'),
+      at('2026-09-01 13:30:00'),
+      at('2026-09-01 20:00:00', null),
+    ])!;
+    expect(bars.map((b) => b.d)).toEqual(['2026-09-01T13:30:00Z', '2026-09-01T13:35:00Z']);
+  });
+
+  it('reads an empty body as a real answer about the symbol', () => {
+    expect(mapIntradayBars([])).toEqual([]);
+  });
+
+  it('refuses the whole series for one unreadable bar', () => {
+    expect(mapIntradayBars([at('2026-09-01 13:30:00'), at('2026-09-01 13:35:00', -1)])).toBeNull();
+  });
+
+  it('refuses a body that is not a series', () => {
+    expect(mapIntradayBars(null)).toBeNull();
+    expect(mapIntradayBars({ error: 'nope' })).toBeNull();
+  });
+});
+
+describe('latestSession', () => {
+  const at = (d: string) => ({ d, o: 1, h: 1, l: 1, c: 1, v: 1 });
+
+  it('keeps the last UTC day present, which needs no market calendar', () => {
+    const kept = latestSession([
+      at('2026-08-31T19:55:00Z'),
+      at('2026-09-01T13:30:00Z'),
+      at('2026-09-01T13:35:00Z'),
+    ]);
+    expect(kept.map((b) => b.d)).toEqual(['2026-09-01T13:30:00Z', '2026-09-01T13:35:00Z']);
+  });
+
+  it('has nothing to keep from nothing', () => {
+    expect(latestSession([])).toEqual([]);
   });
 });

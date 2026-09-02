@@ -182,7 +182,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
           />
 
           <TabPanel key={`ov-${s.ticker}`} active={tab === 'overview'}>
-            <PriceChart state={history.state} onRetry={history.retry} beg={beg} />
+            <PriceChart ticker={s.ticker} state={history.state} onRetry={history.retry} beg={beg} />
 
             <YourHoldings ticker={s.ticker} />
 
@@ -415,7 +415,7 @@ function LiveOnlyStock({ ticker, openAlert }: Readonly<{ ticker: string; openAle
       />
 
       <TabPanel key={`ov-${ticker}`} active={tab === 'overview'}>
-        <PriceChart state={history.state} onRetry={history.retry} beg={beg} />
+        <PriceChart ticker={ticker} state={history.state} onRetry={history.retry} beg={beg} />
         <YourHoldings ticker={ticker} />
         <KeyStats quote={quote} bars={seriesBars} stats={stats} beg={beg} />
         <EngineCard ticker={ticker} />
