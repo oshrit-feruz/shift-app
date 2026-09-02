@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createHandler, isUsSymbol, MAX_SYMBOLS, parseSymbols } from './stats.js';
-import { makeRes } from './_lib/failureContract.js';
+import { createHandler, isUsSymbol, MAX_SYMBOLS, parseSymbols } from '../stats.js';
+import { makeRes } from '../_lib/failureContract.js';
 
 /**
  * The route behind the key-stats grid and the movers table. The cases that

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createHandler, LOOKBACK_DAYS } from './intraday.js';
-import { makeRes } from './_lib/failureContract.js';
+import { createHandler, LOOKBACK_DAYS } from '../intraday.js';
+import { makeRes } from '../_lib/failureContract.js';
 
 /**
  * The route behind the chart's 1D tab. What matters: it returns exactly one

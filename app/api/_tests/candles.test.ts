@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createHandler, parseDays, MAX_DAYS } from './candles.js';
-import { makeRes } from './_lib/failureContract.js';
+import { createHandler, parseDays, MAX_DAYS } from '../candles.js';
+import { makeRes } from '../_lib/failureContract.js';
 
 /**
  * The route the charts read, now on EODHD's daily history rather than

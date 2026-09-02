@@ -575,6 +575,16 @@ Both were caught by looking at the rendered screen, not by a passing test.
 | Every price on screen (`SymbolInfo.quote`) | `/api/quote?symbols=` — live, batched per screen | 1 Finnhub call per symbol, shared for 20s |
 | Stock page · chart, and the movers' sparklines | `/api/candles?symbol=` — live, per ticker | 1 EODHD call per ticker, cached an hour at the edge |
 | Stock page · chart, 1D tab | `/api/intraday?symbol=` — 5-minute bars, one session | 5 credits per ticker, cached 2 min at the edge and in the client |
+
+**Route tests live in `app/api/_tests/`, and that is not a style choice.**
+Vercel turns every `.ts` file under `api/` into its own Serverless Function,
+test files included, and the Hobby plan allows twelve per deployment — so the
+suites sitting beside their routes counted each route twice and a seventh route
+failed the deploy at `exceeded_serverless_functions_per_deployment` with a
+build that had succeeded. A leading underscore is Vercel's own convention for a
+path under `api/` that is not an endpoint (the same reason `api/_lib/` has
+never deployed), and both `npm test` and `npm run typecheck:api` still reach
+them. A new route's tests belong there too.
 | Movers screen · one board | `/api/movers?board=` — EODHD's screener over the US market | 5 credits per board, cached 30 min at the edge and in the client |
 | Home · movers preview | the same two boards (gainers + losers), merged | none beyond the above — the reads are shared |
 

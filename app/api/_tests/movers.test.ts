@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createHandler, isBoard } from './movers.js';
-import { makeRes } from './_lib/failureContract.js';
+import { createHandler, isBoard } from '../movers.js';
+import { makeRes } from '../_lib/failureContract.js';
 
 /**
  * The route behind the market-movers board. What matters here: the filters

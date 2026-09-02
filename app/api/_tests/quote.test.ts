@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createHandler, parseSymbols, MAX_SYMBOLS } from './quote.js';
-import { makeRes } from './_lib/failureContract.js';
+import { createHandler, parseSymbols, MAX_SYMBOLS } from '../quote.js';
+import { makeRes } from '../_lib/failureContract.js';
 
 /**
  * The route every price in the app now goes through. What these cases guard
