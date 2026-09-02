@@ -115,7 +115,7 @@ describe('fetchYourPositions respects the sample-data switch', () => {
     const holdingsSpy = vi.spyOn(demoService, 'holdings').mockResolvedValue({
       status: 'ok',
       data: [
-        { ticker: 'ALB', shares: -77, avgCost: 129.53, value: -10454.29, plPct: -4.82, costBasis: -9975.81 },
+        { ticker: 'ALB', shares: -77, avgCost: 129.53, value: -10454.29, plPct: -4.82, costBasis: -9973.81 },
       ],
     });
     withDemoData(true);

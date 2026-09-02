@@ -4,6 +4,7 @@ import {
   EMPTY_LEDGER,
   applyToSnapshot,
   classifyError,
+  dropDependents,
   ledgerWithout,
   planLegacyImport,
   portfoliosOf,
@@ -491,5 +492,48 @@ describe('ledgerWithout — what a correction is measured against', () => {
 
   it('leaves the ledger alone when the id is not in it', () => {
     expect(ledgerWithout(rows, 'missing')).toEqual(rows);
+  });
+});
+
+/**
+ * The pair is atomic in the outbox and not on the wire — flush sends one
+ * statement at a time — so the half that can lose a trade has to be closed
+ * explicitly.
+ */
+describe('dropDependents — a correction whose replacement was refused', () => {
+  const replacement = tx('t1-fixed', 'sandbox', { price: 162.97 });
+  const queued: LedgerOp[] = [
+    { kind: 'insertTransaction', userId: ME, row: replacement },
+    { kind: 'deleteTransaction', userId: ME, id: 't1', afterInsert: 't1-fixed' },
+  ];
+
+  // The case that would otherwise lose the trade: the replacement can never
+  // land, and the delete behind it would remove the row being corrected.
+  it('drops the delete when its replacement failed permanently', () => {
+    const left = dropDependents(queued, queued[0]);
+    expect(left).toEqual([queued[0]]);
+    expect(reconcile(server, left.slice(1), ME).transactions.map((x) => x.id)).toEqual(['t1']);
+  });
+
+  it('leaves an unrelated delete alone, and the failed op itself in place', () => {
+    const other: LedgerOp = { kind: 'deleteTransaction', userId: ME, id: 't9' };
+    // The failed op stays at the head: flush removes it on its own line, the
+    // same way it removes every op it has finished with.
+    expect(dropDependents([...queued, other], queued[0])).toEqual([queued[0], other]);
+  });
+
+  it('does nothing for a failure that nothing depends on', () => {
+    const failed: LedgerOp = { kind: 'deleteTransaction', userId: ME, id: 't1' };
+    expect(dropDependents(queued, failed)).toEqual(queued);
+    expect(dropDependents(queued, { kind: 'deletePortfolio', userId: ME, id: 'sandbox' })).toEqual(queued);
+  });
+
+  // A plain delete — the ✕ on a row — carries no afterInsert and must never be
+  // dropped by an unrelated insert failing.
+  it('never drops a delete that is not part of a correction', () => {
+    const plain: LedgerOp[] = [{ kind: 'deleteTransaction', userId: ME, id: 't1' }];
+    expect(
+      dropDependents(plain, { kind: 'insertTransaction', userId: ME, row: tx('t2', 'sandbox') }),
+    ).toEqual(plain);
   });
 });

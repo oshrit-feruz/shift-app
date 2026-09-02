@@ -7,7 +7,7 @@ import { SegmentedControl } from '../components/SegmentedControl';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { useToast } from '../components/Toast';
-import { buildPositions } from '../lib/positions';
+import { buildPositions, oversellsAtAnyPoint } from '../lib/positions';
 import { useAppState, type ManualTransaction, type TransactionSide } from '../state/appState';
 import { ledgerWithout, validateTx, type TxProblem } from '../state/ledger';
 import { useLedger } from '../state/useLedgerSync';
@@ -82,9 +82,24 @@ export function TxSheet({
   const held = buildPositions(ledgerRows).find((p) => p.ticker === symbol)?.shares ?? 0;
 
   const draft = { side, ticker: symbol, shares, price, date };
-  const problems = validateTx(draft, held, today);
+  const fieldProblems = validateTx(draft, held, today);
   const sh = Number(shares) || 0;
   const px = Number(price.replace(/[^0-9.]/g, '')) || 0;
+
+  // The held-share total is the fold's LAST line, and a correction can leave
+  // that line right while breaking the history above it — moving a sale before
+  // the buy that covers it, or cutting an earlier buy from 55 shares to 10.
+  // So the draft is folded into the ledger it would actually produce and the
+  // whole history is asked, not just its end.
+  //
+  // Only once the fields themselves are sound: folding a draft with an empty
+  // ticker or a blank quantity would be measuring a row the user has not
+  // finished typing.
+  const candidate = [...ledgerRows, { id: 'draft', side, ticker: symbol, shares: sh, price: px, date }];
+  const problems =
+    fieldProblems.length === 0 && oversellsAtAnyPoint(candidate)
+      ? (['oversell'] as TxProblem[])
+      : fieldProblems;
 
   const submit = () => {
     setTouched(true);

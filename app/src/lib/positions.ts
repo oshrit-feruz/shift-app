@@ -158,6 +158,21 @@ export function buildPositions(transactions: ManualTransaction[]): Position[] {
 }
 
 /**
+ * Whether a ledger sells shares it does not hold AT ANY POINT, rather than at
+ * the end of it.
+ *
+ * The difference is the whole reason this exists. A held-share total is the
+ * fold's last line, and a correction can leave that line right while breaking
+ * the history above it: move a sale before the buy that covers it, or cut an
+ * earlier buy from 55 shares to 10, and the end state can still balance while
+ * the fold records an oversell on the day it happened. `buildPositions` sorts
+ * by trade date and already keeps that count in `oversold`; this reads it.
+ */
+export function oversellsAtAnyPoint(transactions: ManualTransaction[]): boolean {
+  return buildPositions(transactions).some((pos) => pos.oversold > 0);
+}
+
+/**
  * Price a set of positions against a quote map, and total what can be totalled.
  *
  * `quotes` is `fetchQuotes()`'s map, or `null` when that read was unavailable —

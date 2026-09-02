@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPositions, valuePositions } from './positions';
+import { buildPositions, oversellsAtAnyPoint, valuePositions } from './positions';
 import type { ManualTransaction } from '../state/appState';
 import type { Quote } from '../data/types';
 
@@ -185,5 +185,40 @@ describe('total return', () => {
   it('reports null rather than dividing by nothing ever invested', () => {
     const v = valuePositions(buildPositions([tx('div', 'NVDA', 0, 12)]), { NVDA: quote(150) });
     expect(v.positions[0].plPct).toBeNull();
+  });
+});
+
+/**
+ * The two corrections CodeRabbit named on #48: both leave the FINAL held
+ * total right and break the history above it, which is exactly what a
+ * held-share check cannot see.
+ */
+describe('oversellsAtAnyPoint', () => {
+  it('is false for a ledger that never sells what it does not hold', () => {
+    expect(oversellsAtAnyPoint([tx('buy', 'QCOM', 55, 162.97), tx('sell', 'QCOM', 55, 170.48)])).toBe(false);
+  });
+
+  // Moving a sale before its buy. End state: 0 shares, which balances — but on
+  // the day of the sale there was nothing to sell.
+  it('catches a sale dated before the buy that covers it', () => {
+    const rows = [
+      { ...tx('buy', 'QCOM', 55, 162.97), date: '2026-09-02' },
+      { ...tx('sell', 'QCOM', 55, 170.48), date: '2026-09-01' },
+    ];
+    expect(oversellsAtAnyPoint(rows)).toBe(true);
+  });
+
+  // Cutting an earlier buy down. The sale that followed it now sells shares
+  // that were never bought.
+  it('catches an earlier buy reduced below the sale that followed it', () => {
+    const rows = [
+      { ...tx('buy', 'QCOM', 10, 162.97), date: '2026-09-01' },
+      { ...tx('sell', 'QCOM', 55, 170.48), date: '2026-09-02' },
+    ];
+    expect(oversellsAtAnyPoint(rows)).toBe(true);
+  });
+
+  it('is false for an empty ledger', () => {
+    expect(oversellsAtAnyPoint([])).toBe(false);
   });
 });
