@@ -29,8 +29,8 @@
  */
 
 import { cachedLoadable } from './loadableCache';
-import { reasonFromResponse } from './providerReason';
-import { ok, unavailable, type Bar, type Loadable } from './types';
+import { readRoute } from './readRoute';
+import { ok, type Bar, type Loadable } from './types';
 
 /** Same-origin: the function is deployed alongside the app on Vercel. */
 export const INTRADAY_URL = '/api/intraday';
@@ -125,27 +125,20 @@ export async function fetchIntradaySeries(
     : readIntraday(clean, fetchImpl);
 }
 
-/** The uncached read. */
+/**
+ * The uncached read. Never throws — see data/readRoute.ts.
+ *
+ * The one thing done here rather than there: an empty session is turned into
+ * ok(null), because "the provider has no intraday series for this symbol" is
+ * what the chart renders as "no series" — a real answer about the symbol, and
+ * not the same as a failure.
+ */
 async function readIntraday(ticker: string, fetchImpl: typeof fetch): Promise<Loadable<Bar[] | null>> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  try {
-    const res = await fetchImpl(`${INTRADAY_URL}?symbol=${encodeURIComponent(ticker)}`, {
-      signal: controller.signal,
-      headers: { Accept: 'application/json' },
-    });
-    // The route classifies its own failures — a rejected key, a spent quota,
-    // a provider timeout — and each needs different words.
-    if (!res.ok) return unavailable(await reasonFromResponse(res, FALLBACK_REASON));
-
-    const bars = extractIntradayBars(await res.json());
-    if (bars === null) return unavailable(FALLBACK_REASON);
-    // Empty is "the provider has no intraday series for this symbol", which
-    // the chart renders as no series rather than as a failure.
-    return ok(bars.length === 0 ? null : bars);
-  } catch {
-    return unavailable(FALLBACK_REASON);
-  } finally {
-    clearTimeout(timer);
-  }
+  const read = await readRoute(
+    `${INTRADAY_URL}?symbol=${encodeURIComponent(ticker)}`,
+    { timeoutMs: TIMEOUT_MS, fallbackReason: FALLBACK_REASON, extract: extractIntradayBars },
+    fetchImpl,
+  );
+  if (read.status !== 'ok') return read;
+  return ok(read.data.length === 0 ? null : read.data);
 }

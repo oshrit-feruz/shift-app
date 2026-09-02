@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createHandler, parseSymbols, MAX_SYMBOLS } from '../quote.js';
-import { makeRes } from '../_lib/failureContract.js';
+import { callRoute, itAnswersTheRouteBasics, withServerKey } from '../_lib/routeHarness.js';
 
 /**
  * The route every price in the app now goes through. What these cases guard
@@ -34,18 +34,11 @@ function upstream(answers: Record<string, unknown | number>) {
   }) as unknown as typeof fetch;
 }
 
-const call = async (query: Record<string, string | string[]>, fetchImpl: typeof fetch) => {
-  const res = makeRes();
-  await createHandler(1_000, fetchImpl)({ method: 'GET', query }, res);
-  return res;
-};
+/** This route's handler, on a millisecond budget, through the shared harness. */
+const call = (query: Record<string, string | string[]>, fetchImpl: typeof fetch) =>
+  callRoute(createHandler(1_000, fetchImpl), query);
 
-beforeEach(() => {
-  vi.stubEnv('FINNHUB_API_KEY', 'test-key');
-});
-afterEach(() => {
-  vi.unstubAllEnvs();
-});
+withServerKey('FINNHUB_API_KEY');
 
 describe('parseSymbols', () => {
   it('normalises, de-duplicates and preserves order', () => {
@@ -135,16 +128,10 @@ describe('/api/quote', () => {
     expect((res._body as { error: string }).error).toBe('repeated_param');
   });
 
-  it('says so plainly when the server has no key', async () => {
-    vi.stubEnv('FINNHUB_API_KEY', '');
-    const res = await call({ symbols: 'NVDA' }, upstream({}));
-    expect(res._status).toBe(500);
-    expect((res._body as { error: string }).error).toBe('not_configured');
-  });
-
-  it('answers 405 to anything but GET', async () => {
-    const res = makeRes();
-    await createHandler(1_000, upstream({}))({ method: 'POST', query: {} }, res);
-    expect(res._status).toBe(405);
-  });
+  itAnswersTheRouteBasics(
+    (fetchImpl) => createHandler(1_000, fetchImpl),
+    { symbols: 'NVDA' },
+    'FINNHUB_API_KEY',
+    upstream({}),
+  );
 });

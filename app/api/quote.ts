@@ -1,4 +1,4 @@
-import { isValidTicker } from './_lib/news.js';
+import { parseSymbolList } from './_lib/symbols.js';
 import { mapQuote, quoteUrl, type QuoteRow } from './_lib/finnhub.js';
 import { failureBody, fetchUpstreamJson, type UpstreamFailure } from './_lib/upstream.js';
 import { type ApiRequest, type ApiResponse } from './_lib/http.js';
@@ -67,34 +67,12 @@ type SymbolOutcome =
   | { kind: 'failed'; symbol: string; failure: UpstreamFailure };
 
 /**
- * Parse and validate the `symbols` parameter.
+ * Parse and validate the `symbols` parameter, bounded to this route's ceiling.
  *
- * Returns the normalised list, or the error to answer with. Duplicates are
- * collapsed rather than fetched twice — a watchlist with the same ticker on
- * it twice must not cost two requests out of the minute's allowance.
+ * The parsing itself is shared with /api/stats — see _lib/symbols.ts for the
+ * two decisions inside it.
  */
-export function parseSymbols(raw: string | undefined): { symbols: string[] } | { error: string } {
-  const trimmed = (raw ?? '').trim();
-  if (trimmed === '') return { error: 'Query param "symbols" is required.' };
-  const parts = trimmed
-    .split(',')
-    .map((s) => s.trim())
-    .filter((s) => s !== '');
-  if (parts.length === 0) return { error: 'Query param "symbols" is required.' };
-  const seen = new Set<string>();
-  for (const part of parts) {
-    // A malformed symbol is refused rather than skipped: silently dropping it
-    // answers a shorter question than the one asked, and the caller cannot
-    // tell that it happened.
-    if (!isValidTicker(part)) return { error: 'A symbol contains unsupported characters.' };
-    seen.add(part.toUpperCase());
-  }
-  const symbols = [...seen];
-  if (symbols.length > MAX_SYMBOLS) {
-    return { error: `Ask for at most ${MAX_SYMBOLS} symbols at a time.` };
-  }
-  return { symbols };
-}
+export const parseSymbols = (raw: string | undefined) => parseSymbolList(raw, MAX_SYMBOLS);
 
 /** One symbol's round trip. Never throws — every failure is classified. */
 async function fetchOne(

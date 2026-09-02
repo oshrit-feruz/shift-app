@@ -1,4 +1,4 @@
-import { isValidTicker } from './_lib/news.js';
+import { parseSymbolList } from './_lib/symbols.js';
 import { mapUsStats, readUsQuoteData, resolveSymbol, usQuoteUrl, type UsStats } from './_lib/eodhd.js';
 import { failureBody, fetchUpstreamJson } from './_lib/upstream.js';
 import { type ApiRequest, type ApiResponse } from './_lib/http.js';
@@ -68,31 +68,12 @@ export function isUsSymbol(symbol: string): boolean {
 }
 
 /**
- * Parse and validate the `symbols` parameter.
+ * Parse and validate the `symbols` parameter, bounded to this route's ceiling.
  *
- * Duplicates collapse rather than being fetched twice, and a malformed symbol
- * is refused rather than skipped: silently dropping one answers a shorter
- * question than the one asked, and the caller cannot tell that it happened.
+ * The parsing itself is shared with /api/quote — see _lib/symbols.ts for the
+ * two decisions inside it.
  */
-export function parseSymbols(raw: string | undefined): { symbols: string[] } | { error: string } {
-  const trimmed = (raw ?? '').trim();
-  if (trimmed === '') return { error: 'Query param "symbols" is required.' };
-  const parts = trimmed
-    .split(',')
-    .map((s) => s.trim())
-    .filter((s) => s !== '');
-  if (parts.length === 0) return { error: 'Query param "symbols" is required.' };
-  const seen = new Set<string>();
-  for (const part of parts) {
-    if (!isValidTicker(part)) return { error: 'A symbol contains unsupported characters.' };
-    seen.add(part.toUpperCase());
-  }
-  const symbols = [...seen];
-  if (symbols.length > MAX_SYMBOLS) {
-    return { error: `Ask for at most ${MAX_SYMBOLS} symbols at a time.` };
-  }
-  return { symbols };
-}
+export const parseSymbols = (raw: string | undefined) => parseSymbolList(raw, MAX_SYMBOLS);
 
 /**
  * Fifteen minutes: these figures move on the scale of quarters, and the feed

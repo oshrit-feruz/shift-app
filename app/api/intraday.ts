@@ -1,6 +1,7 @@
 import { isValidTicker } from './_lib/news.js';
 import { intradayUrl, latestSession, mapIntradayBars, type CandleRow } from './_lib/eodhd.js';
-import { failureBody, fetchUpstreamJson } from './_lib/upstream.js';
+import { barsFromUpstream } from './_lib/bars.js';
+import { fetchUpstreamJson } from './_lib/upstream.js';
 import { type ApiRequest, type ApiResponse } from './_lib/http.js';
 
 /**
@@ -114,28 +115,13 @@ export function createHandler(timeoutMs: number, fetchImpl: typeof fetch = fetch
       '/api/intraday',
       fetchImpl,
     );
-    // The same three outcomes /api/candles handles, for the same reason: a 404
-    // is the provider naming the symbol rather than failing on it, and "no
-    // intraday series for this symbol" may never read as "we could not find
-    // out". The path is built from an already-validated ticker, so the symbol
-    // is the only thing a 404 can be about.
-    let bars: CandleRow[] | null;
-    if (result.ok) {
-      bars = mapIntradayBars(result.body);
-    } else if (result.failure.upstreamStatus === 404) {
-      bars = [];
-    } else {
-      return res.status(result.failure.status).json(failureBody(result.failure));
-    }
-    if (bars === null) {
-      console.error('/api/intraday: upstream response had an unexpected shape');
-      return res.status(502).json({
-        error: 'bad_response',
-        message: 'The intraday provider returned an unexpected shape.',
-      });
-    }
+    // The same three outcomes /api/candles handles, through the same step: a
+    // 404 here is the provider saying it carries no intraday series for this
+    // symbol, which may never read as "we could not find out".
+    const outcome = barsFromUpstream(result, mapIntradayBars, '/api/intraday');
+    if (!outcome.ok) return res.status(outcome.status).json(outcome.body);
 
-    const session = latestSession(bars);
+    const session = latestSession(outcome.bars);
     res.setHeader('Cache-Control', CACHE_CONTROL);
     return res.status(200).json({
       symbol: symbol.toUpperCase(),

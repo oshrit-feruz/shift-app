@@ -26,8 +26,8 @@
  */
 
 import { cachedLoadable } from './loadableCache';
-import { reasonFromResponse } from './providerReason';
-import { ok, unavailable, type Loadable, type StockStats } from './types';
+import { readRoute } from './readRoute';
+import { ok, type Loadable, type StockStats } from './types';
 
 /** Same-origin: the function is deployed alongside the app on Vercel. */
 export const STATS_URL = '/api/stats';
@@ -142,31 +142,13 @@ export async function fetchStockStats(
   return ok(read.data[clean] ?? null);
 }
 
-/** The uncached read. Never throws. */
-async function readStats(
-  symbols: string,
-  fetchImpl: typeof fetch,
-): Promise<Loadable<Record<string, StockStats>>> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  try {
-    const res = await fetchImpl(`${STATS_URL}?symbols=${encodeURIComponent(symbols)}`, {
-      signal: controller.signal,
-      headers: { Accept: 'application/json' },
-    });
-    // The route classifies its own failures — a rejected key, a spent quota,
-    // a provider timeout — and each needs different words.
-    if (!res.ok) return unavailable(await reasonFromResponse(res, FALLBACK_REASON));
-
-    const body: unknown = await res.json();
-    const stats = extractStats(body);
-    if (stats === null) return unavailable(FALLBACK_REASON);
-    return ok(stats);
-  } catch {
-    return unavailable(FALLBACK_REASON);
-  } finally {
-    clearTimeout(timer);
-  }
+/** The uncached read. Never throws — see data/readRoute.ts. */
+function readStats(symbols: string, fetchImpl: typeof fetch): Promise<Loadable<Record<string, StockStats>>> {
+  return readRoute(
+    `${STATS_URL}?symbols=${encodeURIComponent(symbols)}`,
+    { timeoutMs: TIMEOUT_MS, fallbackReason: FALLBACK_REASON, extract: extractStats },
+    fetchImpl,
+  );
 }
 
 /**

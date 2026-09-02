@@ -1,6 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { createHandler, parseDays, MAX_DAYS } from '../candles.js';
-import { makeRes } from '../_lib/failureContract.js';
+import {
+  callRoute,
+  itAnswersTheRouteBasics,
+  requestedUrl,
+  respondWith,
+  withServerKey,
+} from '../_lib/routeHarness.js';
 
 /**
  * The route the charts read, now on EODHD's daily history rather than
@@ -15,27 +21,11 @@ const bars = [
   { date: '2026-09-01', open: 10, high: 12, low: 9, close: 11, adjusted_close: 11, volume: 100 },
 ];
 
-const respond = (body: unknown, status = 200) =>
-  vi.fn(
-    async () => ({ ok: status < 400, status, json: async () => body }) as unknown as Response,
-  ) as unknown as typeof fetch;
+/** This route's handler, on a millisecond budget, through the shared harness. */
+const call = (query: Record<string, string | string[]>, fetchImpl: typeof fetch) =>
+  callRoute(createHandler(1_000, fetchImpl), query);
 
-const call = async (query: Record<string, string | string[]>, fetchImpl: typeof fetch) => {
-  const res = makeRes();
-  await createHandler(1_000, fetchImpl)({ method: 'GET', query }, res);
-  return res;
-};
-
-/** The URL the handler actually asked for, so the window can be asserted. */
-const requestedUrl = (fetchImpl: typeof fetch) =>
-  (fetchImpl as unknown as { mock: { calls: [URL][] } }).mock.calls[0][0];
-
-beforeEach(() => {
-  vi.stubEnv('EODHD_API_KEY', 'test-key');
-});
-afterEach(() => {
-  vi.unstubAllEnvs();
-});
+withServerKey('EODHD_API_KEY');
 
 describe('parseDays', () => {
   it('defaults, and bounds what one request may ask for', () => {
@@ -49,7 +39,7 @@ describe('parseDays', () => {
 
 describe('/api/candles', () => {
   it('serves the mapped series with the newest session as as_of', async () => {
-    const res = await call({ symbol: 'nvda' }, respond(bars));
+    const res = await call({ symbol: 'nvda' }, respondWith(bars));
     expect(res._status).toBe(200);
     const body = res._body as { ticker: string; as_of: string; source: string; bars: unknown[] };
     expect(body.ticker).toBe('NVDA');
@@ -59,7 +49,7 @@ describe('/api/candles', () => {
   });
 
   it('asks the provider for the requested window, as dates', async () => {
-    const fetchImpl = respond(bars);
+    const fetchImpl = respondWith(bars);
     await call({ symbol: 'NVDA', days: '30' }, fetchImpl);
     const url = requestedUrl(fetchImpl);
     const from = url.searchParams.get('from')!;
@@ -71,11 +61,11 @@ describe('/api/candles', () => {
   });
 
   it('sends a bare ticker to its US listing and keeps a suffix as given', async () => {
-    const us = respond(bars);
+    const us = respondWith(bars);
     await call({ symbol: 'NVDA' }, us);
     expect(requestedUrl(us).pathname).toBe('/api/eod/NVDA.US');
 
-    const toronto = respond(bars);
+    const toronto = respondWith(bars);
     await call({ symbol: 'MDA.TO' }, toronto);
     expect(requestedUrl(toronto).pathname).toBe('/api/eod/MDA.TO');
   });
@@ -83,7 +73,7 @@ describe('/api/candles', () => {
   it('answers an empty series with a null as_of rather than an error', async () => {
     // A real answer about the symbol: the app renders "no history for this
     // ticker" rather than telling anyone to retry.
-    const res = await call({ symbol: 'NOSUCH' }, respond([]));
+    const res = await call({ symbol: 'NOSUCH' }, respondWith([]));
     expect(res._status).toBe(200);
     expect(res._body).toMatchObject({ bars: [], as_of: null });
   });
@@ -93,13 +83,13 @@ describe('/api/candles', () => {
     // naming the symbol, and it must reach the reader as the same honest
     // "no price history" an empty series does — never as "unavailable",
     // which claims we could not find out.
-    const res = await call({ symbol: 'ZZZZQQ' }, respond({ error: 'not found' }, 404));
+    const res = await call({ symbol: 'ZZZZQQ' }, respondWith({ error: 'not found' }, 404));
     expect(res._status).toBe(200);
     expect(res._body).toMatchObject({ bars: [], as_of: null });
   });
 
   it('reports a plan problem as a plan problem, not as an outage', async () => {
-    const res = await call({ symbol: 'NVDA' }, respond({}, 403));
+    const res = await call({ symbol: 'NVDA' }, respondWith({}, 403));
     expect(res._status).toBe(502);
     expect((res._body as { error: string }).error).toBe('upstream_forbidden');
   });
@@ -112,53 +102,47 @@ describe('/api/candles', () => {
     // news, earnings and SnapTrade routes, and 100k calls a day makes this
     // path all but unreachable — but it is the one message here that would be
     // imprecise if it ever fired.
-    const res = await call({ symbol: 'NVDA' }, respond({}, 402));
+    const res = await call({ symbol: 'NVDA' }, respondWith({}, 402));
     expect(res._status).toBe(502);
     expect((res._body as { error: string }).error).toBe('upstream_forbidden');
   });
 
   it('reports an unreadable shape rather than an empty chart', async () => {
-    const res = await call({ symbol: 'NVDA' }, respond({ error: 'nope' }));
+    const res = await call({ symbol: 'NVDA' }, respondWith({ error: 'nope' }));
     expect(res._status).toBe(502);
     expect((res._body as { error: string }).error).toBe('bad_response');
   });
 
   it('refuses a series with one unreadable session, whole', async () => {
-    const res = await call({ symbol: 'NVDA' }, respond([bars[0], { ...bars[1], volume: null }]));
+    const res = await call({ symbol: 'NVDA' }, respondWith([bars[0], { ...bars[1], volume: null }]));
     expect(res._status).toBe(502);
     expect((res._body as { error: string }).error).toBe('bad_response');
   });
 
   it('validates the symbol before spending an upstream call', async () => {
-    const fetchImpl = respond(bars);
+    const fetchImpl = respondWith(bars);
     const res = await call({ symbol: 'not a ticker' }, fetchImpl);
     expect(res._status).toBe(400);
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   it('refuses a repeated parameter rather than picking one', async () => {
-    const res = await call({ symbol: ['NVDA', 'AAPL'] }, respond(bars));
+    const res = await call({ symbol: ['NVDA', 'AAPL'] }, respondWith(bars));
     expect(res._status).toBe(400);
     expect((res._body as { error: string }).error).toBe('repeated_param');
   });
 
   it('caches a success for an hour and a failure not at all', async () => {
-    expect((await call({ symbol: 'NVDA' }, respond(bars)))._headers['Cache-Control']).toContain(
+    expect((await call({ symbol: 'NVDA' }, respondWith(bars)))._headers['Cache-Control']).toContain(
       's-maxage=3600',
     );
-    expect((await call({ symbol: 'NVDA' }, respond({}, 403)))._headers['Cache-Control']).toBeUndefined();
+    expect((await call({ symbol: 'NVDA' }, respondWith({}, 403)))._headers['Cache-Control']).toBeUndefined();
   });
 
-  it('says so plainly when the server has no key', async () => {
-    vi.stubEnv('EODHD_API_KEY', '');
-    const res = await call({ symbol: 'NVDA' }, respond(bars));
-    expect(res._status).toBe(500);
-    expect((res._body as { error: string }).error).toBe('not_configured');
-  });
-
-  it('answers 405 to anything but GET', async () => {
-    const res = makeRes();
-    await createHandler(1_000, respond(bars))({ method: 'POST', query: {} }, res);
-    expect(res._status).toBe(405);
-  });
+  itAnswersTheRouteBasics(
+    (fetchImpl) => createHandler(1_000, fetchImpl),
+    { symbol: 'NVDA' },
+    'EODHD_API_KEY',
+    respondWith(bars),
+  );
 });

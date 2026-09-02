@@ -34,8 +34,8 @@
  */
 
 import { cachedLoadable } from './loadableCache';
-import { reasonFromResponse } from './providerReason';
-import { ok, unavailable, type Loadable } from './types';
+import { readRoute } from './readRoute';
+import { type Loadable } from './types';
 
 /** Same-origin: the function is deployed alongside the app on Vercel. */
 export const MOVERS_URL = '/api/movers';
@@ -145,25 +145,11 @@ export async function fetchMovers(
     : readMovers(board, fetchImpl);
 }
 
-/** The uncached read. */
-async function readMovers(board: Board, fetchImpl: typeof fetch): Promise<Loadable<MoversBoard>> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  try {
-    const res = await fetchImpl(`${MOVERS_URL}?board=${encodeURIComponent(board)}`, {
-      signal: controller.signal,
-      headers: { Accept: 'application/json' },
-    });
-    // The route classifies its own failures — a rejected key, a spent quota,
-    // a provider timeout — and each needs different words.
-    if (!res.ok) return unavailable(await reasonFromResponse(res, FALLBACK_REASON));
-
-    const parsed = extractBoard(await res.json());
-    if (parsed === null) return unavailable(FALLBACK_REASON);
-    return ok(parsed);
-  } catch {
-    return unavailable(FALLBACK_REASON);
-  } finally {
-    clearTimeout(timer);
-  }
+/** The uncached read. Never throws — see data/readRoute.ts. */
+function readMovers(board: Board, fetchImpl: typeof fetch): Promise<Loadable<MoversBoard>> {
+  return readRoute(
+    `${MOVERS_URL}?board=${encodeURIComponent(board)}`,
+    { timeoutMs: TIMEOUT_MS, fallbackReason: FALLBACK_REASON, extract: extractBoard },
+    fetchImpl,
+  );
 }

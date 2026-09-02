@@ -1,6 +1,7 @@
 import { isValidTicker } from './_lib/news.js';
 import { eodUrl, isoDay, mapEodBars, type CandleRow } from './_lib/eodhd.js';
-import { failureBody, fetchUpstreamJson } from './_lib/upstream.js';
+import { barsFromUpstream } from './_lib/bars.js';
+import { fetchUpstreamJson } from './_lib/upstream.js';
 import { type ApiRequest, type ApiResponse } from './_lib/http.js';
 
 /**
@@ -128,38 +129,17 @@ export function createHandler(timeoutMs: number, fetchImpl: typeof fetch = fetch
       '/api/candles',
       fetchImpl,
     );
-    // Three outcomes, and the middle one is the whole reason this is not a
-    // plain `if (!result.ok) return`. A 404 is the provider naming the symbol
-    // rather than failing on it: EODHD answers one for a ticker it does not
-    // carry, where Finnhub answered 200 with `s: 'no_data'`. Both mean the
-    // same thing, and this route has always reported it the same way — an
-    // empty series, which the app renders as "no price history for this
-    // symbol". Passed to the classifier it became "unavailable" instead,
-    // which tells the reader we could not find out when in fact we were told,
-    // and those two may never collapse. The path is built here from an
-    // already-validated ticker, so the symbol is the only thing a 404 can be
-    // about.
-    let bars: CandleRow[] | null;
-    if (result.ok) {
-      bars = mapEodBars(result.body);
-    } else if (result.failure.upstreamStatus === 404) {
-      bars = [];
-    } else {
-      return res.status(result.failure.status).json(failureBody(result.failure));
-    }
-    if (bars === null) {
-      console.error('/api/candles: upstream response had an unexpected shape');
-      return res.status(502).json({
-        error: 'bad_response',
-        message: 'The price-history provider returned an unexpected shape.',
-      });
-    }
+    // Three outcomes, and the middle one — a 404 read as "no series for this
+    // symbol" rather than as a failure — is why this goes through a shared
+    // step rather than a plain `if (!result.ok)`. See _lib/bars.ts.
+    const outcome = barsFromUpstream(result, mapEodBars, '/api/candles');
+    if (!outcome.ok) return res.status(outcome.status).json(outcome.body);
 
     // Success only, and for an hour: a daily bar changes once a day, so the
     // only thing a shorter TTL buys is a faster view of today's still-forming
     // session — which the live quote above the chart already shows.
     res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400');
-    return res.status(200).json(buildBody(symbol.toUpperCase(), bars));
+    return res.status(200).json(buildBody(symbol.toUpperCase(), outcome.bars));
   };
 }
 
