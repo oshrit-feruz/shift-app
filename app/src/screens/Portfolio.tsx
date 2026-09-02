@@ -102,36 +102,12 @@ export function PortfolioScreen(_: ScreenProps) {
           // the index below, which would otherwise read list[-1] and throw on
           // the first property access.
           if (list.length === 0) {
-            // An empty list and an unread one are not the same fact, and the
-            // difference is the whole reason the ledger reports a status. "You
-            // have no portfolios" over a failed read tells someone their
-            // holdings are gone; a reload that has not landed, or a migration
-            // not yet applied, must say so and offer the retry instead.
-            if (ledger.status !== 'ok') {
-              return (
-                <DataState
-                  state={ledgerState(ledger.status, ledger.reason)}
-                  onRetry={() => window.location.reload()}
-                >
-                  {() => null}
-                </DataState>
-              );
-            }
             return (
-              <>
-                <DemoOnly feature="connScreen.linked">
-                  <Button
-                    variant="secondary"
-                    alignSelf="flex-start"
-                    fontSize={16}
-                    minHeight={36}
-                    onClick={() => setNewPfOpen(true)}
-                  >
-                    ＋ {t('pf.portfolio')}
-                  </Button>
-                </DemoOnly>
-                <NewPortfolioSheet open={newPfOpen} onClose={() => setNewPfOpen(false)} />
-              </>
+              <NoPortfolios
+                newPfOpen={newPfOpen}
+                onNew={() => setNewPfOpen(true)}
+                onCloseNew={() => setNewPfOpen(false)}
+              />
             );
           }
 
@@ -146,9 +122,8 @@ export function PortfolioScreen(_: ScreenProps) {
           // A manual portfolio is that same case — its total is its own
           // positions at live prices — so it is excluded here too.
           const invented = demo && !live && !isManual;
-          const series = invented
-            ? demoService.series(`pf-${pf.id}`, 70, (pf.dayPct ?? 0) >= 0 ? 0.5 : 0.16, 2.4)
-            : [];
+          const drift = (pf.dayPct ?? 0) >= 0 ? 0.5 : 0.16;
+          const series = invented ? demoService.series(`pf-${pf.id}`, 70, drift, 2.4) : [];
           const bench = invented ? demoService.series('bench-spy', 70, 0.22, 1.4) : [];
           const holdings = <Holdings pfId={pf.id} />;
 
@@ -372,36 +347,7 @@ export function PortfolioScreen(_: ScreenProps) {
                 />
               </Card>
 
-              {live ? (
-                <Card padding={14} gap={10}>
-                  <CardTitle>{t('pf.allocation')}</CardTitle>
-                  {/* Computed from the account's actual position values — an
-                      invented allocation over real holdings would misstate the
-                      concentration this card exists to show. */}
-                  <LiveAllocation pfId={pf.id} />
-                </Card>
-              ) : demo ? (
-                <Card padding={14} gap={10}>
-                  <CardTitle>{t('pf.allocation')}</CardTitle>
-                  <DonutChart
-                    slices={[
-                      { label: 'NVDA', pct: 28, colorVar: ALLOC_COLORS[0] },
-                      { label: 'AMD', pct: 19, colorVar: ALLOC_COLORS[1] },
-                      { label: 'MSFT', pct: 15, colorVar: ALLOC_COLORS[2] },
-                      { label: 'AAPL', pct: 13, colorVar: 'var(--acc-pale)' },
-                      { label: 'LLY', pct: 11, colorVar: 'var(--muted)' },
-                      { label: language === 'he' ? 'מזומן' : 'Cash', pct: 14, colorVar: 'var(--line)' },
-                    ]}
-                  />
-                  {beg && (
-                    <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0 }}>
-                      {t('pf.concentration')}
-                    </p>
-                  )}
-                </Card>
-              ) : (
-                <DemoOnly feature="pf.allocation" />
-              )}
+              <AllocationCard live={live} demo={demo} pfId={pf.id} beg={beg} />
 
               <Card padding="13px 13px 4px" gap={4}>
                 <CardTitle>{t('pf.holdings')}</CardTitle>
@@ -445,7 +391,7 @@ export function PortfolioScreen(_: ScreenProps) {
  * portfolio's manual buy/sell log applied on top, so a position the user
  * entered by hand reads the same as a synced one.
  */
-function Holdings({ pfId }: { pfId: string }) {
+function Holdings({ pfId }: Readonly<{ pfId: string }>) {
   const dispatch = useDispatch();
   const t = useT();
   const { state, retry } = usePortfolioHoldings(pfId);
@@ -502,7 +448,7 @@ function Holdings({ pfId }: { pfId: string }) {
  * position in a ticker the price mirror does not cover has no worth we can
  * state, and the old code's green "+0.00%" said it was flat instead.
  */
-function HoldingRow({ h, closed, onOpen }: { h: Holding; closed?: boolean; onOpen: () => void }) {
+function HoldingRow({ h, closed, onOpen }: Readonly<{ h: Holding; closed?: boolean; onOpen: () => void }>) {
   const t = useT();
   return (
     <ListRow
@@ -596,6 +542,97 @@ function PerformanceSlot({
         <span>{t('pf.benchmark')}</span>
       </div>
     </>
+  );
+}
+
+/**
+ * What the screen shows to someone whose portfolio list is empty.
+ *
+ * An empty list and an unread one are not the same fact, and the difference is
+ * the whole reason the ledger reports a status. "You have no portfolios" over
+ * a failed read tells someone their holdings are gone; a reload that has not
+ * landed, or a migration not yet applied, must say so and offer the retry
+ * instead.
+ */
+function NoPortfolios({
+  newPfOpen,
+  onNew,
+  onCloseNew,
+}: Readonly<{ newPfOpen: boolean; onNew: () => void; onCloseNew: () => void }>) {
+  const t = useT();
+  const ledger = useLedger();
+
+  if (ledger.status !== 'ok') {
+    return (
+      <DataState state={ledgerState(ledger.status, ledger.reason)} onRetry={() => window.location.reload()}>
+        {() => null}
+      </DataState>
+    );
+  }
+
+  return (
+    <>
+      <DemoOnly feature="connScreen.linked">
+        <Button variant="secondary" alignSelf="flex-start" fontSize={16} minHeight={36} onClick={onNew}>
+          ＋ {t('pf.portfolio')}
+        </Button>
+      </DemoOnly>
+      <NewPortfolioSheet open={newPfOpen} onClose={onCloseNew} />
+    </>
+  );
+}
+
+/**
+ * The allocation card, in the three versions the screen can honestly show.
+ *
+ * Early returns rather than a chain of conditionals inline in the screen's
+ * JSX, because the three are not shades of one card: a live account's own
+ * position values, a donut labelled as sample data, and nothing at all are
+ * three different claims, and the one that applies should be readable without
+ * unwinding the other two.
+ */
+function AllocationCard({
+  live,
+  demo,
+  pfId,
+  beg,
+}: Readonly<{ live: boolean; demo: boolean; pfId: string; beg: boolean }>) {
+  const t = useT();
+  const { language } = useTheme();
+
+  if (live) {
+    return (
+      <Card padding={14} gap={10}>
+        <CardTitle>{t('pf.allocation')}</CardTitle>
+        {/* Computed from the account's actual position values — an invented
+            allocation over real holdings would misstate the concentration
+            this card exists to show. */}
+        <LiveAllocation pfId={pfId} />
+      </Card>
+    );
+  }
+
+  if (!demo) return <DemoOnly feature="pf.allocation" />;
+
+  return (
+    <Card padding={14} gap={10}>
+      <CardTitle>{t('pf.allocation')}</CardTitle>
+      <DonutChart
+        slices={[
+          { label: 'NVDA', pct: 28, colorVar: ALLOC_COLORS[0] },
+          { label: 'AMD', pct: 19, colorVar: ALLOC_COLORS[1] },
+          { label: 'MSFT', pct: 15, colorVar: ALLOC_COLORS[2] },
+          { label: 'AAPL', pct: 13, colorVar: 'var(--acc-pale)' },
+          { label: 'LLY', pct: 11, colorVar: 'var(--muted)' },
+          { label: language === 'he' ? 'מזומן' : 'Cash', pct: 14, colorVar: 'var(--line)' },
+        ]}
+      />
+      {beg && (
+        <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0 }}>
+          {t('pf.concentration')}
+        </p>
+      )}
+    </Card>
   );
 }
 
@@ -710,7 +747,7 @@ function ManualValueChart({ ledger, label }: Readonly<{ ledger: ManualTransactio
  * Reads through the same function the holdings card does, so the figure here
  * and the rows below it can never disagree about what was priced.
  */
-function ManualValue({ pfId }: { pfId: string }) {
+function ManualValue({ pfId }: Readonly<{ pfId: string }>) {
   const t = useT();
   const { state } = usePortfolioHoldings(pfId);
   const valuation = state.status === 'ok' ? state.data.valuation : null;
@@ -800,7 +837,7 @@ function ledgerState(
  * is excluded and NAMED, because dropping it silently made a two-position
  * account read as "ORCL 100%".
  */
-function LiveAllocation({ pfId }: { pfId: string }) {
+function LiveAllocation({ pfId }: Readonly<{ pfId: string }>) {
   const t = useT();
   const holdings = useLoadable(() => appService.holdings(pfId), [pfId]);
 
@@ -869,36 +906,32 @@ function Transactions({
       {rows.length === 0 ? (
         <EmptyState>{t('tx.none')}</EmptyState>
       ) : (
-        [...rows]
-          // Newest first: the row someone is most likely to have mistyped is
-          // the one they just entered.
-          .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
-          .map((tx, i) => (
-            <ListRow
-              key={tx.id}
-              divider={i > 0}
-              title={`${t(sideKey(tx.side))} ${tx.ticker}`}
-              subtitle={<Num>{`${tx.shares} × ${money(tx.price)} · ${isoDate(tx.date, language)}`}</Num>}
-              // The row itself opens the correction, and the button beside it
-              // still deletes: fixing a mistyped price should not cost the
-              // trade's date and side as well, which is what re-entering it
-              // was costing.
-              onClick={() => onEdit(tx)}
-              ariaLabel={t('tx.editAria', { ticker: tx.ticker })}
-              trailing={
-                <RowIconButton
-                  label={t('tx.removeAria', { ticker: tx.ticker })}
-                  onClick={() => {
-                    ledger.removeTransaction(pfId, tx.id);
-                    toast(t('tx.removed'));
-                  }}
-                >
-                  <Icon name="close" size={16} strokeWidth={2} />
-                </RowIconButton>
-              }
-              minHeight={46}
-            />
-          ))
+        [...rows].sort(newestFirst).map((tx, i) => (
+          <ListRow
+            key={tx.id}
+            divider={i > 0}
+            title={`${t(sideKey(tx.side))} ${tx.ticker}`}
+            subtitle={<Num>{`${tx.shares} × ${money(tx.price)} · ${isoDate(tx.date, language)}`}</Num>}
+            // The row itself opens the correction, and the button beside it
+            // still deletes: fixing a mistyped price should not cost the
+            // trade's date and side as well, which is what re-entering it
+            // was costing.
+            onClick={() => onEdit(tx)}
+            ariaLabel={t('tx.editAria', { ticker: tx.ticker })}
+            trailing={
+              <RowIconButton
+                label={t('tx.removeAria', { ticker: tx.ticker })}
+                onClick={() => {
+                  ledger.removeTransaction(pfId, tx.id);
+                  toast(t('tx.removed'));
+                }}
+              >
+                <Icon name="close" size={16} strokeWidth={2} />
+              </RowIconButton>
+            }
+            minHeight={46}
+          />
+        ))
       )}
     </Card>
   );
@@ -910,11 +943,11 @@ function RowIconButton({
   label,
   onClick,
   children,
-}: {
+}: Readonly<{
   label: string;
   onClick: () => void;
   children: ReactNode;
-}) {
+}>) {
   return (
     <button
       type="button"
@@ -938,8 +971,25 @@ function RowIconButton({
   );
 }
 
-function sideKey(side: TransactionSide): 'tx.buy' | 'tx.sell' | 'tx.div' {
-  return side === 'sell' ? 'tx.sell' : side === 'div' ? 'tx.div' : 'tx.buy';
+/**
+ * A lookup rather than a chain of tests, so the mapping is total by
+ * construction: adding a fourth side becomes a type error here instead of
+ * silently falling through to "buy".
+ */
+const SIDE_KEYS = { buy: 'tx.buy', sell: 'tx.sell', div: 'tx.div' } as const;
+
+function sideKey(side: TransactionSide): (typeof SIDE_KEYS)[TransactionSide] {
+  return SIDE_KEYS[side];
+}
+
+/**
+ * Newest first: the row someone is most likely to have mistyped is the one
+ * they just entered, so it belongs at the top of the log.
+ */
+function newestFirst(a: ManualTransaction, b: ManualTransaction): number {
+  if (a.date > b.date) return -1;
+  if (a.date < b.date) return 1;
+  return 0;
 }
 
 /**
