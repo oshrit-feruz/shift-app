@@ -25,7 +25,7 @@ import { appService } from '../data/appService';
 import { useDemoFlag } from '../data/useDemoFlag';
 import { loading, ok, unavailable, type Holding, type Loadable } from '../data/types';
 import { useLoadable } from '../data/useLoadable';
-import { isoDate, money, moneyOrDash, pctOrDash, signalColor } from '../lib/format';
+import { isoDate, money, moneyOrDash, pctOrDash, signalColor, signedCurrency } from '../lib/format';
 import { TxSheet } from '../sheets/TxSheet';
 import { NewPortfolioSheet } from '../sheets/NewPortfolioSheet';
 import { fetchPortfolioHoldings, portfolioList, sumTotals } from '../lib/holdings';
@@ -137,11 +137,13 @@ export function PortfolioScreen(_: ScreenProps) {
           const aggTotal = sumTotals(inAgg);
           // No seeded walk over a real account: invented performance under a
           // real total is the one thing this app's data contract forbids.
-          const series =
-            demo && !live
-              ? demoService.series(`pf-${pf.id}`, 70, (pf.dayPct ?? 0) >= 0 ? 0.5 : 0.16, 2.4)
-              : [];
-          const bench = demo && !live ? demoService.series('bench-spy', 70, 0.22, 1.4) : [];
+          // A manual portfolio is that same case — its total is its own
+          // positions at live prices — so it is excluded here too.
+          const invented = demo && !live && !isManual;
+          const series = invented
+            ? demoService.series(`pf-${pf.id}`, 70, (pf.dayPct ?? 0) >= 0 ? 0.5 : 0.16, 2.4)
+            : [];
+          const bench = invented ? demoService.series('bench-spy', 70, 0.22, 1.4) : [];
           const holdings = <Holdings pfId={pf.id} />;
 
           return (
@@ -347,32 +349,14 @@ export function PortfolioScreen(_: ScreenProps) {
                     </span>
                   </div>
                 )}
-                {live ? (
-                  <p
-                    className="text-muted"
-                    style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}
-                  >
-                    {t('live.noHistory')}
-                  </p>
-                ) : demo ? (
-                  <>
-                    <AreaChart values={series} height={110} pad={8} benchmark={bench} />
-                    <div
-                      className="text-muted"
-                      style={{ display: 'flex', gap: 14, fontSize: 'var(--text-caption)' }}
-                    >
-                      <span>
-                        <span style={{ color: 'var(--acc-lite)' }}>—</span>{' '}
-                        {isAgg ? t('pf.allAccounts') : pf.name}
-                      </span>
-                      <span>{t('pf.benchmark')}</span>
-                    </div>
-                  </>
-                ) : (
-                  // The line and its benchmark are both seeded walks; a manual
-                  // portfolio has no priced history to draw instead.
-                  <DemoOnly feature="pf.performance" card={false} />
-                )}
+                <PerformanceSlot
+                  live={live}
+                  isManual={isManual}
+                  demo={demo}
+                  series={series}
+                  bench={bench}
+                  label={isAgg ? t('pf.allAccounts') : pf.name}
+                />
               </Card>
 
               {live ? (
@@ -511,6 +495,72 @@ function HoldingRow({ h, closed, onOpen }: { h: Holding; closed?: boolean; onOpe
 }
 
 /**
+ * What goes under a portfolio's total: a chart, or the sentence that says why
+ * there isn't one.
+ *
+ * Four cases that are easy to collapse and must not be. A seeded random walk
+ * is only ever allowed under a total that is itself demonstration data —
+ * invented performance under a real figure is the one thing this app's data
+ * contract forbids — so both a connected account and a manual portfolio are
+ * excluded, and each says which fact of its own is missing rather than
+ * sharing one vague line.
+ *
+ * Written as early returns rather than a chain of ternaries because the cases
+ * are exclusive and each carries its own reason; a reader should be able to
+ * find the one that applies to them without unwinding the others.
+ */
+function PerformanceSlot({
+  live,
+  isManual,
+  demo,
+  series,
+  bench,
+  label,
+}: Readonly<{
+  live: boolean;
+  isManual: boolean;
+  demo: boolean;
+  series: number[];
+  bench: number[];
+  label: string;
+}>) {
+  const t = useT();
+  const note = (text: string) => (
+    <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
+      {text}
+    </p>
+  );
+
+  // isManual is asked FIRST because the two are not the same kind of fact:
+  // `live` is a switch on the whole app, while a manual portfolio is a
+  // property of the row the user has selected — and a manual portfolio can be
+  // open while that switch is on. Asked the other way round, the Sandbox
+  // explained itself as a brokerage that reports no priced history, which is
+  // not what it is.
+  //
+  // A manual portfolio's return IS a number (see ManualValue); only the line
+  // through time is missing, and this says which of the two is which.
+  if (isManual) return note(t('pf.noReturnHistory'));
+  // A live read of a connected account's current state: the brokerage reports
+  // no priced history through the integration at all.
+  if (live) return note(t('live.noHistory'));
+  // The line and its benchmark are both seeded walks, so with sample data off
+  // there is nothing honest left to draw.
+  if (!demo) return <DemoOnly feature="pf.performance" card={false} />;
+  return (
+    <>
+      <AreaChart values={series} height={110} pad={8} benchmark={bench} />
+      <div className="text-muted" style={{ display: 'flex', gap: 14, fontSize: 'var(--text-caption)' }}>
+        <span>
+          <span style={{ color: 'var(--acc-lite)' }}>—</span> {label}
+        </span>
+        <span>{t('pf.benchmark')}</span>
+      </div>
+    </>
+  );
+}
+
+/**
  * A manual portfolio's total, and — when it cannot be stated — which holdings
  * are the reason.
  *
@@ -529,6 +579,27 @@ function ManualValue({ pfId }: { pfId: string }) {
           {moneyOrDash(valuation?.total ?? null)}
         </Num>
       </div>
+      {/* How much they made, in the currency they think in and as a share of
+          what they put in. Both come from the same valuation as the total
+          above, so the three figures can never disagree: an unpriced holding
+          makes all of them "—" together rather than leaving a confident
+          profit under an unknown worth. */}
+      {valuation && valuation.positions.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+          <span className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
+            {t('pf.totalReturn')}
+          </span>
+          <span style={{ fontSize: 'var(--text-row)', color: signalColor(valuation.pl) }}>
+            <Num>{valuation.pl === null ? '—' : signedCurrency(valuation.pl)}</Num>{' '}
+            <Num>{valuation.plPct === null ? '' : `(${pctOrDash(valuation.plPct)})`}</Num>
+          </span>
+          {valuation.invested > 0 && (
+            <span className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
+              {t('pf.returnBasis', { invested: money(valuation.invested) })}
+            </span>
+          )}
+        </div>
+      )}
       {/* Why the total is an em dash, said where the reader is looking when
           they wonder. A silent "—" over a list of real positions reads as a
           broken app; naming what could not be priced is the difference

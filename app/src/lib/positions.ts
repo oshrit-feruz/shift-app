@@ -86,6 +86,27 @@ export interface PortfolioValuation {
   held: number;
   /** Held tickers with no price, in list order, so the UI can name them. */
   unpriced: string[];
+  /**
+   * Everything ever paid into this portfolio: the cost of what is still held
+   * plus the cost of what has since been sold. The denominator `plPct` is a
+   * percentage of, and a real number even when nothing can be priced.
+   */
+  invested: number;
+  /**
+   * Total return in currency — what the held shares are worth now, plus what
+   * selling already booked, plus dividends, less what the held shares cost.
+   *
+   * `null` on exactly the same condition as `total`: one unpriced leg makes
+   * the profit unknown, not smaller, and wrong in the flattering direction
+   * whenever the missing leg is the one that is down.
+   */
+  pl: number | null;
+  /**
+   * `pl` as a percentage of `invested`. `null` when `pl` is, and also when
+   * nothing was ever invested — a dividend logged against no purchase has no
+   * denominator, and both `Infinity%` and `0.00%` would be inventions.
+   */
+  plPct: number | null;
 }
 
 /**
@@ -179,7 +200,29 @@ export function valuePositions(
   const unpriced = held.filter((x) => x.value === null).map((x) => x.ticker);
   const total = unpriced.length > 0 ? null : held.reduce((sum, x) => sum + (x.value ?? 0), 0);
 
-  return { positions: valued, total, priced: held.length - unpriced.length, held: held.length, unpriced };
+  const invested = valued.reduce((sum, x) => sum + x.costBasis + x.soldCost, 0);
+  // A closed position contributes what it booked and paid out, and needs no
+  // price to do it: its `costBasis` is zero and it holds no shares to value.
+  // Only a HELD leg needs a price, which is why one unpriced held ticker —
+  // and not an unpriced closed one — is what makes the profit unknown.
+  const pl =
+    total === null
+      ? null
+      : valued.reduce(
+          (sum, x) => sum + (x.shares > 0 ? (x.value ?? 0) : 0) + x.realised + x.dividends - x.costBasis,
+          0,
+        );
+
+  return {
+    positions: valued,
+    total,
+    priced: held.length - unpriced.length,
+    held: held.length,
+    unpriced,
+    invested,
+    pl,
+    plPct: pl === null || invested <= 0 ? null : (pl / invested) * 100,
+  };
 }
 
 /**

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compactMoney, isoDate, moneyOrDash, pctOrDash, signalColor } from './format';
+import { compactMoney, isoDate, moneyOrDash, pctOrDash, signalColor, signedCurrency } from './format';
 
 describe('compactMoney', () => {
   it('compacts at each scale, keeping one decimal', () => {
@@ -115,5 +115,22 @@ describe('pctOrDash / signalColor with nothing to report', () => {
     expect(signalColor(undefined)).toBe('var(--muted)');
     expect(signalColor(0)).toBe('var(--up)');
     expect(signalColor(-1)).toBe('var(--down)');
+  });
+});
+
+describe('signedCurrency', () => {
+  it('carries the sign, the symbol and the separators', () => {
+    expect(signedCurrency(550)).toBe('+$550.00');
+    expect(signedCurrency(9163.55)).toBe('+$9,163.55');
+  });
+
+  // The sign goes in front of the whole amount, not inside it: leaving it to
+  // the formatter renders a loss as "$-1,204.30", which reads as a price.
+  it('puts a loss sign before the symbol', () => {
+    expect(signedCurrency(-1204.3)).toBe('-$1,204.30');
+  });
+
+  it('treats flat as a gain of nothing rather than a loss', () => {
+    expect(signedCurrency(0)).toBe('+$0.00');
   });
 });
