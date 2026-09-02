@@ -89,9 +89,11 @@ export const DEMO_FLAGS = {
    * and the earnings surfaces render a full illustrative week and quarterly
    * history rather than only what the free data plan carries. Every whole
    * feature with nothing real behind it reads this too — the portfolio,
-   * market movers, analyst ratings, connected accounts, notifications — and
-   * with the switch off each says so in place (components/DemoOnly.tsx)
-   * rather than rendering invented money.
+   * analyst ratings, connected accounts, notifications — and with the switch
+   * off each says so in place (components/DemoOnly.tsx) rather than rendering
+   * invented money. Market movers used to be on that list and no longer is:
+   * the board ranks the real market through /api/movers, so there was nothing
+   * left for the gate to hide.
    *
    * This is the one thing that may substitute invented numbers for real ones,
    * and it is allowed to because the reader turned it on themselves: the

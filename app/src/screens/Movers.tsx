@@ -4,90 +4,96 @@ import { Num } from '../components/Num';
 import { Chip, ChipRail } from '../components/Chip';
 import { TickerSparkline } from '../components/TickerSparkline';
 import { TickerTile } from '../components/TickerTile';
-import { DataState } from '../components/DataState';
-import { DemoOnly } from '../components/DemoOnly';
-import { useDemoMode } from '../lib/DemoModeProvider';
+import { DataState, EmptyState } from '../components/DataState';
 import { SkeletonCard, SkeletonList } from '../components/Skeleton';
 import { useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
-import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
-import { PRICE_REFRESH_MS } from '../data/quotes';
-import { fetchStatsFor, relativeVolume } from '../data/stats';
+import { fetchMovers, type Board, type MoverRow } from '../data/movers';
+import { relativeVolume } from '../data/stats';
 import { compactCount, moneyOrDash, pctOrDash, signalColor } from '../lib/format';
-import type { StockStats, SymbolInfo } from '../data/types';
 import type { StringKey } from '../i18n/strings';
 import type { ScreenProps } from '../App';
 
-const TABS: Array<[string, StringKey]> = [
-  ['Gainers', 'movers.gainers'],
-  ['Losers', 'movers.losers'],
-  ['Most active', 'movers.active'],
-];
-
-const SECTORS: Array<[string, StringKey]> = [
-  ['All', 'sector.all'],
-  ['Technology', 'sector.tech'],
-  ['Consumer', 'sector.consumer'],
-  ['Financials', 'sector.financials'],
-  ['Energy', 'sector.energy'],
-  ['Healthcare', 'sector.healthcare'],
+const TABS: Array<[Board, StringKey]> = [
+  ['gainers', 'movers.gainers'],
+  ['losers', 'movers.losers'],
+  ['active', 'movers.active'],
 ];
 
 /**
- * Split so the hooks below never run with sample data off.
+ * The sector chips, each mapped to the provider's own sector words.
  *
- * EVERY NUMBER ON THIS SCREEN IS REAL NOW. The day change comes from the live
- * quote, the price beside it from the same quote, and the Vol column, the
- * RVol column and the "Most active" ranking from /api/stats — the session's
- * volume and the provider's average daily volume. What those replaced is
- * worth naming: the volume was a frozen string per ticker, and RVol was
- * `1.1 + (ticker.length % 4) * 0.4`, a number derived from how many letters
- * the symbol has and printed with an "×" beside a real price.
+ * A translation table rather than a straight comparison because the two
+ * vocabularies do not line up one to one: the app offers "Consumer" where the
+ * provider splits Cyclical from Defensive, and "Financials" where it says
+ * "Financial Services". Comparing the chip label to the field directly would
+ * have quietly emptied both of those chips.
  *
- * THE GATE STAYS ANYWAY, and for a different reason than before. This screen
- * ranks `demoService.symbols()` — the app's ten-row sample table — so it is
- * "the movers among ten sample stocks", not the market's. Real figures over a
- * hand-picked universe would be a more convincing wrong answer than obvious
- * placeholders were, which is exactly the trade this app does not make. The
- * gate lifts when the universe is real: EODHD's screener is on this plan and
- * can rank the actual market, though it answers on the last completed session
- * rather than intraday, and picking sensible filters (a price floor, a volume
- * floor, primary listings only) is a product decision rather than a wiring
- * one — sorted naively by day change it returns sub-penny OTC listings.
+ * FILTERED HERE RATHER THAN UPSTREAM, on purpose. The screener does accept a
+ * sector filter, but one filter cannot express "either of these two", so the
+ * Consumer chip would need a second query — and, more to the point, a chip
+ * that re-ran the query would show the sector's own top hundred rather than
+ * the movers of that sector within the board being looked at. The chips narrow
+ * the board; that is what the screen says they do.
+ *
+ * A row the provider gives no sector for — an ETF, which has none — is on the
+ * board and appears under "All" only. That is an absence, not a mismatch.
  */
-export function MoversScreen(props: ScreenProps) {
-  const demo = useDemoMode();
-  return demo ? <MoversBody {...props} /> : <DemoOnly feature="title.movers" />;
-}
+const SECTORS: Array<[string, StringKey, readonly string[]]> = [
+  ['All', 'sector.all', []],
+  ['Technology', 'sector.tech', ['Technology']],
+  ['Consumer', 'sector.consumer', ['Consumer Cyclical', 'Consumer Defensive']],
+  ['Financials', 'sector.financials', ['Financial Services']],
+  ['Energy', 'sector.energy', ['Energy']],
+  ['Healthcare', 'sector.healthcare', ['Healthcare']],
+];
 
-function MoversBody(_: ScreenProps) {
+/** How many cards beginner mode shows before the list stops being a summary. */
+const BEGINNER_ROWS = 6;
+
+/**
+ * Market movers.
+ *
+ * EVERY NUMBER ON THIS SCREEN IS REAL, AND SO IS THE UNIVERSE BEHIND IT. Both
+ * halves took work. The figures went first: the day change and price used to
+ * come from the sample table, the Vol column was a frozen string per ticker,
+ * and RVol was `1.1 + (ticker.length % 4) * 0.4` — a number derived from how
+ * many letters the symbol has, printed with an "×" beside a real price.
+ *
+ * The universe went second, and it is why this screen used to sit behind the
+ * sample-data switch even after its numbers were real. It ranked
+ * `demoService.symbols()`, ten stocks somebody picked during design, so "market
+ * movers" meant "the movers among those ten" — real figures over a hand-picked
+ * universe, which is a more convincing wrong answer than obvious placeholders
+ * are. It now ranks the US market through EODHD's screener (api/movers.ts),
+ * so the gate is gone.
+ *
+ * THE ONE THING THE SOURCE CANNOT DO, said in the header rather than hidden:
+ * the screener answers on the last completed session, so during a trading day
+ * this board is yesterday's. Both columns come from that one session, which is
+ * why the price here is the screener's close and not the live quote — a live
+ * price beside a last-close change would be two moments under one label.
+ */
+export function MoversScreen(_: ScreenProps) {
   const dispatch = useDispatch();
-  const { mode, language } = useTheme();
+  const { mode } = useTheme();
   const t = useT();
   const beg = mode === 'beginner';
-  const [tab, setTab] = useState('Gainers');
+  const [tab, setTab] = useState<Board>('gainers');
   const [sector, setSector] = useState('All');
-  const symbols = useLoadable(() => demoService.symbols(), [], PRICE_REFRESH_MS);
-  // Volume and its average, per ticker, from /api/stats. Read for the whole
-  // table in one request rather than per row: the route batches natively, and
-  // the "Most active" ranking needs every row's volume before it can order any
-  // of them. A ticker the provider does not carry is simply absent, which the
-  // Vol and RVol columns render as "—".
-  const tickers = symbols.state.status === 'ok' ? symbols.state.data.map((x) => x.ticker) : [];
-  // No refresh interval, unlike the quotes above: these are shared for
-  // fifteen minutes client-side (data/stats.ts) against a feed that is
-  // itself delayed by about as long, so a thirty-second poll would only
-  // re-read the same cached numbers while claiming to be live.
-  const statsRead = useLoadable(() => fetchStatsFor(tickers), [tickers.join(',')]);
-  const stats = statsRead.state.status === 'ok' ? statsRead.state.data : {};
+  // One read per board, cached for half an hour client-side against a source
+  // that recomputes once a day (data/movers.ts) — flipping tabs and coming
+  // back costs nothing. No refresh interval for the same reason: a poll would
+  // re-read the same session while implying it was live.
+  const movers = useLoadable(() => fetchMovers(tab), [tab]);
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
       <div style={{ display: 'flex', gap: 5 }}>
-        {TABS.map(([k, key]) => (
-          <Chip key={k} active={tab === k} onClick={() => setTab(k)}>
+        {TABS.map(([board, key]) => (
+          <Chip key={board} active={tab === board} onClick={() => setTab(board)}>
             {t(key)}
           </Chip>
         ))}
@@ -101,12 +107,12 @@ function MoversBody(_: ScreenProps) {
       </ChipRail>
 
       <DataState
-        state={symbols.state}
-        onRetry={symbols.retry}
+        state={movers.state}
+        onRetry={movers.retry}
         skeleton={
           beg ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-              {Array.from({ length: 6 }, (_, i) => (
+              {Array.from({ length: BEGINNER_ROWS }, (_, i) => (
                 <SkeletonCard key={i} height={78} lines={1} padding={12} />
               ))}
             </div>
@@ -117,129 +123,118 @@ function MoversBody(_: ScreenProps) {
           )
         }
       >
-        {(syms) => {
-          // A symbol the provider could not price has no day change to rank by,
-          // so it sorts to the bottom of Gainers and Losers alike rather than
-          // being treated as a flat 0% — which would place it in the middle
-          // of the board, among the stocks that genuinely did not move.
-          const byChange = (a: SymbolInfo, b: SymbolInfo, sign: 1 | -1) => {
-            const x = a.quote?.changePct ?? null;
-            const y = b.quote?.changePct ?? null;
-            if (x === null && y === null) return 0;
-            if (x === null) return 1;
-            if (y === null) return -1;
-            return sign * (y - x);
-          };
-          // Same rule as byChange, for the same reason: a ticker whose volume
-          // we do not have has not "traded nothing", so it sorts to the bottom
-          // rather than into the middle of the board as a zero.
-          const byVolume = (a: SymbolInfo, b: SymbolInfo) => {
-            const x = stats[a.ticker]?.volume ?? null;
-            const y = stats[b.ticker]?.volume ?? null;
-            if (x === null && y === null) return 0;
-            if (x === null) return 1;
-            if (y === null) return -1;
-            return y - x;
-          };
-          const pool = syms
-            .slice()
-            .sort((a, b) =>
-              tab === 'Losers'
-                ? byChange(a, b, -1)
-                : tab === 'Most active'
-                  ? byVolume(a, b)
-                  : byChange(a, b, 1),
-            );
-          const filtered = sector === 'All' ? pool : pool.filter((x) => x.sector === sector);
+        {(board) => {
+          const wanted = SECTORS.find(([k]) => k === sector)?.[2] ?? [];
+          // The provider ranked the board; narrowing it keeps that order.
+          const rows =
+            wanted.length === 0
+              ? board.rows
+              : board.rows.filter((r) => r.sector !== null && wanted.includes(r.sector));
 
-          if (beg) {
-            return (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                {filtered.slice(0, 6).map((x) => (
-                  <Card
-                    key={x.ticker}
-                    padding={12}
-                    gap={5}
-                    onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <TickerTile ticker={x.ticker} size={26} />
-                      <Num size={17} weight={600}>
-                        {x.ticker}
-                      </Num>
-                      <span
-                        className="text-muted"
-                        style={{
-                          fontSize: 'var(--text-body)',
-                          flex: 1,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {x.name}
-                      </span>
-                      <Num
-                        size={23}
-                        style={{
-                          fontFamily: 'var(--font-heading)',
-                          color: signalColor(x.quote?.changePct),
-                        }}
-                      >
-                        {pctOrDash(x.quote?.changePct)}
-                      </Num>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 'var(--text-body)', opacity: 0.76, flex: 1 }}>
-                        {x.why[language]}
-                      </span>
-                      <TickerSparkline ticker={x.ticker} />
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            );
-          }
+          if (rows.length === 0) return <EmptyState>{t('movers.empty')}</EmptyState>;
 
           return (
-            <Card padding="6px 10px 4px" gap={0}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-caption)' }}>
-                <thead>
-                  <tr>
-                    <Th align="start">{t('movers.colSym')}</Th>
-                    <Th>{t('movers.colLast')}</Th>
-                    <Th>{t('movers.colChg')}</Th>
-                    <Th>{t('movers.colVol')}</Th>
-                    <Th>RVol</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((x) => (
-                    <tr
+            <>
+              {board.lastClose && (
+                <p
+                  className="text-muted"
+                  style={{ fontSize: 'var(--text-caption)', margin: 0, textAlign: 'center' }}
+                >
+                  {t('movers.lastClose')}
+                </p>
+              )}
+              {beg ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                  {rows.slice(0, BEGINNER_ROWS).map((x) => (
+                    <Card
                       key={x.ticker}
-                      style={{ cursor: 'pointer' }}
+                      padding={12}
+                      gap={5}
                       onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}
                     >
-                      <Td align="start" strong>
-                        {x.ticker}
-                      </Td>
-                      <Td>
-                        <Num>{moneyOrDash(x.quote?.price)}</Num>
-                      </Td>
-                      <Td color={signalColor(x.quote?.changePct)}>
-                        <Num>{pctOrDash(x.quote?.changePct)}</Num>
-                      </Td>
-                      <Td muted>
-                        <Num>{volumeOrDash(stats[x.ticker]?.volume)}</Num>
-                      </Td>
-                      <Td color="var(--color-accent-300)">
-                        <Num>{rvolOrDash(stats[x.ticker])}</Num>
-                      </Td>
-                    </tr>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <TickerTile ticker={x.ticker} size={26} />
+                        <Num size={17} weight={600}>
+                          {x.ticker}
+                        </Num>
+                        <span
+                          className="text-muted"
+                          style={{
+                            fontSize: 'var(--text-body)',
+                            flex: 1,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {x.name ?? ''}
+                        </span>
+                        <Num
+                          size={23}
+                          style={{ fontFamily: 'var(--font-heading)', color: signalColor(x.changePct) }}
+                        >
+                          {pctOrDash(x.changePct)}
+                        </Num>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        {/* This line used to carry a one-sentence explanation
+                            of the move, written by hand for each of the ten
+                            sample stocks. There is no such sentence for a
+                            hundred rows the market picked, and inventing one
+                            is the exact thing this screen stopped doing. What
+                            replaces it is what we actually know: the close, and
+                            how busy the session was. */}
+                        <span style={{ fontSize: 'var(--text-body)', opacity: 0.76, flex: 1 }}>
+                          {`${moneyOrDash(x.close)} · ${t('movers.colVol')} ${volumeOrDash(x.volume)}`}
+                        </span>
+                        <TickerSparkline ticker={x.ticker} />
+                      </div>
+                    </Card>
                   ))}
-                </tbody>
-              </table>
-            </Card>
+                </div>
+              ) : (
+                <Card padding="6px 10px 4px" gap={0}>
+                  <table
+                    style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-caption)' }}
+                  >
+                    <thead>
+                      <tr>
+                        <Th align="start">{t('movers.colSym')}</Th>
+                        <Th>{t('movers.colLast')}</Th>
+                        <Th>{t('movers.colChg')}</Th>
+                        <Th>{t('movers.colVol')}</Th>
+                        <Th>RVol</Th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((x) => (
+                        <tr
+                          key={x.ticker}
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}
+                        >
+                          <Td align="start" strong>
+                            {x.ticker}
+                          </Td>
+                          <Td>
+                            <Num>{moneyOrDash(x.close)}</Num>
+                          </Td>
+                          <Td color={signalColor(x.changePct)}>
+                            <Num>{pctOrDash(x.changePct)}</Num>
+                          </Td>
+                          <Td muted>
+                            <Num>{volumeOrDash(x.volume)}</Num>
+                          </Td>
+                          <Td color="var(--color-accent-300)">
+                            <Num>{rvolOrDash(x)}</Num>
+                          </Td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </Card>
+              )}
+            </>
           );
         }}
       </DataState>
@@ -258,11 +253,13 @@ function volumeOrDash(volume: number | null | undefined): string {
  * This column used to read `1.1 + (ticker.length % 4) * 0.4` — a number
  * derived from how many letters the symbol has, rendered with an "×" beside a
  * real price and a real day change. It is now the session's volume over the
- * provider's average daily volume, both from one snapshot, and null whenever
- * either is missing or the average is zero (see relativeVolume).
+ * provider's 200-day average, both from the same screener row, and null
+ * whenever either is missing or the average is zero (see relativeVolume): a
+ * newly listed name has no history to be relative to, and dividing by that
+ * zero would print "∞×".
  */
-function rvolOrDash(stats: StockStats | undefined): string {
-  const rvol = relativeVolume(stats);
+function rvolOrDash(row: MoverRow): string {
+  const rvol = relativeVolume(row);
   return rvol === null ? '—' : `${rvol.toFixed(1)}×`;
 }
 

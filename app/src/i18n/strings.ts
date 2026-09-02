@@ -724,6 +724,11 @@ export const STRINGS = {
   'sector.financials': p('Financials', 'פיננסים'),
   'sector.energy': p('Energy', 'אנרגיה'),
   'sector.healthcare': p('Healthcare', 'בריאות'),
+  // Every figure on this board is the last completed session's — the screener
+  // behind it cannot be asked for the running day — so the screen says so
+  // rather than letting a reader take a close for a live price.
+  'movers.lastClose': p('Figures from the last market close', 'הנתונים מסגירת המסחר האחרונה'),
+  'movers.empty': p('No stocks match this board right now.', 'אין מניות שעונות ללוח הזה כרגע.'),
   'movers.colSym': p('Sym', 'סימבול'),
   'movers.colLast': p('Last', 'אחרון'),
   'movers.colChg': p('Chg%', 'שינוי%'),

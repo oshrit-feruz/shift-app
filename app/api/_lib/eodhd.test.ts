@@ -4,9 +4,12 @@ import {
   isCalendarDate,
   isoDay,
   mapEodBars,
+  mapMoverRow,
+  mapMoverRows,
   mapUsStats,
   readUsQuoteData,
   resolveSymbol,
+  screenerUrl,
   usQuoteUrl,
 } from './eodhd.js';
 
@@ -268,5 +271,110 @@ describe('mapUsStats', () => {
   it('refuses a row that is not an object', () => {
     expect(mapUsStats(null)).toBeNull();
     expect(mapUsStats([row])).toBeNull();
+  });
+});
+
+describe('screenerUrl', () => {
+  it('sends the sort, the limit and the filters as the provider parses them', () => {
+    const url = screenerUrl('k', 'refund_1d_p.desc', 100, [['exchange', '=', 'us']]);
+    expect(url.pathname).toBe('/api/screener');
+    expect(url.searchParams.get('sort')).toBe('refund_1d_p.desc');
+    expect(url.searchParams.get('limit')).toBe('100');
+    expect(url.searchParams.get('filters')).toBe('[["exchange","=","us"]]');
+    expect(url.searchParams.get('fmt')).toBe('json');
+    expect(url.searchParams.get('api_token')).toBe('k');
+  });
+});
+
+describe('mapMoverRow', () => {
+  const row = {
+    code: 'MRNA',
+    name: 'Moderna Inc',
+    last_day_data_date: '2026-09-01',
+    adjusted_close: 154.27,
+    refund_1d_p: 9.93,
+    sector: 'Healthcare',
+    avgvol_1d: 25690832,
+    avgvol_200d: 11319266.03,
+  };
+
+  it('translates the provider field names into what they actually mean', () => {
+    // avgvol_1d is not an average: it is the last session's volume, and
+    // avgvol_200d is the average it gets measured against. Carrying them
+    // under the provider's names would invite the mistake RVol exists to
+    // avoid.
+    expect(mapMoverRow(row)).toEqual({
+      ticker: 'MRNA',
+      name: 'Moderna Inc',
+      sector: 'Healthcare',
+      close: 154.27,
+      changePct: 9.93,
+      volume: 25690832,
+      averageVolume: 11319266.03,
+    });
+  });
+
+  it('keeps a real fall as a negative change', () => {
+    expect(mapMoverRow({ ...row, refund_1d_p: -4.2 })!.changePct).toBe(-4.2);
+  });
+
+  it('keeps a flat session as a real zero', () => {
+    expect(mapMoverRow({ ...row, refund_1d_p: 0 })!.changePct).toBe(0);
+  });
+
+  it('carries no date, so nothing downstream can print one', () => {
+    expect(mapMoverRow(row)).not.toHaveProperty('last_day_data_date');
+  });
+
+  it('reads a missing name or sector as null rather than as an empty label', () => {
+    // Verified against the live screener: an ETF is returned with "" for both.
+    const etf = mapMoverRow({ ...row, code: 'XOP', name: '', sector: '' })!;
+    expect(etf.name).toBeNull();
+    expect(etf.sector).toBeNull();
+  });
+
+  it('drops a row that cannot carry a ticker, a close and a change', () => {
+    expect(mapMoverRow({ ...row, code: '' })).toBeNull();
+    expect(mapMoverRow({ ...row, adjusted_close: null })).toBeNull();
+    expect(mapMoverRow({ ...row, adjusted_close: 0 })).toBeNull();
+    expect(mapMoverRow({ ...row, refund_1d_p: null })).toBeNull();
+    expect(mapMoverRow({ ...row, refund_1d_p: '9.93' })).toBeNull();
+    expect(mapMoverRow(null)).toBeNull();
+    expect(mapMoverRow([row])).toBeNull();
+  });
+
+  it('keeps a row whose volume is missing — two columns already say "—"', () => {
+    const thin = mapMoverRow({ ...row, avgvol_1d: null, avgvol_200d: null })!;
+    expect(thin.ticker).toBe('MRNA');
+    expect(thin.volume).toBeNull();
+    expect(thin.averageVolume).toBeNull();
+  });
+
+  it('refuses a zero average, which is the denominator of the RVol ratio', () => {
+    // Seen on newly listed names: the provider sends 0 where it has no
+    // history to average. Dividing by it would render "∞×" on the board.
+    expect(mapMoverRow({ ...row, avgvol_200d: 0 })!.averageVolume).toBeNull();
+  });
+});
+
+describe('mapMoverRows', () => {
+  const row = { code: 'MRNA', adjusted_close: 154.27, refund_1d_p: 9.93 };
+
+  it('drops what it cannot read without invalidating the board', () => {
+    // The opposite of mapEodBars, and deliberately: a chart is read as a whole
+    // and a missing session changes its shape, while a board is a list.
+    const rows = mapMoverRows({ data: [row, { code: 'ZZ' }, null] })!;
+    expect(rows.map((r) => r.ticker)).toEqual(['MRNA']);
+  });
+
+  it('reads an empty board as a real answer — nothing cleared the filters', () => {
+    expect(mapMoverRows({ data: [] })).toEqual([]);
+  });
+
+  it('refuses a body that is not a screener response', () => {
+    expect(mapMoverRows(null)).toBeNull();
+    expect(mapMoverRows([row])).toBeNull();
+    expect(mapMoverRows({ error: 'nope' })).toBeNull();
+    expect(mapMoverRows({ data: 'nope' })).toBeNull();
   });
 });

@@ -180,7 +180,9 @@ async function readStats(
  * low all morning and only means what it says near the close. That is what
  * relative volume is in every trading app; it is not an error to correct for.
  */
-export function relativeVolume(stats: StockStats | null | undefined): number | null {
+export function relativeVolume(
+  stats: { volume: number | null; averageVolume: number | null } | null | undefined,
+): number | null {
   if (!stats) return null;
   const { volume, averageVolume } = stats;
   if (volume === null || averageVolume === null || averageVolume <= 0) return null;

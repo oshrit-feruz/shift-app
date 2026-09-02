@@ -221,16 +221,41 @@ morning because the session total is partial — which is what relative volume
 means everywhere — and it is `—` rather than `∞×` for a newly listed name
 whose average is zero.
 
-**The Movers screen stays behind the sample-data switch anyway,** for a
-different reason than before. It ranks the ten-row sample table, so it is "the
-movers among ten sample stocks" rather than the market's, and real figures over
-a hand-picked universe would be a more convincing wrong answer than obvious
-placeholders were. The gate lifts when the universe is real: EODHD's screener
-is on this plan and can rank the actual market, with two caveats that make it a
-product decision rather than a wiring one — it answers on the last completed
-session rather than intraday, and sorted naively by day change it returns
-sub-penny OTC listings, so it needs a price floor, a volume floor and primary
-listings only.
+**The Movers screen's universe is real now, and the gate is gone.** It used to
+rank the ten-row sample table, so it was "the movers among ten sample stocks"
+rather than the market's — real figures over a hand-picked universe, which is a
+more convincing wrong answer than obvious placeholders are, and the reason the
+whole screen sat behind the sample-data switch even after its numbers became
+real. `/api/movers?board=gainers|losers|active` ranks the actual US market
+through EODHD's screener instead, and both the screen and the home preview read
+it with the switch in either position.
+
+**The filters are the feature.** Sorted naively by day change the screener
+returns sub-penny OTC listings: a 14% "gain" on a stock quoted at $0.0016
+outranks every real move in the market. Three floors, chosen by running the
+query and looking at the answer, make the board readable — a $5B market cap, a
+$10 price and 2M shares of daily volume. With them the top of the gainers board
+is Moderna, Edison International and Duolingo.
+
+**One session behind, and the screen says so.** The screener answers on the
+last completed session and its own documentation rules out asking for any
+other, so during a trading day this board is yesterday's. The route sends
+`lastClose: true` rather than letting the screen assume it, and the screen
+carries a line saying the figures are from the last market close. That is also
+why the price column is the screener's close rather than the live quote: the
+change beside it is that session's, and a live price next to a last-close
+change would be two moments under one label. The intraday alternative is the
+bulk live endpoint (the whole US market in one request, fifteen minutes
+delayed), which is a bigger change and a different cost.
+
+**Sector chips filter the board rather than re-running the query.** The
+screener does accept a sector filter, but one filter cannot express "either of
+these two", and the app's "Consumer" chip covers the provider's Consumer
+Cyclical *and* Consumer Defensive (its "Financials" is the provider's
+"Financial Services"). More to the point, a chip that re-ran the query would
+show that sector's own top hundred rather than the movers of that sector within
+the board being looked at. An ETF, which the provider gives no sector at all,
+is on the board and appears under "All" only.
 
 **Where the prices come from.** `app/src/data/quotes.ts` batches a screen's
 tickers into one call to `app/api/quote.ts`, which fans out to Finnhub's
@@ -529,6 +554,8 @@ Both were caught by looking at the rendered screen, not by a passing test.
 | Satellite card | the daily mirror in this repo | none |
 | Every price on screen (`SymbolInfo.quote`) | `/api/quote?symbols=` — live, batched per screen | 1 Finnhub call per symbol, shared for 20s |
 | Stock page · chart, and the movers' sparklines | `/api/candles?symbol=` — live, per ticker | 1 EODHD call per ticker, cached an hour at the edge |
+| Movers screen · one board | `/api/movers?board=` — EODHD's screener over the US market | 5 credits per board, cached 30 min at the edge and in the client |
+| Home · movers preview | the same two boards (gainers + losers), merged | none beyond the above — the reads are shared |
 
 The general feed is why the browsable news screen is cheap: EODHD's `s`
 parameter takes **one** symbol at a time and a per-ticker call costs double,

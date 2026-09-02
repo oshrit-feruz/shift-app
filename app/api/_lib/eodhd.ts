@@ -282,6 +282,108 @@ export function mapUsStats(raw: unknown): UsStats | null {
 }
 
 /**
+ * One row of the market-movers board, as the screener reports it.
+ *
+ * The provider's field names are worth translating rather than passing
+ * through: `avgvol_1d` is not an average at all — it is the last session's
+ * volume — while `avgvol_200d` is the 200-day average it gets measured
+ * against. Carrying them under those names would have invited exactly the
+ * mistake the ratio exists to avoid.
+ */
+export interface MoverRow {
+  ticker: string;
+  name: string | null;
+  /** The provider's own sector vocabulary, e.g. "Technology". */
+  sector: string | null;
+  /** The session's closing price. */
+  close: number;
+  /** The session's change, in percent, signed. */
+  changePct: number;
+  /** The session's volume, and the 200-day average to measure it against. */
+  volume: number | null;
+  averageVolume: number | null;
+}
+
+/**
+ * The screener URL for one board.
+ *
+ * `filters` is a JSON array the provider parses, so it is built here rather
+ * than by a caller assembling a string: a malformed filter comes back as an
+ * unfiltered board, which is the one failure that would look like success.
+ *
+ * The screener answers on the LAST COMPLETED SESSION and cannot be asked for
+ * any other — its own documentation says historical screening is not
+ * supported. So a board built on it is the last close's, never the running
+ * day's, and whatever renders it has to say so.
+ */
+export function screenerUrl(
+  apiKey: string,
+  sort: string,
+  limit: number,
+  filters: Array<[string, string, string | number]>,
+): URL {
+  const url = new URL(`${API_ROOT}/screener`);
+  url.searchParams.set('sort', sort);
+  url.searchParams.set('limit', String(limit));
+  url.searchParams.set('filters', JSON.stringify(filters));
+  url.searchParams.set('fmt', 'json');
+  url.searchParams.set('api_token', apiKey);
+  return url;
+}
+
+/** A trimmed non-empty string, or null. */
+function strOrNull(v: unknown): string | null {
+  return typeof v === 'string' && v.trim() !== '' ? v.trim() : null;
+}
+
+/**
+ * Map one screener row, or null when it cannot carry a board row.
+ *
+ * A row needs a ticker, a close and a change to be one line of a movers
+ * board; without any of the three there is nothing to rank or to render, and
+ * the row is dropped rather than shown with holes. Volume and its average are
+ * different — they fill two columns that already know how to say "—".
+ *
+ * Unlike the candle mapper, one unusable row does not invalidate the board.
+ * A chart is read as a whole and a missing session changes its shape; a board
+ * is a list, and dropping an unreadable entry from it costs the reader one
+ * row rather than misrepresenting the rest.
+ */
+export function mapMoverRow(raw: unknown): MoverRow | null {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const row = raw as Record<string, unknown>;
+  const ticker = strOrNull(row.code);
+  const close = numOrNull(row.adjusted_close);
+  const changePct = numOrNull(row.refund_1d_p);
+  if (ticker === null || close === null || close <= 0 || changePct === null) return null;
+  const average = numOrNull(row.avgvol_200d);
+  return {
+    ticker: ticker.toUpperCase(),
+    name: strOrNull(row.name),
+    sector: strOrNull(row.sector),
+    close,
+    changePct,
+    volume: numOrNull(row.avgvol_1d),
+    // Zero is the provider having no history to average, seen on newly listed
+    // names, and it is the denominator of the relative-volume ratio.
+    averageVolume: average !== null && average > 0 ? average : null,
+  };
+}
+
+/**
+ * Map a screener body into board rows, or null when the body is not one.
+ *
+ * An empty list is a real answer — no stock cleared the filters — and comes
+ * back as an empty array rather than null.
+ */
+export function mapMoverRows(body: unknown): MoverRow[] | null {
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) return null;
+  const data = (body as Record<string, unknown>).data;
+  if (!Array.isArray(data)) return null;
+  return data.map(mapMoverRow).filter((r): r is MoverRow => r !== null);
+}
+
+/**
  * Map one raw EODHD row into a CandleRow, or null when it is not one.
  *
  * Every field is required and every price must describe a session that could
