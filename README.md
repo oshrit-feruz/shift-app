@@ -182,23 +182,80 @@ real backend drops in by implementing that interface; no UI changes needed.
 
 **Prices are not among them any more.** `SymbolInfo` is split by provenance:
 `quote` (last price, day change, previous close, session high/low/open) is
-**real and live**, read per ticker from `/api/quote`; `demo` (volume, market
-cap, P/E, RSI) is still the prototype's. The split is the point — a call site
-writes `x.demo.marketCap`, which says what the number is at the moment it is
-rendered, where a flat `x.marketCap` sitting next to a real price would not.
-There is no price literal left outside `demo`, so a failed quote read has
-nothing to fall back to: `quote` is null and every price on screen renders `—`
-through `moneyOrDash`. The prototype price survives only for valuing the demo
+**real and live**, read per ticker from `/api/quote`; `demo` is what is left
+of the prototype's. The split is the point — a call site writes
+`x.demo.volume`, which says what the number is at the moment it is rendered,
+where a flat `x.volume` sitting next to a real price would not. There is no
+price literal left outside `demo`, so a failed quote read has nothing to fall
+back to: `quote` is null and every price on screen renders `—` through
+`moneyOrDash`. The prototype price survives only for valuing the demo
 portfolio, and never as *the* price.
+
+**That bag is nearly empty now.** Market cap and
+P/E left for a route of their own (`app/api/stats.ts`, EODHD's delayed US
+extended quote), taking with them a forward P/E that was literally `pe * 0.62`
+and three string constants — beta `2.14`, dividend yield `0.02%`, short float
+`1.1%` — that read identically under every ticker in the app. Forward P/E and
+dividend yield are real now; beta and short float had no source on this
+subscription and their rows are gone rather than rendered as a dash that would
+never resolve. A delayed feed is the right source for figures that move on the
+scale of quarters and the wrong one for a price, so that route maps no price at
+all — nothing from it can sit beside the header's live one claiming to be the
+same instant. The endpoint is US-only, so a Toronto or London symbol renders
+those rows as `—`.
 
 **Day change used to be the notable absence, and is not any more.** The
 snapshot that once stood in for a price carried no day-change field, so every
 percentage beside a real price was a demo figure. The live quote carries one,
 so the watchlist rows, the movers ranking (Gainers and Losers alike) and the
-stock header all print and sort by the actual session. Volume is what is left:
-the quote has none, so the "Most active" tab, the Vol column and RVol are
-still prototype numbers, and the Movers screen stays behind the sample-data
-switch until they have a source.
+stock header all print and sort by the actual session.
+
+**Volume followed it, and took relative volume with it.** The quote carries no
+volume, so the "Most active" tab, the Vol column and RVol were prototype
+numbers — and RVol was the worst of them, computed as
+`1.1 + (ticker.length % 4) * 0.4`, a figure derived from how many letters the
+symbol has and printed with an "×" beside a real price. Both now come from
+`/api/stats`: the session's cumulative volume and the provider's own average
+daily volume, from one snapshot, with RVol as the ratio. It reads low all
+morning because the session total is partial — which is what relative volume
+means everywhere — and it is `—` rather than `∞×` for a newly listed name
+whose average is zero.
+
+**The Movers screen's universe is real now, and the gate is gone.** It used to
+rank the ten-row sample table, so it was "the movers among ten sample stocks"
+rather than the market's — real figures over a hand-picked universe, which is a
+more convincing wrong answer than obvious placeholders are, and the reason the
+whole screen sat behind the sample-data switch even after its numbers became
+real. `/api/movers?board=gainers|losers|active` ranks the actual US market
+through EODHD's screener instead, and both the screen and the home preview read
+it with the switch in either position.
+
+**The filters are the feature.** Sorted naively by day change the screener
+returns sub-penny OTC listings: a 14% "gain" on a stock quoted at $0.0016
+outranks every real move in the market. Three floors, chosen by running the
+query and looking at the answer, make the board readable — a $5B market cap, a
+$10 price and 2M shares of daily volume. With them the top of the gainers board
+is Moderna, Edison International and Duolingo.
+
+**One session behind, and the screen says so.** The screener answers on the
+last completed session and its own documentation rules out asking for any
+other, so during a trading day this board is yesterday's. The route sends
+`lastClose: true` rather than letting the screen assume it, and the screen
+carries a line saying the figures are from the last market close. That is also
+why the price column is the screener's close rather than the live quote: the
+change beside it is that session's, and a live price next to a last-close
+change would be two moments under one label. The intraday alternative is the
+bulk live endpoint (the whole US market in one request, fifteen minutes
+delayed), which is a bigger change and a different cost.
+
+**Sector chips filter the board rather than re-running the query.** The
+screener does accept a sector filter, but one filter cannot express "either of
+these two", and the app's "Consumer" chip covers the provider's Consumer
+Cyclical *and* Consumer Defensive (its "Financials" is the provider's
+"Financial Services"). More to the point, a chip that re-ran the query would
+show that sector's own top hundred rather than the movers of that sector within
+the board being looked at. An ETF, which the provider gives no sector at all,
+is on the board and appears under "All" only.
 
 **Where the prices come from.** `app/src/data/quotes.ts` batches a screen's
 tickers into one call to `app/api/quote.ts`, which fans out to Finnhub's
@@ -218,9 +275,9 @@ no price is refused outright (`api/_lib/finnhub.ts`). And a quote with a price
 but no previous close has no true day change, so it is refused rather than
 printed as `0.00%`, which a reader would act on.
 
-**The charts are real too, and from the same provider.**
-`app/src/data/priceHistory.ts` reads `/api/candles`, which maps Finnhub's
-parallel-array daily bars. What that replaced was a seeded pseudo-random walk
+**The charts are real too, from a second provider.**
+`app/src/data/priceHistory.ts` reads `/api/candles`, which maps EODHD's daily
+bars. What that replaced was a seeded pseudo-random walk
 — and not only the line. The candle bodies were derived from the close series
 (open was *yesterday's* close, the wicks a fixed ±1.6), the volume pane was
 `8 + ((i * 37) % 26)`, a sawtooth that repeated every 26 candles for every
@@ -232,12 +289,26 @@ on the actual closes, and they start where their window fills rather than
 averaging whatever happens to sit at the left edge under a label claiming
 fifty sessions.
 
-**One thing to know about the plan.** Finnhub serves `/quote` on a free key
-but keeps `/stock/candle` for its paid tiers, where a free key gets a 403.
-That is classified as `upstream_forbidden` and reaches the reader as "this
-subscription may not include this data" — the one sentence true of it — rather
-than as an empty chart or a "try again later" that never will come true. The
-charts light up the moment the key's plan covers candles, with no code change.
+**Why two providers, and not one.** Finnhub serves `/quote` on a free key but
+keeps `/stock/candle` for its paid tiers, where a free key gets a 403 — so
+every chart in the app rendered "this subscription may not include this data",
+which was honest and still a dark chart. The bars now come from EODHD's
+`/api/eod` instead, on the EOD+Intraday All World Extended subscription this
+account already pays for, with the key that was already server-side for
+`/api/news`. The quotes deliberately stayed on Finnhub: EODHD's REST quote is
+the delayed one that plan advertises — measured 15–19 minutes behind on an
+exchange that was open at the time — so moving them would have traded a live
+price for a stale one. Two providers is the cost of having both a real chart
+and a real price. See `docs/eodhd-plan-decision.md` for what else that
+subscription does and does not cover.
+
+**The bars are raw, not adjusted.** EODHD returns `adjusted_close` beside the
+close, and the route ignores it. The chart draws candlesticks and the provider
+adjusts only the close, so scaling the open, high and low by the adjusted/raw
+ratio would put three prices on screen that nobody ever traded at — and that
+adjustment folds in dividends besides, which makes the result not a historical
+price at all. The honest cost: a split inside the window draws as a cliff,
+because that is what the raw price did.
 
 **What this replaced, and why.** Both prices and bars used to come from
 **mirrors**: GitHub Actions that fetched once a night and committed static
@@ -259,7 +330,7 @@ The route's contract, and the honest states that follow from it:
 | a series for the ticker | the real sessions, and the key-stats rows a bar can answer |
 | `no_data` for the ticker | "no price history for this symbol" — a fact, not a failure, and not a retry prompt |
 | a series whose newest session is over `MAX_SERIES_AGE_DAYS` old | "unavailable" with the age, never the stale sessions |
-| 403, because the key's plan excludes candles | "this subscription may not include this data" — never "try again later" |
+| 403 or 402, because the key's plan or quota refuses it | "this subscription may not include this data" — never "try again later" |
 | unreadable, or any row in it unreadable | "unavailable" — the whole series, because a chart is read as a whole and one with sessions silently dropped is a picture of price action that never happened |
 
 `MAX_SERIES_AGE_DAYS` is 7 where the screener's gate is 4, deliberately.
@@ -269,10 +340,38 @@ asymmetry is also about what the number is for: a stale "last price" is
 presented as today's and misleads directly, while a year of real sessions
 missing its last few is still an honest year of history.
 
-**What this deliberately does not cover: 1D.** The timeframe row offers 1W,
-1M, 3M and 1Y and no 1D, because a daily series is one point per session — a
-day is a single dot, and a 1D tab could only be filled by inventing the
-intraday path. That needs an intraday feed, not a narrower slice of this one.
+**1D is a different series, not a narrower slice.** The timeframe row offered
+1W, 1M, 3M and 1Y and no 1D for a long time, because a daily series is one
+point per session — a day is a single dot, and a 1D drawn from daily bars
+could only have been the invented path between yesterday's close and today's.
+It reads `/api/intraday?symbol=` now: five-minute bars, one session, from the
+same EODHD plan — the shape of a trading day, which a series of one point per
+session cannot draw.
+
+**It is the last COMPLETED session, not the running one**, and that is the
+feed's limit rather than a choice. Measured on 2026-09-02 against the open US
+session, twice — thirty-one minutes in and again two and a half hours in — the
+route still answered with the previous session, and the provider probed
+directly returned an empty array for every window inside the running day at 5m
+and at 1m, for two symbols, while the WebSocket confirmed the market was open
+and the stock had moved 2.4% in between. It publishes after the close, not on a
+lag. So the tab carries the same line the movers board does, whenever the
+session it draws is not today's.
+
+Two details the feed forced, both verified against it rather than read off the
+documentation. Five minutes and not one: a session is 79 five-minute bars, a
+legible line on a phone, where 1m is 390 points for the same picture at the
+same cost. And every session ends with a zero-width bar stamped at 20:00 UTC
+whose volume is `null` — the closing print, seen on five sessions across two
+symbols and never in an interior bar. It is dropped rather than drawn as five
+minutes in which nothing traded; a missing volume anywhere else still
+invalidates the series.
+
+The 1D tab is offered only with **sample data off**. Every other window still
+draws a generated walk when that switch is on, while the intraday series has no
+demo branch at all, so showing both under one row of chips would put a real
+session beside an invented month with nothing to tell them apart.
+
 `MDA` is the standing example of the other gap: it trades in Toronto, the
 provider has no US tape for it, and both the quote and the chart say so for
 that one symbol rather than the whole screen failing.
@@ -444,7 +543,7 @@ filings:
 
 | Tab | Source | Notes |
 | --- | --- | --- |
-| סקירה / Overview | demo adapter + real holdings + `/api/quote` + `/api/candles` | real live price and day change, real chart, and the key-stats rows either source answers — open, prev close and day range from the quote, volume, avg vol and RSI from the bars; market cap, P/E and analyst ratings still demo |
+| סקירה / Overview | demo adapter + real holdings + `/api/quote` + `/api/candles` + `/api/stats` | real live price and day change, real chart, and a key-stats grid that is real throughout — open, prev close and day range from the quote, volume, avg vol and RSI from the bars, market cap, P/E, forward P/E, dividend yield and the 52-week range from the stats route (US listings; `—` elsewhere). Analyst ratings are still demo |
 | דוחות / Reports | `/api/stock/{ticker}/fundamentals` (live, un-mirrored) | branches purely on the engine's `status` |
 | חדשות / News | `/api/news` (this repo's Vercel function) | excerpts only, never a full article body |
 
@@ -482,7 +581,20 @@ Both were caught by looking at the rendered screen, not by a passing test.
 | Stock page · רבעונים שדווחו | `/api/earnings?ticker=&from=&to=` — 12 quarters | 1 Alpha Vantage call |
 | Satellite card | the daily mirror in this repo | none |
 | Every price on screen (`SymbolInfo.quote`) | `/api/quote?symbols=` — live, batched per screen | 1 Finnhub call per symbol, shared for 20s |
-| Stock page · chart, and the movers' sparklines | `/api/candles?symbol=` — live, per ticker | 1 Finnhub call per ticker, cached an hour at the edge |
+| Stock page · chart, and the movers' sparklines | `/api/candles?symbol=` — live, per ticker | 1 EODHD call per ticker, cached an hour at the edge |
+| Stock page · chart, 1D tab | `/api/intraday?symbol=` — 5-minute bars, the last completed session | 5 credits per ticker, cached an hour at the edge and in the client |
+| Movers screen · one board | `/api/movers?board=` — EODHD's screener over the US market | 5 credits per board, cached 30 min at the edge and in the client |
+| Home · movers preview | the same two boards (gainers + losers), merged | none beyond the above — the reads are shared |
+
+**Route tests live in `app/api/_tests/`, and that is not a style choice.**
+Vercel turns every `.ts` file under `api/` into its own Serverless Function,
+test files included, and the Hobby plan allows twelve per deployment — so the
+suites sitting beside their routes counted each route twice and a seventh route
+failed the deploy at `exceeded_serverless_functions_per_deployment` with a
+build that had succeeded. A leading underscore is Vercel's own convention for a
+path under `api/` that is not an endpoint (the same reason `api/_lib/` has
+never deployed), and both `npm test` and `npm run typecheck:api` still reach
+them. A new route's tests belong there too.
 
 The general feed is why the browsable news screen is cheap: EODHD's `s`
 parameter takes **one** symbol at a time and a per-ticker call costs double,
@@ -556,18 +668,22 @@ agreement — the same publisher/reader discipline the screener mirror uses.
 
 **Environment variables**, added in the Vercel dashboard under
 **Project → Settings → Environment Variables**, scoped to Production,
-Preview, and Development so PR previews and local `vercel dev` also work. The
-first two are required; the third only changes the language of the news:
+Preview, and Development so PR previews and local `vercel dev` also work.
+`EODHD_API_KEY`, `ALPHAVANTAGE_API_KEY` and `FINNHUB_API_KEY` are required;
+`GOOGLE_TRANSLATE_API_KEY` is optional and only changes the language of the
+news:
 
 | Variable | Used by |
 | --- | --- |
-| `EODHD_API_KEY` | `/api/news` — the news feed |
+| `EODHD_API_KEY` | `/api/news` (the news feed), `/api/candles` (daily bars — every chart and sparkline), `/api/intraday` (the chart's 1D tab), `/api/movers` (the market-movers boards) and `/api/stats` (market cap, P/E, volume, the 52-week range). **Required for every chart and for the movers screen.** A plan refusal comes back as 402/403 and is reported as a plan problem rather than as an outage. |
 | `GOOGLE_TRANSLATE_API_KEY` | `/api/news?lang=he` — Hebrew headlines, via the Cloud Translation API. **Optional**: without it the news is served in the provider's English rather than failing. The key travels as the API's `key=` query parameter, so restrict it **to the Cloud Translation API** in the Google Cloud console — an HTTP-referrer restriction would break it, since the call is server-side. The first 500k characters a month are free, but the project still needs billing enabled. |
 | `ALPHAVANTAGE_API_KEY` | `/api/earnings` — the calendar and per-stock history. |
-| `FINNHUB_API_KEY` | `/api/quote` — the last price and day change on every screen — and `/api/candles`, the charts. **Required for prices.** A free key covers quotes; historical candles are on the paid tiers, and a free key gets a 403 there, which the app reports as a plan problem rather than an outage. |
+| `FINNHUB_API_KEY` | `/api/quote` — the last price and day change on every screen, and nothing else. **Required for prices.** A free key covers quotes; its historical candles are a paid tier, which is why the charts moved to EODHD. |
 
-All three are read only server-side and none may be given a `VITE_` prefix,
-which would bundle it into the client build.
+All four are read **only on the server** — every one of them is used inside a
+function under `api/`, and no client code ever reads them. That is why none may
+be given a `VITE_` prefix: Vite inlines any `VITE_`-prefixed variable into the
+client bundle, which would publish the key to every visitor.
 
 Pure request/response mapping lives in `app/api/_lib/news.ts` (unit-tested in
 `news.test.ts`) so it doesn't require mocking global `fetch` or a Vercel

@@ -34,13 +34,19 @@ export interface Quote {
  * (data/priceHistory.ts, /api/candles).
  *
  * No field here is nullable: the route drops a row that is missing any of
- * them rather than passing a half-bar through (api/_lib/finnhub.ts). A
+ * them rather than passing a half-bar through (api/_lib/eodhd.ts). A
  * candlestick needs all four prices to mean what it draws — a bar with a
  * guessed high is a lie in a shape a reader cannot see through, where a
  * guessed price at least renders as a number they could question.
  */
 export interface Bar {
-  /** Session date, raw YYYY-MM-DD. */
+  /**
+   * When the bar is. A daily bar carries its session date as raw YYYY-MM-DD;
+   * an intraday one (data/intraday.ts) carries the full UTC instant its
+   * five minutes began, as YYYY-MM-DDTHH:MM:SSZ. Both sort lexicographically
+   * into chronological order, which is what every reader of this field does
+   * with it; anything that renders it has to tell the two apart.
+   */
   date: string;
   open: number;
   high: number;
@@ -50,29 +56,37 @@ export interface Bar {
 }
 
 /**
- * The market stats that are still demo figures, carried from the design
- * prototype.
+ * What is left of the design prototype's invented figures.
  *
  * They live behind their own key so no call site can render an invented
- * number while believing it is real: `x.demo.marketCap` says what it is at
- * the point of use, where a flat `x.marketCap` sitting beside a real price
- * would not. That naming is now the whole guard — the standing on-screen
- * note was removed, so nothing but the key tells a call site what it holds.
+ * number while believing it is real: `x.demo.price` says what it is at the
+ * point of use, where a flat `x.price` sitting beside a real one would not.
+ * That naming is now the whole guard — the standing on-screen note was
+ * removed, so nothing but the key tells a call site what it holds.
  *
- * Day change USED to live here, and no longer does: the live quote carries a
- * real one (Quote.changePct), so every screen that ranked, coloured or
- * printed a day change now does it from the actual session. It was the last
- * demo figure any screen showed beside a real price.
+ * The bag kept shrinking as sources arrived, and one field is left. Day change
+ * went first (the live quote carries one). Market cap and P/E followed, to a
+ * per-ticker route of their own (data/stats.ts), taking with them a forward
+ * P/E that was `pe * 0.62` and three string constants that read the same
+ * under every ticker in the app. Volume went to that same route, along with
+ * the average it is measured against — the relative-volume column had been
+ * computed from the length of the ticker symbol.
  */
 export interface SymbolDemoStats {
-  /** Prototype price. Kept only as the basis for the other demo figures and
-   *  for the demo portfolio's valuation — never rendered as *the* price,
-   *  which comes from `SymbolInfo.quote`. */
+  /**
+   * The prototype's price, and the only field left in this bag.
+   *
+   * It is never rendered as *the* price — that comes from `SymbolInfo.quote`,
+   * live — and exists solely to value the demo portfolio, whose share counts
+   * and accounts are invented too. Pricing those at real prices would produce
+   * a portfolio that is neither.
+   *
+   * Everything else has left, each to a real source: the day change to the
+   * live quote, market cap and P/E to data/stats.ts, and volume to the same
+   * route, which carries the session total and the average it is measured
+   * against. `rsi` went unread, computed from real bars on the stock page.
+   */
   price: number;
-  volume: string;
-  marketCap: string;
-  pe: number;
-  rsi: number;
 }
 
 /**
@@ -260,6 +274,45 @@ export interface Holding {
    * could not price still says what it cost, beside a worth that reads "—".
    */
   costBasis: number;
+}
+
+/**
+ * A US stock's key statistics, from data/stats.ts (EODHD, via /api/stats).
+ *
+ * Every field is nullable and every null is a real answer, not a gap: an ETF
+ * has no P/E, a company that pays nothing has no dividend yield, and a
+ * newly-listed one has no 52-week range yet. All of them render "—". The
+ * whole object is null for a symbol the provider carries no extended quote
+ * for, which is every non-US listing.
+ *
+ * `dividendYield` is a FRACTION — 0.0216 means 2.16%. The provider's own
+ * field table calls it a percent and its example agrees; the live API does
+ * not, and the live API is what ships. See api/_lib/eodhd.ts.
+ *
+ * There is deliberately no price here. This comes from the provider's
+ * delayed feed, which is right for figures that move on the scale of
+ * quarters and wrong for the one that moves every second — that stays
+ * `Quote.price`, live, from a different provider entirely.
+ */
+export interface StockStats {
+  marketCap: number | null;
+  /** Trailing P/E. */
+  pe: number | null;
+  forwardPE: number | null;
+  /** A fraction: 0.0216 is a 2.16% yield. */
+  dividendYield: number | null;
+  fiftyTwoWeekHigh: number | null;
+  fiftyTwoWeekLow: number | null;
+  /**
+   * The current session's cumulative volume and the provider's own average
+   * daily volume. They travel together because the only thing built on them
+   * is the ratio of one to the other — relative volume — and a ratio across
+   * two providers or two moments would not mean that. See `relativeVolume`
+   * in data/stats.ts, which is also where the caveat lives: `volume` is the
+   * session so far, so the ratio runs low all morning by construction.
+   */
+  volume: number | null;
+  averageVolume: number | null;
 }
 
 export type PortfolioKind = 'aggregate' | 'linked' | 'manual' | 'institution';

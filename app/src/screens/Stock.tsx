@@ -3,15 +3,10 @@ import { Card, CardTitle } from '../components/Card';
 import { Button } from '../components/Button';
 import { Icon } from '../components/Icon';
 import { Num } from '../components/Num';
-import { AreaChart } from '../components/AreaChart';
-import { CandleChart } from '../components/CandleChart';
-import { rsi } from '../components/charts';
-import { Chip } from '../components/Chip';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { DataState } from '../components/DataState';
 import { DemoOnly } from '../components/DemoOnly';
-import { Skeleton, SkeletonCard, SkeletonList } from '../components/Skeleton';
-import { ListRow, RowValues } from '../components/ListRow';
+import { Skeleton, SkeletonCard } from '../components/Skeleton';
 import { useAppState, useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
@@ -19,55 +14,30 @@ import { useToast } from '../components/Toast';
 import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
 import { PRICE_REFRESH_MS } from '../data/quotes';
-import { fetchYourPositions } from '../lib/holdings';
 import { fetchTickerEarnings } from '../data/earnings';
+import { fetchStockStats } from '../data/stats';
 import { useDemoMode } from '../lib/DemoModeProvider';
-import { compactCount, money, moneyOrDash, pct, pctOrDash, signalColor, signedMoney } from '../lib/format';
 import { ReportsTab, EarningsHistory } from './stock/ReportsTab';
 import { NewsTab } from './stock/NewsTab';
 import { TabPanel } from '../components/TabPanel';
 import { EngineCard } from './stock/EngineCard';
+import { PriceChart } from './stock/PriceChart';
+import { KeyStats } from './stock/KeyStats';
+import { YourHoldings } from './stock/YourHoldings';
+import { PriceHeader } from './stock/PriceHeader';
 import type { ScreenProps } from '../App';
-import type { Bar, SymbolInfo } from '../data/types';
 
-/**
- * The live price, or null when the provider has none for this ticker.
- *
- * It returns null rather than falling back to `x.demo.price`, and everything
- * built on it dashes out or disappears when it does. Caught by looking at the
- * rendered screen: a symbol with no price had a headline of "—" while the
- * line underneath it still read "after hours $112.92" — a concrete price on a
- * page that had just said it had none. A number the reader cannot reconcile
- * with the one above it is worse than no number. That after-hours line is
- * gone entirely now: it was the last price multiplied by 1.004, and there is
- * no after-hours source behind it to make real. The prototype price is
- * rendered nowhere on this screen.
- */
-const basisPrice = (x: SymbolInfo): number | null => x.quote?.price ?? null;
-
-/** A derived demo figure, or the dash owed when there is no price to derive it from. */
-const derived = (px: number | null, f: (p: number) => string): string => (px === null ? '—' : f(px));
-
-/**
- * The windows a daily series can honestly draw, in trading sessions.
- *
- * There is deliberately no 1D. The chart is built on daily bars — one point
- * per session — so a day is a single dot, and a "1D" tab could only be filled
- * by inventing the intraday path between yesterday's close and today's. That
- * needs an intraday feed (see data/priceHistory.ts), not a narrower slice of
- * this one, so the tab is absent rather than present and lying.
- */
-const TIMEFRAMES = [
-  { key: '1W', sessions: 5 },
-  { key: '1M', sessions: 22 },
-  { key: '3M', sessions: 66 },
-  { key: '1Y', sessions: 252 },
-] as const;
-
-type Timeframe = (typeof TIMEFRAMES)[number]['key'];
-
-/** Sessions to show for a timeframe. */
-const sessionsFor = (key: Timeframe): number => TIMEFRAMES.find((f) => f.key === key)?.sessions ?? 66;
+// A NOTE ABOUT THIS WHOLE FILE, not about what follows it: no price on this
+// screen is ever derived from another one. Everything built on the live price
+// dashes out or disappears when there is none. Caught by looking at the
+// rendered screen — a symbol with no price had a headline of "—" while the
+// line underneath it still read "after hours $112.92", a concrete price on a
+// page that had just said it had none, and a number the reader cannot
+// reconcile with the one above it is worse than no number. That after-hours
+// line is gone (it was the last price multiplied by 1.004), the prototype
+// price is rendered nowhere, and the key-stats grid no longer divides a price
+// by a P/E to publish an EPS. The `basisPrice` helper that used to carry this
+// note went with that EPS.
 
 type StockTab = 'overview' | 'reports' | 'news';
 
@@ -84,6 +54,12 @@ type StockTab = 'overview' | 'reports' | 'news';
  * Beginner mode hides the indicator controls and swaps the denser tables for
  * plain-language cards; it no longer hides analyst ratings, which read the
  * same in both modes.
+ *
+ * The price header, the chart, the holdings card and the key-stats grid are
+ * components in ./stock/ rather than markup here, because LiveOnlyStock at
+ * the bottom of this file renders exactly the same four. Everything they
+ * read answers per ticker, so the only thing this page still has that the
+ * other does not is the sample table's own prose and the analyst card.
  */
 export function StockScreen({ openAlert }: ScreenProps) {
   const s = useAppState();
@@ -105,17 +81,11 @@ export function StockScreen({ openAlert }: ScreenProps) {
   });
   const tab = tabFor.ticker === s.ticker ? tabFor.tab : 'overview';
   const setTab = (next: StockTab) => setTabFor({ ticker: s.ticker, tab: next });
-  const [tf, setTf] = useState<Timeframe>('3M');
-  const [ind, setInd] = useState({ ma: true, rsi: true, macd: false });
   // In the useLoadable deps below, so turning sample data on or off redraws
   // the chart at once instead of on the next visit to this ticker.
   const demo = useDemoMode();
   const sym = useLoadable(() => demoService.symbol(s.ticker), [s.ticker], PRICE_REFRESH_MS);
   const inWl = s.watchlist.includes(s.ticker);
-  const positions = useLoadable(
-    () => fetchYourPositions(s.ticker, s.manualTransactions, s.manualPortfolios),
-    [s.ticker, s.manualTransactions, s.manualPortfolios, demo],
-  );
 
   // REAL price history. Separate from `sym` on purpose: the row and the chart
   // come from different sources with different coverage, so a ticker can have
@@ -127,6 +97,14 @@ export function StockScreen({ openAlert }: ScreenProps) {
   // the chart drawn from the same bars.
   const seriesBars = history.state.status === 'ok' ? history.state.data : null;
 
+  // REAL key statistics, per ticker. Not gated on `demo` the way the history
+  // above is: these have a live source now, so they are read in either
+  // position of the sample-data switch, exactly like the price. Null while
+  // loading, and null for a ticker the provider carries no extended quote for
+  // — every non-US listing — which the grid renders as "—".
+  const statsRead = useLoadable(() => fetchStockStats(s.ticker), [s.ticker]);
+  const stats = statsRead.state.status === 'ok' ? statsRead.state.data : null;
+
   // The app's symbol table covers a handful of tickers. Any other symbol —
   // and the earnings calendar opens plenty of them — has no row here at all,
   // but its filings, news and ranking are live and per-ticker. Gating the
@@ -135,7 +113,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
   // Distinct from a row that exists with `quote: null` — that ticker is
   // known, its price simply is not, and the full screen renders with "—".
   if (sym.state.status === 'unavailable') {
-    return <LiveOnlyStock ticker={s.ticker} />;
+    return <LiveOnlyStock ticker={s.ticker} openAlert={openAlert} />;
   }
 
   return (
@@ -156,22 +134,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
     >
       {(x) => (
         <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 9 }}>
-              <Num size={28} style={{ fontFamily: 'var(--font-heading)', lineHeight: 1 }}>
-                {moneyOrDash(x.quote?.price)}
-              </Num>
-              {/* Both halves come from the same live quote, so the currency
-                  change and the percentage can never describe different
-                  sessions. They used to be spun off the prototype's frozen
-                  day change — the percentage invented, the currency figure
-                  computed from it against a real price, which made an
-                  invented number look derived from a real one. */}
-              <Num size={17} style={{ color: signalColor(x.quote?.changePct) }}>
-                {x.quote === null ? '—' : `${signedMoney(x.quote.change)} · ${pct(x.quote.changePct)}`}
-              </Num>
-            </div>
-          </div>
+          <PriceHeader quote={x.quote} />
 
           <div style={{ display: 'flex', gap: 7 }}>
             <Button
@@ -219,171 +182,11 @@ export function StockScreen({ openAlert }: ScreenProps) {
           />
 
           <TabPanel key={`ov-${s.ticker}`} active={tab === 'overview'}>
-            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-              {TIMEFRAMES.map((f) => (
-                <Chip key={f.key} active={tf === f.key} onClick={() => setTf(f.key)}>
-                  <Num>{f.key}</Num>
-                </Chip>
-              ))}
-            </div>
+            <PriceChart ticker={s.ticker} state={history.state} onRetry={history.retry} beg={beg} />
 
-            {/* The chart is the one panel on this screen that is entirely
-                  real, so it gets its own honest states rather than borrowing
-                  the row's: loading while the mirror is read, "unavailable"
-                  with the reason when it cannot be, and a plain sentence when
-                  the mirror simply publishes nothing for this symbol. None of
-                  those draws a line. */}
-            <DataState
-              state={history.state}
-              onRetry={history.retry}
-              skeleton={<SkeletonCard height={beg ? 188 : 240} lines={2} />}
-            >
-              {(bars) => {
-                const window = bars?.slice(-sessionsFor(tf)) ?? [];
-                // A window with one bar in it has no line to draw and no
-                // change to quote, so it is treated as no chart rather than
-                // rendered as a dot.
-                if (window.length < 2) {
-                  return (
-                    <Card padding={12} gap={0}>
-                      <p
-                        className="text-muted"
-                        style={{ fontSize: 'var(--text-body)', margin: 0, textAlign: 'center' }}
-                      >
-                        {t('stock.noSeries')}
-                      </p>
-                    </Card>
-                  );
-                }
-                const closes = window.map((b) => b.close);
-                const last = window[window.length - 1];
-                const windowPct = ((last.close - closes[0]) / closes[0]) * 100;
+            <YourHoldings ticker={s.ticker} />
 
-                return beg ? (
-                  <Card padding={12} gap={0}>
-                    <AreaChart values={closes} height={150} pad={8} />
-                    <p
-                      style={{
-                        fontSize: 'var(--text-body)',
-                        lineHeight: 1.5,
-                        margin: '10px 0 0',
-                        opacity: 0.85,
-                      }}
-                    >
-                      {t('stock.chartHelp', { pct: pct(windowPct) })}
-                    </p>
-                  </Card>
-                ) : (
-                  <Card padding={8} gap={2}>
-                    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', paddingBottom: 4 }}>
-                      {(
-                        [
-                          ['ma', 'MA 20/50'],
-                          ['rsi', 'RSI'],
-                          ['macd', 'MACD'],
-                        ] as const
-                      ).map(([k, label]) => (
-                        <Chip key={k} active={ind[k]} onClick={() => setInd({ ...ind, [k]: !ind[k] })}>
-                          {label}
-                        </Chip>
-                      ))}
-                    </div>
-                    {/* The last session actually drawn, not four numbers
-                          spun off the headline price. This strip used to read
-                          O = price - 1.9, H = price + 2.4 and so on, which
-                          described no day that ever traded. */}
-                    <Num size={15} block style={{ color: 'var(--muted)' }}>
-                      {`${last.date} · O ${last.open.toFixed(2)} H ${last.high.toFixed(2)} L ${last.low.toFixed(2)} C ${last.close.toFixed(2)}`}
-                    </Num>
-                    <CandleChart bars={window} showMA={ind.ma} showRSI={ind.rsi} showMACD={ind.macd} />
-                  </Card>
-                );
-              }}
-            </DataState>
-
-            <DataState
-              state={positions.state}
-              onRetry={positions.retry}
-              skeleton={<SkeletonList count={1} leading={false} minHeight={46} />}
-            >
-              {(rows) =>
-                rows.length === 0 ? null : (
-                  <Card padding="12px 13px 4px" gap={7}>
-                    <CardTitle>{t('stock.yourHoldings')}</CardTitle>
-                    {rows.map(({ portfolio, holding, index }) => (
-                      <ListRow
-                        key={portfolio.id}
-                        title={portfolio.kind === 'manual' ? portfolio.name : `${portfolio.broker}`}
-                        subtitle={<Num>{`${holding.shares} sh · avg ${money(holding.avgCost)}`}</Num>}
-                        right={
-                          <RowValues
-                            main={moneyOrDash(holding.value, 0)}
-                            sub={pctOrDash(holding.plPct)}
-                            subColor={signalColor(holding.plPct)}
-                          />
-                        }
-                        minHeight={46}
-                        // Select this row's account first: the Portfolio tab
-                        // renders whichever portfolio pfIndex points at, so
-                        // navigating without setting it opens whichever account
-                        // was last looked at rather than the one just tapped.
-                        onClick={() => {
-                          dispatch({ type: 'pfIndex', index });
-                          dispatch({ type: 'go', screen: 'pf' });
-                        }}
-                      />
-                    ))}
-                  </Card>
-                )
-              }
-            </DataState>
-
-            <Card padding={12} gap={7}>
-              <CardTitle>{beg ? t('stock.basics') : t('stock.keyStats')}</CardTitle>
-              {beg ? (
-                BEG_STATS(
-                  x.quote?.price ?? null,
-                  x.demo.marketCap,
-                  seriesBars?.at(-1)?.volume ?? null,
-                  x.demo.pe,
-                ).map((row, i) => (
-                  <div key={i} style={{ padding: '7px 0', borderTop: '1px solid var(--color-divider)' }}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        gap: 10,
-                        fontSize: 'var(--text-row)',
-                      }}
-                    >
-                      <span>{row.k}</span>
-                      <Num>{row.v}</Num>
-                    </div>
-                    <div className="text-muted" style={{ fontSize: 'var(--text-caption)', marginTop: 2 }}>
-                      {row.help}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
-                  {ADV_STATS(x, seriesBars).map(([k, v], i) => (
-                    <div
-                      key={i}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        gap: 8,
-                        fontSize: 'var(--text-caption)',
-                        padding: '2px 0',
-                      }}
-                    >
-                      <span className="text-muted">{k}</span>
-                      <Num>{v}</Num>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
+            <KeyStats quote={x.quote} bars={seriesBars} stats={stats} beg={beg} />
 
             {/* Shown in both modes: the ratings bar and counts are already
               plain-language, so there was no beginner-specific reason to
@@ -442,63 +245,6 @@ export function StockScreen({ openAlert }: ScreenProps) {
     </DataState>
   );
 }
-
-const BEG_STATS = (price: number | null, mc: string, vol: number | null, pe: number) => [
-  // Price and traded volume are real; market cap and P/E are still demo
-  // stats — see the `demo` key they are read from in data/types.ts.
-  { k: 'Price', v: moneyOrDash(price), help: 'What one share costs right now' },
-  { k: 'Company size', v: mc, help: 'Every share added together — market cap' },
-  {
-    k: 'Traded today',
-    v: vol === null ? '—' : `${compactCount(vol)} shares`,
-    help: 'How busy the stock is; high means lots of interest',
-  },
-  { k: 'Price vs earnings', v: `${pe.toFixed(1)}×`, help: 'Years of current profit to pay for the share' },
-];
-
-/**
- * Takes the whole symbol rather than loose numbers so the real figures and
- * the demo ones cannot be mixed up on the way in: `x.quote` is read for the
- * two rows that are real, `x.demo` for the rest.
- */
-const ADV_STATS = (x: SymbolInfo, bars: Bar[] | null): Array<[string, string]> => {
-  const { marketCap: mc, pe } = x.demo;
-  const price = basisPrice(x);
-  const q = x.quote;
-
-  // The newest published session, which is what volume is read from — the
-  // live quote has no volume figure.
-  const last = bars?.at(-1) ?? null;
-  const rsiNow = bars ? ([...rsi(bars.map((b) => b.close))].reverse().find((v) => v !== null) ?? null) : null;
-  // Average volume over the published window, not a frozen "162.4M" that was
-  // the same figure for every stock in the app.
-  const avgVol = bars ? bars.reduce((a, b) => a + b.volume, 0) / bars.length : null;
-
-  const or = (v: string | null) => v ?? '—';
-
-  return [
-    // From the LIVE quote, not from the last published bar: the quote is
-    // today's session as it stands, while the newest daily bar is yesterday's
-    // once the market opens. Reading the open off a stale bar is how this
-    // grid once showed an "Open 231.85" under a chart strip reading
-    // "O 232.80" for the same stock. The 52-week high is not in the quote and
-    // is reported by the engine card instead of being paired here with an
-    // invented low.
-    ['Open', or(q && q.open.toFixed(2))],
-    ['Prev close', or(q && q.prevClose.toFixed(2))],
-    ['Day range', or(q && `${q.dayLow.toFixed(2)}–${q.dayHigh.toFixed(2)}`)],
-    ['Volume', or(last && compactCount(last.volume))],
-    ['Avg vol', or(avgVol === null ? null : compactCount(avgVol))],
-    ['Mkt cap', mc],
-    ['P/E', pe.toFixed(1)],
-    ['Fwd P/E', (pe * 0.62).toFixed(1)],
-    ['EPS (ttm)', derived(price, (p) => (p / pe).toFixed(2))],
-    ['Beta', '2.14'],
-    ['Div yield', '0.02%'],
-    ['Short float', '1.1%'],
-    ['RSI(14)', or(rsiNow === null ? null : String(Math.round(rsiNow)))],
-  ];
-};
 
 /**
  * When this company next reports, from the live earnings source.
@@ -584,55 +330,91 @@ function NextEarnings({ ticker }: { ticker: string }) {
 }
 
 /**
- * The stock page for a symbol the sample price table does not cover.
+ * A ticker the app's sample table has never heard of — which is most of them.
  *
- * Everything here is live and keyed on the ticker: the engine's ranking view,
- * filed figures, the quarterly history and the news. What is missing is
- * missing for a stated reason, in one line, rather than by the page refusing
- * to render.
+ * The sample table carries ten rows, so anything else (the screener alone
+ * ranks a hundred names, and the earnings calendar opens thousands) used to
+ * land on a stub: no price, no chart, no statistics, no holdings. That was a
+ * limit of the table rather than of the data, and it stopped being true once
+ * every source on the page became per-ticker. The quote, the daily bars, the
+ * key statistics, the reader's own position and the filings behind them all
+ * answer for any symbol, so this page now shows them.
+ *
+ * What it still does not carry is the sample table's own prose — the
+ * beginner-mode "what this company does" line — and the analyst card, which
+ * has no feed behind it on this plan. Neither is worth a warning: a page that
+ * apologises for the absence of a sentence reads worse than one that simply
+ * does not print it.
  */
-function LiveOnlyStock({ ticker }: { ticker: string }) {
+function LiveOnlyStock({ ticker, openAlert }: Readonly<{ ticker: string; openAlert: (t: string) => void }>) {
   const t = useT();
   const toast = useToast();
   const dispatch = useDispatch();
   const s = useAppState();
-  const [tab, setTab] = useState<'reports' | 'news'>('reports');
+  const { mode } = useTheme();
+  const beg = mode === 'beginner';
+  const demo = useDemoMode();
+  // Scoped to the ticker, for the same reason StockScreen's is (see there).
+  // This component stays mounted when `openStock` changes the ticker — it is
+  // rendered from the same position — so plain state would survive the change:
+  // open an unknown ticker, select News, then open another from a news chip,
+  // and you would land on the new symbol's News panel rather than its
+  // Overview, with that panel mounting and fetching immediately.
+  const [tabFor, setTabFor] = useState<{ ticker: string; tab: StockTab }>({ ticker, tab: 'overview' });
+  const tab = tabFor.ticker === ticker ? tabFor.tab : 'overview';
+  const setTab = (next: StockTab) => setTabFor({ ticker, tab: next });
   const inWl = s.watchlist.includes(ticker);
+
+  // The row the sample table could not provide, built from the live quote
+  // alone. watchRows describes any ticker by what is actually known about it
+  // rather than gating on that table, which is exactly the shape this page
+  // needs — a name when there is one, and a real price either way.
+  const row = useLoadable(() => demoService.watchRows([ticker]), [ticker], PRICE_REFRESH_MS);
+  const quote = row.state.status === 'ok' ? (row.state.data[0]?.quote ?? null) : null;
+
+  const history = useLoadable(() => demoService.dailySeries(ticker), [ticker, demo]);
+  const seriesBars = history.state.status === 'ok' ? history.state.data : null;
+  const statsRead = useLoadable(() => fetchStockStats(ticker), [ticker]);
+  const stats = statsRead.state.status === 'ok' ? statsRead.state.data : null;
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <p
-        className="text-muted"
-        style={{ fontSize: 'var(--text-caption)', margin: 0, padding: '0 2px', lineHeight: 1.45 }}
-      >
-        {t('stock.noQuote')}
-      </p>
+      <PriceHeader quote={quote} />
 
-      <Button
-        variant="secondary"
-        style={{
-          minHeight: 40,
-          fontSize: 'var(--text-row)',
-          ...(inWl
-            ? {
-                border: '1px solid var(--color-accent)',
-                background: 'var(--fill-selected)',
-                color: 'var(--color-accent-200)',
-              }
-            : {}),
-        }}
-        onClick={() => {
-          dispatch({ type: 'toggleWatch', ticker });
-          toast(t(inWl ? 'toast.removed' : 'toast.added', { ticker }));
-        }}
-      >
-        {inWl ? `✓ ${t('stock.inWatchlist')}` : `＋ ${t('stock.toWatchlist')}`}
-      </Button>
+      <div style={{ display: 'flex', gap: 7 }}>
+        <Button
+          variant="secondary"
+          style={{
+            flex: 1,
+            minHeight: 40,
+            fontSize: 'var(--text-row)',
+            ...(inWl
+              ? {
+                  border: '1px solid var(--color-accent)',
+                  background: 'var(--fill-selected)',
+                  color: 'var(--color-accent-200)',
+                }
+              : {}),
+          }}
+          onClick={() => {
+            dispatch({ type: 'toggleWatch', ticker });
+            toast(t(inWl ? 'toast.removed' : 'toast.added', { ticker }));
+          }}
+        >
+          {inWl ? `✓ ${t('stock.inWatchlist')}` : `＋ ${t('stock.toWatchlist')}`}
+        </Button>
+        <Button
+          style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-row)' }}
+          onClick={() => openAlert(ticker)}
+        >
+          <Icon name="bell" size={14} strokeWidth={1.8} />
+          {t('stock.addAlert')}
+        </Button>
+      </div>
 
-      <EngineCard ticker={ticker} />
-
-      <SegmentedControl<'reports' | 'news'>
+      <SegmentedControl<StockTab>
         options={[
+          { value: 'overview', label: t('stock.tabOverview') },
           { value: 'reports', label: t('stock.tabReports') },
           { value: 'news', label: t('stock.tabNews') },
         ]}
@@ -640,6 +422,12 @@ function LiveOnlyStock({ ticker }: { ticker: string }) {
         onChange={setTab}
       />
 
+      <TabPanel key={`ov-${ticker}`} active={tab === 'overview'}>
+        <PriceChart ticker={ticker} state={history.state} onRetry={history.retry} beg={beg} />
+        <YourHoldings ticker={ticker} />
+        <KeyStats quote={quote} bars={seriesBars} stats={stats} beg={beg} />
+        <EngineCard ticker={ticker} />
+      </TabPanel>
       <TabPanel key={`re-${ticker}`} active={tab === 'reports'}>
         <NextEarnings ticker={ticker} />
         <ReportsTab ticker={ticker} />

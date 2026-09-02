@@ -1,13 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  summarize,
-  deriveSource,
-  mapArticle,
-  mapSentiment,
-  mapSymbols,
-  resolveSymbol,
-  isValidTicker,
-} from './news.js';
+import { summarize, deriveSource, mapArticle, mapSentiment, mapSymbols, isValidTicker } from './news.js';
 
 describe('summarize', () => {
   it('returns empty string for empty or missing content', () => {
@@ -159,16 +151,6 @@ describe('mapArticle', () => {
     expect(mapArticle('nope')).toBeNull();
     expect(mapArticle(null)).toBeNull();
     expect(mapArticle(undefined)).toBeNull();
-  });
-});
-
-describe('resolveSymbol', () => {
-  it('appends .US when no exchange is specified', () => {
-    expect(resolveSymbol('NVDA')).toBe('NVDA.US');
-  });
-
-  it('leaves an explicit exchange suffix alone', () => {
-    expect(resolveSymbol('VOD.LSE')).toBe('VOD.LSE');
   });
 });
 

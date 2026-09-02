@@ -1,6 +1,7 @@
 import { isValidTicker } from './_lib/news.js';
-import { candleUrl, mapCandles, type CandleRow } from './_lib/finnhub.js';
-import { failureBody, fetchUpstreamJson } from './_lib/upstream.js';
+import { eodUrl, isoDay, mapEodBars, type CandleRow } from './_lib/eodhd.js';
+import { barsFromUpstream } from './_lib/bars.js';
+import { fetchUpstreamJson } from './_lib/upstream.js';
 import { type ApiRequest, type ApiResponse } from './_lib/http.js';
 
 /**
@@ -14,12 +15,16 @@ import { type ApiRequest, type ApiResponse } from './_lib/http.js';
  * serve any symbol the user opens, not just the ten someone listed in
  * advance, and it cannot silently go a week without publishing.
  *
- * ONE THING TO KNOW ABOUT THE PLAN: Finnhub serves /quote on a free key but
- * moved /stock/candle to its paid tiers, where a free key gets 403. That is
- * classified upstream as `upstream_forbidden` and reaches the reader as "this
- * subscription may not include this data" — the true sentence about it. The
- * charts light up the moment the key's plan includes candles, with no code
- * change; nothing here invents bars in the meantime.
+ * WHY EODHD AND NOT FINNHUB, WHICH STILL SERVES THE QUOTES: Finnhub keeps
+ * /stock/candle for its paid tiers, so on this app's free key every chart in
+ * the app answered 403 and rendered "this subscription may not include this
+ * data" — honest, and still a dark chart. The account's EODHD plan
+ * (EOD+Intraday, All World Extended) covers daily OHLCV with volume, for US
+ * and non-US exchanges alike, and EODHD_API_KEY is already set server-side
+ * for /api/news. The quotes above the chart stay on Finnhub deliberately:
+ * EODHD's REST quote is the delayed one its plan advertises (measured 15-19
+ * minutes behind on an open exchange), so consolidating the two would trade
+ * a live price for a stale one.
  *
  * DATA HONESTY CONTRACT:
  *   - Real sessions, or nothing. Gaps are served as the gaps they are and
@@ -28,6 +33,8 @@ import { type ApiRequest, type ApiResponse } from './_lib/http.js';
  *     a real answer, rendered as "no history for this symbol", not an error.
  *   - Any failure is an error status with a code, never an empty series: "no
  *     history" and "we could not find out" must not read the same.
+ *   - Raw prices, not split- or dividend-adjusted ones. See _lib/eodhd.ts for
+ *     why an adjusted candle would mean three prices nobody traded at.
  */
 
 /** Upstream budget. A year of daily bars is a small body. */
@@ -66,7 +73,7 @@ export function buildBody(ticker: string, bars: CandleRow[]): CandlesBody {
   return {
     ticker,
     as_of: bars.length > 0 ? bars[bars.length - 1].d : null,
-    source: 'finnhub:stock/candle',
+    source: 'eodhd:eod',
     bars,
   };
 }
@@ -102,37 +109,37 @@ export function createHandler(timeoutMs: number, fetchImpl: typeof fetch = fetch
         .json({ error: 'invalid_range', message: `Query param "days" must be between 1 and ${MAX_DAYS}.` });
     }
 
-    const apiKey = process.env.FINNHUB_API_KEY;
+    const apiKey = process.env.EODHD_API_KEY;
     if (!apiKey) {
-      console.error('/api/candles: FINNHUB_API_KEY is not set');
+      console.error('/api/candles: EODHD_API_KEY is not set');
       return res.status(500).json({ error: 'not_configured', message: 'Price history is not configured.' });
     }
 
-    const to = Math.floor(Date.now() / 1000);
-    const from = to - days * 86_400;
+    // Calendar days back from today, in UTC — the same unit `days` has always
+    // meant, now expressed as the dates this provider takes. The window is
+    // wider than the sessions it contains (weekends and holidays fall inside
+    // it), which is why the client asks for 400 days to draw 252 sessions.
+    const today = new Date();
+    const to = isoDay(today);
+    const from = isoDay(new Date(today.getTime() - days * 86_400_000));
     const result = await fetchUpstreamJson(
-      candleUrl(symbol, from, to, apiKey),
+      eodUrl(symbol, from, to, apiKey),
       timeoutMs,
       'price history',
       '/api/candles',
       fetchImpl,
     );
-    if (!result.ok) return res.status(result.failure.status).json(failureBody(result.failure));
-
-    const bars = mapCandles(result.body);
-    if (bars === null) {
-      console.error('/api/candles: upstream response had an unexpected shape');
-      return res.status(502).json({
-        error: 'bad_response',
-        message: 'The price-history provider returned an unexpected shape.',
-      });
-    }
+    // Three outcomes, and the middle one — a 404 read as "no series for this
+    // symbol" rather than as a failure — is why this goes through a shared
+    // step rather than a plain `if (!result.ok)`. See _lib/bars.ts.
+    const outcome = barsFromUpstream(result, mapEodBars, '/api/candles');
+    if (!outcome.ok) return res.status(outcome.status).json(outcome.body);
 
     // Success only, and for an hour: a daily bar changes once a day, so the
     // only thing a shorter TTL buys is a faster view of today's still-forming
     // session — which the live quote above the chart already shows.
     res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400');
-    return res.status(200).json(buildBody(symbol.toUpperCase(), bars));
+    return res.status(200).json(buildBody(symbol.toUpperCase(), outcome.bars));
   };
 }
 

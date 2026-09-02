@@ -490,10 +490,6 @@ export const STRINGS = {
   // Reached by opening a company from the earnings calendar: the sample
   // price table only covers a handful of tickers, but filings and news are
   // live for any symbol, so the page is worth showing rather than blanking.
-  'stock.noQuote': p(
-    'No sample price data for this symbol — the reports and news below are live.',
-    'אין נתוני מחיר לדוגמה לסמל הזה — הדוחות והחדשות למטה הם נתונים חיים.',
-  ),
   'stock.nov': p('Nov', 'נוב׳'),
   // Was "Up about 18% over three months" with both the direction and the
   // figure hard-coded — which, once the line became real, could contradict the
@@ -728,6 +724,11 @@ export const STRINGS = {
   'sector.financials': p('Financials', 'פיננסים'),
   'sector.energy': p('Energy', 'אנרגיה'),
   'sector.healthcare': p('Healthcare', 'בריאות'),
+  // Every figure on this board is the last completed session's — the screener
+  // behind it cannot be asked for the running day — so the screen says so
+  // rather than letting a reader take a close for a live price.
+  'movers.lastClose': p('Figures from the last market close', 'הנתונים מסגירת המסחר האחרונה'),
+  'movers.empty': p('No stocks match this board right now.', 'אין מניות שעונות ללוח הזה כרגע.'),
   'movers.colSym': p('Sym', 'סימבול'),
   'movers.colLast': p('Last', 'אחרון'),
   'movers.colChg': p('Chg%', 'שינוי%'),
