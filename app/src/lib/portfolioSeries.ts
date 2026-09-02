@@ -67,6 +67,22 @@ export interface PortfolioSeries {
   ledgerStartsBefore: string | null;
 }
 
+/**
+ * Ascending order for the raw strings sorted here — YYYY-MM-DD stamps and
+ * ticker symbols — whose lexicographic order is the order wanted in both
+ * cases. Keeping the date format raw is precisely so that holds.
+ *
+ * Spelled out rather than left to a bare `sort()`. The default comparator
+ * coerces to string and would be right for these three call sites and wrong
+ * for the next one somebody adds over numbers, which is exactly the class of
+ * bug that is invisible until the data grows a two-digit member.
+ */
+function ascending(a: string, b: string): number {
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+}
+
 /** Whole days from `from` to `to`, both raw YYYY-MM-DD. */
 function daysBetween(from: string, to: string): number {
   const a = Date.parse(from + 'T00:00:00Z');
@@ -88,9 +104,7 @@ function indexCloses(bars: Bar[]): Closes {
     // caller ever hands over intraday stamps by mistake, and costs nothing.
     at.set(bar.date.slice(0, 10), bar.close);
   }
-  // Bare sort(): these are YYYY-MM-DD strings, whose lexicographic order is
-  // their chronological one, which is the whole reason the field is raw.
-  const dates = [...at.keys()].sort();
+  const dates = [...at.keys()].sort(ascending);
   return { dates, at };
 }
 
@@ -149,7 +163,7 @@ export function buildValueSeries(
   for (const closes of closesBy.values()) for (const date of closes.dates) axis.add(date);
 
   const firstTrade = transactions.reduce((min, tx) => (tx.date < min ? tx.date : min), transactions[0].date);
-  const dates = [...axis].filter((d) => d >= firstTrade).sort();
+  const dates = [...axis].filter((d) => d >= firstTrade).sort(ascending);
   if (dates.length === 0) return { ...empty, ledgerStartsBefore: firstTrade };
 
   const unpriced = new Set<string>();
@@ -181,7 +195,7 @@ export function buildValueSeries(
 
   return {
     points,
-    unpriced: [...unpriced].sort(),
+    unpriced: [...unpriced].sort(ascending),
     ledgerStartsBefore: firstTrade < dates[0] ? firstTrade : null,
   };
 }
