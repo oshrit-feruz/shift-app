@@ -378,7 +378,6 @@ export const STRINGS = {
   'buy.finish': p('Done — to the dashboard', 'סיימנו — לדשבורד'),
 
   // ── Stock page ────────────────────────────────────────────────────────
-  'stock.afterHrs': p('Aug 21, 4:00 PM ET · after hrs', '21 באוג׳, 16:00 ET · אחרי המסחר'),
   'stock.inWatchlist': p('In watchlist', 'במעקב'),
   'stock.toWatchlist': p('Watchlist', 'לווטצ׳ליסט'),
   'stock.addAlert': p('Add alert', 'הוספת התראה'),
@@ -470,9 +469,10 @@ export const STRINGS = {
   // Rewritten when prices went live: it used to call prices sample data, and
   // leaving that would have been the same failure in the other direction —
   // telling a reader to distrust the one number on the screen that is real.
-  // Charts came off this list when they started drawing published sessions.
-  // Day change is the one that has to stay: no source in the app carries an
-  // intraday move, so the percentage beside every price is still invented.
+  // Charts came off this list when they started drawing real sessions, and day
+  // change came off it when the live quote started carrying one. What is left
+  // on the demo side of the price surfaces is volume: the quote has none, so
+  // the movers ranking by "most active" is still sample data.
   'more.demoData': p('Sample data', 'נתוני דמו'),
   'more.demoDataHelp': p(
     'Fills the app with sample figures: generated price charts, an illustrative earnings week, and the demo portfolio, market movers, analyst ratings, connected accounts and notifications. With it off, each of those says so in place and everything else uses real market data.',

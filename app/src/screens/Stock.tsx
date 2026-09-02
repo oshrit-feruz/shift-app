@@ -18,10 +18,11 @@ import { useT } from '../i18n/useT';
 import { useToast } from '../components/Toast';
 import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
+import { PRICE_REFRESH_MS } from '../data/quotes';
 import { fetchYourPositions } from '../lib/holdings';
 import { fetchTickerEarnings } from '../data/earnings';
 import { useDemoMode } from '../lib/DemoModeProvider';
-import { compactCount, money, moneyOrDash, pct, pctOrDash, signalColor } from '../lib/format';
+import { compactCount, money, moneyOrDash, pct, pctOrDash, signalColor, signedMoney } from '../lib/format';
 import { ReportsTab, EarningsHistory } from './stock/ReportsTab';
 import { NewsTab } from './stock/NewsTab';
 import { TabPanel } from '../components/TabPanel';
@@ -30,22 +31,17 @@ import type { ScreenProps } from '../App';
 import type { Bar, SymbolInfo } from '../data/types';
 
 /**
- * The price the still-demo decorations on this screen are computed from: the
- * open/high/low strip, the after-hours line, the day-change figure in
- * dollars, the derived rows in the key-stats grid.
- *
- * Those figures are demo whichever price they start from — the percentage
- * driving them is demo — so they are derived from the price actually on
- * screen, which keeps the panel internally consistent instead of showing a
- * real $144.76 above a change computed off the prototype's $182.44.
+ * The live price, or null when the provider has none for this ticker.
  *
  * It returns null rather than falling back to `x.demo.price`, and everything
  * built on it dashes out or disappears when it does. Caught by looking at the
- * rendered screen: XOM is not in the ranking, so its headline price was "—"
- * while the line underneath it still read "after hours $112.92" — a concrete
- * price on a page that had just said it had none. A number the reader cannot
- * reconcile with the one above it is worse than no number. The prototype
- * price is now rendered nowhere on this screen.
+ * rendered screen: a symbol with no price had a headline of "—" while the
+ * line underneath it still read "after hours $112.92" — a concrete price on a
+ * page that had just said it had none. A number the reader cannot reconcile
+ * with the one above it is worse than no number. That after-hours line is
+ * gone entirely now: it was the last price multiplied by 1.004, and there is
+ * no after-hours source behind it to make real. The prototype price is
+ * rendered nowhere on this screen.
  */
 const basisPrice = (x: SymbolInfo): number | null => x.quote?.price ?? null;
 
@@ -76,7 +72,7 @@ const sessionsFor = (key: Timeframe): number => TIMEFRAMES.find((f) => f.key ===
 type StockTab = 'overview' | 'reports' | 'news';
 
 /**
- * A single ticker's page: price and after-hours header, watchlist/alert
+ * A single ticker's page: live price and day change, watchlist/alert
  * actions, chart with timeframe and indicator toggles, the user's own
  * position in it across portfolios, key statistics, analyst ratings and
  * related news.
@@ -114,7 +110,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
   // In the useLoadable deps below, so turning sample data on or off redraws
   // the chart at once instead of on the next visit to this ticker.
   const demo = useDemoMode();
-  const sym = useLoadable(() => demoService.symbol(s.ticker), [s.ticker]);
+  const sym = useLoadable(() => demoService.symbol(s.ticker), [s.ticker], PRICE_REFRESH_MS);
   const inWl = s.watchlist.includes(s.ticker);
   const positions = useLoadable(
     () => fetchYourPositions(s.ticker, s.manualTransactions, s.manualPortfolios),
@@ -165,18 +161,16 @@ export function StockScreen({ openAlert }: ScreenProps) {
               <Num size={28} style={{ fontFamily: 'var(--font-heading)', lineHeight: 1 }}>
                 {moneyOrDash(x.quote?.price)}
               </Num>
-              <Num size={17} style={{ color: signalColor(x.demo.changePct) }}>
-                {`${derived(basisPrice(x), (px) => (x.demo.changePct >= 0 ? '+' : '') + ((px * x.demo.changePct) / 100).toFixed(2))} · ${pct(x.demo.changePct)}`}
+              {/* Both halves come from the same live quote, so the currency
+                  change and the percentage can never describe different
+                  sessions. They used to be spun off the prototype's frozen
+                  day change — the percentage invented, the currency figure
+                  computed from it against a real price, which made an
+                  invented number look derived from a real one. */}
+              <Num size={17} style={{ color: signalColor(x.quote?.changePct) }}>
+                {x.quote === null ? '—' : `${signedMoney(x.quote.change)} · ${pct(x.quote.changePct)}`}
               </Num>
             </div>
-            {/* Dropped rather than dashed: "after hours —" is a line that
-                says nothing, where the OHLC strip's dashes at least keep the
-                labelled shape of a row the reader is scanning. */}
-            {basisPrice(x) !== null && (
-              <div className="text-muted" style={{ fontSize: 'var(--text-body)', marginTop: 3 }}>
-                {t('stock.afterHrs')} <Num>{money(basisPrice(x)! * 1.004)}</Num>
-              </div>
-            )}
           </div>
 
           <div style={{ display: 'flex', gap: 7 }}>
@@ -470,15 +464,11 @@ const BEG_STATS = (price: number | null, mc: string, vol: number | null, pe: num
 const ADV_STATS = (x: SymbolInfo, bars: Bar[] | null): Array<[string, string]> => {
   const { marketCap: mc, pe } = x.demo;
   const price = basisPrice(x);
+  const q = x.quote;
 
-  // The last two published sessions. Everything below that a daily bar can
-  // answer is answered from them rather than spun off the headline price:
-  // this grid used to read Open = price - 1.9 and Prev close = price * 0.99,
-  // which put an "Open 231.85" directly beneath a chart strip reading
-  // "O 232.80" for the same session. Two different opens on one screen is
-  // worse than one missing one.
+  // The newest published session, which is what volume is read from — the
+  // live quote has no volume figure.
   const last = bars?.at(-1) ?? null;
-  const prev = bars && bars.length > 1 ? bars[bars.length - 2] : null;
   const rsiNow = bars ? ([...rsi(bars.map((b) => b.close))].reverse().find((v) => v !== null) ?? null) : null;
   // Average volume over the published window, not a frozen "162.4M" that was
   // the same figure for every stock in the app.
@@ -487,13 +477,16 @@ const ADV_STATS = (x: SymbolInfo, bars: Bar[] | null): Array<[string, string]> =
   const or = (v: string | null) => v ?? '—';
 
   return [
-    ['Open', or(last && last.open.toFixed(2))],
-    ['Prev close', or(prev && prev.close.toFixed(2))],
-    ['Day range', or(last && `${last.low.toFixed(2)}–${last.high.toFixed(2)}`)],
-    // Real, from the mirror. The 52-week *low* is not in the payload, so the
-    // row reports the high alone rather than pairing a real number with an
-    // invented one to keep the old "range" shape.
-    ['52w high', moneyOrDash(x.quote?.high52w)],
+    // From the LIVE quote, not from the last published bar: the quote is
+    // today's session as it stands, while the newest daily bar is yesterday's
+    // once the market opens. Reading the open off a stale bar is how this
+    // grid once showed an "Open 231.85" under a chart strip reading
+    // "O 232.80" for the same stock. The 52-week high is not in the quote and
+    // is reported by the engine card instead of being paired here with an
+    // invented low.
+    ['Open', or(q && q.open.toFixed(2))],
+    ['Prev close', or(q && q.prevClose.toFixed(2))],
+    ['Day range', or(q && `${q.dayLow.toFixed(2)}–${q.dayHigh.toFixed(2)}`)],
     ['Volume', or(last && compactCount(last.volume))],
     ['Avg vol', or(avgVol === null ? null : compactCount(avgVol))],
     ['Mkt cap', mc],

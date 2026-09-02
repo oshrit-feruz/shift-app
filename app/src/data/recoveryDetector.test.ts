@@ -4,8 +4,8 @@ import {
   MAX_SNAPSHOT_AGE_DAYS,
   SCREENER_MIRROR_URL,
   extractBuySignals,
-  extractQuotes,
-  fetchQuotes,
+  extractRankedTickers,
+  fetchRankedTickers,
   fetchRankingRow,
   fetchSatelliteSignals,
   findRankingRow,
@@ -502,52 +502,46 @@ describe('findRankingRow / fetchRankingRow', () => {
   });
 });
 
-describe('extractQuotes / fetchQuotes — real prices for the whole app', () => {
-  it("keys every ranked ticker, regardless of the engine's verdict", () => {
-    const q = extractQuotes({
+describe('extractRankedTickers / fetchRankedTickers — who the engine has a view on', () => {
+  it("lists every ranked ticker, regardless of the engine's verdict", () => {
+    const t = extractRankedTickers({
       full_ranking: [
-        { ticker: 'ORCL', price: 144.76, high_52w: 324.63, drawdown_pct: 55.4, signal: 'BUY' },
-        { ticker: 'SNDK', price: 1480.77, high_52w: 2335, drawdown_pct: 36.6, signal: 'SKIP' },
+        { ticker: 'ORCL', price: 144.76, signal: 'BUY' },
+        { ticker: 'SNDK', price: 1480.77, signal: 'SKIP' },
       ],
     });
-    // A price is a price: SKIP is the engine declining to recommend the
-    // stock, not doubting what it costs, so both rows are usable quotes.
-    expect(Object.keys(q!).sort()).toEqual(['ORCL', 'SNDK']);
-    expect(q!.ORCL).toEqual({ price: 144.76, high52w: 324.63, drawdownPct: 55.4 });
+    // SKIP is the engine declining to recommend the stock, not declining to
+    // rank it: search offers both, and both rows say they are ranked.
+    expect(t).toEqual(['ORCL', 'SNDK']);
   });
 
-  it('keeps a ranked row whose price the engine omitted, with a null price', () => {
-    const q = extractQuotes({ full_ranking: [{ ticker: 'ORCL', signal: 'BUY' }] });
-    // "ranked, price unknown" must stay distinguishable from "not ranked":
-    // the first is present with a null price, the second is simply absent.
-    expect(q!.ORCL).toEqual({ price: null, high52w: null, drawdownPct: null });
-    expect('AAPL' in q!).toBe(false);
+  it('keeps a ranked row whose numbers the engine omitted', () => {
+    // The list is about membership, not about prices — those come from the
+    // live quote route now — so a row with nothing but a ticker still counts.
+    expect(extractRankedTickers({ full_ranking: [{ ticker: 'ORCL' }] })).toEqual(['ORCL']);
   });
 
-  it('drops rows with no usable ticker rather than keying them under ""', () => {
-    const q = extractQuotes({ full_ranking: [{ price: 10 }, { ticker: 'ORCL', price: 144.76 }] });
-    expect(Object.keys(q!)).toEqual(['ORCL']);
+  it('drops rows with no usable ticker rather than listing ""', () => {
+    const t = extractRankedTickers({ full_ranking: [{ price: 10 }, { ticker: 'ORCL' }] });
+    expect(t).toEqual(['ORCL']);
   });
 
-  it('keeps the first of a duplicated ticker, not whichever came last', () => {
-    const q = extractQuotes({
-      full_ranking: [
-        { ticker: 'ORCL', price: 144.76 },
-        { ticker: 'ORCL', price: 999 },
-      ],
+  it('lists a duplicated ticker once', () => {
+    const t = extractRankedTickers({
+      full_ranking: [{ ticker: 'ORCL' }, { ticker: 'ORCL' }],
     });
-    expect(q!.ORCL.price).toBe(144.76);
+    expect(t).toEqual(['ORCL']);
   });
 
   it('returns null for a body with no recognisable ranking', () => {
-    expect(extractQuotes({ buy_signals: [] })).toBeNull();
-    expect(extractQuotes(null)).toBeNull();
-    expect(extractQuotes([])).toBeNull();
+    expect(extractRankedTickers({ buy_signals: [] })).toBeNull();
+    expect(extractRankedTickers(null)).toBeNull();
+    expect(extractRankedTickers([])).toBeNull();
   });
 
   it('reads the same mirror as the satellite card, not the Render origin', async () => {
     let requested = '';
-    await fetchQuotes(async (url) => {
+    await fetchRankedTickers(async (url: RequestInfo | URL) => {
       requested = String(url);
       return res({ computed_on: FRESH, full_ranking: [] });
     }, NOW);
@@ -555,34 +549,31 @@ describe('extractQuotes / fetchQuotes — real prices for the whole app', () => 
     expect(requested).not.toContain('onrender.com');
   });
 
-  it("refuses a stale snapshot — week-old prices are not today's prices", async () => {
-    const r = await fetchQuotes(
-      async () => res({ computed_on: '2026-08-20', full_ranking: [{ ticker: 'ORCL', price: 144.76 }] }),
+  it("refuses a stale snapshot — a week-old ranking is not today's view", async () => {
+    const r = await fetchRankedTickers(
+      async () => res({ computed_on: '2026-08-20', full_ranking: [{ ticker: 'ORCL' }] }),
       NOW,
     );
     expect(r.status).toBe('unavailable');
-    expect(JSON.stringify(r)).not.toContain('144.76');
   });
 
-  it('is unavailable — never an empty map — on a network failure', async () => {
-    // An empty map would read to every caller as "no ticker is covered",
-    // which is indistinguishable from a healthy but narrow snapshot. The
-    // failure has to stay a failure.
-    const r = await fetchQuotes(async () => {
+  it('is unavailable — never an empty list — on a network failure', async () => {
+    // An empty list would read as "the engine ranks nothing today", which is
+    // indistinguishable from a healthy but narrow snapshot. The failure has
+    // to stay a failure; the one caller that softens it into "we know of no
+    // ranking" does so explicitly.
+    const r = await fetchRankedTickers(async () => {
       throw new TypeError('Failed to fetch');
     });
     expect(r).toEqual({ status: 'unavailable' });
   });
 
-  it('prices the committed mirror artifact for real', async () => {
+  it('reads the committed mirror artifact for real', () => {
     const snapshot = JSON.parse(
       readFileSync(new URL('../../public/data/screener.json', import.meta.url), 'utf8'),
     ) as Record<string, unknown>;
-    const q = extractQuotes(snapshot)!;
-    expect(Object.keys(q).length).toBeGreaterThan(50);
-    for (const [ticker, quote] of Object.entries(q)) {
-      expect(ticker).toMatch(/^[A-Z.-]+$/);
-      if (quote.price !== null) expect(quote.price).toBeGreaterThan(0);
-    }
+    const t = extractRankedTickers(snapshot)!;
+    expect(t.length).toBeGreaterThan(50);
+    for (const ticker of t) expect(ticker).toMatch(/^[A-Z.-]+$/);
   });
 });

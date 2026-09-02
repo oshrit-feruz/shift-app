@@ -1,22 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  COVERED_TICKERS,
-  MAX_SERIES_AGE_DAYS,
-  extractBars,
-  fetchDailySeries,
-  seriesAgeDays,
-  seriesUrl,
-} from './priceHistory';
-import { demoService } from './demoAdapter';
+import { MAX_SERIES_AGE_DAYS, extractBars, fetchDailySeries, seriesAgeDays, seriesUrl } from './priceHistory';
 
 const BAR = { d: '2026-08-27', o: 1, h: 2, l: 0.5, c: 1.5, v: 100 };
 const NOW = new Date('2026-08-28T12:00:00Z');
 
-/** A published file body, fresh as of NOW unless told otherwise. */
+/** A /api/candles response body, fresh as of NOW unless told otherwise. */
 const file = (bars: unknown[] = [BAR], asOf = '2026-08-27') => ({
   ticker: 'NVDA',
   as_of: asOf,
-  source: 'alphavantage:TIME_SERIES_DAILY',
+  source: 'finnhub:stock/candle',
   bars,
 });
 
@@ -27,8 +19,8 @@ const respond = (body: unknown, status = 200) =>
   );
 
 describe('seriesUrl', () => {
-  it('normalises the ticker so one casing does not miss a published file', () => {
-    expect(seriesUrl(' nvda ')).toBe('/data/series/NVDA.json');
+  it('normalises the ticker so one casing is not a second cache key', () => {
+    expect(seriesUrl(' nvda ')).toBe('/api/candles?symbol=NVDA&days=400');
   });
 });
 
@@ -58,8 +50,12 @@ describe('extractBars', () => {
     expect(extractBars(file([{ ...BAR, h: 0.1, l: 9 }]))).toBeNull();
   });
 
-  it('treats a file with no sessions as broken, not as a stock that never traded', () => {
-    expect(extractBars(file([]))).toBeNull();
+  // The route sends an empty list when the provider has no series for the
+  // symbol, which the reader turns into ok(null). Reporting it as a broken
+  // body instead would tell someone to retry a symbol that will never have
+  // history here.
+  it('reads a response with no sessions as an empty series, not as a broken one', () => {
+    expect(extractBars(file([]))).toEqual([]);
   });
 
   it('refuses a body that is not a published file', () => {
@@ -98,8 +94,8 @@ describe('fetchDailySeries', () => {
   // The mirror publishes a file per covered ticker and nothing for the rest.
   // "We have no history for this symbol" is a fact, not a fault: no retry
   // prompt, and the chart says so in a sentence.
-  it('reports a missing file as ok(null), not as unavailable', async () => {
-    const res = await fetchDailySeries('MDA', respond({}, 404), NOW);
+  it('reports a symbol the provider has no series for as ok(null), not as unavailable', async () => {
+    const res = await fetchDailySeries('MDA', respond(file([], '2026-08-27')), NOW);
     expect(res).toEqual({ status: 'ok', data: null });
   });
 
@@ -133,21 +129,11 @@ describe('fetchDailySeries', () => {
     expect(res.status).toBe('unavailable');
   });
 
-  it('checks the shape before the age, so a broken file is not reported as stale', async () => {
+  it('checks the shape before the age, so a broken body is not reported as stale', async () => {
     const ancient = new Date('2030-01-01T00:00:00Z');
     const res = await fetchDailySeries('NVDA', respond(file([{ ...BAR, c: null }])), ancient);
-    expect(res.status === 'unavailable' && res.reason).toBeUndefined();
-  });
-});
-
-describe('the covered-ticker list', () => {
-  // The publisher (scripts/mirror-prices.mjs) and the app read the same file,
-  // so the one way they can still disagree is the list falling behind the
-  // symbol table — a ticker added to the app would silently never get a chart.
-  it('covers exactly the symbols the app can open a stock page for', async () => {
-    const syms = await demoService.symbols();
-    expect(syms.status).toBe('ok');
-    const tickers = syms.status === 'ok' ? syms.data.map((x) => x.ticker) : [];
-    expect([...COVERED_TICKERS].sort()).toEqual([...tickers].sort());
+    // The generic reason, not the "ends N days ago" one: the body never got
+    // as far as the staleness gate.
+    expect(res.status === 'unavailable' && res.reason?.en).toBe('Price history is unavailable right now.');
   });
 });
