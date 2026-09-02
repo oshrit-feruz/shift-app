@@ -547,6 +547,24 @@ export const STRINGS = {
    * unlabelled third number is a guess.
    */
   'pf.costLabel': p('cost', 'עלות'),
+  /**
+   * The profit line under a manual portfolio's total. "Total return" rather
+   * than "profit": it is not only the paper gain on what is still held, it
+   * also carries what selling already booked and what dividends paid, which
+   * is what makes it the answer to "how much did I make on this".
+   */
+  'pf.totalReturn': p('Total return', 'רווח כולל'),
+  /** Says what the percentage is a percentage OF, so it cannot be read as a day change. */
+  'pf.returnBasis': p('of {invested} invested', 'מתוך {invested} שהושקעו'),
+  /**
+   * Why the profit is a number but the CHART above it is not. Two different
+   * facts: today's return is arithmetic over prices we have, while a line
+   * needs a price for every day behind it, and the quote feed carries none.
+   */
+  'pf.noReturnHistory': p(
+    'Return over time needs daily price history, which this data plan does not include.',
+    'רווח לאורך זמן דורש היסטוריית מחירים יומית, שאינה כלולה בתוכנית הנתונים הנוכחית.',
+  ),
   'pf.closed': p('Closed positions', 'פוזיציות שנסגרו'),
   'pf.soldOut': p('sold out', 'נמכרה במלואה'),
   // Used for any manual portfolio, not only Sandbox.

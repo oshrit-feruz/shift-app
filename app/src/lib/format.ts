@@ -47,6 +47,23 @@ export function signedMoney(v: number): string {
 }
 
 /**
+ * Signed money with its currency symbol and thousands separators:
+ * +$550.00 / -$1,204.30
+ *
+ * signedMoney() is the bare form, for a change printed beside the price it is
+ * a change IN. This is the form for a figure that stands on its own — a
+ * portfolio's profit under its total — where a reader has nothing next to it
+ * to infer the units from, and where four digits without a separator is a
+ * number they have to count.
+ *
+ * The sign is applied to the absolute value rather than left to the
+ * formatter, which would otherwise render a loss as "$-1,204.30".
+ */
+export function signedCurrency(v: number, fractionDigits = 2): string {
+  return (v >= 0 ? '+' : '-') + money(Math.abs(v), fractionDigits);
+}
+
+/**
  * CSS color var for a signed value.
  *
  * An unknown value gets the muted colour, not the up colour: green is a claim
