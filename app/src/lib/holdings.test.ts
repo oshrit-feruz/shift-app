@@ -114,7 +114,9 @@ describe('fetchYourPositions respects the sample-data switch', () => {
     });
     const holdingsSpy = vi.spyOn(demoService, 'holdings').mockResolvedValue({
       status: 'ok',
-      data: [{ ticker: 'ALB', shares: -77, avgCost: 129.53, value: -10454.29, plPct: -4.82 }],
+      data: [
+        { ticker: 'ALB', shares: -77, avgCost: 129.53, value: -10454.29, plPct: -4.82, costBasis: -9973.81 },
+      ],
     });
     withDemoData(true);
 
@@ -230,7 +232,7 @@ describe('mergeManualTransactions', () => {
   });
 
   it('leaves a service-reported holding the user never logged untouched', () => {
-    const service = { ticker: 'AAPL', shares: 5, avgCost: 100, value: 900, plPct: -10 };
+    const service = { ticker: 'AAPL', shares: 5, avgCost: 100, value: 900, plPct: -10, costBasis: 500 };
     const rows = mergeManualTransactions([service], [buy('NVDA', 1, 10)], { NVDA: quote(10) });
     expect(rows.find((r) => r.ticker === 'AAPL')).toEqual(service);
   });

@@ -7,6 +7,7 @@ import { loading, ok, unavailable, type Loadable } from '../data/types';
 import {
   EMPTY_LEDGER,
   classifyError,
+  dropDependents,
   planLegacyImport,
   portfoliosOf,
   applyToSnapshot,
@@ -73,6 +74,23 @@ export interface LedgerApi {
     tx: { side: TransactionSide; ticker: string; shares: number; price: number; date: string },
   ) => void;
   removeTransaction: (portfolioId: string, id: string) => void;
+  /**
+   * Correct a transaction already recorded, as one queued pair: a new row
+   * inserted and the old one deleted behind it.
+   *
+   * Not an update, because there is no update anywhere — the client has none,
+   * and 0005_ledger.sql grants the table no update policy at all. That is the
+   * design rather than an omission (see state/ledger.ts): immutable rows are
+   * what make reconcile() a set computation and give the outbox its
+   * concurrency argument. An edit expressed as delete-plus-insert keeps every
+   * bit of that, and the pair is queued in ONE write so the row never blinks
+   * out of the list between the two halves.
+   */
+  replaceTransaction: (
+    portfolioId: string,
+    id: string,
+    tx: { side: TransactionSide; ticker: string; shares: number; price: number; date: string },
+  ) => void;
   /** Ops the server refused permanently. Surfaced rather than swallowed: a
    *  queued write that can never succeed and quietly disappears is the same
    *  silent loss the jsonb bag was losing transactions to. */
@@ -86,6 +104,7 @@ const NOOP: LedgerApi = {
   removePortfolio: () => {},
   addTransaction: () => {},
   removeTransaction: () => {},
+  replaceTransaction: () => {},
   rejected: [],
 };
 
@@ -166,7 +185,13 @@ function useLedgerSync(): LedgerApi {
         }
         const outcome = classifyError(await send(op));
         if (outcome === 'retry') break;
-        if (outcome === 'failed') setRejected((prev) => [...prev, op]);
+        if (outcome === 'failed') {
+          setRejected((prev) => [...prev, op]);
+          // An op that can never succeed takes its dependents with it. Without
+          // this, a correction whose insert the server refuses would still run
+          // its delete and remove the trade being corrected.
+          saveOutbox(dropDependents(outboxRef.current, op));
+        }
         // A confirmed op IS a server row now, so it moves into the snapshot as
         // it leaves the queue. Without this the two would be briefly empty at
         // once — the op gone from the outbox and the snapshot not yet
@@ -186,14 +211,20 @@ function useLedgerSync(): LedgerApi {
     }
   }, [userId, saveOutbox, publish]);
 
-  const enqueue = useCallback(
-    (op: LedgerOp) => {
-      saveOutbox([...outboxRef.current, op]);
+  const enqueueMany = useCallback(
+    (ops: LedgerOp[]) => {
+      // One outbox write and one publish for the whole group. A caller queuing
+      // a delete and an insert separately would publish between them, and the
+      // screen would render the moment where the row is gone and its
+      // replacement has not arrived.
+      saveOutbox([...outboxRef.current, ...ops]);
       publish();
       void flush();
     },
     [saveOutbox, publish, flush],
   );
+
+  const enqueue = useCallback((op: LedgerOp) => enqueueMany([op]), [enqueueMany]);
 
   /**
    * Read the server's rows and adopt them.
@@ -384,8 +415,40 @@ function useLedgerSync(): LedgerApi {
         if (!userId) return;
         enqueue({ kind: 'deleteTransaction', userId, id });
       },
+      replaceTransaction: (portfolioId, id, tx) => {
+        if (!userId) return;
+        // The replacement is a NEW row with a new id. Reusing the old id would
+        // race the queued delete of it — the two ops commute, and the pair
+        // could reach the server in the order that removes what it just
+        // inserted.
+        // Insert FIRST, delete second, with the delete naming the insert it
+        // waits on. Order matters on the wire even though it does not in
+        // reconcile(): the replacement is either on the server or known to
+        // have failed by the time the original is removed, so the one outcome
+        // that loses a trade cannot happen. Meanwhile the queued pair already
+        // reads correctly — server rows − the delete + the insert — so nothing
+        // shows twice in between.
+        const replacement = newId('tx');
+        enqueueMany([
+          {
+            kind: 'insertTransaction',
+            userId,
+            row: {
+              id: replacement,
+              portfolioId,
+              side: tx.side,
+              ticker: tx.ticker,
+              shares: tx.shares,
+              price: tx.price,
+              tradeDate: tx.date,
+              createdAt: new Date().toISOString(),
+            },
+          },
+          { kind: 'deleteTransaction', userId, id, afterInsert: replacement },
+        ]);
+      },
     }),
-    [state, rejected, userId, enqueue],
+    [state, rejected, userId, enqueue, enqueueMany],
   );
 }
 

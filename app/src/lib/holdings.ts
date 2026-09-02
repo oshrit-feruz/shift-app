@@ -69,6 +69,7 @@ export function mergeManualTransactions(
     avgCost: x.avgCost,
     value: x.value,
     plPct: x.plPct,
+    costBasis: x.costBasis,
   }));
   return [...service, ...mine];
 }

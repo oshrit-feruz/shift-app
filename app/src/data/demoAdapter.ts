@@ -384,6 +384,7 @@ export const demoService: DataService & { isDemo: true } = {
         avgCost: sym.demo.price * 0.72,
         value: shares * sym.demo.price,
         plPct,
+        costBasis: shares * sym.demo.price * 0.72,
       };
     });
     // Institutions expose totals only, never holdings (product rule), and a

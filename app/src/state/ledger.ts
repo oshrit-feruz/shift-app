@@ -70,7 +70,38 @@ export type LedgerOp =
   | { kind: 'insertPortfolio'; userId: string; row: LedgerPortfolio }
   | { kind: 'deletePortfolio'; userId: string; id: string }
   | { kind: 'insertTransaction'; userId: string; row: LedgerTransaction }
-  | { kind: 'deleteTransaction'; userId: string; id: string };
+  | {
+      kind: 'deleteTransaction';
+      userId: string;
+      id: string;
+      /**
+       * For the delete half of a correction: the id of the insert that
+       * replaces this row.
+       *
+       * The pair is atomic in the outbox but not on the wire — flush sends one
+       * statement at a time — so without this, an insert the server refuses
+       * permanently leaves its partner delete to remove the original, and the
+       * trade is gone. `dropDependents` drops the delete instead, which is why
+       * the insert is queued FIRST: by the time the delete is reached, its
+       * replacement is either on the server or already known to have failed.
+       *
+       * The mirror case (insert lands, delete refused) leaves both rows, which
+       * is a duplicate the user can see and remove — not a loss.
+       */
+      afterInsert?: string;
+    };
+
+/**
+ * The queue with every op that depended on a permanently failed one removed.
+ *
+ * Only one dependency exists today: the delete half of a correction on the
+ * insert that replaces it. Written as a function over the queue rather than as
+ * a branch inside the flush loop so it can be tested without a network.
+ */
+export function dropDependents(outbox: LedgerOp[], failed: LedgerOp): LedgerOp[] {
+  if (failed.kind !== 'insertTransaction') return outbox;
+  return outbox.filter((op) => !(op.kind === 'deleteTransaction' && op.afterInsert === failed.row.id));
+}
 
 /**
  * What this device should show: the server's rows, plus what is queued to be
@@ -180,6 +211,26 @@ export function portfoliosOf(snapshot: LedgerSnapshot): ManualPortfolio[] {
  * user as a mysterious failed save of something they were told was fine.
  */
 export const TICKER_PATTERN = /^[A-Z0-9][A-Z0-9.-]{0,9}$/;
+
+/**
+ * The rows the oversell check should measure a draft against.
+ *
+ * Everything in the portfolio when recording a new trade — and everything
+ * EXCEPT the row itself when correcting one. The difference is not cosmetic:
+ * a position sold out in full, then reopened for editing, is measured against
+ * a holding of zero that its own sell created, so the sheet refuses to let
+ * anyone fix the price of the very trade being corrected.
+ *
+ * Filtering rather than reversing the row's effect, because a correction
+ * replaces the row outright: what the ledger holds without it is exactly what
+ * the replacement will be added to.
+ */
+export function ledgerWithout(
+  transactions: ManualTransaction[],
+  excludeId: string | null | undefined,
+): ManualTransaction[] {
+  return excludeId == null ? transactions : transactions.filter((tx) => tx.id !== excludeId);
+}
 
 export type TxProblem = 'ticker' | 'shares' | 'price' | 'date' | 'oversell';
 

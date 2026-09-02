@@ -145,6 +145,10 @@ function toHolding(position: ConnectedAccount['positions'][number]): Holding {
     // brokerage did not price renders as "—" rather than as worthless.
     value: position.marketValue,
     plPct,
+    // The brokerage's own cost basis where it reported one, and units × avg
+    // cost where it did not — both fall back to 0 above, so this is 0 exactly
+    // when there is nothing to state, matching the rest of this mapping.
+    costBasis: units * avgCost,
   };
 }
 
