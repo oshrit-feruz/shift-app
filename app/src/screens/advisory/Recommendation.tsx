@@ -23,8 +23,6 @@ import type { StringKey } from '../../i18n/strings';
 import type { ScreenProps } from '../../App';
 import type { ReactNode } from 'react';
 
-const SAT_RULES: StringKey[] = ['rec.satRule1', 'rec.satRule2', 'rec.satRule3', 'rec.satRule4'];
-
 /** The range the amount control covers, and the granularity it moves in. */
 const MIN = 1000;
 const MAX = 50000;
@@ -432,18 +430,10 @@ function Disclosures({ satellitePct, broker }: Readonly<{ satellitePct: number; 
   const t = useT();
   return (
     <Card padding={13} gap={7}>
+      {/* What the two parts are, when the list changes, and what it is not.
+          Deliberately nothing about how the names are chosen: the engine's
+          rules are not explained to the client anywhere in the app. */}
       <Note>{t('rec.coreSatIntro')}</Note>
-      <Note>{t('rec.satHelp')}</Note>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-        {SAT_RULES.map((k) => (
-          <div key={k} style={{ display: 'flex', gap: 8, fontSize: 'var(--text-caption)', lineHeight: 1.45 }}>
-            <span style={{ color: 'var(--color-accent-200)', flex: 'none' }}>·</span>
-            <span className="text-muted" style={{ flex: 1 }}>
-              {t(k)}
-            </span>
-          </div>
-        ))}
-      </div>
       <Note>{t('rec.updatedDaily')}</Note>
       <Note>{t('rec.notAnOrder')}</Note>
       {/* With no individual-stock sleeve the radar is not advice for this

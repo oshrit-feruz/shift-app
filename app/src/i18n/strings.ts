@@ -229,9 +229,11 @@ export const STRINGS = {
   'disc.cta': p('Show the recommendation', 'להצגת ההמלצה'),
 
   // ── Recommendation dashboard ──────────────────────────────────────────
+  /* Says what the two parts are and nothing about how the second is chosen:
+   * the engine's rules are not explained to the client anywhere in the app. */
   'rec.coreSatIntro': p(
-    'Two parts: a broad index core, and — where the profile allows it — a small share in individual stocks picked by fixed rules that are rechecked every trading day.',
-    'שני חלקים: ליבה של מדדים רחבים, ובמקום שהפרופיל מתיר — חלק קטן במניות בודדות שנבחרות לפי כללים קבועים, שנבדקים מחדש בכל יום מסחר.',
+    'Two parts: a broad index core, and — where the profile allows it — a small share in individual stocks.',
+    'שני חלקים: ליבה של מדדים רחבים, ובמקום שהפרופיל מתיר — חלק קטן במניות בודדות.',
   ),
   'rec.core': p('Core', 'ליבה (Core)'),
   'rec.coreHelp': p(
@@ -265,29 +267,10 @@ export const STRINGS = {
   'rec.radarLineEnd': p("'s daily radar", ''),
   'rec.ofPortfolio': p('of the portfolio', 'מהתיק'),
   'rec.dailyTag': p('Checked daily', 'בדיקה יומית'),
-  'rec.satHelp': p(
-    'Fixed rules, the same for every client — no personal tuning and no one deciding case by case.',
-    'כללים קבועים, זהים לכל לקוח — בלי התאמה אישית ובלי החלטה נקודתית של מישהו.',
-  ),
-  'rec.satRule1': p('Only large, well-known S&P 500 companies', 'רק חברות גדולות ומוכרות ממדד S&P 500'),
-  'rec.satRule2': p(
-    'Bought only after a deep, prolonged fall in the share price',
-    'קנייה רק אחרי ירידה עמוקה וממושכת במחיר המניה',
-  ),
-  'rec.satRule3': p(
-    'Held for a fixed period and then closed — by rule, not by feel',
-    'החזקה לתקופה קבועה ואז סגירה — לפי הכלל, לא לפי תחושה',
-  ),
-  'rec.satRule4': p(
-    'The list is rechecked every trading day and capped at 15% of the portfolio',
-    'הרשימה נבדקת מחדש בכל יום מסחר ומוגבלת ל-15% מהתיק',
-  ),
   'rec.satPositions': p("Passed today's checks", 'עברו את הבדיקות של היום'),
   'rec.livePrices': p('Live prices', 'מחירים חיים'),
-  'rec.updatedDaily': p(
-    'Every trading day, 100 large S&P 500 companies are put through the same checks — how deep and how long the fall in the share price has been, where the price is heading, and how heavily the stock is traded. These are the few names that passed every check today.',
-    'בכל יום מסחר עוברות 100 חברות גדולות ממדד S&P 500 את אותן בדיקות — כמה עמוקה וממושכת הייתה הירידה במחיר המניה, לאן המחיר מתקדם, ובאיזה היקף נסחרת המניה. אלה השמות הבודדים שעברו היום את כל הבדיקות.',
-  ),
+  /* When the list changes, not what it is checked against. */
+  'rec.updatedDaily': p('The list is refreshed every trading day.', 'הרשימה מתעדכנת בכל יום מסחר.'),
   'rec.notAnOrder': p(
     'A shortlist to look into yourself — not an instruction to buy. After the next trading day it can look different.',
     'זו רשימה קצרה להתעמק בה בעצמך — לא הוראת קנייה. ביום המסחר הבא היא יכולה להיראות אחרת.',
