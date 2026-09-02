@@ -61,6 +61,16 @@ function numOrNull(v: unknown): number | null {
   return isNum(v) ? v : null;
 }
 
+/** A finite number that is not negative, or null. */
+function nonNegative(v: unknown): number | null {
+  return isNum(v) && v >= 0 ? v : null;
+}
+
+/** A finite number above zero, or null. */
+function positive(v: unknown): number | null {
+  return isNum(v) && v > 0 ? v : null;
+}
+
 /** Normalise a caller's list: trimmed, upper-case, de-duplicated, in order. */
 export function normaliseTickers(tickers: readonly string[]): string[] {
   const out: string[] = [];
@@ -97,8 +107,15 @@ export function extractStats(body: unknown): Record<string, StockStats> | null {
       dividendYield: numOrNull(row.dividendYield),
       fiftyTwoWeekHigh: numOrNull(row.fiftyTwoWeekHigh),
       fiftyTwoWeekLow: numOrNull(row.fiftyTwoWeekLow),
-      volume: numOrNull(row.volume),
-      averageVolume: numOrNull(row.averageVolume),
+      // The two halves of the relative-volume ratio, and the only fields here
+      // read as a pair rather than printed on their own. The route already
+      // enforces both rules (api/_lib/eodhd.ts); restated at the boundary
+      // where the numbers become a picture, for the reason data/barRow.ts is:
+      // a negative numerator would render a signed multiple beside a real
+      // price, and a zero denominator divides to infinity. A zero VOLUME
+      // stays — a session that traded nothing is a real answer.
+      volume: nonNegative(row.volume),
+      averageVolume: positive(row.averageVolume),
     };
   }
   return out;

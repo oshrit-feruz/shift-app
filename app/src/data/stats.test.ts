@@ -52,6 +52,18 @@ describe('extractStats', () => {
       },
     });
   });
+
+  it('refuses the two halves of the RVol ratio when they cannot form one', () => {
+    // The last point before these become a picture: a negative numerator would
+    // print a signed multiple beside a real price, and a zero denominator
+    // divides to infinity. A zero volume is a real answer and stays.
+    const rvol = (v: unknown, a: unknown) =>
+      extractStats({ stats: { QCOM: { volume: v, averageVolume: a } } })!.QCOM;
+    expect(rvol(-1, 100)).toMatchObject({ volume: null, averageVolume: 100 });
+    expect(rvol(0, 100)).toMatchObject({ volume: 0, averageVolume: 100 });
+    expect(rvol(100, 0)).toMatchObject({ volume: 100, averageVolume: null });
+    expect(rvol(100, -5)).toMatchObject({ averageVolume: null });
+  });
 });
 
 describe('fetchStatsFor', () => {
