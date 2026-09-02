@@ -175,11 +175,19 @@ describe('readUsQuoteData', () => {
     });
   });
 
+  it('reads the empty array the provider sends for no matches as an empty map', () => {
+    // Verified: a made-up ticker answers {"meta":{"count":0},"data":[]}.
+    // Refusing that as an unrecognised shape told the reader the response was
+    // broken when the provider had simply said it carries nothing.
+    expect(readUsQuoteData({ meta: { count: 0 }, data: [] })).toEqual({});
+  });
+
   it('refuses a body that is not a quote response', () => {
     expect(readUsQuoteData(null)).toBeNull();
     expect(readUsQuoteData([])).toBeNull();
     expect(readUsQuoteData({ meta: {} })).toBeNull();
-    expect(readUsQuoteData({ data: [] })).toBeNull();
+    // A non-empty array is still a shape we do not understand.
+    expect(readUsQuoteData({ data: [{ symbol: 'NVDA.US' }] })).toBeNull();
   });
 });
 

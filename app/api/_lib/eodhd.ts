@@ -215,7 +215,15 @@ export function usQuoteUrl(symbols: string[], apiKey: string): URL {
 export function readUsQuoteData(body: unknown): Record<string, unknown> | null {
   if (body === null || typeof body !== 'object' || Array.isArray(body)) return null;
   const data = (body as Record<string, unknown>).data;
-  if (data === null || typeof data !== 'object' || Array.isArray(data)) return null;
+  // The documented shape is an object keyed by symbol — except when nothing
+  // matched at all, where the provider sends `"data": []`. Verified: a
+  // made-up ticker answers `{"meta":{"count":0},"data":[],...}`. That empty
+  // array is JSON's other way of writing an empty map, and refusing it as an
+  // unrecognised shape told the reader the response was broken when it was
+  // simply the provider saying it carries nothing for that symbol. A
+  // NON-empty array is still a shape we do not understand.
+  if (Array.isArray(data)) return data.length === 0 ? {} : null;
+  if (data === null || typeof data !== 'object') return null;
   return data as Record<string, unknown>;
 }
 

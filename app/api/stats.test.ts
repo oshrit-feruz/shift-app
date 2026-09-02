@@ -84,9 +84,11 @@ describe('/api/stats', () => {
   });
 
   it('reads an absent symbol as "nothing for this symbol", not as a failure', async () => {
-    // Verified against the live API: asking for four symbols where two are
-    // uncovered returns a map of two, with the others simply missing.
-    const res = await call({ symbol: 'ZZZZQQ' }, respond({ meta: { count: 0 }, data: {} }));
+    // Two shapes, both verified against the live API and both meaning the
+    // same thing. Asked for several symbols where some are uncovered, it
+    // returns a map with the others simply missing; asked for one it does not
+    // carry at all, it returns `"data": []`.
+    const res = await call({ symbol: 'ZZZZQQ' }, respond({ meta: { count: 0 }, data: [] }));
     expect(res._status).toBe(200);
     expect(res._body).toMatchObject({ stats: null });
   });
