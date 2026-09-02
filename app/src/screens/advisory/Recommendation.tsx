@@ -16,6 +16,7 @@ import { FlowStepper } from './FlowStepper';
 import { useAppState, useDispatch } from '../../state/appState';
 import { useT } from '../../i18n/useT';
 import { useLoadable } from '../../data/useLoadable';
+import { PRICE_REFRESH_MS } from '../../data/quotes';
 import { demoService } from '../../data/demoAdapter';
 import { actionableSignals } from '../../data/recoveryDetector';
 import { CORE_FUNDS, mapProfile, PROFILES, sizeRadar } from '../../lib/advisory';
@@ -256,7 +257,9 @@ function priceLabel(price: number | null) {
 function RadarCard({ amount, pct }: Readonly<{ amount: number; pct: number }>) {
   const dispatch = useDispatch();
   const t = useT();
-  const radar = useLoadable(() => demoService.stockRadar(), []);
+  // Re-read on the price cadence: the names change once a day, the live
+  // quote on a tile moves while the screen is open.
+  const radar = useLoadable(() => demoService.stockRadar(), [], PRICE_REFRESH_MS);
   /** Whether this profile puts any money behind what the radar finds. */
   const allocated = pct > 0;
   const coreFund = fundTicker(CORE_FUNDS.sp500) ?? 'VOO';
@@ -310,7 +313,7 @@ function RadarCard({ amount, pct }: Readonly<{ amount: number; pct: number }>) {
         onRetry={radar.retry}
         skeleton={<SkeletonList count={3} minHeight={52} />}
       >
-        {({ signals: all, policy }) => {
+        {({ signals: all, policy, quotes }) => {
           const signals = actionableSignals(all);
           // Null with no sleeve, and null when the snapshot carries no policy:
           // either way no amount is put against a name.
@@ -374,8 +377,11 @@ function RadarCard({ amount, pct }: Readonly<{ amount: number; pct: number }>) {
                         <TickerTile ticker={x.ticker} size={28} />
                         {/* With a sleeve and a policy, the tile leads with the
                         engine's slice of it; otherwise with the name and the
-                        live price. A missing price renders as an em dash —
-                        never guessed, never back-filled. */}
+                        LIVE price — the same quote the stock page shows, so
+                        opening the tile never lands on a different number.
+                        A name the provider does not price renders as an em
+                        dash — never guessed, never back-filled from the
+                        engine's own close. */}
                         <Num size="var(--text-row)" weight={700}>
                           {/* The same slice on every tile: the policy sets it
                           per name, so it does not depend on how many passed
@@ -383,7 +389,7 @@ function RadarCard({ amount, pct }: Readonly<{ amount: number; pct: number }>) {
                           {sized ? money(sizing.perName, 0) : x.ticker}
                         </Num>
                         <Num size="var(--text-caption)" style={{ color: 'var(--muted)' }}>
-                          {sized ? x.ticker : priceLabel(x.price)}
+                          {sized ? x.ticker : priceLabel(quotes[x.ticker]?.price ?? null)}
                         </Num>
                       </button>
                       {(sizing === null || sized) && <BuyAtBrokerButton ticker={x.ticker} />}

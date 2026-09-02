@@ -230,3 +230,83 @@ describe('searchUniverse() — one row per symbol, and never drops a followed on
     expect(tickers.filter((x) => x === 'NVDA')).toHaveLength(1);
   });
 });
+
+/**
+ * The radar's price is the live quote, not the engine's close. The screener
+ * snapshot carries the close the engine ranked on — the previous session's —
+ * and showing it beside a live quote on the stock page read as two prices for
+ * one stock. The tile now shows the same quote the page does.
+ */
+function radarWorld(prices: Record<string, number>, signals: unknown[], quoteStatus = 200): typeof fetch {
+  return (async (url: RequestInfo | URL) => {
+    const href = String(url);
+    if (href.startsWith('/api/quote')) {
+      if (quoteStatus !== 200) return json({ error: 'down' }, quoteStatus);
+      const asked = new URL(href, 'https://x').searchParams.get('symbols')?.split(',') ?? [];
+      const quotes: Record<string, unknown> = {};
+      for (const t of asked) if (t in prices) quotes[t] = quote(prices[t]);
+      return json({ quotes, unavailable: [] });
+    }
+    return json({
+      computed_on: today,
+      buy_signals: signals,
+      satellite_policy: { sleeve_pct_of_budget: 10, max_sleeves: 10 },
+    });
+  }) as unknown as typeof fetch;
+}
+
+describe('stockRadar() — priced live, from the same source as the stock page', () => {
+  const engineClose = { ticker: 'NVDA', signal: 'BUY', active: true, price: 140.0 };
+
+  it('attaches the live quote, not the close the engine ranked on', async () => {
+    vi.stubGlobal('fetch', radarWorld({ NVDA: 144.76 }, [engineClose]));
+    const r = await demoService.stockRadar();
+    expect(r.status).toBe('ok');
+    const radar = r.status === 'ok' ? r.data : null;
+    expect(radar!.quotes.NVDA?.price).toBeCloseTo(144.76, 6);
+    expect(radar!.policy).toEqual({ sleevePctOfBudget: 10, maxSleeves: 10 });
+    // The engine's own close is still on the signal, for the record, but it is
+    // not what the quote map carries.
+    expect(radar!.signals[0].price).toBe(140.0);
+  });
+
+  it('prices only the actionable names', async () => {
+    const asked: string[] = [];
+    const base = radarWorld({ NVDA: 144.76, ORCL: 200 }, [
+      engineClose,
+      { ticker: 'ORCL', signal: 'BUY', active: false, price: 190 },
+    ]);
+    vi.stubGlobal('fetch', (async (url: RequestInfo | URL) => {
+      const href = String(url);
+      if (href.startsWith('/api/quote'))
+        asked.push(...(new URL(href, 'https://x').searchParams.get('symbols')?.split(',') ?? []));
+      return base(url);
+    }) as unknown as typeof fetch);
+    const r = await demoService.stockRadar();
+    const radar = r.status === 'ok' ? r.data : null;
+    expect(asked).toEqual(['NVDA']);
+    expect(radar!.quotes.ORCL).toBeUndefined();
+  });
+
+  it('leaves a name the provider does not price out of the map — never the engine close', async () => {
+    vi.stubGlobal('fetch', radarWorld({}, [engineClose]));
+    const r = await demoService.stockRadar();
+    const radar = r.status === 'ok' ? r.data : null;
+    expect(radar!.quotes).toEqual({});
+  });
+
+  it('keeps the names when the quote read fails, with an empty map', async () => {
+    vi.stubGlobal('fetch', radarWorld({ NVDA: 144.76 }, [engineClose], 503));
+    const r = await demoService.stockRadar();
+    expect(r.status).toBe('ok');
+    const radar = r.status === 'ok' ? r.data : null;
+    expect(radar!.signals.map((s) => s.ticker)).toEqual(['NVDA']);
+    expect(radar!.quotes).toEqual({});
+  });
+
+  it('is unavailable when the snapshot itself cannot be read', async () => {
+    vi.stubGlobal('fetch', (async () => json({ error: 'gone' }, 500)) as unknown as typeof fetch);
+    const r = await demoService.stockRadar();
+    expect(r.status).toBe('unavailable');
+  });
+});

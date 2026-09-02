@@ -5,8 +5,8 @@ import type {
   NewsItem,
   PortfolioSummary,
   Holding,
+  PricedStockRadar,
   SatelliteSignal,
-  StockRadar,
   SymbolInfo,
   WatchRow,
 } from './types';
@@ -44,9 +44,11 @@ export interface DataService {
   /**
    * The Stock Radar screens' read: the same candidates as satelliteSignals
    * plus the engine's sizing policy, from one snapshot, so the amount shown
-   * against a name and the name itself can never come from different days.
+   * against a name and the name itself can never come from different days —
+   * priced LIVE per actionable name from the same quote source as every
+   * other screen (see PricedStockRadar).
    */
-  stockRadar(): Promise<Loadable<StockRadar>>;
+  stockRadar(): Promise<Loadable<PricedStockRadar>>;
   portfolios(): Promise<Loadable<PortfolioSummary[]>>;
   holdings(portfolioId: string): Promise<Loadable<Holding[]>>;
   news(): Promise<Loadable<NewsItem[]>>;

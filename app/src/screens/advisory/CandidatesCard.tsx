@@ -12,6 +12,7 @@ import { mapProfile, PROFILES } from '../../lib/advisory';
 import { demoService } from '../../data/demoAdapter';
 import { actionableSignals } from '../../data/recoveryDetector';
 import { useLoadable } from '../../data/useLoadable';
+import { PRICE_REFRESH_MS } from '../../data/quotes';
 import { money } from '../../lib/format';
 
 /** Rendered in place of any numeric the live engine did not supply. */
@@ -45,7 +46,9 @@ export function CandidatesCard() {
   const dispatch = useDispatch();
   const t = useT();
   const profile = PROFILES[mapProfile(s.advAnswers) ?? 'bal'];
-  const radar = useLoadable(() => demoService.stockRadar(), []);
+  // Re-read on the price cadence: the names change once a day, the quote
+  // beside each of them moves while the card is on screen.
+  const radar = useLoadable(() => demoService.stockRadar(), [], PRICE_REFRESH_MS);
 
   return (
     <Card padding="13px 13px 4px" gap={7}>
@@ -76,7 +79,7 @@ export function CandidatesCard() {
         onRetry={radar.retry}
         skeleton={<SkeletonList count={3} minHeight={52} />}
       >
-        {({ signals }) =>
+        {({ signals, quotes }) =>
           // Only the names the engine marks actionable now — the same list, on
           // the same rule, as the radar band on the recommendation screen.
           actionableSignals(signals).length === 0 ? (
@@ -84,13 +87,15 @@ export function CandidatesCard() {
           ) : (
             <>
               {actionableSignals(signals).map((x) => (
-                // A missing price renders as "—"; it is never guessed,
-                // defaulted to zero, or back-filled.
+                // The LIVE quote, the same one the stock page shows. A name
+                // the provider does not price renders as "—"; it is never
+                // guessed, defaulted to zero, or back-filled from the
+                // engine's own close.
                 <ListRow
                   key={x.ticker}
                   leading={<TickerTile ticker={x.ticker} />}
                   title={x.ticker}
-                  right={<RowValues main={x.price === null ? DASH : money(x.price)} />}
+                  right={<RowValues main={quotes[x.ticker] ? money(quotes[x.ticker].price) : DASH} />}
                   trailing={<BuyAtBrokerButton ticker={x.ticker} />}
                   minHeight={52}
                   onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}

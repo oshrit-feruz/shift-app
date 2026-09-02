@@ -146,7 +146,12 @@ export interface WatchRow {
  */
 export interface SatelliteSignal {
   ticker: string;
-  /** Last price the engine saw. */
+  /**
+   * The close the engine ranked on — the previous session's, since the
+   * screener runs before the open. NOT rendered as a price anywhere: the
+   * screens show the live quote beside a name (see PricedStockRadar), and a
+   * day-old close next to a live one would read as a discrepancy.
+   */
   price: number | null;
   /** 52-week high the drawdown is measured against. */
   high52w: number | null;
@@ -185,6 +190,18 @@ export interface SatellitePolicy {
 export interface StockRadar {
   signals: SatelliteSignal[];
   policy: SatellitePolicy | null;
+}
+
+/**
+ * The Stock Radar as the screens read it: the engine's snapshot plus a LIVE
+ * quote per actionable name, from /api/quote — the same source as every other
+ * price in the app, so the price on a radar tile and the price on that stock's
+ * own page are one number. A name the provider does not price, or a quote
+ * read that failed, is simply absent from `quotes` and renders as "—"; the
+ * engine's own last close is never shown in its place.
+ */
+export interface PricedStockRadar extends StockRadar {
+  quotes: Record<string, Quote>;
 }
 
 /**
