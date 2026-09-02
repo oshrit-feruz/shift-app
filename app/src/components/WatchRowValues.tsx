@@ -12,18 +12,20 @@ import type { WatchRow } from '../data/types';
  * here"; the dash says "we do not have this number", which is the fact, and
  * is what the rest of the app renders for a missing figure.
  *
- * `price` is real (the daily mirror). The percentage under it is still a demo
- * figure for the tickers that have one — it is read from the `demo` key for
- * exactly that reason (see data/types.ts), which is now the only thing
- * marking it as invented: the standing on-screen note this used to point at
- * has been removed.
+ * Both numbers are real and live now (data/quotes.ts). The percentage used to
+ * be a demo figure carried from the design prototype — present for the ten
+ * sample tickers, "—" for everything else — sitting directly under a real
+ * price. It is the actual day change, and it is missing only when the whole
+ * quote is: one source, so the pair can never disagree about which session it
+ * is describing.
  */
 export function WatchRowValues({ row }: { row: WatchRow }) {
+  const change = row.quote?.changePct ?? null;
   return (
     <RowValues
       main={moneyOrDash(row.quote?.price)}
-      sub={row.demoChangePct === null ? '—' : pct(row.demoChangePct)}
-      subColor={row.demoChangePct === null ? undefined : signalColor(row.demoChangePct)}
+      sub={change === null ? '—' : pct(change)}
+      subColor={change === null ? undefined : signalColor(change)}
     />
   );
 }

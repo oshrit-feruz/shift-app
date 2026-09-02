@@ -1,6 +1,6 @@
 import { demoService } from '../data/demoAdapter';
 import { appService } from '../data/appService';
-import { fetchQuotes } from '../data/recoveryDetector';
+import { fetchQuotes } from '../data/quotes';
 import { DEMO_FLAGS } from '../data/demoFlags';
 import { ok, unavailable, type Loadable } from '../data/types';
 import type { Holding, PortfolioSummary, Quote } from '../data/types';
@@ -160,10 +160,12 @@ export async function fetchYourPositions(
   );
   if (settled.some((r) => r.status !== 'ok')) return unavailable();
 
-  // Live prices for the user's own positions. A failed quote read is not
-  // fatal: the shares they logged are still theirs to see, and the row simply
-  // renders "—" where its worth would go.
-  const quotes = await fetchQuotes();
+  // Live prices for the user's own positions. Only the ticker this page is
+  // about is priced — the fold below discards every other row anyway, and a
+  // quote costs a provider request. A failed read is not fatal: the shares
+  // they logged are still theirs to see, and the row simply renders "—" where
+  // its worth would go.
+  const quotes = await fetchQuotes([ticker]);
   const map = quotes.status === 'ok' ? quotes.data : null;
 
   const results: TickerPosition[] = [];
@@ -210,7 +212,13 @@ export async function fetchPortfolioHoldings(
   const service = DEMO_FLAGS.demoData ? await demoService.holdings(portfolioId) : ok<Holding[]>([]);
   if (service.status !== 'ok') return service;
 
-  const quotes = await fetchQuotes();
+  // Every ticker this portfolio touches, from both halves of it: the service
+  // rows and the user's own ledger. Asked for once, together, so one card is
+  // one batch rather than a request per row.
+  const quotes = await fetchQuotes([
+    ...service.data.map((row) => row.ticker),
+    ...transactions.map((tx) => tx.ticker),
+  ]);
   const map = quotes.status === 'ok' ? quotes.data : null;
   const valuation = valuePositions(buildPositions(transactions), map);
   return ok({ rows: mergeManualTransactions(service.data, transactions, map), valuation });

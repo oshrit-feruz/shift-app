@@ -25,6 +25,29 @@ export type DemoFlag = 'unavailable' | 'demoData' | 'liveAccount';
 const memory = new Map<DemoFlag, boolean>();
 
 /**
+ * What each flag answers before anyone has chosen.
+ *
+ * `demoData` starts ON. The app is a demonstration first: with it off, a
+ * first-time reader lands on a home screen where the movers card, the
+ * portfolio and the earnings week are all "only available in demo"
+ * placeholders and the watchlist is empty, so there is nothing on screen to
+ * look at — including none of the live prices, because a price needs a stock
+ * to be about. On, the app shows itself, and every invented figure in it is
+ * still labelled as sample data by the switch that produced it. The live
+ * halves stay live either way: prices and the day change beside them come
+ * from the quote route with the switch in either position.
+ *
+ * The other two start off. `unavailable` is a QA switch for rendering failure
+ * states on purpose, and `liveAccount` points a demo at one real brokerage
+ * account — neither is a state to put a reader in without them asking.
+ */
+const DEFAULTS: Record<DemoFlag, boolean> = {
+  unavailable: false,
+  demoData: true,
+  liveAccount: false,
+};
+
+/**
  * Subscribers notified when any flag flips — see data/useDemoFlag.ts.
  *
  * DemoModeProvider mirrors `demoData` into React state and is its only
@@ -43,22 +66,24 @@ export const DEMO_FLAGS = {
   read(flag: DemoFlag): boolean {
     try {
       const raw = localStorage.getItem(this.key[flag]);
-      // An absent key falls through to memory rather than answering false:
-      // `set(flag, false)` removes the key, and memory carries that same
-      // answer, so the two agree either way.
+      // A stored value is always an explicit choice, in either direction —
+      // `set` writes '0' for off rather than removing the key. It has to:
+      // with `demoData` defaulting ON, a removed key would read as "on"
+      // again, so turning the switch off would quietly undo itself on the
+      // next load, which is the one thing a switch may never do.
       if (raw !== null) return raw === '1';
     } catch {
-      /* fall through to memory */
+      /* fall through to memory, then to the default */
     }
-    return memory.get(flag) ?? false;
+    return memory.get(flag) ?? DEFAULTS[flag];
   },
   /** QA switch: the demo-backed fetches report 'unavailable' on purpose. */
   get unavailable(): boolean {
     return this.read('unavailable');
   },
   /**
-   * Demo data: one switch, off by default, that makes every figure in the app
-   * a sample figure.
+   * Demo data: one switch, ON by default (see DEFAULTS), that makes every
+   * figure in the app that has nothing real behind it a sample figure.
    *
    * Price charts draw a generated series instead of the published sessions,
    * and the earnings surfaces render a full illustrative week and quarterly
@@ -96,8 +121,11 @@ export const DEMO_FLAGS = {
     // session when the write below throws.
     memory.set(flag, on);
     try {
-      if (on) localStorage.setItem(this.key[flag], '1');
-      else localStorage.removeItem(this.key[flag]);
+      // Both directions are written. See `read`: an absent key means "no
+      // choice yet" and falls back to the default, so recording "off" by
+      // deleting the key would lose the reader's choice for any flag whose
+      // default is on.
+      localStorage.setItem(this.key[flag], on ? '1' : '0');
     } catch {
       /* no storage — the flag holds for this session but does not persist */
     }

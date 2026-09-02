@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import {
   EARNINGS_URL,
   HISTORY_QUARTERS,
@@ -9,6 +9,7 @@ import {
   mapRow,
   weekAheadWindow,
 } from './earnings';
+import { withDemoData } from './demoFlagsStub';
 
 const ROW = {
   ticker: 'NVDA',
@@ -21,6 +22,15 @@ const ROW = {
 };
 const res = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+
+// Sample data is ON by default (data/demoFlags.ts), and both fetchers read
+// that flag before they reach the network — so these cases, which are about
+// what the endpoint actually answers, have to say they mean the switch off.
+// The showcase week has its own suite in showcase.test.ts.
+beforeEach(() => withDemoData(false));
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('weekAheadWindow', () => {
   // The provider's market-wide feed carries only reports that have not
