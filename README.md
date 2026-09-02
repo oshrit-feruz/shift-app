@@ -680,8 +680,10 @@ news:
 | `ALPHAVANTAGE_API_KEY` | `/api/earnings` — the calendar and per-stock history. |
 | `FINNHUB_API_KEY` | `/api/quote` — the last price and day change on every screen, and nothing else. **Required for prices.** A free key covers quotes; its historical candles are a paid tier, which is why the charts moved to EODHD. |
 
-All four are read only server-side and none may be given a `VITE_` prefix,
-which would bundle it into the client build.
+All four are read **only on the server** — every one of them is used inside a
+function under `api/`, and no client code ever reads them. That is why none may
+be given a `VITE_` prefix: Vite inlines any `VITE_`-prefixed variable into the
+client bundle, which would publish the key to every visitor.
 
 Pure request/response mapping lives in `app/api/_lib/news.ts` (unit-tested in
 `news.test.ts`) so it doesn't require mocking global `fetch` or a Vercel
