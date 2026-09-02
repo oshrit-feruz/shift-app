@@ -140,17 +140,6 @@ export function PriceChart({
           "unavailable" with the reason when it cannot be, and a plain
           sentence when the provider simply publishes nothing for this
           symbol. None of those draws a line. */}
-      {/* Which session the 1D tab is drawing, said rather than implied. The
-          feed publishes the completed session, not the running one, so during
-          market hours this is the previous day's path while the price in the
-          header above ticks — the same gap the movers board carries, and the
-          same sentence. */}
-      {showIntraday && (
-        <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, textAlign: 'center' }}>
-          {t('movers.lastClose')}
-        </p>
-      )}
-
       <DataState state={shown} onRetry={retry} skeleton={<SkeletonCard height={beg ? 188 : 240} lines={2} />}>
         {(bars) => {
           // 1D is already exactly one session, so it is drawn whole; the daily
@@ -170,12 +159,36 @@ export function PriceChart({
               </Card>
             );
           }
+          // Whether the intraday tab is showing an EARLIER session than today,
+          // which is what the feed publishes (see data/intraday.ts). Derived
+          // from the bars on screen rather than from the route's `session`
+          // field, so the line can only ever describe what is actually drawn —
+          // and so it disappears by itself on the day the feed starts
+          // publishing the running session.
+          const drawnDay = showIntraday ? window[0].date.slice(0, 10) : null;
+          const earlierSession = drawnDay !== null && drawnDay !== new Date().toISOString().slice(0, 10);
+
           const closes = window.map((b) => b.close);
           const last = window[window.length - 1];
           const windowPct = ((last.close - closes[0]) / closes[0]) * 100;
 
+          /* Which session is on screen, said rather than implied. The feed
+             publishes the completed session, not the running one, so during
+             market hours the 1D tab draws the previous day's path while the
+             price in the header above it ticks — the same gap the movers board
+             carries, and the same sentence. */
+          const sessionNote = earlierSession ? (
+            <p
+              className="text-muted"
+              style={{ fontSize: 'var(--text-caption)', margin: 0, textAlign: 'center' }}
+            >
+              {t('movers.lastClose')}
+            </p>
+          ) : null;
+
           return beg ? (
             <Card padding={12} gap={0}>
+              {sessionNote}
               <AreaChart values={closes} height={150} pad={8} />
               <p style={{ fontSize: 'var(--text-body)', lineHeight: 1.5, margin: '10px 0 0', opacity: 0.85 }}>
                 {t('stock.chartHelp', { pct: pct(windowPct) })}
@@ -183,6 +196,7 @@ export function PriceChart({
             </Card>
           ) : (
             <Card padding={8} gap={2}>
+              {sessionNote}
               <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', paddingBottom: 4 }}>
                 {(
                   [

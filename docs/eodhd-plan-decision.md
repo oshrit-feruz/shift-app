@@ -339,8 +339,7 @@ carried `"ms": "open"`.
 | --- | --- | --- | --- | --- |
 | WebSocket `us_trades` | QCOM 165.95 | 13:50:58 | 13:51:06 | **~8 s** (the reference) |
 | WebSocket `us_trades` | QCOM 165.80 | 13:52:22 | 13:52:23 | **~1 s** |
-| Finnhub via `/api/quote` | QCOM 166.05 | 13:51:16 | 13:51:22 | **6 s** |
-| Finnhub via `/api/quote` | QCOM 165.36 | 13:59:14 | 13:59:25 | **11 s** |
+| Finnhub via `/api/quote` | QCOM, eleven readings | see below | 13:51–14:01 | **6–42 s, median 26 s** |
 | EODHD REST `/real-time` | QCOM 165.90 | 13:30:00 | 13:51:22 | **21 min** |
 | EODHD REST `/real-time` | AAPL 325.24 | 13:36:00 | 13:51:22 | **15 min** |
 | EODHD REST `/real-time` | TSLA 354.55 | 13:36:00 | 13:51:22 | **15 min** |
@@ -348,13 +347,29 @@ carried `"ms": "open"`.
 
 Three REST rounds were taken about a minute apart (13:51:22, 13:52:17,
 13:52:39). **EODHD's stamps did not move between any of them** — QCOM stayed at
-13:30:00 and AAPL/TSLA at 13:36:00 across all three — while nine Finnhub
-readings a minute apart advanced every single time and tracked a real move
-(166.05 → 165.36 over eight minutes).
+13:30:00 and AAPL/TSLA at 13:36:00 across all three.
+
+Finnhub was sampled eleven times over the same window, and every reading
+advanced. The gap between its `asOf` and the wall clock, in seconds:
+
+```
+6  42  26  38  26  14  34  20  11  30  18      (range 6-42, median 26)
+```
+
+Two honest caveats on that number, because a first draft of this section
+quoted only the two extremes it happened to have in hand and reported
+"6-11 seconds", which understated it by a factor of four. First, the spread is
+what a single sample looks like — take one reading and you can land anywhere in
+it. Second, `asOf` is the timestamp of the **last trade Finnhub saw**, so part
+of this is simply "no trade printed in the last N seconds" rather than provider
+delay; QCOM is liquid but not tick-by-tick continuous. The true provider lag is
+somewhere at or below the low end of that range, and the honest statement is
+that Finnhub is tens of seconds behind the tape at worst.
 
 **Conclusion, and it settles the open question: Finnhub stays.** EODHD's REST
-quote is 15–21 minutes behind where Finnhub is 6–11 seconds, which is three
-orders of magnitude. The "replace Finnhub quotes with EODHD" option is not a
+quote is 15–21 minutes behind where Finnhub is tens of seconds — 900–1,260
+seconds against 6–42. The margin is so wide that the caveats above cannot
+touch it. The "replace Finnhub quotes with EODHD" option is not a
 consolidation, it is a freshness regression, and it is now closed rather than
 merely doubted. The London measurement was not a quirk of that exchange.
 

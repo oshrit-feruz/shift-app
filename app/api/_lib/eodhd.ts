@@ -364,15 +364,21 @@ export function mapMoverRow(raw: unknown): MoverRow | null {
   const changePct = numOrNull(row.refund_1d_p);
   if (ticker === null || close === null || close <= 0 || changePct === null) return null;
   const average = numOrNull(row.avgvol_200d);
+  const volume = numOrNull(row.avgvol_1d);
   return {
     ticker: ticker.toUpperCase(),
     name: strOrNull(row.name),
     sector: strOrNull(row.sector),
     close,
     changePct,
-    volume: numOrNull(row.avgvol_1d),
+    // Non-negative rather than any finite number, for the reason mapUsStats
+    // rejects a negative volume: this is the NUMERATOR of the relative-volume
+    // ratio the movers table prints, so a negative would divide by a positive
+    // average and render a signed multiple beside a real price. Zero stays —
+    // a session that traded nothing is a real answer.
+    volume: volume !== null && volume >= 0 ? volume : null,
     // Zero is the provider having no history to average, seen on newly listed
-    // names, and it is the denominator of the relative-volume ratio.
+    // names, and it is the ratio's denominator, where zero divides to infinity.
     averageVolume: average !== null && average > 0 ? average : null,
   };
 }

@@ -25,7 +25,7 @@ import { type ApiRequest, type ApiResponse } from './_lib/http.js';
  * draw, and it is still not today's.
  *
  * WHAT WOULD MAKE IT TODAY'S: the live quote already is (Finnhub, measured at
- * 11-42 seconds behind the tape in the same run), and EODHD's WebSocket is
+ * 6-42 seconds behind the tape in the same run), and EODHD's WebSocket is
  * real-time on this plan — but a socket needs a process that stays up, which
  * a serverless function is not. See docs/eodhd-plan-decision.md.
  *
@@ -41,8 +41,10 @@ import { type ApiRequest, type ApiResponse } from './_lib/http.js';
  * DATA HONESTY CONTRACT, the same one /api/candles keeps:
  *   - Real five-minute bars, or nothing. Nothing is interpolated and a gap in
  *     the session is served as the gap it is.
- *   - `session` names the UTC day the bars belong to, so the screen can say
- *     which session it is drawing rather than implying it is today's.
+ *   - `session` names the UTC day the bars belong to. It is here so the
+ *     payload says which session it carries; the chart derives the same day
+ *     from the bars it draws rather than reading this field, so its wording
+ *     can only ever describe what is on screen.
  *   - `bars: []` means the provider has no intraday series for this symbol —
  *     the normal answer for a listing it does not carry intraday, and a real
  *     one, rendered as "no series", never as an error.

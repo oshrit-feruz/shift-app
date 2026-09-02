@@ -361,6 +361,14 @@ describe('mapMoverRow', () => {
     expect(thin.averageVolume).toBeNull();
   });
 
+  it("refuses a negative volume, which is the ratio's numerator", () => {
+    // The same rule mapUsStats keeps, for the same reason: relativeVolume
+    // would divide it by a positive average and print a signed multiple on
+    // the movers table. A zero session stays a real zero.
+    expect(mapMoverRow({ ...row, avgvol_1d: -1 })!.volume).toBeNull();
+    expect(mapMoverRow({ ...row, avgvol_1d: 0 })!.volume).toBe(0);
+  });
+
   it('refuses a zero average, which is the denominator of the RVol ratio', () => {
     // Seen on newly listed names: the provider sends 0 where it has no
     // history to average. Dividing by it would render "∞×" on the board.

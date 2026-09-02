@@ -15,8 +15,10 @@
  * window inside the running day — at 5m and 1m alike, probed directly and not
  * through this app's cache, with nine readings a minute apart that never
  * moved. So this was built expecting a series that changes while someone
- * watches it, and it does not; the screen says which session it is drawing
- * instead of implying it is today's, exactly as the movers board does.
+ * watches it, and it does not. The chart says so rather than implying the
+ * session is today's — it compares the day its own bars carry against today,
+ * so the line describes exactly what is drawn and disappears by itself on the
+ * day the feed starts publishing the running session.
  *
  * DATA HONESTY CONTRACT, matching data/priceHistory.ts:
  * - ok(null) means the provider has no intraday series for this symbol — the
@@ -53,9 +55,11 @@ const TIMEOUT_MS = 20_000;
  */
 export const INTRADAY_CACHE_MS = 60 * 60_000;
 
+// Not "today's": the feed publishes the completed session, so this series is
+// never today's and the failure message must not say it was.
 const FALLBACK_REASON = {
-  en: "Today's price history is unavailable right now.",
-  he: 'היסטוריית המחירים של היום אינה זמינה כרגע.',
+  en: 'The intraday chart is unavailable right now.',
+  he: 'הגרף התוך-יומי אינו זמין כרגע.',
 };
 
 /**

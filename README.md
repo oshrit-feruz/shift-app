@@ -345,10 +345,16 @@ missing its last few is still an honest year of history.
 point per session — a day is a single dot, and a 1D drawn from daily bars
 could only have been the invented path between yesterday's close and today's.
 It reads `/api/intraday?symbol=` now: five-minute bars, one session, from the
-same EODHD plan. That makes it the only chart in the app that moves while
-someone is watching it, which is the point — the price in the header is a live
-quote that re-reads every thirty seconds, and a daily chart under a ticking
-price cannot show the day it is ticking through.
+same EODHD plan — the shape of a trading day, which a series of one point per
+session cannot draw.
+
+**It is the last COMPLETED session, not the running one**, and that is the
+feed's limit rather than a choice. Measured on 2026-09-02 against the open US
+session: thirty-one minutes after the 13:30 UTC open, eleven readings a minute
+apart, the route still answered with the previous session — and the provider,
+probed directly, returned an empty array for every window inside the running
+day at 5m and at 1m, for two symbols. So the tab carries the same line the
+movers board does, whenever the session it draws is not today's.
 
 Two details the feed forced, both verified against it rather than read off the
 documentation. Five minutes and not one: a session is 79 five-minute bars, a
@@ -574,7 +580,7 @@ Both were caught by looking at the rendered screen, not by a passing test.
 | Satellite card | the daily mirror in this repo | none |
 | Every price on screen (`SymbolInfo.quote`) | `/api/quote?symbols=` — live, batched per screen | 1 Finnhub call per symbol, shared for 20s |
 | Stock page · chart, and the movers' sparklines | `/api/candles?symbol=` — live, per ticker | 1 EODHD call per ticker, cached an hour at the edge |
-| Stock page · chart, 1D tab | `/api/intraday?symbol=` — 5-minute bars, one session | 5 credits per ticker, cached 2 min at the edge and in the client |
+| Stock page · chart, 1D tab | `/api/intraday?symbol=` — 5-minute bars, the last completed session | 5 credits per ticker, cached an hour at the edge and in the client |
 | Movers screen · one board | `/api/movers?board=` — EODHD's screener over the US market | 5 credits per board, cached 30 min at the edge and in the client |
 | Home · movers preview | the same two boards (gainers + losers), merged | none beyond the above — the reads are shared |
 
