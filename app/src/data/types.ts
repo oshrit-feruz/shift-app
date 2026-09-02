@@ -34,7 +34,7 @@ export interface Quote {
  * (data/priceHistory.ts, /api/candles).
  *
  * No field here is nullable: the route drops a row that is missing any of
- * them rather than passing a half-bar through (api/_lib/finnhub.ts). A
+ * them rather than passing a half-bar through (api/_lib/eodhd.ts). A
  * candlestick needs all four prices to mean what it draws — a bar with a
  * guessed high is a lie in a shape a reader cannot see through, where a
  * guessed price at least renders as a number they could question.

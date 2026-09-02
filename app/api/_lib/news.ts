@@ -305,11 +305,6 @@ export function mapSymbols(raw: unknown): string[] {
   return out;
 }
 
-/** EODHD requires an exchange suffix; default to US equities unless the caller already specified one (e.g. "VOD.LSE"). */
-export function resolveSymbol(ticker: string): string {
-  return ticker.includes('.') ? ticker : `${ticker}.US`;
-}
-
 /** Conservative allow-list: letters, digits, dot, hyphen — covers real tickers and exchange suffixes, nothing that could smuggle extra query params upstream. */
 export function isValidTicker(ticker: string): boolean {
   return /^[A-Za-z0-9.-]{1,15}$/.test(ticker);

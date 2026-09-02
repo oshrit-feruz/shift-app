@@ -1,5 +1,5 @@
 /**
- * LIVE data source — daily price history, from /api/candles (Finnhub).
+ * LIVE data source — daily price history, from /api/candles (EODHD).
  *
  * Everything the stock page's chart and the movers' sparklines draw comes
  * from here: actual sessions with actual open/high/low/close/volume, fetched
@@ -15,11 +15,15 @@
  * all, which no screen could tell from a quiet market. A route serves any
  * symbol the reader opens and cannot silently stop.
  *
- * ONE THING TO KNOW ABOUT THE PLAN: the provider serves live quotes on a free
- * key but keeps daily candles for its paid tiers, where a free key gets a 403.
- * That reaches the reader as "this subscription may not include this data" —
- * see providerReason.ts — rather than as an empty chart or a generic outage.
- * The charts light up the moment the key's plan covers candles.
+ * TWO PROVIDERS, ON PURPOSE: the bars come from EODHD and the live price
+ * above them from Finnhub. The charts were dark for exactly this reason —
+ * Finnhub keeps daily candles for its paid tiers and answered 403 — while
+ * EODHD's paid plan covers daily OHLCV for US and non-US listings alike. The
+ * quotes did not move with them: EODHD's REST quote is the delayed one its
+ * plan advertises, so consolidating would trade a live price for a stale one.
+ * A consequence worth knowing when reading a chart: its newest session and
+ * the price in the header are different moments, and the prices are raw —
+ * a split inside the window draws as the cliff the raw price actually made.
  *
  * WHAT THIS DELIBERATELY DOES NOT COVER:
  * Anything shorter than a day. A daily series can honestly draw a week, a

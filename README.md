@@ -218,9 +218,9 @@ no price is refused outright (`api/_lib/finnhub.ts`). And a quote with a price
 but no previous close has no true day change, so it is refused rather than
 printed as `0.00%`, which a reader would act on.
 
-**The charts are real too, and from the same provider.**
-`app/src/data/priceHistory.ts` reads `/api/candles`, which maps Finnhub's
-parallel-array daily bars. What that replaced was a seeded pseudo-random walk
+**The charts are real too, from a second provider.**
+`app/src/data/priceHistory.ts` reads `/api/candles`, which maps EODHD's daily
+bars. What that replaced was a seeded pseudo-random walk
 — and not only the line. The candle bodies were derived from the close series
 (open was *yesterday's* close, the wicks a fixed ±1.6), the volume pane was
 `8 + ((i * 37) % 26)`, a sawtooth that repeated every 26 candles for every
@@ -232,12 +232,26 @@ on the actual closes, and they start where their window fills rather than
 averaging whatever happens to sit at the left edge under a label claiming
 fifty sessions.
 
-**One thing to know about the plan.** Finnhub serves `/quote` on a free key
-but keeps `/stock/candle` for its paid tiers, where a free key gets a 403.
-That is classified as `upstream_forbidden` and reaches the reader as "this
-subscription may not include this data" — the one sentence true of it — rather
-than as an empty chart or a "try again later" that never will come true. The
-charts light up the moment the key's plan covers candles, with no code change.
+**Why two providers, and not one.** Finnhub serves `/quote` on a free key but
+keeps `/stock/candle` for its paid tiers, where a free key gets a 403 — so
+every chart in the app rendered "this subscription may not include this data",
+which was honest and still a dark chart. The bars now come from EODHD's
+`/api/eod` instead, on the EOD+Intraday All World Extended subscription this
+account already pays for, with the key that was already server-side for
+`/api/news`. The quotes deliberately stayed on Finnhub: EODHD's REST quote is
+the delayed one that plan advertises — measured 15–19 minutes behind on an
+exchange that was open at the time — so moving them would have traded a live
+price for a stale one. Two providers is the cost of having both a real chart
+and a real price. See `docs/eodhd-plan-decision.md` for what else that
+subscription does and does not cover.
+
+**The bars are raw, not adjusted.** EODHD returns `adjusted_close` beside the
+close, and the route ignores it. The chart draws candlesticks and the provider
+adjusts only the close, so scaling the open, high and low by the adjusted/raw
+ratio would put three prices on screen that nobody ever traded at — and that
+adjustment folds in dividends besides, which makes the result not a historical
+price at all. The honest cost: a split inside the window draws as a cliff,
+because that is what the raw price did.
 
 **What this replaced, and why.** Both prices and bars used to come from
 **mirrors**: GitHub Actions that fetched once a night and committed static
@@ -259,7 +273,7 @@ The route's contract, and the honest states that follow from it:
 | a series for the ticker | the real sessions, and the key-stats rows a bar can answer |
 | `no_data` for the ticker | "no price history for this symbol" — a fact, not a failure, and not a retry prompt |
 | a series whose newest session is over `MAX_SERIES_AGE_DAYS` old | "unavailable" with the age, never the stale sessions |
-| 403, because the key's plan excludes candles | "this subscription may not include this data" — never "try again later" |
+| 403 or 402, because the key's plan or quota refuses it | "this subscription may not include this data" — never "try again later" |
 | unreadable, or any row in it unreadable | "unavailable" — the whole series, because a chart is read as a whole and one with sessions silently dropped is a picture of price action that never happened |
 
 `MAX_SERIES_AGE_DAYS` is 7 where the screener's gate is 4, deliberately.
@@ -482,7 +496,7 @@ Both were caught by looking at the rendered screen, not by a passing test.
 | Stock page · רבעונים שדווחו | `/api/earnings?ticker=&from=&to=` — 12 quarters | 1 Alpha Vantage call |
 | Satellite card | the daily mirror in this repo | none |
 | Every price on screen (`SymbolInfo.quote`) | `/api/quote?symbols=` — live, batched per screen | 1 Finnhub call per symbol, shared for 20s |
-| Stock page · chart, and the movers' sparklines | `/api/candles?symbol=` — live, per ticker | 1 Finnhub call per ticker, cached an hour at the edge |
+| Stock page · chart, and the movers' sparklines | `/api/candles?symbol=` — live, per ticker | 1 EODHD call per ticker, cached an hour at the edge |
 
 The general feed is why the browsable news screen is cheap: EODHD's `s`
 parameter takes **one** symbol at a time and a per-ticker call costs double,

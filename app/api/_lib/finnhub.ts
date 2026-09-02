@@ -1,22 +1,22 @@
 /**
- * Finnhub adapter — the app's live market-data provider.
+ * Finnhub adapter — the app's live quote provider.
  *
- * Finnhub replaced two things at once: the daily screener snapshot that used
- * to stand in for a price, and the daily bar mirror the charts read. Both
- * were once-a-day files because the previous providers could not be called
+ * Finnhub replaced the daily screener snapshot that used to stand in for a
+ * price: a once-a-day file, because the previous provider could not be called
  * from a browser at all (Alpha Vantage's free key allows tens of requests a
  * day, and it moved `outputsize=full` behind a subscription, which is what
  * left the price mirror publishing nothing). Finnhub answers 60 requests a
  * minute on a free key, so a quote can simply be fetched when it is wanted.
  *
- * TWO ENDPOINTS, TWO PLANS — carried honestly rather than hidden:
- *   /quote         real-time last price and day change. Free.
- *   /stock/candle  daily bars for the charts. Answers 403 on a free key;
- *                  Finnhub moved historical candles to its paid tiers.
- * The 403 is already classified by _lib/upstream as `upstream_forbidden`,
- * which the app renders as "this subscription may not include this data" —
- * the one message that is true of it. Nothing here degrades to invented
- * bars, and nothing pretends the endpoint is missing when it is only unpaid.
+ * ONE ENDPOINT, ON PURPOSE. This file used to carry `/stock/candle` too, for
+ * the charts, and that endpoint is on Finnhub's paid tiers: a free key gets a
+ * 403, so every chart in the app was dark. The charts now read EODHD's daily
+ * history instead (_lib/eodhd.ts), on a subscription this account already
+ * pays for. The quotes deliberately did NOT move with them — EODHD's REST
+ * quote is the delayed one its plan advertises (measured 15-19 minutes behind
+ * on an open exchange), while Finnhub's `/quote` is the live price every
+ * screen prints. Two providers is the cost of having both a real chart and a
+ * real price.
  *
  * THE ZERO-QUOTE TRAP, and why mapQuote is written the way it is: Finnhub
  * answers an unknown symbol with HTTP 200 and every field set to zero rather
@@ -44,16 +44,6 @@ export interface QuoteRow {
   asOf: string;
 }
 
-/** One daily bar, in the shape the app's charts already read. */
-export interface CandleRow {
-  d: string;
-  o: number;
-  h: number;
-  l: number;
-  c: number;
-  v: number;
-}
-
 const API_ROOT = 'https://finnhub.io/api/v1';
 
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -65,10 +55,9 @@ const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFin
  * ms — so a stamp a few orders of magnitude too large builds an Invalid Date
  * whose toISOString() throws a RangeError. Thrown from inside a mapper that is
  * documented never to throw, that became a 500 from the platform instead of
- * this app's own honest JSON: the quote route lost the whole batch, and the
- * candle route never reached the `bad_response` it exists to send. Returning
- * null keeps a nonsense timestamp on the same path as any other unreadable
- * field.
+ * this app's own honest JSON, and the quote route lost the whole batch.
+ * Returning null keeps a nonsense timestamp on the same path as any other
+ * unreadable field.
  */
 function isoFromUnixSeconds(seconds: number): string | null {
   const date = new Date(seconds * 1000);
@@ -85,23 +74,6 @@ function isoFromUnixSeconds(seconds: number): string | null {
 export function quoteUrl(symbol: string, apiKey: string): URL {
   const url = new URL(`${API_ROOT}/quote`);
   url.searchParams.set('symbol', symbol.trim().toUpperCase());
-  url.searchParams.set('token', apiKey);
-  return url;
-}
-
-/**
- * The candle URL for one symbol over a UNIX-second window.
- *
- * Resolution is fixed at 'D' by the only caller: everything the app draws is
- * built on daily bars (see the timeframe row on the stock screen), and an
- * intraday resolution would need a chart that can draw one.
- */
-export function candleUrl(symbol: string, from: number, to: number, apiKey: string): URL {
-  const url = new URL(`${API_ROOT}/stock/candle`);
-  url.searchParams.set('symbol', symbol.trim().toUpperCase());
-  url.searchParams.set('resolution', 'D');
-  url.searchParams.set('from', String(Math.floor(from)));
-  url.searchParams.set('to', String(Math.floor(to)));
   url.searchParams.set('token', apiKey);
   return url;
 }
@@ -160,63 +132,4 @@ export function mapQuote(body: unknown): QuoteRow | null {
     open,
     asOf,
   };
-}
-
-/**
- * Map a /stock/candle body into bars.
- *
- * Three outcomes, kept apart because the app renders them differently:
- *   - an array of bars       -> real history
- *   - []  (`s: 'no_data'`)   -> the provider genuinely has no series for this
- *                               symbol; a real answer, not a failure
- *   - null                   -> a body we do not recognise, reported as such
- *
- * A single unreadable row invalidates the whole series rather than being
- * dropped: a chart is read as a whole, and a series with silently missing
- * sessions is a picture of price action that never happened.
- */
-export function mapCandles(body: unknown): CandleRow[] | null {
-  if (body === null || typeof body !== 'object' || Array.isArray(body)) return null;
-  const b = body as Record<string, unknown>;
-  if (b.s === 'no_data') return [];
-  if (b.s !== 'ok') return null;
-
-  const { t, o, h, l, c, v } = b;
-  if (!Array.isArray(t) || !Array.isArray(o) || !Array.isArray(h)) return null;
-  if (!Array.isArray(l) || !Array.isArray(c) || !Array.isArray(v)) return null;
-  // Parallel arrays are only meaningful together: differing lengths mean the
-  // rows cannot be reassembled, and pairing them anyway would invent bars.
-  const n = t.length;
-  if (n === 0) return null;
-  if (o.length !== n || h.length !== n || l.length !== n || c.length !== n || v.length !== n) return null;
-
-  const rows: CandleRow[] = [];
-  for (let i = 0; i < n; i++) {
-    const ts = t[i];
-    if (!isNum(ts) || ts <= 0) return null;
-    const iso = isoFromUnixSeconds(ts);
-    if (iso === null) return null;
-    if (!isNum(o[i]) || !isNum(h[i]) || !isNum(l[i]) || !isNum(c[i]) || !isNum(v[i])) return null;
-    // A candle has to be a shape that can exist. The high is the highest the
-    // session traded and the low the lowest, so the open and the close both
-    // sit between them; a row with an open outside its own range draws a wick
-    // pointing the wrong way, which a reader cannot see is wrong. Checking
-    // only `h < l` let that through. Prices are positive by definition and a
-    // negative volume is not a smaller volume — both are refused rather than
-    // clamped, because the honest response to a nonsense bar is not to guess
-    // which field was wrong.
-    if (o[i] <= 0 || h[i] <= 0 || l[i] <= 0 || c[i] <= 0 || v[i] < 0) return null;
-    if (l[i] > h[i] || o[i] < l[i] || o[i] > h[i] || c[i] < l[i] || c[i] > h[i]) return null;
-    rows.push({
-      d: iso.slice(0, 10),
-      o: o[i],
-      h: h[i],
-      l: l[i],
-      c: c[i],
-      v: v[i],
-    });
-  }
-  // The dates are ISO YYYY-MM-DD, so lexicographic order is chronological.
-  rows.sort((a, z) => a.d.localeCompare(z.d));
-  return rows;
 }
