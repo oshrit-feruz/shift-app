@@ -51,6 +51,10 @@ describe('parseSymbols', () => {
     expect(parseSymbols('')).toHaveProperty('error');
     expect(parseSymbols(undefined)).toHaveProperty('error');
     expect(parseSymbols('not a ticker')).toHaveProperty('error');
+    // An empty token is malformed, not skippable: reading "QCOM,,NVDA" as two
+    // symbols answers a question the caller did not ask.
+    expect(parseSymbols('QCOM,,NVDA')).toHaveProperty('error');
+    expect(parseSymbols('QCOM,')).toHaveProperty('error');
     expect(parseSymbols(Array.from({ length: MAX_SYMBOLS + 1 }, (_, i) => `T${i}`).join(','))).toHaveProperty(
       'error',
     );

@@ -65,13 +65,13 @@ pricing page in mind only if EODHD ever tightens enforcement.
 
 ## 2. The REST live-quote delay, measured
 
-**US regular hours could not be measured in this session** (probes ran
-2026-09-02 09:28–09:36 UTC; the US session opens 13:30 UTC). **STILL PENDING
-as of 2026-09-02 13:20 UTC:** a scheduled run at 2026-09-02 13:50 UTC repeats
-the measurement during the open session and appends its results, with absolute
-UTC timestamps, as a section at the end of this document. Until that section
-exists, the delay figures below are from non-US exchanges only, and the
-provider choice rests on them.
+**US regular hours could not be measured when this section was written**
+(probes ran 2026-09-02 09:28–09:36 UTC; the US session opens 13:30 UTC), so
+the figures immediately below are from non-US exchanges. **They have since
+been confirmed against the open US session** — see "US regular-hours
+measurement" at the end of this document, taken 2026-09-02 13:50–14:01 UTC.
+It found EODHD's REST quote 15–21 minutes behind against Finnhub's tens of
+seconds, which settles the provider question rather than merely supporting it.
 
 What was measured instead:
 

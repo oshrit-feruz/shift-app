@@ -666,8 +666,10 @@ agreement — the same publisher/reader discipline the screener mirror uses.
 
 **Environment variables**, added in the Vercel dashboard under
 **Project → Settings → Environment Variables**, scoped to Production,
-Preview, and Development so PR previews and local `vercel dev` also work. The
-first two are required; the third only changes the language of the news:
+Preview, and Development so PR previews and local `vercel dev` also work.
+`EODHD_API_KEY`, `ALPHAVANTAGE_API_KEY` and `FINNHUB_API_KEY` are required;
+`GOOGLE_TRANSLATE_API_KEY` is optional and only changes the language of the
+news:
 
 | Variable | Used by |
 | --- | --- |
@@ -676,7 +678,7 @@ first two are required; the third only changes the language of the news:
 | `ALPHAVANTAGE_API_KEY` | `/api/earnings` — the calendar and per-stock history. |
 | `FINNHUB_API_KEY` | `/api/quote` — the last price and day change on every screen, and nothing else. **Required for prices.** A free key covers quotes; its historical candles are a paid tier, which is why the charts moved to EODHD. |
 
-All three are read only server-side and none may be given a `VITE_` prefix,
+All four are read only server-side and none may be given a `VITE_` prefix,
 which would bundle it into the client build.
 
 Pure request/response mapping lives in `app/api/_lib/news.ts` (unit-tested in

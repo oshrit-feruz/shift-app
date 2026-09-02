@@ -31,8 +31,13 @@ export type RouteHandler = (
  * parts of Response the upstream reader touches.
  */
 export function respondWith(body: unknown, status = 200): typeof fetch {
+  // 200-299 inclusive, as the Fetch standard defines `Response.ok` — not
+  // "under 400". A stub that called a 3xx ok would let a test pass on a
+  // redirect the real route treats as a failure, which is the one thing a
+  // shared fake must not do.
+  const ok = status >= 200 && status < 300;
   return vi.fn(
-    async () => ({ ok: status < 400, status, json: async () => body }) as unknown as Response,
+    async () => ({ ok, status, json: async () => body }) as unknown as Response,
   ) as unknown as typeof fetch;
 }
 

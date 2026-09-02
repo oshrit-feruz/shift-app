@@ -26,11 +26,12 @@ export function parseSymbolList(
 ): { symbols: string[] } | { error: string } {
   const trimmed = (raw ?? '').trim();
   if (trimmed === '') return { error: 'Query param "symbols" is required.' };
-  const parts = trimmed
-    .split(',')
-    .map((s) => s.trim())
-    .filter((s) => s !== '');
-  if (parts.length === 0) return { error: 'Query param "symbols" is required.' };
+  // NOT filtered for empty tokens. "AAPL,,MSFT" is a malformed request, and
+  // quietly reading it as "AAPL,MSFT" is the very thing the paragraph above
+  // rules out — it answers a question the caller did not ask and gives them no
+  // way to know. The empty string falls through to isValidTicker, which
+  // refuses it like any other unusable symbol.
+  const parts = trimmed.split(',').map((s) => s.trim());
   const seen = new Set<string>();
   for (const part of parts) {
     if (!isValidTicker(part)) return { error: 'A symbol contains unsupported characters.' };
