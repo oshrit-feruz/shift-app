@@ -156,6 +156,35 @@ export interface SatelliteSignal {
   compositeScore: number | null;
   /** The engine's verdict; null when it sent something we don't recognise. */
   signal: 'BUY' | 'WATCH' | 'SKIP' | null;
+  /**
+   * Whether the engine says this name is actionable NOW under its policy, as
+   * opposed to merely on the list. A BUY can be inactive: the engine keeps the
+   * verdict but its own rules say the money stays in the core for now. null
+   * when the snapshot predates the field or the engine could not say — never
+   * coerced to true, because "actionable" is the one thing this app must not
+   * invent.
+   */
+  active: boolean | null;
+}
+
+/**
+ * How the engine says the Stock Radar's budget is deployed — its sizing rule,
+ * published with every snapshot so the app never has to hard-code it.
+ * Percent of the Stock Radar budget per name, and how many names at most.
+ */
+export interface SatellitePolicy {
+  sleevePctOfBudget: number;
+  maxSleeves: number;
+}
+
+/**
+ * One read of the mirror for the Stock Radar screens: the day's candidates
+ * plus the engine's sizing policy. `policy` is null when the snapshot does not
+ * carry one, in which case no per-name amount can honestly be shown.
+ */
+export interface StockRadar {
+  signals: SatelliteSignal[];
+  policy: SatellitePolicy | null;
 }
 
 /**
