@@ -323,125 +323,123 @@ function HeroPortfolio() {
   const pfSeries = useMemo(() => demoService.series('home-pf', 60, 0.42, 2.2), []);
 
   return (
-    <>
-      <DataState
-        state={portfolios.state}
-        onRetry={portfolios.retry}
-        skeleton={
-          <Card padding={15} gap={0}>
-            {/* Mirrors the loaded hero: 18px label, 42px/1.05 total,
-                  15px change line, chart block, two 14px blurb lines. */}
-            <SkeletonLine width={96} fontSize={19} bar={11} />
-            <SkeletonLine width="66%" fontSize={43} lineHeight={1.05} bar={34} />
-            <SkeletonLine width={172} fontSize={18} bar={13} />
-            {/* 83, not the chart's 76: the AreaChart's inline SVG adds a
-                  descender line box to its wrapper. Measured, not assumed. */}
-            <SkeletonChart height={83} style={{ marginTop: 10 }} />
-            <div style={{ marginTop: 10 }}>
-              <SkeletonText lines={2} fontSize={17} />
-            </div>
-          </Card>
-        }
-      >
-        {(pfs) => {
-          // The first linked account, not a hardcoded id: with the demo
-          // switch off that is still Blink (the demo adapter lists it
-          // first), and with it on it is the real connected account, so the
-          // hero follows whichever source is in effect instead of falling to
-          // the "no portfolio" state.
-          const main = pfs.find((x) => x.kind === 'linked');
-          if (!main) {
-            return (
-              <Card padding={18} gap={8} style={{ textAlign: 'center', alignItems: 'center' }}>
-                <span style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-title)' }}>
-                  {t('home.noPfTitle')}
-                </span>
-                <p className="text-muted" style={{ fontSize: 'var(--text-row)', margin: 0, lineHeight: 1.5 }}>
-                  {t('home.noPfHelp')}
-                </p>
-                <Button
-                  onClick={() =>
-                    dispatch({
-                      type: 'advGoto',
-                      screen: 'advConnect',
-                      solo: true,
-                    })
-                  }
-                  style={{ marginTop: 6 }}
-                >
-                  {t('rec.chooseBroker')}
-                </Button>
-              </Card>
-            );
-          }
+    <DataState
+      state={portfolios.state}
+      onRetry={portfolios.retry}
+      skeleton={
+        <Card padding={15} gap={0}>
+          {/* Mirrors the loaded hero: 18px label, 42px/1.05 total,
+                15px change line, chart block, two 14px blurb lines. */}
+          <SkeletonLine width={96} fontSize={19} bar={11} />
+          <SkeletonLine width="66%" fontSize={43} lineHeight={1.05} bar={34} />
+          <SkeletonLine width={172} fontSize={18} bar={13} />
+          {/* 83, not the chart's 76: the AreaChart's inline SVG adds a
+                descender line box to its wrapper. Measured, not assumed. */}
+          <SkeletonChart height={83} style={{ marginTop: 10 }} />
+          <div style={{ marginTop: 10 }}>
+            <SkeletonText lines={2} fontSize={17} />
+          </div>
+        </Card>
+      }
+    >
+      {(pfs) => {
+        // The first linked account, not a hardcoded id: with the demo
+        // switch off that is still Blink (the demo adapter lists it
+        // first), and with it on it is the real connected account, so the
+        // hero follows whichever source is in effect instead of falling to
+        // the "no portfolio" state.
+        const main = pfs.find((x) => x.kind === 'linked');
+        if (!main) {
           return (
-            // The hero is the portfolio, so tapping it opens the portfolio.
-            // It read as a headline rather than as a way in: the only route
-            // to the tab was the bottom bar, and the one card on the home
-            // screen actually showing the user's money did nothing when
-            // pressed.
-            <Card padding={15} gap={0} onClick={() => dispatch({ type: 'go', screen: 'pf' })}>
-              <div style={{ fontSize: 'var(--text-title)', opacity: 0.75, fontWeight: 600 }}>
-                {t('home.pfToday')}
-              </div>
-              <div
-                style={{
-                  fontFamily: 'var(--font-heading)',
-                  fontSize: 'var(--text-hero)',
-                  letterSpacing: 'var(--track-hero)',
-                  lineHeight: 'var(--lead-hero)',
-                  fontWeight: 700,
-                }}
-              >
-                <Num>{moneyOrDash(main.total)}</Num>
-              </div>
-              {/* The day change and the chart are the demo adapter's seeded
-                  series. Over a real connected account they would be invented
-                  performance under a real total, so with the live-account
-                  switch on they give way to a statement of what is known. */}
-              {live ? (
-                <p
-                  className="text-muted"
-                  style={{ fontSize: 'var(--text-row)', lineHeight: 1.5, margin: '8px 0 0' }}
-                >
-                  {t('live.noHistory')}
-                </p>
-              ) : (
-                <>
-                  <div
-                    style={{
-                      color: signalColor(main.dayPct),
-                      fontSize: 'var(--text-title)',
-                      fontWeight: 600,
-                    }}
-                  >
-                    {/* The change line needs both halves: a day percentage with
-                        no total behind it has no currency figure to put beside
-                        it, and inventing one from a total we do not have is the
-                        thing this app exists not to do. */}
-                    <Num weight={600}>{dayChangeLine(main.total, main.dayPct)}</Num>
-                  </div>
-                  <div style={{ marginTop: 10 }}>
-                    <AreaChart values={pfSeries} height={76} />
-                  </div>
-                </>
-              )}
-              <p
-                style={{
-                  fontSize: 'var(--text-row)',
-                  lineHeight: 1.5,
-                  margin: '10px 0 0',
-                  opacity: 0.85,
-                  fontWeight: 500,
-                }}
-              >
-                {t('home.pfBlurb')}
+            <Card padding={18} gap={8} style={{ textAlign: 'center', alignItems: 'center' }}>
+              <span style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-title)' }}>
+                {t('home.noPfTitle')}
+              </span>
+              <p className="text-muted" style={{ fontSize: 'var(--text-row)', margin: 0, lineHeight: 1.5 }}>
+                {t('home.noPfHelp')}
               </p>
+              <Button
+                onClick={() =>
+                  dispatch({
+                    type: 'advGoto',
+                    screen: 'advConnect',
+                    solo: true,
+                  })
+                }
+                style={{ marginTop: 6 }}
+              >
+                {t('rec.chooseBroker')}
+              </Button>
             </Card>
           );
-        }}
-      </DataState>
-    </>
+        }
+        return (
+          // The hero is the portfolio, so tapping it opens the portfolio.
+          // It read as a headline rather than as a way in: the only route
+          // to the tab was the bottom bar, and the one card on the home
+          // screen actually showing the user's money did nothing when
+          // pressed.
+          <Card padding={15} gap={0} onClick={() => dispatch({ type: 'go', screen: 'pf' })}>
+            <div style={{ fontSize: 'var(--text-title)', opacity: 0.75, fontWeight: 600 }}>
+              {t('home.pfToday')}
+            </div>
+            <div
+              style={{
+                fontFamily: 'var(--font-heading)',
+                fontSize: 'var(--text-hero)',
+                letterSpacing: 'var(--track-hero)',
+                lineHeight: 'var(--lead-hero)',
+                fontWeight: 700,
+              }}
+            >
+              <Num>{moneyOrDash(main.total)}</Num>
+            </div>
+            {/* The day change and the chart are the demo adapter's seeded
+                series. Over a real connected account they would be invented
+                performance under a real total, so with the live-account
+                switch on they give way to a statement of what is known. */}
+            {live ? (
+              <p
+                className="text-muted"
+                style={{ fontSize: 'var(--text-row)', lineHeight: 1.5, margin: '8px 0 0' }}
+              >
+                {t('live.noHistory')}
+              </p>
+            ) : (
+              <>
+                <div
+                  style={{
+                    color: signalColor(main.dayPct),
+                    fontSize: 'var(--text-title)',
+                    fontWeight: 600,
+                  }}
+                >
+                  {/* The change line needs both halves: a day percentage with
+                      no total behind it has no currency figure to put beside
+                      it, and inventing one from a total we do not have is the
+                      thing this app exists not to do. */}
+                  <Num weight={600}>{dayChangeLine(main.total, main.dayPct)}</Num>
+                </div>
+                <div style={{ marginTop: 10 }}>
+                  <AreaChart values={pfSeries} height={76} />
+                </div>
+              </>
+            )}
+            <p
+              style={{
+                fontSize: 'var(--text-row)',
+                lineHeight: 1.5,
+                margin: '10px 0 0',
+                opacity: 0.85,
+                fontWeight: 500,
+              }}
+            >
+              {t('home.pfBlurb')}
+            </p>
+          </Card>
+        );
+      }}
+    </DataState>
   );
 }
 
@@ -450,30 +448,28 @@ function MetricStripDemo() {
   const { language } = useTheme();
 
   return (
-    <>
-      <MetricStrip
-        metrics={[
-          { label: language === 'he' ? 'שווי' : 'Value', value: '$48,214' },
-          {
-            label: language === 'he' ? 'יומי' : 'Day',
-            value: '+0.86%',
-            color: 'var(--up)',
-          },
-          {
-            label: language === 'he' ? 'רווח פתוח' : 'Open P/L',
-            value: '+$11.5k',
-            color: 'var(--up)',
-          },
-          { label: 'Beta', value: '1.34' },
-          { label: language === 'he' ? 'מזומן' : 'Cash', value: '14%' },
-          {
-            label: language === 'he' ? 'סיכון' : 'Risk',
-            value: language === 'he' ? 'גבוה' : 'High',
-            color: 'var(--color-accent-300)',
-          },
-        ]}
-      />
-    </>
+    <MetricStrip
+      metrics={[
+        { label: language === 'he' ? 'שווי' : 'Value', value: '$48,214' },
+        {
+          label: language === 'he' ? 'יומי' : 'Day',
+          value: '+0.86%',
+          color: 'var(--up)',
+        },
+        {
+          label: language === 'he' ? 'רווח פתוח' : 'Open P/L',
+          value: '+$11.5k',
+          color: 'var(--up)',
+        },
+        { label: 'Beta', value: '1.34' },
+        { label: language === 'he' ? 'מזומן' : 'Cash', value: '14%' },
+        {
+          label: language === 'he' ? 'סיכון' : 'Risk',
+          value: language === 'he' ? 'גבוה' : 'High',
+          color: 'var(--color-accent-300)',
+        },
+      ]}
+    />
   );
 }
 
@@ -481,7 +477,7 @@ function MetricStripDemo() {
  * The movers preview. Ordered and populated by `demo.changePct` and
  * `demo.volume` — the same fabricated ranking the Movers screen shows.
  */
-function MoversPreview({ beg }: { beg: boolean }) {
+function MoversPreview({ beg }: Readonly<{ beg: boolean }>) {
   const dispatch = useDispatch();
   const { language } = useTheme();
   const t = useT();

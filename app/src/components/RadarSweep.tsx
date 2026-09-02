@@ -10,7 +10,7 @@
  * Decorative, so it is hidden from assistive technology; the badge beside it
  * is the accessible half.
  */
-export function RadarSweep({ size = 26 }: { size?: number }) {
+export function RadarSweep({ size = 26 }: Readonly<{ size?: number }>) {
   return (
     <span className="radar-sweep" style={{ width: size, height: size }} aria-hidden="true">
       <span className="radar-sweep-beam" />
