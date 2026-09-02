@@ -490,10 +490,6 @@ export const STRINGS = {
   // Reached by opening a company from the earnings calendar: the sample
   // price table only covers a handful of tickers, but filings and news are
   // live for any symbol, so the page is worth showing rather than blanking.
-  'stock.noQuote': p(
-    'No sample price data for this symbol — the reports and news below are live.',
-    'אין נתוני מחיר לדוגמה לסמל הזה — הדוחות והחדשות למטה הם נתונים חיים.',
-  ),
   'stock.nov': p('Nov', 'נוב׳'),
   // Was "Up about 18% over three months" with both the direction and the
   // figure hard-coded — which, once the line became real, could contradict the
