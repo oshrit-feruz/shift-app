@@ -14,7 +14,7 @@
  * announce the brand twice. Sized by height so it sits on the text baseline
  * of whatever line it lands in.
  */
-export function GlitchMark({ height = 15 }: { height?: number }) {
+export function GlitchMark({ height = 15 }: Readonly<{ height?: number }>) {
   return (
     <span className="glitch-mark" style={{ height, width: height * WORDMARK_RATIO }}>
       <img src="/assets/shift-wordmark.png" alt="Shift" width={1891} height={782} />

@@ -85,7 +85,7 @@ function Invitation() {
  * recommendation screen is where the bars belong, and here the shape of the
  * portfolio is the point, which fits in a line.
  */
-function Result({ profile }: { profile: ProfileKey }) {
+function Result({ profile }: Readonly<{ profile: ProfileKey }>) {
   const dispatch = useDispatch();
   const t = useT();
   const p = PROFILES[profile];
@@ -177,7 +177,7 @@ function Result({ profile }: { profile: ProfileKey }) {
  * number would — and "0 passed today" is a true sentence that reads on a home
  * screen as a broken feature rather than as a quiet market.
  */
-function RadarLine({ wording }: { wording: 'home.radarYours' | 'rec.radarPassed' }) {
+function RadarLine({ wording }: Readonly<{ wording: 'home.radarYours' | 'rec.radarPassed' }>) {
   const t = useT();
   const sat = useLoadable(() => demoService.satelliteSignals(), []);
   if (sat.state.status !== 'ok' || sat.state.data.length === 0) return null;

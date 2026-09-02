@@ -29,9 +29,16 @@ const MIN = 1000;
 const MAX = 50000;
 const STEP = 500;
 
-/** How many of the day's names get a tile. Three fits a phone row without the
- *  logos and the buy buttons crowding; the rest are counted, not hidden. */
-const TILES = 3;
+/** How many of the day's names get a tile: two rows of three. Three across is
+ *  what fits a phone without the logos and the buy buttons crowding, and the
+ *  grid below wraps, so a day with four or five names fills a second row
+ *  instead of hiding the remainder. Past six the card would out-weigh the core
+ *  it sits above, so the rest stay counted, not hidden. */
+const TILE_COLUMNS = 3;
+const TILES = TILE_COLUMNS * 2;
+/** The gutter between tiles, in px. Shared by the row's `gap` and by the tile
+ *  width that has to subtract it, so the two cannot drift apart. */
+const TILE_GAP = 7;
 
 /** The rotating accent palette used for allocation series (AllocationBar). */
 const BAND_COLORS = ['var(--color-accent)', 'var(--acc-lite)', 'var(--acc-dim)', 'var(--color-accent-700)'];
@@ -223,6 +230,16 @@ export function AdvisoryRecommendation(_: ScreenProps) {
 }
 
 /**
+ * A price as a tile shows it: the live figure, or an em dash when the read did
+ * not carry one. Never guessed and never back-filled — a fabricated price is
+ * indistinguishable from a real one, which is what makes it worth a branch of
+ * its own rather than a fallback inline.
+ */
+function priceLabel(price: number | null) {
+  return price === null ? '—' : money(price);
+}
+
+/**
  * The Stock Radar: the names that cleared today's checks, live from the daily
  * screener mirror, with this amount's share of the sleeve against each.
  *
@@ -233,7 +250,7 @@ export function AdvisoryRecommendation(_: ScreenProps) {
  * An empty list is an honest answer on a quiet day, not a failure, so it gets
  * its own state rather than being hidden.
  */
-function RadarCard({ amount, pct }: { amount: number; pct: number }) {
+function RadarCard({ amount, pct }: Readonly<{ amount: number; pct: number }>) {
   const dispatch = useDispatch();
   const t = useT();
   const sat = useLoadable(() => demoService.satelliteSignals(), []);
@@ -288,12 +305,17 @@ function RadarCard({ amount, pct }: { amount: number; pct: number }) {
             <EmptyState>{t('rec.noPositions')}</EmptyState>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <div style={{ display: 'flex', gap: 7 }}>
+              {/* Wrapping flex rather than a grid: the width is pinned to a
+                  third of the row either way, so a full row still runs edge to
+                  edge and the tiles stay one size — but a short last row
+                  centres under the one above it instead of hanging off the
+                  leading edge with a hole beside it. */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: TILE_GAP }}>
                 {signals.slice(0, TILES).map((x) => (
                   <div
                     key={x.ticker}
                     style={{
-                      flex: 1,
+                      flex: `0 0 calc((100% - ${(TILE_COLUMNS - 1) * TILE_GAP}px) / ${TILE_COLUMNS})`,
                       minWidth: 0,
                       display: 'flex',
                       flexDirection: 'column',
@@ -329,23 +351,23 @@ function RadarCard({ amount, pct }: { amount: number; pct: number }) {
                         never back-filled. */}
                       <Num size="var(--text-row)" weight={700}>
                         {/* The sleeve is split across every name that passed
-                          today, not across the three with tiles — dividing by
+                          today, not across the ones with tiles — dividing by
                           the visible count would overstate each position on
-                          any day more than three clear the checks. */}
+                          any day more than six clear the checks. */}
                         {allocated ? money(amount / signals.length, 0) : x.ticker}
                       </Num>
                       <Num size="var(--text-caption)" style={{ color: 'var(--muted)' }}>
-                        {allocated ? x.ticker : x.price === null ? '—' : money(x.price)}
+                        {allocated ? x.ticker : priceLabel(x.price)}
                       </Num>
                     </button>
                     <BuyAtBrokerButton ticker={x.ticker} />
                   </div>
                 ))}
               </div>
-              {/* Only the first few names get a tile, so on a day when more
+              {/* Only the first two rows get tiles, so on a day when more
                   clear the checks the tiles no longer add up to the sleeve
-                  above them. Say how many there are rather than letting three
-                  of eight read as all of them. */}
+                  above them. Say how many there are rather than letting six
+                  of eleven read as all of them. */}
               {signals.length > TILES && (
                 <Note>{t('rec.radarShowing', { shown: TILES, total: signals.length })}</Note>
               )}
@@ -363,7 +385,7 @@ function RadarCard({ amount, pct }: { amount: number; pct: number }) {
  * day when nothing passed — the empty state below says that better than a
  * zero does.
  */
-function RadarCount({ signals }: { signals: number | null }) {
+function RadarCount({ signals }: Readonly<{ signals: number | null }>) {
   const t = useT();
   if (signals === null || signals === 0) return null;
   return (
@@ -381,7 +403,7 @@ function RadarCount({ signals }: { signals: number | null }) {
  * that matter on arrival — informational only, nothing executed — stay at the
  * top of the screen, and this block keeps its own card and body-size type.
  */
-function Disclosures({ satellitePct, broker }: { satellitePct: number; broker: string | null }) {
+function Disclosures({ satellitePct, broker }: Readonly<{ satellitePct: number; broker: string | null }>) {
   const t = useT();
   return (
     <Card padding={13} gap={7}>
@@ -442,7 +464,7 @@ function Disclosures({ satellitePct, broker }: { satellitePct: number; broker: s
  * track, passed down as a percentage because a gradient has a physical
  * direction and this app runs in both.
  */
-function AmountSlider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+function AmountSlider({ value, onChange }: Readonly<{ value: number; onChange: (v: number) => void }>) {
   const t = useT();
   const fill = ((value - MIN) / (MAX - MIN)) * 100;
   return (
@@ -471,7 +493,7 @@ function AmountSlider({ value, onChange }: { value: number; onChange: (v: number
 }
 
 /** One caption paragraph — the screen carries several and they share a look. */
-function Note({ children }: { children: ReactNode }) {
+function Note({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
       {children}
