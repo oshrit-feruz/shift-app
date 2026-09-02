@@ -349,44 +349,14 @@ export function PortfolioScreen(_: ScreenProps) {
                     </span>
                   </div>
                 )}
-                {live ? (
-                  <p
-                    className="text-muted"
-                    style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}
-                  >
-                    {t('live.noHistory')}
-                  </p>
-                ) : isManual ? (
-                  // A manual portfolio's total is real, so the chart above it
-                  // may not be a seeded walk — the same rule that already
-                  // holds for a connected account. The return itself is a
-                  // number (see ManualValue); only the line through time is
-                  // missing, and this says which of the two is which.
-                  <p
-                    className="text-muted"
-                    style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}
-                  >
-                    {t('pf.noReturnHistory')}
-                  </p>
-                ) : demo ? (
-                  <>
-                    <AreaChart values={series} height={110} pad={8} benchmark={bench} />
-                    <div
-                      className="text-muted"
-                      style={{ display: 'flex', gap: 14, fontSize: 'var(--text-caption)' }}
-                    >
-                      <span>
-                        <span style={{ color: 'var(--acc-lite)' }}>—</span>{' '}
-                        {isAgg ? t('pf.allAccounts') : pf.name}
-                      </span>
-                      <span>{t('pf.benchmark')}</span>
-                    </div>
-                  </>
-                ) : (
-                  // The line and its benchmark are both seeded walks; a manual
-                  // portfolio has no priced history to draw instead.
-                  <DemoOnly feature="pf.performance" card={false} />
-                )}
+                <PerformanceSlot
+                  live={live}
+                  isManual={isManual}
+                  demo={demo}
+                  series={series}
+                  bench={bench}
+                  label={isAgg ? t('pf.allAccounts') : pf.name}
+                />
               </Card>
 
               {live ? (
@@ -521,6 +491,65 @@ function HoldingRow({ h, closed, onOpen }: { h: Holding; closed?: boolean; onOpe
       minHeight={46}
       onClick={onOpen}
     />
+  );
+}
+
+/**
+ * What goes under a portfolio's total: a chart, or the sentence that says why
+ * there isn't one.
+ *
+ * Four cases that are easy to collapse and must not be. A seeded random walk
+ * is only ever allowed under a total that is itself demonstration data —
+ * invented performance under a real figure is the one thing this app's data
+ * contract forbids — so both a connected account and a manual portfolio are
+ * excluded, and each says which fact of its own is missing rather than
+ * sharing one vague line.
+ *
+ * Written as early returns rather than a chain of ternaries because the cases
+ * are exclusive and each carries its own reason; a reader should be able to
+ * find the one that applies to them without unwinding the others.
+ */
+function PerformanceSlot({
+  live,
+  isManual,
+  demo,
+  series,
+  bench,
+  label,
+}: Readonly<{
+  live: boolean;
+  isManual: boolean;
+  demo: boolean;
+  series: number[];
+  bench: number[];
+  label: string;
+}>) {
+  const t = useT();
+  const note = (text: string) => (
+    <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
+      {text}
+    </p>
+  );
+
+  // A live read of an account's current state: the brokerage reports no
+  // priced history through the integration at all.
+  if (live) return note(t('live.noHistory'));
+  // A manual portfolio's return IS a number (see ManualValue); only the line
+  // through time is missing, and this says which of the two is which.
+  if (isManual) return note(t('pf.noReturnHistory'));
+  // The line and its benchmark are both seeded walks, so with sample data off
+  // there is nothing honest left to draw.
+  if (!demo) return <DemoOnly feature="pf.performance" card={false} />;
+  return (
+    <>
+      <AreaChart values={series} height={110} pad={8} benchmark={bench} />
+      <div className="text-muted" style={{ display: 'flex', gap: 14, fontSize: 'var(--text-caption)' }}>
+        <span>
+          <span style={{ color: 'var(--acc-lite)' }}>—</span> {label}
+        </span>
+        <span>{t('pf.benchmark')}</span>
+      </div>
+    </>
   );
 }
 
