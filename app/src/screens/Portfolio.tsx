@@ -23,12 +23,14 @@ import { useLedger } from '../state/useLedgerSync';
 import { demoService } from '../data/demoAdapter';
 import { appService } from '../data/appService';
 import { useDemoFlag } from '../data/useDemoFlag';
-import { loading, ok, unavailable, type Holding, type Loadable } from '../data/types';
+import { loading, ok, unavailable, type Holding, type Loadable, type PortfolioSummary } from '../data/types';
 import { useLoadable } from '../data/useLoadable';
 import { isoDate, money, moneyOrDash, pctOrDash, signalColor, signedCurrency } from '../lib/format';
 import { TxSheet } from '../sheets/TxSheet';
 import { NewPortfolioSheet } from '../sheets/NewPortfolioSheet';
 import { fetchPortfolioHoldings, portfolioList, sumTotals } from '../lib/holdings';
+import { fetchPortfolioSeries } from '../data/portfolioHistory';
+import { openGain, type PortfolioSeries } from '../lib/portfolioSeries';
 import type { ScreenProps } from '../App';
 
 /**
@@ -42,7 +44,7 @@ import type { ScreenProps } from '../App';
 export function PortfolioScreen(_: ScreenProps) {
   const s = useAppState();
   const dispatch = useDispatch();
-  const { mode, language } = useTheme();
+  const { mode } = useTheme();
   const t = useT();
   const beg = mode === 'beginner';
   // In the deps so flipping the switch re-reads, and gating the fetch itself:
@@ -100,36 +102,12 @@ export function PortfolioScreen(_: ScreenProps) {
           // the index below, which would otherwise read list[-1] and throw on
           // the first property access.
           if (list.length === 0) {
-            // An empty list and an unread one are not the same fact, and the
-            // difference is the whole reason the ledger reports a status. "You
-            // have no portfolios" over a failed read tells someone their
-            // holdings are gone; a reload that has not landed, or a migration
-            // not yet applied, must say so and offer the retry instead.
-            if (ledger.status !== 'ok') {
-              return (
-                <DataState
-                  state={ledgerState(ledger.status, ledger.reason)}
-                  onRetry={() => window.location.reload()}
-                >
-                  {() => null}
-                </DataState>
-              );
-            }
             return (
-              <>
-                <DemoOnly feature="connScreen.linked">
-                  <Button
-                    variant="secondary"
-                    alignSelf="flex-start"
-                    fontSize={16}
-                    minHeight={36}
-                    onClick={() => setNewPfOpen(true)}
-                  >
-                    ＋ {t('pf.portfolio')}
-                  </Button>
-                </DemoOnly>
-                <NewPortfolioSheet open={newPfOpen} onClose={() => setNewPfOpen(false)} />
-              </>
+              <NoPortfolios
+                newPfOpen={newPfOpen}
+                onNew={() => setNewPfOpen(true)}
+                onCloseNew={() => setNewPfOpen(false)}
+              />
             );
           }
 
@@ -144,9 +122,8 @@ export function PortfolioScreen(_: ScreenProps) {
           // A manual portfolio is that same case — its total is its own
           // positions at live prices — so it is excluded here too.
           const invented = demo && !live && !isManual;
-          const series = invented
-            ? demoService.series(`pf-${pf.id}`, 70, (pf.dayPct ?? 0) >= 0 ? 0.5 : 0.16, 2.4)
-            : [];
+          const drift = (pf.dayPct ?? 0) >= 0 ? 0.5 : 0.16;
+          const series = invented ? demoService.series(`pf-${pf.id}`, 70, drift, 2.4) : [];
           const bench = invented ? demoService.series('bench-spy', 70, 0.22, 1.4) : [];
           const holdings = <Holdings pfId={pf.id} />;
 
@@ -206,132 +183,20 @@ export function PortfolioScreen(_: ScreenProps) {
                 </Button>
               </div>
 
-              {/* Source strip */}
-              <Card padding="11px 12px" gap={0} row>
-                {pf.kind === 'linked' && <LogoTile src={pf.logo} size={28} />}
-                {isAgg && (
-                  <span style={{ display: 'flex', flex: 'none', marginInlineEnd: 8 }}>
-                    {linked.map((l) => (
-                      <span
-                        key={l.id}
-                        style={{
-                          marginInlineEnd: -8,
-                          borderRadius: 7,
-                          boxShadow: '0 0 0 2px var(--color-surface)',
-                        }}
-                      >
-                        <LogoTile src={l.logo} size={26} />
-                      </span>
-                    ))}
-                  </span>
-                )}
-                {isManual && (
-                  <LogoTile src={null} dashed label={pf.name.slice(0, 2).toUpperCase()} size={28} />
-                )}
-                <span style={{ flex: 1, minWidth: 0, marginInlineStart: 10 }}>
-                  <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>
-                    {isAgg ? t('pf.allLinked') : isManual ? pf.name : `${pf.broker} ${pf.acct}`}
-                  </span>
-                  <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-caption)' }}>
-                    {isAgg
-                      ? t('pf.aggDetail')
-                      : isManual
-                        ? t('pf.manualDetail')
-                        : t('pf.synced', { when: pf.syncedAgo?.[language] ?? '' })}
-                  </span>
-                </span>
-                {/* Hidden for the default portfolio, matching the RLS
-                    predicate in 0005_ledger.sql (`and not is_default`) rather
-                    than the UI merely declining to offer it — so the button a
-                    user can see is exactly the one the database will allow.
-                    Sandbox is where a trade can always be recorded, so it
-                    cannot be deleted out from under that. */}
-                {isManual && !isSandbox(pf.id) ? (
-                  <Button variant="ghost" fontSize={15.5} onClick={() => removePortfolio(pf)}>
-                    {t('pf.delete')}
-                  </Button>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    fontSize={15.5}
-                    onClick={() => dispatch({ type: 'go', screen: 'connections' })}
-                  >
-                    {isAgg || pf.kind === 'linked' ? t('pf.manage') : t('pf.link')}
-                  </Button>
-                )}
-              </Card>
+              <SourceStrip
+                pf={pf}
+                linked={linked}
+                onDelete={() => removePortfolio(pf)}
+                onManage={() => dispatch({ type: 'go', screen: 'connections' })}
+              />
 
               {isAgg && (
-                <Card padding="4px 0" gap={0}>
-                  <CardTitle size={17}>
-                    <span style={{ padding: '9px 13px 2px', display: 'block' }}>{t('pf.byAccount')}</span>
-                  </CardTitle>
-                  <div
-                    className="text-muted"
-                    style={{ fontSize: 'var(--text-caption)', padding: '0 13px 6px' }}
-                  >
-                    {t('pf.aggPickHelp')}
-                  </div>
-                  {linked.map((x) => {
-                    const on = !s.aggExcluded[x.id];
-                    return (
-                      <button
-                        key={x.id}
-                        type="button"
-                        onClick={() => dispatch({ type: 'toggleAggAccount', id: x.id })}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 10,
-                          width: '100%',
-                          padding: '10px 13px',
-                          border: 0,
-                          borderTop: '1px solid var(--color-divider)',
-                          background: 'transparent',
-                          color: 'inherit',
-                          font: 'inherit',
-                          cursor: 'pointer',
-                          textAlign: 'start',
-                          opacity: on ? 1 : 0.45,
-                        }}
-                      >
-                        <span
-                          style={{
-                            width: 20,
-                            height: 20,
-                            flex: 'none',
-                            borderRadius: '50%',
-                            display: 'grid',
-                            placeItems: 'center',
-                            fontSize: 'var(--text-caption)',
-                            ...(on
-                              ? { background: 'var(--color-accent)', color: 'var(--g2)' }
-                              : { border: '1px solid var(--color-divider)', color: 'transparent' }),
-                          }}
-                        >
-                          ✓
-                        </span>
-                        <LogoTile src={x.logo} size={26} />
-                        <span style={{ flex: 1, minWidth: 0 }}>
-                          <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>{x.name}</span>
-                          <span
-                            className="text-muted"
-                            style={{ display: 'block', fontSize: 'var(--text-caption)' }}
-                          >
-                            {on ? sharePct(x.total, aggTotal) : t('pf.excluded')}
-                          </span>
-                        </span>
-                        <span style={{ textAlign: 'end', whiteSpace: 'nowrap' }}>
-                          <RowValues
-                            main={moneyOrDash(x.total)}
-                            sub={pctOrDash(x.dayPct)}
-                            subColor={signalColor(x.dayPct)}
-                          />
-                        </span>
-                      </button>
-                    );
-                  })}
-                </Card>
+                <AggregateAccounts
+                  linked={linked}
+                  aggTotal={aggTotal}
+                  aggExcluded={s.aggExcluded}
+                  onToggle={(id) => dispatch({ type: 'toggleAggAccount', id })}
+                />
               )}
 
               <Card padding={14} gap={8}>
@@ -365,40 +230,12 @@ export function PortfolioScreen(_: ScreenProps) {
                   demo={demo}
                   series={series}
                   bench={bench}
+                  ledger={s.manualTransactions[pf.id] ?? []}
                   label={isAgg ? t('pf.allAccounts') : pf.name}
                 />
               </Card>
 
-              {live ? (
-                <Card padding={14} gap={10}>
-                  <CardTitle>{t('pf.allocation')}</CardTitle>
-                  {/* Computed from the account's actual position values — an
-                      invented allocation over real holdings would misstate the
-                      concentration this card exists to show. */}
-                  <LiveAllocation pfId={pf.id} />
-                </Card>
-              ) : demo ? (
-                <Card padding={14} gap={10}>
-                  <CardTitle>{t('pf.allocation')}</CardTitle>
-                  <DonutChart
-                    slices={[
-                      { label: 'NVDA', pct: 28, colorVar: ALLOC_COLORS[0] },
-                      { label: 'AMD', pct: 19, colorVar: ALLOC_COLORS[1] },
-                      { label: 'MSFT', pct: 15, colorVar: ALLOC_COLORS[2] },
-                      { label: 'AAPL', pct: 13, colorVar: 'var(--acc-pale)' },
-                      { label: 'LLY', pct: 11, colorVar: 'var(--muted)' },
-                      { label: language === 'he' ? 'מזומן' : 'Cash', pct: 14, colorVar: 'var(--line)' },
-                    ]}
-                  />
-                  {beg && (
-                    <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0 }}>
-                      {t('pf.concentration')}
-                    </p>
-                  )}
-                </Card>
-              ) : (
-                <DemoOnly feature="pf.allocation" />
-              )}
+              <AllocationCard live={live} demo={demo} pfId={pf.id} beg={beg} />
 
               <Card padding="13px 13px 4px" gap={4}>
                 <CardTitle>{t('pf.holdings')}</CardTitle>
@@ -442,7 +279,7 @@ export function PortfolioScreen(_: ScreenProps) {
  * portfolio's manual buy/sell log applied on top, so a position the user
  * entered by hand reads the same as a synced one.
  */
-function Holdings({ pfId }: { pfId: string }) {
+function Holdings({ pfId }: Readonly<{ pfId: string }>) {
   const dispatch = useDispatch();
   const t = useT();
   const { state, retry } = usePortfolioHoldings(pfId);
@@ -499,7 +336,7 @@ function Holdings({ pfId }: { pfId: string }) {
  * position in a ticker the price mirror does not cover has no worth we can
  * state, and the old code's green "+0.00%" said it was flat instead.
  */
-function HoldingRow({ h, closed, onOpen }: { h: Holding; closed?: boolean; onOpen: () => void }) {
+function HoldingRow({ h, closed, onOpen }: Readonly<{ h: Holding; closed?: boolean; onOpen: () => void }>) {
   const t = useT();
   return (
     <ListRow
@@ -551,6 +388,7 @@ function PerformanceSlot({
   demo,
   series,
   bench,
+  ledger,
   label,
 }: Readonly<{
   live: boolean;
@@ -558,14 +396,10 @@ function PerformanceSlot({
   demo: boolean;
   series: number[];
   bench: number[];
+  ledger: ManualTransaction[];
   label: string;
 }>) {
   const t = useT();
-  const note = (text: string) => (
-    <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
-      {text}
-    </p>
-  );
 
   // isManual is asked FIRST because the two are not the same kind of fact:
   // `live` is a switch on the whole app, while a manual portfolio is a
@@ -574,18 +408,21 @@ function PerformanceSlot({
   // explained itself as a brokerage that reports no priced history, which is
   // not what it is.
   //
-  // A manual portfolio's return IS a number (see ManualValue); only the line
-  // through time is missing, and this says which of the two is which.
-  if (isManual) return note(t('pf.noReturnHistory'));
+  // A manual portfolio is the one case that CAN be drawn honestly: its shares
+  // are the user's own rows and its prices are real closes, so the line is
+  // computed rather than invented. It is asked first for the same reason as
+  // before — `live` is a switch on the whole app, while being manual is a
+  // property of the row the user selected, and the two can be true at once.
+  if (isManual) return <ManualValueChart ledger={ledger} label={label} />;
   // A live read of a connected account's current state: the brokerage reports
   // no priced history through the integration at all.
-  if (live) return note(t('live.noHistory'));
+  if (live) return <Note>{t('live.noHistory')}</Note>;
   // The line and its benchmark are both seeded walks, so with sample data off
   // there is nothing honest left to draw.
   if (!demo) return <DemoOnly feature="pf.performance" card={false} />;
   return (
     <>
-      <AreaChart values={series} height={110} pad={8} benchmark={bench} />
+      <AreaChart values={series} height={110} pad={8} compare={bench} />
       <div className="text-muted" style={{ display: 'flex', gap: 14, fontSize: 'var(--text-caption)' }}>
         <span>
           <span style={{ color: 'var(--acc-lite)' }}>—</span> {label}
@@ -597,13 +434,382 @@ function PerformanceSlot({
 }
 
 /**
+ * Which portfolio is selected, said in its own terms, plus the one action that
+ * belongs to it.
+ *
+ * The three kinds are asked once at the top and answered by name, rather than
+ * re-tested down each line of the card. Lifting this out of the screen also
+ * lifted the two stacked conditionals that used to choose its title and its
+ * subtitle inline — a reader following "what does the header say for a manual
+ * portfolio" had to unwind both.
+ */
+function SourceStrip({
+  pf,
+  linked,
+  onDelete,
+  onManage,
+}: Readonly<{
+  pf: PortfolioSummary;
+  linked: PortfolioSummary[];
+  onDelete: () => void;
+  onManage: () => void;
+}>) {
+  const t = useT();
+  const { language } = useTheme();
+  const isAgg = pf.kind === 'aggregate';
+  const isManual = pf.kind === 'manual';
+
+  let title: string;
+  if (isAgg) title = t('pf.allLinked');
+  else if (isManual) title = pf.name;
+  else title = `${pf.broker} ${pf.acct}`;
+
+  let detail: string;
+  if (isAgg) detail = t('pf.aggDetail');
+  else if (isManual) detail = t('pf.manualDetail');
+  else detail = t('pf.synced', { when: pf.syncedAgo?.[language] ?? '' });
+
+  return (
+    <Card padding="11px 12px" gap={0} row>
+      {pf.kind === 'linked' && <LogoTile src={pf.logo} size={28} />}
+      {isAgg && (
+        <span style={{ display: 'flex', flex: 'none', marginInlineEnd: 8 }}>
+          {linked.map((l) => (
+            <span
+              key={l.id}
+              style={{
+                marginInlineEnd: -8,
+                borderRadius: 7,
+                boxShadow: '0 0 0 2px var(--color-surface)',
+              }}
+            >
+              <LogoTile src={l.logo} size={26} />
+            </span>
+          ))}
+        </span>
+      )}
+      {isManual && <LogoTile src={null} dashed label={pf.name.slice(0, 2).toUpperCase()} size={28} />}
+      <span style={{ flex: 1, minWidth: 0, marginInlineStart: 10 }}>
+        <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>{title}</span>
+        <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-caption)' }}>
+          {detail}
+        </span>
+      </span>
+      {/* Hidden for the default portfolio, matching the RLS
+          predicate in 0005_ledger.sql (`and not is_default`) rather
+          than the UI merely declining to offer it — so the button a
+          user can see is exactly the one the database will allow.
+          Sandbox is where a trade can always be recorded, so it
+          cannot be deleted out from under that. */}
+      {isManual && !isSandbox(pf.id) ? (
+        <Button variant="ghost" fontSize={15.5} onClick={() => onDelete()}>
+          {t('pf.delete')}
+        </Button>
+      ) : (
+        <Button variant="ghost" fontSize={15.5} onClick={() => onManage()}>
+          {isAgg || pf.kind === 'linked' ? t('pf.manage') : t('pf.link')}
+        </Button>
+      )}
+    </Card>
+  );
+}
+
+/**
+ * The accounts inside the aggregate, and which of them it is counting.
+ *
+ * Excluding one is the user's own choice about their own total, so the row
+ * says which state it is in rather than only dimming: a greyed row with a
+ * figure beside it reads as a number the app failed to refresh.
+ */
+function AggregateAccounts({
+  linked,
+  aggTotal,
+  aggExcluded,
+  onToggle,
+}: Readonly<{
+  linked: PortfolioSummary[];
+  aggTotal: number | null;
+  aggExcluded: Record<string, boolean>;
+  onToggle: (id: string) => void;
+}>) {
+  const t = useT();
+
+  return (
+    <Card padding="4px 0" gap={0}>
+      <CardTitle size={17}>
+        <span style={{ padding: '9px 13px 2px', display: 'block' }}>{t('pf.byAccount')}</span>
+      </CardTitle>
+      <div className="text-muted" style={{ fontSize: 'var(--text-caption)', padding: '0 13px 6px' }}>
+        {t('pf.aggPickHelp')}
+      </div>
+      {linked.map((x) => {
+        const on = !aggExcluded[x.id];
+        return (
+          <button
+            key={x.id}
+            type="button"
+            onClick={() => onToggle(x.id)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              width: '100%',
+              padding: '10px 13px',
+              border: 0,
+              borderTop: '1px solid var(--color-divider)',
+              background: 'transparent',
+              color: 'inherit',
+              font: 'inherit',
+              cursor: 'pointer',
+              textAlign: 'start',
+              opacity: on ? 1 : 0.45,
+            }}
+          >
+            <span
+              style={{
+                width: 20,
+                height: 20,
+                flex: 'none',
+                borderRadius: '50%',
+                display: 'grid',
+                placeItems: 'center',
+                fontSize: 'var(--text-caption)',
+                ...(on
+                  ? { background: 'var(--color-accent)', color: 'var(--g2)' }
+                  : { border: '1px solid var(--color-divider)', color: 'transparent' }),
+              }}
+            >
+              ✓
+            </span>
+            <LogoTile src={x.logo} size={26} />
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>{x.name}</span>
+              <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-caption)' }}>
+                {on ? sharePct(x.total, aggTotal) : t('pf.excluded')}
+              </span>
+            </span>
+            <span style={{ textAlign: 'end', whiteSpace: 'nowrap' }}>
+              <RowValues
+                main={moneyOrDash(x.total)}
+                sub={pctOrDash(x.dayPct)}
+                subColor={signalColor(x.dayPct)}
+              />
+            </span>
+          </button>
+        );
+      })}
+    </Card>
+  );
+}
+
+/**
+ * What the screen shows to someone whose portfolio list is empty.
+ *
+ * An empty list and an unread one are not the same fact, and the difference is
+ * the whole reason the ledger reports a status. "You have no portfolios" over
+ * a failed read tells someone their holdings are gone; a reload that has not
+ * landed, or a migration not yet applied, must say so and offer the retry
+ * instead.
+ */
+function NoPortfolios({
+  newPfOpen,
+  onNew,
+  onCloseNew,
+}: Readonly<{ newPfOpen: boolean; onNew: () => void; onCloseNew: () => void }>) {
+  const t = useT();
+  const ledger = useLedger();
+
+  if (ledger.status !== 'ok') {
+    return (
+      <DataState state={ledgerState(ledger.status, ledger.reason)} onRetry={() => window.location.reload()}>
+        {() => null}
+      </DataState>
+    );
+  }
+
+  return (
+    <>
+      <DemoOnly feature="connScreen.linked">
+        <Button variant="secondary" alignSelf="flex-start" fontSize={16} minHeight={36} onClick={onNew}>
+          ＋ {t('pf.portfolio')}
+        </Button>
+      </DemoOnly>
+      <NewPortfolioSheet open={newPfOpen} onClose={onCloseNew} />
+    </>
+  );
+}
+
+/**
+ * The allocation card, in the three versions the screen can honestly show.
+ *
+ * Early returns rather than a chain of conditionals inline in the screen's
+ * JSX, because the three are not shades of one card: a live account's own
+ * position values, a donut labelled as sample data, and nothing at all are
+ * three different claims, and the one that applies should be readable without
+ * unwinding the other two.
+ */
+function AllocationCard({
+  live,
+  demo,
+  pfId,
+  beg,
+}: Readonly<{ live: boolean; demo: boolean; pfId: string; beg: boolean }>) {
+  const t = useT();
+  const { language } = useTheme();
+
+  if (live) {
+    return (
+      <Card padding={14} gap={10}>
+        <CardTitle>{t('pf.allocation')}</CardTitle>
+        {/* Computed from the account's actual position values — an invented
+            allocation over real holdings would misstate the concentration
+            this card exists to show. */}
+        <LiveAllocation pfId={pfId} />
+      </Card>
+    );
+  }
+
+  if (!demo) return <DemoOnly feature="pf.allocation" />;
+
+  return (
+    <Card padding={14} gap={10}>
+      <CardTitle>{t('pf.allocation')}</CardTitle>
+      <DonutChart
+        slices={[
+          { label: 'NVDA', pct: 28, colorVar: ALLOC_COLORS[0] },
+          { label: 'AMD', pct: 19, colorVar: ALLOC_COLORS[1] },
+          { label: 'MSFT', pct: 15, colorVar: ALLOC_COLORS[2] },
+          { label: 'AAPL', pct: 13, colorVar: 'var(--acc-pale)' },
+          { label: 'LLY', pct: 11, colorVar: 'var(--muted)' },
+          { label: language === 'he' ? 'מזומן' : 'Cash', pct: 14, colorVar: 'var(--line)' },
+        ]}
+      />
+      {beg && (
+        <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0 }}>
+          {t('pf.concentration')}
+        </p>
+      )}
+    </Card>
+  );
+}
+
+/**
+ * The muted caption every "why there is no chart here" sentence takes.
+ *
+ * One definition rather than one per card: these lines are the app saying what
+ * it does not know, and they would be a strange thing to let drift apart in
+ * size or spacing between two cards that sit on the same screen.
+ */
+function Note({ children }: Readonly<{ children: ReactNode }>) {
+  return (
+    <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
+      {children}
+    </p>
+  );
+}
+
+/**
+ * A manual portfolio's value through time, drawn from the user's own ledger
+ * priced at real daily closes.
+ *
+ * This is the one performance line in the app that is neither a seeded walk
+ * nor a brokerage's own figure: the shares come from rows the user typed, the
+ * prices from the same provider the stock pages read, and the arithmetic from
+ * the same fold the holdings card runs on.
+ *
+ * Three of its states are deliberately different from one another, because
+ * they are different facts and a reader has to be able to tell which one they
+ * are looking at:
+ *
+ *   no trades yet     — nothing to draw, and nothing wrong
+ *   no history        — the provider answered, and publishes none for these
+ *                       holdings; a real answer about the symbols
+ *   unavailable       — every read failed, and the app does not know
+ *
+ * Only the middle one is a statement about the portfolio.
+ */
+function ManualValueChart({ ledger, label }: Readonly<{ ledger: ManualTransaction[]; label: string }>) {
+  const t = useT();
+  const { language } = useTheme();
+  // Keyed on the rows themselves rather than on the portfolio id: editing a
+  // trade has to redraw the line, and the id does not change when it does.
+  const key = ledger
+    .map((tx) => `${tx.id}:${tx.side}:${tx.ticker}:${tx.shares}:${tx.price}:${tx.date}`)
+    .join('|');
+  const { state, retry } = useLoadable<PortfolioSeries>(() => fetchPortfolioSeries(ledger), [key]);
+
+  if (ledger.length === 0) return <Note>{t('pf.valueNoneYet')}</Note>;
+
+  return (
+    <DataState state={state} onRetry={retry} skeleton={<Skeleton height={110} />}>
+      {(series) => {
+        const priced = series.points.filter((p) => p.value !== null);
+        // Asked before the no-history case, because it is the opposite claim:
+        // the history is fine and the ledger has simply overtaken it. During a
+        // trading day this is where a portfolio logged this morning lands, so
+        // getting the order wrong tells most new users something false.
+        if (series.aheadOfLastClose) return <Note>{t('pf.valueAheadOfClose')}</Note>;
+        // The provider answered and had nothing to say about these symbols —
+        // which is a fact about the holdings, not a failure of the read, and
+        // the two must not be worded the same way.
+        if (priced.length === 0) return <Note>{t('pf.valueNoHistory')}</Note>;
+
+        const gain = openGain(series.points);
+        // Two sentences, because Hebrew inflects the verb and not only the noun.
+        const gapKey = series.unpriced.length === 1 ? 'pf.valueGapOne' : 'pf.valueGapMany';
+        const gap =
+          series.unpriced.length === 0 ? null : t(gapKey).replace('{tickers}', series.unpriced.join(', '));
+
+        return (
+          <>
+            <AreaChart
+              values={series.points.map((p) => p.value)}
+              height={110}
+              pad={8}
+              compare={series.points.map((p) => p.cost)}
+            />
+            <div
+              className="text-muted"
+              style={{ display: 'flex', gap: 14, fontSize: 'var(--text-caption)', flexWrap: 'wrap' }}
+            >
+              <span>
+                <span style={{ color: 'var(--acc-lite)' }}>—</span> {label}
+              </span>
+              <span>{t('pf.costLine')}</span>
+              {gain && (
+                <span style={{ color: signalColor(gain.abs), marginInlineStart: 'auto' }}>
+                  {t('pf.openGain')} <Num>{signedCurrency(gain.abs)}</Num>
+                  {gain.pct !== null && (
+                    <>
+                      {' '}
+                      (<Num>{pctOrDash(gain.pct)}</Num>)
+                    </>
+                  )}
+                </span>
+              )}
+            </div>
+            <Note>{t('pf.valueBasis')}</Note>
+            {gap && <Note>{gap}</Note>}
+            {series.ledgerStartsBefore && (
+              <Note>
+                {t('pf.valueClipped').replace('{date}', isoDate(series.ledgerStartsBefore, language))}
+              </Note>
+            )}
+          </>
+        );
+      }}
+    </DataState>
+  );
+}
+
+/**
  * A manual portfolio's total, and — when it cannot be stated — which holdings
  * are the reason.
  *
  * Reads through the same function the holdings card does, so the figure here
  * and the rows below it can never disagree about what was priced.
  */
-function ManualValue({ pfId }: { pfId: string }) {
+function ManualValue({ pfId }: Readonly<{ pfId: string }>) {
   const t = useT();
   const { state } = usePortfolioHoldings(pfId);
   const valuation = state.status === 'ok' ? state.data.valuation : null;
@@ -693,7 +899,7 @@ function ledgerState(
  * is excluded and NAMED, because dropping it silently made a two-position
  * account read as "ORCL 100%".
  */
-function LiveAllocation({ pfId }: { pfId: string }) {
+function LiveAllocation({ pfId }: Readonly<{ pfId: string }>) {
   const t = useT();
   const holdings = useLoadable(() => appService.holdings(pfId), [pfId]);
 
@@ -762,36 +968,32 @@ function Transactions({
       {rows.length === 0 ? (
         <EmptyState>{t('tx.none')}</EmptyState>
       ) : (
-        [...rows]
-          // Newest first: the row someone is most likely to have mistyped is
-          // the one they just entered.
-          .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
-          .map((tx, i) => (
-            <ListRow
-              key={tx.id}
-              divider={i > 0}
-              title={`${t(sideKey(tx.side))} ${tx.ticker}`}
-              subtitle={<Num>{`${tx.shares} × ${money(tx.price)} · ${isoDate(tx.date, language)}`}</Num>}
-              // The row itself opens the correction, and the button beside it
-              // still deletes: fixing a mistyped price should not cost the
-              // trade's date and side as well, which is what re-entering it
-              // was costing.
-              onClick={() => onEdit(tx)}
-              ariaLabel={t('tx.editAria', { ticker: tx.ticker })}
-              trailing={
-                <RowIconButton
-                  label={t('tx.removeAria', { ticker: tx.ticker })}
-                  onClick={() => {
-                    ledger.removeTransaction(pfId, tx.id);
-                    toast(t('tx.removed'));
-                  }}
-                >
-                  <Icon name="close" size={16} strokeWidth={2} />
-                </RowIconButton>
-              }
-              minHeight={46}
-            />
-          ))
+        [...rows].sort(newestFirst).map((tx, i) => (
+          <ListRow
+            key={tx.id}
+            divider={i > 0}
+            title={`${t(sideKey(tx.side))} ${tx.ticker}`}
+            subtitle={<Num>{`${tx.shares} × ${money(tx.price)} · ${isoDate(tx.date, language)}`}</Num>}
+            // The row itself opens the correction, and the button beside it
+            // still deletes: fixing a mistyped price should not cost the
+            // trade's date and side as well, which is what re-entering it
+            // was costing.
+            onClick={() => onEdit(tx)}
+            ariaLabel={t('tx.editAria', { ticker: tx.ticker })}
+            trailing={
+              <RowIconButton
+                label={t('tx.removeAria', { ticker: tx.ticker })}
+                onClick={() => {
+                  ledger.removeTransaction(pfId, tx.id);
+                  toast(t('tx.removed'));
+                }}
+              >
+                <Icon name="close" size={16} strokeWidth={2} />
+              </RowIconButton>
+            }
+            minHeight={46}
+          />
+        ))
       )}
     </Card>
   );
@@ -803,11 +1005,11 @@ function RowIconButton({
   label,
   onClick,
   children,
-}: {
+}: Readonly<{
   label: string;
   onClick: () => void;
   children: ReactNode;
-}) {
+}>) {
   return (
     <button
       type="button"
@@ -831,8 +1033,25 @@ function RowIconButton({
   );
 }
 
-function sideKey(side: TransactionSide): 'tx.buy' | 'tx.sell' | 'tx.div' {
-  return side === 'sell' ? 'tx.sell' : side === 'div' ? 'tx.div' : 'tx.buy';
+/**
+ * A lookup rather than a chain of tests, so the mapping is total by
+ * construction: adding a fourth side becomes a type error here instead of
+ * silently falling through to "buy".
+ */
+const SIDE_KEYS = { buy: 'tx.buy', sell: 'tx.sell', div: 'tx.div' } as const;
+
+function sideKey(side: TransactionSide): (typeof SIDE_KEYS)[TransactionSide] {
+  return SIDE_KEYS[side];
+}
+
+/**
+ * Newest first: the row someone is most likely to have mistyped is the one
+ * they just entered, so it belongs at the top of the log.
+ */
+function newestFirst(a: ManualTransaction, b: ManualTransaction): number {
+  if (a.date > b.date) return -1;
+  if (a.date < b.date) return 1;
+  return 0;
 }
 
 /**

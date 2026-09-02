@@ -3,10 +3,12 @@ import {
   candlesFromBars,
   ema,
   fit,
+  fitSparse,
   macdSeries,
   priceScale,
   rsi,
   sma,
+  sparseAreaPath,
   sparseLinePath,
   volumeBars,
 } from './charts';
@@ -173,5 +175,58 @@ describe('sparseLinePath', () => {
 
   it('is empty when nothing has a value yet', () => {
     expect(sparseLinePath([null, null])).toBe('');
+  });
+});
+
+describe('fitSparse', () => {
+  it('keeps a gap’s slot on the x axis instead of closing it up', () => {
+    const pts = fitSparse([0, null, 10], 100, 10, 0);
+    expect(pts[1]).toBeNull();
+    // The third point sits at the full width — it is the third of three, not
+    // the second of two. Dropping the null would slide it to the middle and
+    // silently compress the timeline.
+    expect(pts[2]?.[0]).toBe(100);
+  });
+
+  it('scales against the real values, since a gap is not a low', () => {
+    const [first, , third] = fitSparse([10, null, 20], 100, 10, 0);
+    expect(first?.[1]).toBe(10);
+    expect(third?.[1]).toBe(0);
+  });
+
+  it('places a lone point rather than putting it at NaN', () => {
+    // w / (length - 1) divides by zero here; the guard is the whole test, so
+    // what matters is that both coordinates are real numbers. A one-value
+    // series has no range, so it sits on the baseline, as `fit` also does.
+    const [x, y] = fitSparse([5], 100, 10, 0)[0] ?? [NaN, NaN];
+    expect(Number.isFinite(x)).toBe(true);
+    expect(Number.isFinite(y)).toBe(true);
+  });
+
+  it('returns all nulls when nothing is priced, rather than an empty domain', () => {
+    expect(fitSparse([null, null], 100, 10, 0)).toEqual([null, null]);
+  });
+});
+
+describe('sparseAreaPath', () => {
+  it('fills each run separately, so the gap stays empty', () => {
+    const path = sparseAreaPath(fitSparse([1, 2, null, 4, 5], 100, 10, 0), 10);
+    expect(path.match(/Z/g)).toHaveLength(2);
+  });
+
+  it('closes a run under its own ends, not at x=0', () => {
+    const path = sparseAreaPath(fitSparse([null, null, 1, 2], 100, 10, 0), 10);
+    // The single run starts two thirds along; closing at 0 would drag a filled
+    // wedge back across the gap it is supposed to leave alone.
+    expect(path).toContain('L66.7 10');
+    expect(path).not.toContain('L0.0 10');
+  });
+
+  it('draws no area under a single isolated point', () => {
+    expect(sparseAreaPath(fitSparse([1, null, 3, null, 5], 100, 10, 0), 10)).toBe('');
+  });
+
+  it('is empty for a series with nothing in it', () => {
+    expect(sparseAreaPath([], 10)).toBe('');
   });
 });

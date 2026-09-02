@@ -41,6 +41,60 @@ export function sparseLinePath(pts: Array<Pt | null>): string {
   return parts.join(' ');
 }
 
+/**
+ * `fit` for a series with gaps: nulls keep their slot on the x axis and come
+ * back as nulls, so a missing day occupies the width it really spans instead
+ * of closing up and shifting every later point left.
+ *
+ * The domain is taken from the real values only — a null is not a low.
+ */
+export function fitSparse(
+  vals: Array<number | null>,
+  w: number,
+  h: number,
+  pad = 6,
+  domain?: readonly [number, number],
+): Array<Pt | null> {
+  const real = vals.filter((v): v is number => v !== null);
+  if (real.length === 0) return vals.map(() => null);
+  const lo = domain?.[0] ?? Math.min(...real);
+  const hi = domain?.[1] ?? Math.max(...real);
+  const sp = hi - lo || 1;
+  // A single point has no span to divide across, and w/0 would place it at
+  // NaN rather than anywhere on the chart.
+  const step = vals.length > 1 ? w / (vals.length - 1) : 0;
+  return vals.map((v, i) => (v === null ? null : [i * step, h - pad - ((v - lo) / sp) * (h - pad * 2)]));
+}
+
+/**
+ * The filled area under a series with gaps, as one closed shape per run.
+ *
+ * Each run closes down to the baseline beneath its own first and last points
+ * rather than at x=0, so the fill ends where the data does. A single isolated
+ * point is left unfilled: there is no area under one sample, and drawing a
+ * hairline there would read as a spike.
+ */
+export function sparseAreaPath(pts: Array<Pt | null>, h: number): string {
+  const parts: string[] = [];
+  let run: Pt[] = [];
+  const flush = () => {
+    const first = run[0];
+    const last = run.at(-1);
+    // Two points minimum: a single isolated sample has no area under it, and
+    // the hairline one would draw reads as a spike.
+    if (first && last && run.length > 1) {
+      parts.push(`${linePath(run)} L${last[0].toFixed(1)} ${h} L${first[0].toFixed(1)} ${h} Z`);
+    }
+    run = [];
+  };
+  for (const p of pts) {
+    if (p) run.push(p);
+    else flush();
+  }
+  flush();
+  return parts.join(' ');
+}
+
 /** Convert a series of points into an SVG path string for an area chart, closing the path at the given height. */
 export function areaPath(pts: Pt[], h: number): string {
   return linePath(pts) + ` L${pts[pts.length - 1][0].toFixed(1)} ${h} L0 ${h} Z`;

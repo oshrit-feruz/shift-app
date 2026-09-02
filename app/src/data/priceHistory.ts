@@ -178,6 +178,29 @@ export async function fetchDailySeries(
   // path: an injected fetchImpl means a test, which asserts the route's own
   // behaviour and must not be handed a generated series instead.
   if (fetchImpl === fetch && DEMO_FLAGS.demoData) return ok(demoBars(ticker, now));
+  return fetchRealDailySeries(ticker, fetchImpl, now);
+}
+
+/**
+ * One ticker's daily history from the provider, with the sample-data switch
+ * deliberately ignored. Never throws.
+ *
+ * The switch is ignored because of what the one caller does with these bars.
+ * A manual portfolio's value through time is its own real ledger priced at
+ * real closes; handing that ledger a seeded walk instead would draw invented
+ * history under share counts the user actually typed — a plausible-looking
+ * curve of a portfolio that never existed, which is the single thing this
+ * app's data contract rules out. Every other reader wants the switch honoured
+ * and should call `fetchDailySeries`.
+ *
+ * Both paths share one cache key, so a stock page and the portfolio curve pay
+ * for a symbol's history once between them.
+ */
+export async function fetchRealDailySeries(
+  ticker: string,
+  fetchImpl: typeof fetch = fetch,
+  now: Date = new Date(),
+): Promise<Loadable<Bar[] | null>> {
   // Only the default fetch is cached; an injected test fetchImpl goes straight
   // through, so tests keep their isolation without touching cache state. The
   // key carries the ticker because each one is its own request.
