@@ -297,6 +297,10 @@ export const STRINGS = {
     'מוצג למידע בלבד: הפרופיל שלך לא מחזיק מניות בודדות, ולכן שום דבר מכאן אינו חלק מההמלצה שלך.',
   ),
   'rec.noPositions': p('No stock passed every check today', 'אף מניה לא עברה היום את כל הבדיקות'),
+  /* The part of the Stock Radar budget that today's names do not take. Said
+   * as a fact about where the money sits, with no reason attached — the
+   * engine's rules are not explained to the client anywhere in the app. */
+  'rec.radarParked': p('{amount} stays in {fund}', '{amount} נשאר ב-{fund}'),
   /* Gender-neutral, like the rest of the Hebrew since #39: the screen states
    * a sum rather than addressing the reader as one gender. */
   'rec.ifInvested': p('If you invested', 'בהשקעה של'),

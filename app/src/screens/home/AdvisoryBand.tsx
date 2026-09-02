@@ -6,6 +6,7 @@ import { useAppState, useDispatch, setupProgress } from '../../state/appState';
 import { useT } from '../../i18n/useT';
 import { useLoadable } from '../../data/useLoadable';
 import { demoService } from '../../data/demoAdapter';
+import { actionableSignals } from '../../data/recoveryDetector';
 import { mapProfile, PROFILES, type CoreCategory, type ProfileKey } from '../../lib/advisory';
 import type { StringKey } from '../../i18n/strings';
 
@@ -179,8 +180,10 @@ function Result({ profile }: Readonly<{ profile: ProfileKey }>) {
  */
 function RadarLine({ wording }: Readonly<{ wording: 'home.radarYours' | 'rec.radarPassed' }>) {
   const t = useT();
-  const sat = useLoadable(() => demoService.satelliteSignals(), []);
-  if (sat.state.status !== 'ok' || sat.state.data.length === 0) return null;
+  const radar = useLoadable(() => demoService.stockRadar(), []);
+  // Counts the names the engine marks actionable now, as the radar screens do.
+  const n = radar.state.status === 'ok' ? actionableSignals(radar.state.data.signals).length : 0;
+  if (n === 0) return null;
   return (
     <span
       style={{
@@ -197,7 +200,7 @@ function RadarLine({ wording }: Readonly<{ wording: 'home.radarYours' | 'rec.rad
       <span style={{ width: 26, flex: 'none', display: 'grid', placeItems: 'center' }}>
         <RadarSweep size={20} />
       </span>
-      {t(wording, { n: sat.state.data.length })}
+      {t(wording, { n })}
     </span>
   );
 }

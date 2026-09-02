@@ -33,7 +33,7 @@
  */
 
 import type { DataService } from './service';
-import { fetchRankedTickers, fetchSatelliteSignals } from './recoveryDetector';
+import { fetchRankedTickers, fetchSatelliteSignals, fetchStockRadar } from './recoveryDetector';
 import { fetchQuotes } from './quotes';
 import { fetchDailySeries } from './priceHistory';
 import {
@@ -348,6 +348,11 @@ export const demoService: DataService & { isDemo: true } = {
    */
   async satelliteSignals() {
     return fetchSatelliteSignals();
+  },
+
+  /** REAL, like satelliteSignals: the same mirror read, plus the engine's policy. */
+  async stockRadar() {
+    return fetchStockRadar();
   },
 
   /**

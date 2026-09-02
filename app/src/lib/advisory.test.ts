@@ -1,8 +1,51 @@
 import { describe, expect, it } from 'vitest';
-import { CORE_FUNDS, hardRule, mapProfile, PROFILES, type Answer } from './advisory';
+import { CORE_FUNDS, hardRule, mapProfile, PROFILES, sizeRadar, type Answer } from './advisory';
 import { money, pct, signedMoney } from './format';
 
 const all: Answer[] = [1, 2, 3];
+
+describe('sizeRadar — the engine’s slice per name, the rest in the core', () => {
+  const policy = { sleevePctOfBudget: 10, maxSleeves: 10 };
+
+  it('gives each actionable name a fixed slice and parks the remainder', () => {
+    expect(sizeRadar(10_000, 2, policy)).toEqual({
+      perName: 1_000,
+      names: 2,
+      overflow: 0,
+      inStocks: 2_000,
+      parked: 8_000,
+    });
+  });
+
+  it('one name does NOT get the whole sleeve (the old even split did that)', () => {
+    expect(sizeRadar(10_000, 1, policy)?.perName).toBe(1_000);
+    expect(sizeRadar(10_000, 1, policy)?.parked).toBe(9_000);
+  });
+
+  it('with no actionable name everything stays in the core', () => {
+    expect(sizeRadar(10_000, 0, policy)).toEqual({
+      perName: 1_000,
+      names: 0,
+      overflow: 0,
+      inStocks: 0,
+      parked: 10_000,
+    });
+  });
+
+  it('caps the number of names and never exceeds the budget', () => {
+    const s = sizeRadar(10_000, 14, policy)!;
+    expect(s.names).toBe(10);
+    expect(s.overflow).toBe(4);
+    expect(s.inStocks).toBe(10_000);
+    expect(s.parked).toBe(0);
+  });
+
+  it('is null without a policy or a positive budget — nothing is sized from a guess', () => {
+    expect(sizeRadar(10_000, 2, null)).toBeNull();
+    expect(sizeRadar(0, 2, policy)).toBeNull();
+    expect(sizeRadar(Number.NaN, 2, policy)).toBeNull();
+  });
+});
 
 describe('advisory profile mapping', () => {
   it('is incomplete until all four answers are given', () => {

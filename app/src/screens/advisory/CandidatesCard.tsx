@@ -10,6 +10,7 @@ import { useAppState, useDispatch } from '../../state/appState';
 import { useT } from '../../i18n/useT';
 import { mapProfile, PROFILES } from '../../lib/advisory';
 import { demoService } from '../../data/demoAdapter';
+import { actionableSignals } from '../../data/recoveryDetector';
 import { useLoadable } from '../../data/useLoadable';
 import { money } from '../../lib/format';
 
@@ -44,7 +45,7 @@ export function CandidatesCard() {
   const dispatch = useDispatch();
   const t = useT();
   const profile = PROFILES[mapProfile(s.advAnswers) ?? 'bal'];
-  const sat = useLoadable(() => demoService.satelliteSignals(), []);
+  const radar = useLoadable(() => demoService.stockRadar(), []);
 
   return (
     <Card padding="13px 13px 4px" gap={7}>
@@ -70,13 +71,19 @@ export function CandidatesCard() {
           {!hasAnyTradeDeepLink() && ` ${t('buy.noDeepLink')}`}
         </Note>
       )}
-      <DataState state={sat.state} onRetry={sat.retry} skeleton={<SkeletonList count={3} minHeight={52} />}>
-        {(signals) =>
-          signals.length === 0 ? (
+      <DataState
+        state={radar.state}
+        onRetry={radar.retry}
+        skeleton={<SkeletonList count={3} minHeight={52} />}
+      >
+        {({ signals }) =>
+          // Only the names the engine marks actionable now — the same list, on
+          // the same rule, as the radar band on the recommendation screen.
+          actionableSignals(signals).length === 0 ? (
             <EmptyState>{t('rec.noPositions')}</EmptyState>
           ) : (
             <>
-              {signals.map((x) => (
+              {actionableSignals(signals).map((x) => (
                 // A missing price renders as "—"; it is never guessed,
                 // defaulted to zero, or back-filled.
                 <ListRow

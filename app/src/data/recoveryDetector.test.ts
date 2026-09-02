@@ -3,11 +3,15 @@ import { describe, expect, it } from 'vitest';
 import {
   MAX_SNAPSHOT_AGE_DAYS,
   SCREENER_MIRROR_URL,
+  actionableSignals,
   extractBuySignals,
+  extractPolicy,
   extractRankedTickers,
+  extractStockRadar,
   fetchRankedTickers,
   fetchRankingRow,
   fetchSatelliteSignals,
+  fetchStockRadar,
   findRankingRow,
   mapSignal,
   snapshotAgeDays,
@@ -77,7 +81,15 @@ describe('mapSignal — defensive field mapping', () => {
       drawdownPct: null,
       compositeScore: null,
       signal: null,
+      active: null,
     });
+  });
+  it('reads `active` only as a real boolean — anything else is "not said", never true', () => {
+    expect(mapSignal({ ticker: 'X', active: true })?.active).toBe(true);
+    expect(mapSignal({ ticker: 'X', active: false })?.active).toBe(false);
+    for (const v of ['true', 1, 'yes', null, undefined, {}]) {
+      expect(mapSignal({ ticker: 'X', active: v })?.active).toBeNull();
+    }
   });
   it('a real zero is preserved, not confused with missing', () => {
     expect(mapSignal({ ticker: 'MRK', drawdown_pct: 0 })?.drawdownPct).toBe(0);
@@ -86,6 +98,63 @@ describe('mapSignal — defensive field mapping', () => {
     for (const row of [{}, { price: 10 }, { ticker: '' }, { ticker: '   ' }, null, 'NVDA', 42, []]) {
       expect(mapSignal(row)).toBeNull();
     }
+  });
+});
+
+describe('actionableSignals — what the client may act on today', () => {
+  const row = (ticker: string, active: boolean | null) => mapSignal({ ticker, signal: 'BUY', active })!;
+  it('keeps active names and drops the ones the engine marked inactive', () => {
+    const out = actionableSignals([row('A', true), row('B', false), row('C', true)]);
+    expect(out.map((s) => s.ticker)).toEqual(['A', 'C']);
+  });
+  it('passes through names from a snapshot that predates the field (active null)', () => {
+    expect(actionableSignals([row('A', null)]).map((s) => s.ticker)).toEqual(['A']);
+  });
+  it('an all-inactive day is an empty list, not an error', () => {
+    expect(actionableSignals([row('A', false)])).toEqual([]);
+  });
+});
+
+describe('extractPolicy / extractStockRadar — the engine’s sizing rule', () => {
+  const policy = { sleeve_pct_of_budget: 10, max_sleeves: 10 };
+  it('reads the published policy', () => {
+    expect(extractPolicy({ satellite_policy: policy })).toEqual({ sleevePctOfBudget: 10, maxSleeves: 10 });
+  });
+  it('is null when the snapshot carries no policy (older mirror) — never a default', () => {
+    expect(extractPolicy({ buy_signals: [] })).toBeNull();
+    expect(extractPolicy({ satellite_policy: null })).toBeNull();
+  });
+  it('rejects a policy nothing can be sized from', () => {
+    for (const bad of [
+      { sleeve_pct_of_budget: 0, max_sleeves: 10 },
+      { sleeve_pct_of_budget: 150, max_sleeves: 10 },
+      { sleeve_pct_of_budget: 10, max_sleeves: 0 },
+      { sleeve_pct_of_budget: 'ten', max_sleeves: 10 },
+      { max_sleeves: 10 },
+      [],
+      'policy',
+    ]) {
+      expect(extractPolicy({ satellite_policy: bad })).toBeNull();
+    }
+  });
+  it('floors a fractional cap rather than rounding it up', () => {
+    expect(
+      extractPolicy({ satellite_policy: { sleeve_pct_of_budget: 10, max_sleeves: 9.9 } })?.maxSleeves,
+    ).toBe(9);
+  });
+  it('pairs the candidates with the policy from the same body', () => {
+    const r = extractStockRadar({
+      buy_signals: [{ ticker: 'ORCL', signal: 'BUY', active: true }],
+      satellite_policy: policy,
+    });
+    expect(r?.signals.map((s) => s.ticker)).toEqual(['ORCL']);
+    expect(r?.policy).toEqual({ sleevePctOfBudget: 10, maxSleeves: 10 });
+  });
+  it('a body with candidates but no policy is a real answer with policy null', () => {
+    expect(extractStockRadar({ buy_signals: [] })).toEqual({ signals: [], policy: null });
+  });
+  it('a body with no candidates array is unrecognised, whatever the policy says', () => {
+    expect(extractStockRadar({ satellite_policy: policy })).toBeNull();
   });
 });
 
@@ -241,6 +310,49 @@ describe('fetchSatelliteSignals — honest states, no demo fallback', () => {
       const serialised = JSON.stringify(r);
       for (const t of demoTickers) expect(serialised).not.toContain(t);
     }
+  });
+});
+
+describe('fetchStockRadar — same mirror, same honesty rules, plus the policy', () => {
+  it('returns candidates and policy from one fresh snapshot', async () => {
+    const r = await fetchStockRadar(
+      async () =>
+        res({
+          computed_on: FRESH,
+          buy_signals: [{ ticker: 'ORCL', signal: 'BUY', active: true }],
+          satellite_policy: { sleeve_pct_of_budget: 10, max_sleeves: 10 },
+        }),
+      NOW,
+    );
+    expect(r.status).toBe('ok');
+    if (r.status === 'ok') {
+      expect(r.data.signals.map((s) => s.ticker)).toEqual(['ORCL']);
+      expect(r.data.policy).toEqual({ sleevePctOfBudget: 10, maxSleeves: 10 });
+    }
+  });
+  it('an older snapshot without the policy still serves its candidates', async () => {
+    const r = await fetchStockRadar(
+      async () => res({ computed_on: FRESH, buy_signals: [{ ticker: 'ORCL', signal: 'BUY' }] }),
+      NOW,
+    );
+    expect(r.status === 'ok' && r.data.policy).toBeNull();
+    expect(r.status === 'ok' && r.data.signals[0].active).toBeNull();
+  });
+  it('is unavailable on a failure, exactly like fetchSatelliteSignals', async () => {
+    const r = await fetchStockRadar(async () => res({ nope: true }));
+    expect(r).toEqual({ status: 'unavailable' });
+  });
+  it('refuses a stale snapshot even when its policy is fine', async () => {
+    const r = await fetchStockRadar(
+      async () =>
+        res({
+          computed_on: '2026-08-01',
+          buy_signals: [],
+          satellite_policy: { sleeve_pct_of_budget: 10, max_sleeves: 10 },
+        }),
+      NOW,
+    );
+    expect(r.status).toBe('unavailable');
   });
 });
 

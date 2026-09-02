@@ -17,7 +17,8 @@ import { useAppState, useDispatch } from '../../state/appState';
 import { useT } from '../../i18n/useT';
 import { useLoadable } from '../../data/useLoadable';
 import { demoService } from '../../data/demoAdapter';
-import { CORE_FUNDS, mapProfile, PROFILES } from '../../lib/advisory';
+import { actionableSignals } from '../../data/recoveryDetector';
+import { CORE_FUNDS, mapProfile, PROFILES, sizeRadar } from '../../lib/advisory';
 import type { StringKey } from '../../i18n/strings';
 import type { ScreenProps } from '../../App';
 import type { ReactNode } from 'react';
@@ -240,12 +241,16 @@ function priceLabel(price: number | null) {
 }
 
 /**
- * The Stock Radar: the names that cleared today's checks, live from the daily
- * screener mirror, with this amount's share of the sleeve against each.
+ * The Stock Radar: the names that cleared today's checks AND that the engine
+ * says are actionable now, live from the daily screener mirror, with this
+ * amount's slice of the sleeve against each.
  *
- * The split is even across whatever passed today, which is why the figure
- * against a name is derived rather than chosen: it is the sleeve divided by
- * the number of names, not a position size anyone picked for this client.
+ * The slice per name is the engine's published policy (a fixed percent of the
+ * sleeve, up to a fixed number of names), not the sleeve divided by whatever
+ * passed today — so a day with one name does not put the whole sleeve on it.
+ * What the names do not take stays in the S&P 500 core fund, and the card
+ * says so. When the snapshot carries no policy the tiles show the name and
+ * price only: an amount we cannot derive from the engine is not shown.
  *
  * An empty list is an honest answer on a quiet day, not a failure, so it gets
  * its own state rather than being hidden.
@@ -253,9 +258,10 @@ function priceLabel(price: number | null) {
 function RadarCard({ amount, pct }: Readonly<{ amount: number; pct: number }>) {
   const dispatch = useDispatch();
   const t = useT();
-  const sat = useLoadable(() => demoService.satelliteSignals(), []);
+  const radar = useLoadable(() => demoService.stockRadar(), []);
   /** Whether this profile puts any money behind what the radar finds. */
   const allocated = pct > 0;
+  const coreFund = fundTicker(CORE_FUNDS.sp500) ?? 'VOO';
 
   return (
     // The band, not a card: the same full-bleed purple section the home screen
@@ -286,7 +292,9 @@ function RadarCard({ amount, pct }: Readonly<{ amount: number; pct: number }>) {
       {/* The count, said plainly and at reading size. It is the whole point of
           the card, and on a profile with no sleeve it is the only figure the
           card carries at all. */}
-      <RadarCount signals={sat.state.status === 'ok' ? sat.state.data.length : null} />
+      <RadarCount
+        signals={radar.state.status === 'ok' ? actionableSignals(radar.state.data.signals).length : null}
+      />
       {!allocated && (
         <p style={{ fontSize: 'var(--text-row)', margin: 0, lineHeight: 1.55 }}>{t('rec.satInfoOnly')}</p>
       )}
@@ -299,10 +307,25 @@ function RadarCard({ amount, pct }: Readonly<{ amount: number; pct: number }>) {
         {t('rec.radarLineEnd')}
       </p>
 
-      <DataState state={sat.state} onRetry={sat.retry} skeleton={<SkeletonList count={3} minHeight={52} />}>
-        {(signals) =>
-          signals.length === 0 ? (
-            <EmptyState>{t('rec.noPositions')}</EmptyState>
+      <DataState
+        state={radar.state}
+        onRetry={radar.retry}
+        skeleton={<SkeletonList count={3} minHeight={52} />}
+      >
+        {({ signals: all, policy }) => {
+          const signals = actionableSignals(all);
+          // Null with no sleeve, and null when the snapshot carries no policy:
+          // either way no amount is put against a name.
+          const sizing = allocated ? sizeRadar(amount, signals.length, policy) : null;
+          const parked =
+            sizing && sizing.parked > 0 ? (
+              <Note>{t('rec.radarParked', { amount: money(sizing.parked, 0), fund: coreFund })}</Note>
+            ) : null;
+          return signals.length === 0 ? (
+            <>
+              <EmptyState>{t('rec.noPositions')}</EmptyState>
+              {parked}
+            </>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               {/* Wrapping flex rather than a grid: the width is pinned to a
@@ -345,19 +368,18 @@ function RadarCard({ amount, pct }: Readonly<{ amount: number; pct: number }>) {
                       }}
                     >
                       <TickerTile ticker={x.ticker} size={28} />
-                      {/* With a sleeve, the tile leads with this amount's share
-                        of it; without one, with the name and the live price.
-                        A missing price renders as an em dash — never guessed,
-                        never back-filled. */}
+                      {/* With a sleeve and a policy, the tile leads with the
+                        engine's slice of it; otherwise with the name and the
+                        live price. A missing price renders as an em dash —
+                        never guessed, never back-filled. */}
                       <Num size="var(--text-row)" weight={700}>
-                        {/* The sleeve is split across every name that passed
-                          today, not across the ones with tiles — dividing by
-                          the visible count would overstate each position on
-                          any day more than six clear the checks. */}
-                        {allocated ? money(amount / signals.length, 0) : x.ticker}
+                        {/* The same slice on every tile: the policy sets it
+                          per name, so it does not depend on how many passed
+                          today or on how many of them have a tile. */}
+                        {sizing ? money(sizing.perName, 0) : x.ticker}
                       </Num>
                       <Num size="var(--text-caption)" style={{ color: 'var(--muted)' }}>
-                        {allocated ? x.ticker : priceLabel(x.price)}
+                        {sizing ? x.ticker : priceLabel(x.price)}
                       </Num>
                     </button>
                     <BuyAtBrokerButton ticker={x.ticker} />
@@ -371,9 +393,12 @@ function RadarCard({ amount, pct }: Readonly<{ amount: number; pct: number }>) {
               {signals.length > TILES && (
                 <Note>{t('rec.radarShowing', { shown: TILES, total: signals.length })}</Note>
               )}
+              {/* Where the rest of the sleeve sits, so the tiles and this line
+                  add up to the amount in the header. */}
+              {parked}
             </div>
-          )
-        }
+          );
+        }}
       </DataState>
     </div>
   );

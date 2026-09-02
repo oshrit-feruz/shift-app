@@ -6,6 +6,7 @@ import type {
   PortfolioSummary,
   Holding,
   SatelliteSignal,
+  StockRadar,
   SymbolInfo,
   WatchRow,
 } from './types';
@@ -40,6 +41,12 @@ export interface DataService {
   searchUniverse(include?: string[]): Promise<Loadable<WatchRow[]>>;
   /** Live positions currently held by the Recovery Detector engine. */
   satelliteSignals(): Promise<Loadable<SatelliteSignal[]>>;
+  /**
+   * The Stock Radar screens' read: the same candidates as satelliteSignals
+   * plus the engine's sizing policy, from one snapshot, so the amount shown
+   * against a name and the name itself can never come from different days.
+   */
+  stockRadar(): Promise<Loadable<StockRadar>>;
   portfolios(): Promise<Loadable<PortfolioSummary[]>>;
   holdings(portfolioId: string): Promise<Loadable<Holding[]>>;
   news(): Promise<Loadable<NewsItem[]>>;
