@@ -65,6 +65,17 @@ export interface PortfolioSeries {
    * them their portfolio started on a day it did not.
    */
   ledgerStartsBefore: string | null;
+  /**
+   * Every trade is newer than the newest close the providers have published.
+   *
+   * There is nothing to draw yet, and the reason is the opposite of the other
+   * empty case: history for these tickers exists and is fine, the ledger has
+   * simply overtaken it. This is the ordinary state of a portfolio whose first
+   * trade was logged during a trading day, because the daily feed publishes
+   * after the close — so saying "no history is published for these holdings"
+   * here would be false, and false about the provider rather than about them.
+   */
+  aheadOfLastClose: boolean;
 }
 
 /**
@@ -150,7 +161,12 @@ export function buildValueSeries(
   transactions: ManualTransaction[],
   bars: ReadonlyMap<string, Bar[]>,
 ): PortfolioSeries {
-  const empty: PortfolioSeries = { points: [], unpriced: [], ledgerStartsBefore: null };
+  const empty: PortfolioSeries = {
+    points: [],
+    unpriced: [],
+    ledgerStartsBefore: null,
+    aheadOfLastClose: false,
+  };
   if (transactions.length === 0) return empty;
 
   const closesBy = new Map<string, Closes>();
@@ -164,7 +180,11 @@ export function buildValueSeries(
 
   const firstTrade = transactions.reduce((min, tx) => (tx.date < min ? tx.date : min), transactions[0].date);
   const dates = [...axis].filter((d) => d >= firstTrade).sort(ascending);
-  if (dates.length === 0) return { ...empty, ledgerStartsBefore: firstTrade };
+  // Two opposite reasons for having no session to draw, and they must not be
+  // reported as one. No sessions at all means the providers publish nothing for
+  // these tickers. Sessions that all predate the first trade means they publish
+  // plenty and the ledger is simply newer than the last close.
+  if (dates.length === 0) return { ...empty, aheadOfLastClose: axis.size > 0 };
 
   const unpriced = new Set<string>();
   const points: ValuePoint[] = dates.map((date) => {
@@ -197,6 +217,7 @@ export function buildValueSeries(
     points,
     unpriced: [...unpriced].sort(ascending),
     ledgerStartsBefore: firstTrade < dates[0] ? firstTrade : null,
+    aheadOfLastClose: false,
   };
 }
 

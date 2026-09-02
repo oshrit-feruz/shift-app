@@ -191,13 +191,46 @@ describe('buildValueSeries', () => {
       points: [],
       unpriced: [],
       ledgerStartsBefore: null,
+      aheadOfLastClose: false,
     });
   });
 
-  it('draws nothing when no ticker has any history, and says the ledger predates it', () => {
-    const series = buildValueSeries([tx({ date: '2026-01-02' })], map({ NVDA: [] }));
-    expect(series.points).toEqual([]);
-    expect(series.ledgerStartsBefore).toBe('2026-01-02');
+  describe('nothing to draw', () => {
+    it('says the providers publish nothing when they publish nothing', () => {
+      const series = buildValueSeries([tx({ date: '2026-01-02' })], map({ NVDA: [] }));
+      expect(series.points).toEqual([]);
+      expect(series.aheadOfLastClose).toBe(false);
+    });
+
+    it('says the ledger is ahead when every session predates the first trade', () => {
+      // The ordinary state of a portfolio logged during a trading day: the
+      // daily feed publishes after the close, so today has no bar yet. Calling
+      // this "no history for these holdings" is false, and false about the
+      // provider rather than about the portfolio.
+      const series = buildValueSeries(
+        [tx({ date: '2026-01-06' })],
+        map({ NVDA: bars({ '2026-01-02': 100, '2026-01-05': 110 }) }),
+      );
+      expect(series.points).toEqual([]);
+      expect(series.aheadOfLastClose).toBe(true);
+    });
+
+    it('does not claim the ledger predates the window when it in fact postdates it', () => {
+      const series = buildValueSeries(
+        [tx({ date: '2026-01-06' })],
+        map({ NVDA: bars({ '2026-01-02': 100 }) }),
+      );
+      expect(series.ledgerStartsBefore).toBeNull();
+    });
+
+    it('is not ahead of the close once one session covers the ledger', () => {
+      const series = buildValueSeries(
+        [tx({ date: '2026-01-05' })],
+        map({ NVDA: bars({ '2026-01-02': 100, '2026-01-05': 110 }) }),
+      );
+      expect(series.points).toHaveLength(1);
+      expect(series.aheadOfLastClose).toBe(false);
+    });
   });
 
   it('leaves the cost line intact across a gap in the value line', () => {

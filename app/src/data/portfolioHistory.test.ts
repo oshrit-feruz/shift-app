@@ -71,7 +71,10 @@ describe('fetchPortfolioSeries', () => {
   it('is ok with no points for an empty ledger, and asks for nothing', async () => {
     const fetchImpl = routed({});
     const out = await fetchPortfolioSeries([], fetchImpl, NOW);
-    expect(out).toEqual({ status: 'ok', data: { points: [], unpriced: [], ledgerStartsBefore: null } });
+    expect(out).toEqual({
+      status: 'ok',
+      data: { points: [], unpriced: [], ledgerStartsBefore: null, aheadOfLastClose: false },
+    });
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 

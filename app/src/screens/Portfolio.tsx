@@ -744,6 +744,11 @@ function ManualValueChart({ ledger, label }: Readonly<{ ledger: ManualTransactio
     <DataState state={state} onRetry={retry} skeleton={<Skeleton height={110} />}>
       {(series) => {
         const priced = series.points.filter((p) => p.value !== null);
+        // Asked before the no-history case, because it is the opposite claim:
+        // the history is fine and the ledger has simply overtaken it. During a
+        // trading day this is where a portfolio logged this morning lands, so
+        // getting the order wrong tells most new users something false.
+        if (series.aheadOfLastClose) return <Note>{t('pf.valueAheadOfClose')}</Note>;
         // The provider answered and had nothing to say about these symbols —
         // which is a fact about the holdings, not a failure of the read, and
         // the two must not be worded the same way.

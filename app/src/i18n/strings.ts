@@ -614,6 +614,12 @@ export const STRINGS = {
     'העסקה הראשונה שלך היא מ־{date}; הגרף מתחיל היכן שהיסטוריית המחירים היומית מגיעה.',
   ),
   'pf.valueNoneYet': p('The chart appears once a trade is recorded.', 'הגרף יופיע אחרי שתירשם עסקה.'),
+  // The ledger is newer than the last published close — which is the ordinary
+  // state during a trading day, not a problem, so it must not be worded as one.
+  'pf.valueAheadOfClose': p(
+    'Your trades are more recent than the latest published close. The chart appears after the next one.',
+    'העסקאות שלך מאוחרות ממחיר הסגירה האחרון שפורסם. הגרף יופיע אחרי הסגירה הבאה.',
+  ),
   // Distinct from unavailable: the provider answered, and had nothing.
   'pf.valueNoHistory': p(
     'No daily price history is published for the holdings in this portfolio, so its value over time cannot be drawn.',
