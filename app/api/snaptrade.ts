@@ -1,7 +1,4 @@
 import {
-  SNAPTRADE_BASE,
-  buildQuery,
-  computeSignature,
   mapAccount,
   mapBalance,
   mapConnection,
@@ -11,18 +8,22 @@ import {
   type ConnectedBalance,
   type ConnectedConnection,
   type ConnectedPosition,
+  type SnapTradeUser,
 } from './_lib/snaptrade.js';
+import { PROVIDER, UpstreamError, readCreds, snapTradeRequest } from './_lib/snaptradeClient.js';
 import type { ApiRequest, ApiResponse } from './_lib/http.js';
-import { failureBody, fetchUpstreamJson, type UpstreamFailure } from './_lib/upstream.js';
+import { failureBody } from './_lib/upstream.js';
+import { resolveSession } from './_lib/snaptradeSession.js';
 
 const DEFAULT_UPSTREAM_TIMEOUT_MS = 15_000;
 
 /**
- * Personal tier is one account by definition, but the account list is still a
- * list; this bounds the fan-out so a surprising response can't turn one
- * request into dozens of upstream calls.
+ * Bounds the fan-out so a surprising response can't turn one request into
+ * dozens of upstream calls. Ten is well above what one person links in
+ * practice — the free plan tops out at five connected accounts across the
+ * whole app — and far below the number that would make this route expensive.
  */
-const MAX_ACCOUNTS = 3;
+const MAX_ACCOUNTS = 10;
 
 /**
  * THE COMPLETE SET OF UPSTREAM PATHS THIS FUNCTION CAN REACH. All three are
@@ -32,10 +33,12 @@ const MAX_ACCOUNTS = 3;
  * is not written here.
  *
  * SnapTrade's trading endpoints (/trade/*, /accounts/{id}/orders, …) are
- * deliberately absent and must stay absent: this integration exists to prove
- * that a real brokerage account can be *read*, and it has no consent flow,
- * no order confirmation and no audit trail that placing an order would
- * require.
+ * deliberately absent and must stay absent. What the user authorised in the
+ * connection portal is a READ connection (connectionType: 'read', set in
+ * snaptrade-link.ts), and this list is the code-side half of that promise:
+ * the app has no order confirmation and no audit trail that placing a trade
+ * on someone's behalf would require, so it must not be able to reach a path
+ * that could.
  */
 const READ_ONLY_PATHS = {
   /**
@@ -53,50 +56,18 @@ const READ_ONLY_PATHS = {
     `/authorizations/${encodeURIComponent(authorizationId)}/accounts`,
 } as const;
 
-const PROVIDER = 'SnapTrade';
 const ROUTE = '/api/snaptrade';
 
-/** Raised to unwind out of the per-account fan-out with a classified failure. */
-class UpstreamError extends Error {
-  constructor(readonly failure: UpstreamFailure) {
-    super(failure.message);
-  }
-}
-
 /**
- * One signed, read-only GET against SnapTrade.
+ * One signed, read-only GET, already bound to the caller's credentials and to
+ * the SnapTrade user it is on behalf of.
  *
- * The transport — timeout budget, abort wiring, and the classification of
- * every failure into a specific code — is the shared fetchUpstreamJson() the
- * other routes use, so this route cannot drift from the failure contract they
- * hold. Only the signing is SnapTrade's own.
- *
- * The query string is built once and used for both the signature and the URL:
- * the signing spec hashes the raw query exactly as sent, so re-encoding it
- * separately for the URL would produce a valid-looking signature that
- * SnapTrade rejects.
+ * Passed down rather than rebuilt because the user pair is the thing that must
+ * not vary between the calls in one request: every read below is for the same
+ * person, and a helper that could be handed different credentials halfway
+ * through is a helper that could return someone else's account.
  */
-async function snapTradeGet(
-  path: string,
-  creds: { clientId: string; consumerKey: string },
-  timeoutMs: number,
-): Promise<unknown> {
-  const query = buildQuery(creds.clientId, Math.floor(Date.now() / 1000));
-  const signature = computeSignature({ path: `/api/v1${path}`, query, consumerKey: creds.consumerKey });
-
-  const result = await fetchUpstreamJson(
-    new URL(`${SNAPTRADE_BASE}${path}?${query}`),
-    timeoutMs,
-    PROVIDER,
-    ROUTE,
-    fetch,
-    'json',
-    // The consumer key itself never travels — only the HMAC it keyed.
-    { Accept: 'application/json', Signature: signature },
-  );
-  if (!result.ok) throw new UpstreamError(result.failure);
-  return result.body;
-}
+type ReadPath = (path: string) => Promise<unknown>;
 
 type MappedAccount = NonNullable<ReturnType<typeof mapAccount>>;
 
@@ -137,14 +108,12 @@ function mapAccountList(raw: unknown, label: string): MappedAccount[] {
  * asks each one directly.
  *
  * Both calls are GET. The manual-refresh endpoint that would force a sync is
- * deliberately NOT used: it is a POST, and SnapTrade charges per call — not
- * something to fire from a public, unauthenticated endpoint.
+ * deliberately NOT used: SnapTrade bills per refresh call, so firing one from
+ * a route that any screen load reaches would put the app's bill in the hands
+ * of whoever is pulling to refresh.
  */
-async function listConnections(
-  creds: { clientId: string; consumerKey: string },
-  timeoutMs: number,
-): Promise<Array<Omit<ConnectedConnection, 'accountCount'>>> {
-  const raw = await snapTradeGet(READ_ONLY_PATHS.connections(), creds, timeoutMs);
+async function listConnections(read: ReadPath): Promise<Array<Omit<ConnectedConnection, 'accountCount'>>> {
+  const raw = await read(READ_ONLY_PATHS.connections());
   if (!Array.isArray(raw)) throw badResponse('/authorizations did not return an array');
   return raw
     .map(mapConnection)
@@ -172,13 +141,12 @@ function isDisabled(c: { disabled: boolean | null }): boolean {
 
 async function realtimeAccounts(
   live: Array<Omit<ConnectedConnection, 'accountCount'>>,
-  creds: { clientId: string; consumerKey: string },
-  timeoutMs: number,
+  read: ReadPath,
 ): Promise<{ accounts: MappedAccount[]; perConnection: MappedAccount[][] }> {
   const perConnection = await Promise.all(
     live.map(async (connection) =>
       mapAccountList(
-        await snapTradeGet(READ_ONLY_PATHS.connectionAccounts(connection.id), creds, timeoutMs),
+        await read(READ_ONLY_PATHS.connectionAccounts(connection.id)),
         `/authorizations/${connection.id}/accounts`,
       ),
     ),
@@ -191,23 +159,26 @@ async function realtimeAccounts(
  * timeout branch in milliseconds. The default export is this with the real
  * budget.
  *
- * WHAT THIS IS: a founder-demo, Personal-tier, single-account, READ-ONLY view
- * of one real brokerage account. It authenticates with SnapTrade's Personal
- * API key scheme — clientId plus a signature keyed with the consumer key, and
- * deliberately no userId/userSecret, because a Personal key resolves the user
- * on SnapTrade's side and a Personal user has no userSecret. Both credentials
- * are read from server-only environment variables and never appear in a
- * response body.
+ * WHAT THIS IS: one signed-in user's own brokerage accounts, READ-ONLY.
+ * The caller is identified by their Supabase access token, their SnapTrade
+ * `userSecret` is read from the server-side store that token unlocks, and
+ * every upstream call carries that pair — so this route can only ever return
+ * the accounts of whoever is holding the token. The client credentials are
+ * read from server-only environment variables and never appear in a response.
  *
- * WHAT THIS IS NOT: the architecture for real end users. Multi-user account
- * linking needs SnapTrade's Commercial tier, per-user registration and
- * userSecret storage, KYC and billing. See the README.
+ * WHAT IT IS NOT: a trading endpoint. SnapTrade's trading paths appear
+ * nowhere in this integration, and a unit test asserts that no upstream path
+ * ever matches one. The connection itself is created in SnapTrade's hosted
+ * portal (see /api/snaptrade-link), so a brokerage password is never entered
+ * here and never stored here.
  *
  * Data-honesty contract, the same one /api/news and the screener mirror hold:
  * any failure returns 4xx/5xx with { error, message } for the frontend to
  * render as "unavailable". Zero connected accounts is a legitimate 200 with an
  * empty list — that is the true answer before a brokerage has been linked, not
- * an error, and never a reason to invent a holding.
+ * an error, and never a reason to invent a holding. `linked` says which kind
+ * of nothing it is: false means this user has never authorised a connection,
+ * true with no accounts means they have and the brokerage reported none.
  */
 export function createHandler(timeoutMs: number) {
   return async function handler(req: ApiRequest, res: ApiResponse) {
@@ -216,17 +187,37 @@ export function createHandler(timeoutMs: number) {
       return res.status(405).json({ error: 'method_not_allowed', message: 'Use GET.' });
     }
 
-    const clientId = process.env.SNAPTRADE_PERSONAL_CLIENT_ID;
-    const consumerKey = process.env.SNAPTRADE_PERSONAL_CONSUMER_KEY;
-    if (!clientId || !consumerKey) {
+    // Per-user data is never cached at the edge. The response is one
+    // person's holdings; a shared cache in front of it is a way to serve them
+    // to the next caller.
+    res.setHeader('Cache-Control', 'private, no-store');
+
+    const creds = readCreds();
+    if (!creds) {
       // A deploy/config problem, not a caller error — specific in the log,
       // generic in the body.
-      console.error('/api/snaptrade: SNAPTRADE_PERSONAL_CLIENT_ID / _CONSUMER_KEY are not both set');
+      console.error(`${ROUTE}: SNAPTRADE_CLIENT_ID / SNAPTRADE_CONSUMER_KEY are not both set`);
       return res
         .status(500)
-        .json({ error: 'not_configured', message: 'The connected-account demo is not configured.' });
+        .json({ error: 'not_configured', message: 'Connected accounts are not configured.' });
     }
-    const creds = { clientId, consumerKey };
+
+    const session = await resolveSession(req, ROUTE);
+    if (!session.ok) return res.status(session.error.status).json(session.error.body);
+
+    // Nobody has connected a brokerage for this user. A true, complete answer
+    // — not an error, and not a reason for the app to show anything invented
+    // in its place.
+    if (session.link === null) {
+      return res.status(200).json({ linked: false, accounts: [], connections: [], source: 'daily' });
+    }
+
+    const user: SnapTradeUser = {
+      userId: session.link.snapTradeUserId,
+      userSecret: session.link.userSecret,
+    };
+    /** Bound once, to this caller: every read below is for the same person. */
+    const read: ReadPath = (path) => snapTradeRequest({ path, creds, timeoutMs, route: ROUTE, user });
 
     // Each upstream call carries its own budget, applied by the shared
     // transport (which keeps the timer armed through body parsing).
@@ -234,7 +225,7 @@ export function createHandler(timeoutMs: number) {
       // The connection list comes first and always, not only as a fallback.
       // It is the only place SnapTrade reports `disabled`, and without it a
       // dead connection's last cached holdings would be served as current.
-      const allConnections = await listConnections(creds, timeoutMs);
+      const allConnections = await listConnections(read);
       const live = allConnections.filter((c) => !isDisabled(c));
       const liveIds = new Set(live.map((c) => c.id));
 
@@ -244,16 +235,15 @@ export function createHandler(timeoutMs: number) {
       // no way to tell how old it is. The connection is still reported below,
       // so the screen says the connection is dead rather than silently
       // showing nothing.
-      let base = mapAccountList(
-        await snapTradeGet(READ_ONLY_PATHS.accounts(), creds, timeoutMs),
-        '/accounts',
-      ).filter((a) => a.connectionId === null || liveIds.has(a.connectionId));
+      let base = mapAccountList(await read(READ_ONLY_PATHS.accounts()), '/accounts').filter(
+        (a) => a.connectionId === null || liveIds.has(a.connectionId),
+      );
 
       // The daily cache has nothing. That is expected for a brokerage linked
       // today, so ask the live connections directly before concluding the
       // user has no account.
       if (base.length === 0 && live.length > 0) {
-        base = (await realtimeAccounts(live, creds, timeoutMs)).accounts;
+        base = (await realtimeAccounts(live, read)).accounts;
         source = 'realtime';
       }
 
@@ -290,15 +280,14 @@ export function createHandler(timeoutMs: number) {
           `${ROUTE}: no accounts. /authorizations reported ${connections.length} connection(s): ` +
             connections.map((c) => `${c.brokerage ?? c.id} disabled=${c.disabled}`).join(', '),
         );
-        res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=30');
-        return res.status(200).json({ accounts: [], source, connections });
+        return res.status(200).json({ linked: true, accounts: [], source, connections });
       }
 
       const accounts: ConnectedAccount[] = await Promise.all(
         base.map(async (account) => {
           const [rawBalances, rawPositions] = await Promise.all([
-            snapTradeGet(READ_ONLY_PATHS.balances(account.id), creds, timeoutMs),
-            snapTradeGet(READ_ONLY_PATHS.positions(account.id), creds, timeoutMs),
+            read(READ_ONLY_PATHS.balances(account.id)),
+            read(READ_ONLY_PATHS.positions(account.id)),
           ]);
           const balances: ConnectedBalance[] = (Array.isArray(rawBalances) ? rawBalances : [])
             .map(mapBalance)
@@ -318,16 +307,15 @@ export function createHandler(timeoutMs: number) {
         }),
       );
 
-      // A short edge cache on success only, never on an error path — an error
-      // must keep reaching this function so a real recovery shows up at once.
-      // It also keeps a demo that is being reloaded on stage well inside
-      // SnapTrade's holdings-call guidance. No stale-while-revalidate: serving
-      // an expired response while refreshing in the background is exactly the
-      // stale-data fallback this contract forbids.
-      res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60');
+      // No edge cache at all, on any path. The previous single-account demo
+      // could share its answer with everyone because everyone got the same
+      // one; this response is one named person's holdings, and the client's
+      // own short in-memory window (data/appService.ts) is where repeat reads
+      // are absorbed instead.
+      //
       // `connections` rides along on success as well, so a disabled
       // connection is still reported even when another one is working.
-      return res.status(200).json({ accounts, source, connections });
+      return res.status(200).json({ linked: true, accounts, source, connections });
     } catch (err) {
       // The classified failure the shared transport produced — same codes,
       // same body shape, as /api/news and /api/earnings.

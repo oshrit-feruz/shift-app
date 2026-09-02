@@ -6,16 +6,24 @@
  * list can simply mean the cache was never populated, and SnapTrade's manual
  * refresh is the documented way to populate it.
  *
- * That endpoint is a POST, and it is the reason it is here rather than behind
- * /api/snaptrade: that route is public and unauthenticated, and it stays
- * GET-only. This runs on your machine, with your credentials, only when you
- * ask it to.
+ * That endpoint is a POST and SnapTrade bills per call, which is why it is
+ * here rather than behind /api/snaptrade: that route is reached by any screen
+ * load, and a refresh fired from it would put the bill in the hands of whoever
+ * is pulling to refresh. This runs on your machine, with your credentials,
+ * only when you ask it to.
  *
  * The signing is imported from the app's own api/_lib/snaptrade.ts rather than
  * copied, so this cannot drift from what the route actually sends.
  *
+ * IT ACTS ON ONE USER, whose SnapTrade id and secret you supply. Connections
+ * are per-user now, so there is no "all connections" call to make — and the
+ * secret is stored sealed in public.snaptrade_users (see
+ * api/_lib/secretBox.ts), so getting one out is a deliberate act by someone
+ * with the server's encryption key, not something this script does for you.
+ *
  * Usage — from app/:
- *   SNAPTRADE_PERSONAL_CLIENT_ID=... SNAPTRADE_PERSONAL_CONSUMER_KEY=... \
+ *   SNAPTRADE_CLIENT_ID=... SNAPTRADE_CONSUMER_KEY=... \
+ *   SNAPTRADE_USER_ID=... SNAPTRADE_USER_SECRET=... \
  *     node --experimental-strip-types scripts/snaptrade-refresh.mjs
  *
  * That lists your connections and stops. It changes nothing. To actually
@@ -24,8 +32,8 @@
  *
  * Read before running with --refresh: SnapTrade's docs say "each call to this
  * endpoint incurs an additional charge", with the amount on your dashboard's
- * billing page. On the free Personal tier that may well be zero, but this
- * script will not spend your money without you typing the flag.
+ * billing page. This script will not spend your money without you typing the
+ * flag.
  */
 
 import { buildQuery, computeSignature, SNAPTRADE_BASE } from '../api/_lib/snaptrade.ts';
@@ -58,16 +66,22 @@ function safe(value) {
   return inert.length > MAX_PRINTED ? `${inert.slice(0, MAX_PRINTED)}…` : inert;
 }
 
-const clientId = process.env.SNAPTRADE_PERSONAL_CLIENT_ID;
-const consumerKey = process.env.SNAPTRADE_PERSONAL_CONSUMER_KEY;
+const clientId = process.env.SNAPTRADE_CLIENT_ID ?? process.env.SNAPTRADE_PERSONAL_CLIENT_ID;
+const consumerKey = process.env.SNAPTRADE_CONSUMER_KEY ?? process.env.SNAPTRADE_PERSONAL_CONSUMER_KEY;
+const userId = process.env.SNAPTRADE_USER_ID;
+const userSecret = process.env.SNAPTRADE_USER_SECRET;
 if (!clientId || !consumerKey) {
-  console.error('Set SNAPTRADE_PERSONAL_CLIENT_ID and SNAPTRADE_PERSONAL_CONSUMER_KEY.');
+  console.error('Set SNAPTRADE_CLIENT_ID and SNAPTRADE_CONSUMER_KEY.');
+  process.exit(1);
+}
+if (!userId || !userSecret) {
+  console.error('Set SNAPTRADE_USER_ID and SNAPTRADE_USER_SECRET — connections belong to a user.');
   process.exit(1);
 }
 
 /** One signed request. Same query-string-once rule as the route: the signature covers the exact string sent. */
 async function call(method, path) {
-  const query = buildQuery(clientId, Math.floor(Date.now() / 1000));
+  const query = buildQuery(clientId, Math.floor(Date.now() / 1000), { userId, userSecret });
   const signature = computeSignature({ path: `/api/v1${path}`, query, consumerKey });
   const res = await fetch(`${SNAPTRADE_BASE}${path}?${query}`, {
     method,
@@ -89,7 +103,7 @@ if (!connections.ok || !Array.isArray(connections.body)) {
   process.exit(1);
 }
 if (connections.body.length === 0) {
-  console.error('No connections on this key. Link a brokerage in SnapTrade first.');
+  console.error('No connections for this user. Connect a brokerage in the app first.');
   process.exit(1);
 }
 

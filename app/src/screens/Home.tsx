@@ -18,7 +18,7 @@ import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { demoService } from '../data/demoAdapter';
 import { appService } from '../data/appService';
-import { useDemoFlag } from '../data/useDemoFlag';
+import { useLinked } from '../data/useLinked';
 import { useLoadable } from '../data/useLoadable';
 import { PRICE_REFRESH_MS } from '../data/quotes';
 import { fetchWeekEarnings } from '../data/earnings';
@@ -43,14 +43,14 @@ export function HomeScreen({ openSearch }: ScreenProps) {
   );
   const setup = setupProgress(s);
   const demo = useDemoMode();
-  const live = useDemoFlag('liveAccount');
+  const live = useLinked();
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* The advisory track, first and full-bleed — see home/AdvisoryBand. */}
       <AdvisoryBand />
 
-      {/* A real connected account outranks the sample-data switch: it is
+      {/* A connected brokerage account outranks the sample-data switch: it is
           not sample data, so the hero shows even with that switch off. */}
       {beg && (live || demo ? <HeroPortfolio /> : <DemoOnly feature="home.pfToday" />)}
 
@@ -320,9 +320,9 @@ function monthLabel(iso: string, language: 'en' | 'he'): string {
 function HeroPortfolio() {
   const dispatch = useDispatch();
   const t = useT();
-  // Re-fetched when the founder-demo live-account switch flips, so the
-  // headline follows the same source as the Portfolio tab.
-  const live = useDemoFlag('liveAccount');
+  // Re-fetched when a brokerage is connected or disconnected, so the headline
+  // follows the same source as the Portfolio tab.
+  const live = useLinked();
   const portfolios = useLoadable(() => appService.portfolios(), [live]);
   // Deterministic for a given key, so compute the walk once, not per render.
   const pfSeries = useMemo(() => demoService.series('home-pf', 60, 0.42, 2.2), []);
@@ -348,9 +348,9 @@ function HeroPortfolio() {
       }
     >
       {(pfs) => {
-        // The first linked account, not a hardcoded id: with the demo
-        // switch off that is still Blink (the demo adapter lists it
-        // first), and with it on it is the real connected account, so the
+        // The first linked account, not a hardcoded id: with nothing
+        // connected that is still Blink (the demo adapter lists it first),
+        // and with a brokerage connected it is that real account, so the
         // hero follows whichever source is in effect instead of falling to
         // the "no portfolio" state.
         const main = pfs.find((x) => x.kind === 'linked');

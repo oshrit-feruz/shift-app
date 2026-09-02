@@ -2,27 +2,32 @@
  * The DataService the screens actually read.
  *
  * By default it *is* the demo adapter — every method delegates straight
- * through, so with the founder-demo switch off the app behaves exactly as it
- * did before this file existed.
+ * through, so a user who has not connected a brokerage sees exactly the app
+ * that existed before this file.
  *
- * With Settings → "הדגמה: חשבון מקושר אמיתי" on, two methods change source:
- * portfolios() and holdings() stop returning the demo adapter's invented
- * accounts and return the one REAL brokerage account read through SnapTrade
- * Personal instead (data/snaptradeAccount.ts). Everything else — symbols,
- * satellite signals, news, earnings, chart series — is untouched by the flag
- * and keeps its existing source.
+ * Once a user connects one (Connections → "connect an account", which opens
+ * SnapTrade's hosted portal), two methods change source: portfolios() and
+ * holdings() stop returning the demo adapter's invented accounts and return
+ * that person's REAL brokerage accounts instead (data/snaptradeAccount.ts).
+ * Everything else — symbols, satellite signals, news, earnings, chart series
+ * — is untouched and keeps its existing source.
  *
- * This is a founder-demo capability, not the architecture for end users: see
- * data/snaptradeAccount.ts and the README.
+ * WHAT DECIDES WHICH SOURCE. `isLinked()` (data/linkState.ts), which is the
+ * remembered answer to "has this user connected a brokerage", written only by
+ * a real response from the server. It used to be a demo switch in Settings;
+ * it is now a fact about the account, so nobody has to turn anything on to
+ * see their own money.
  *
- * DATA HONESTY: when the flag is on and the SnapTrade call fails, these
+ * DATA HONESTY: when a user IS linked and the SnapTrade call fails, these
  * methods return 'unavailable'. They never silently fall back to the demo
- * numbers — a screen promising a real account must not quietly show an
- * invented one.
+ * numbers — a screen showing a real account must not quietly show an invented
+ * one. The one case that does fall back is `linked: false`, which is not a
+ * failure at all: it is the server saying this person has connected nothing,
+ * and the app's own data is then the honest thing to show.
  */
 
 import { demoService } from './demoAdapter';
-import { DEMO_FLAGS } from './demoFlags';
+import { isLinked } from './linkState';
 import { fetchConnectedAccounts } from './snaptradeAccount';
 import { positionReturnPct } from '../lib/format';
 import type { DataService } from './service';
@@ -65,7 +70,11 @@ function connectedAccounts(): Promise<Loadable<ConnectedAccountsResult>> {
   return promise;
 }
 
-/** Drops the cache so the next read goes back to SnapTrade — used when the flag flips. */
+/**
+ * Drops the cache so the next read goes back to SnapTrade — used the moment a
+ * connection is created or revoked, where serving the previous answer for the
+ * next twenty seconds would show an account that has just been disconnected.
+ */
 export function resetConnectedAccountCache() {
   cache = null;
 }
@@ -155,6 +164,10 @@ function toHolding(position: ConnectedAccount['positions'][number]): Holding {
 async function livePortfolios(): Promise<Loadable<PortfolioSummary[]>> {
   const result = await connectedAccounts();
   if (result.status !== 'ok') return result;
+  // The remembered link state was stale — this user has connected nothing
+  // (or signed out). Not an error: fall back to the app's own portfolios,
+  // which is what someone with no brokerage connection should see.
+  if (!result.data.linked) return demoService.portfolios();
   // No account to show: a real, honest empty list. The screens render their
   // genuine empty state rather than an error or a placeholder account. Which
   // KIND of empty this is — nothing connected, or a connection reporting
@@ -185,6 +198,10 @@ async function livePortfolios(): Promise<Loadable<PortfolioSummary[]>> {
 async function liveHoldings(portfolioId: string): Promise<Loadable<Holding[]>> {
   const result = await connectedAccounts();
   if (result.status !== 'ok') return result;
+  // Same fallback as livePortfolios, and it must be the same: holdings that
+  // came from a different source than the portfolio list they hang under
+  // would be an empty account beside a full one.
+  if (!result.data.linked) return demoService.holdings(portfolioId);
   const accounts =
     portfolioId === AGGREGATE_ID
       ? result.data.accounts
@@ -201,7 +218,7 @@ async function liveHoldings(portfolioId: string): Promise<Loadable<Holding[]>> {
  */
 export const appService: DataService = {
   ...demoService,
-  portfolios: () => (DEMO_FLAGS.liveAccount ? livePortfolios() : demoService.portfolios()),
+  portfolios: () => (isLinked() ? livePortfolios() : demoService.portfolios()),
   holdings: (portfolioId: string) =>
-    DEMO_FLAGS.liveAccount ? liveHoldings(portfolioId) : demoService.holdings(portfolioId),
+    isLinked() ? liveHoldings(portfolioId) : demoService.holdings(portfolioId),
 };

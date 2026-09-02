@@ -3,6 +3,7 @@ import handler, { createHandler } from '../snaptrade.js';
 // The response stand-in is the shared one the other two route suites use —
 // a local copy of it was 28 duplicated lines for no benefit.
 import { makeRes } from './failureContract.js';
+import { seal } from './secretBox.js';
 
 function jsonResponse(body: unknown, status = 200) {
   return {
@@ -13,10 +14,55 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 const ORIGINAL_FETCH = globalThis.fetch;
-const ORIGINAL_ENV = {
-  id: process.env.SNAPTRADE_PERSONAL_CLIENT_ID,
-  key: process.env.SNAPTRADE_PERSONAL_CONSUMER_KEY,
-};
+const ENV_NAMES = [
+  'SNAPTRADE_CLIENT_ID',
+  'SNAPTRADE_CONSUMER_KEY',
+  'SNAPTRADE_PERSONAL_CLIENT_ID',
+  'SNAPTRADE_PERSONAL_CONSUMER_KEY',
+  'SNAPTRADE_SECRET_KEY',
+  'SUPABASE_URL',
+  'SUPABASE_SERVICE_ROLE_KEY',
+] as const;
+const ORIGINAL_ENV = Object.fromEntries(ENV_NAMES.map((n) => [n, process.env[n]]));
+
+const SUPABASE_URL = 'https://project.supabase.co';
+/** 32 bytes, fixed so a sealed secret written in one test opens in the next. */
+const ENC_KEY_B64 = Buffer.alloc(32, 7).toString('base64');
+/** Who the access token resolves to. Never anything the request carried. */
+const AUTH_USER_ID = '11111111-2222-3333-4444-555555555555';
+const USER_SECRET = 'snaptrade-user-secret-abc';
+
+/** A signed-in GET. The token is opaque here — Supabase is what resolves it. */
+const REQ = { method: 'GET', query: {}, headers: { authorization: 'Bearer access-token' } };
+
+/**
+ * What Supabase answers, by URL. Overridable per test so the unauthorised,
+ * unreachable and never-linked paths can each be exercised.
+ */
+let supabaseUser: () => Promise<Response> = async () => jsonResponse({ id: AUTH_USER_ID });
+let snaptradeRow: () => Promise<Response> = async () =>
+  jsonResponse([
+    { snaptrade_user_id: AUTH_USER_ID, user_secret: seal(USER_SECRET, Buffer.from(ENC_KEY_B64, 'base64')) },
+  ]);
+
+/**
+ * Installs a fetch mock that answers the session lookups itself and passes
+ * everything else to `impl`.
+ *
+ * Written this way so each test still says only what it is about: the
+ * SnapTrade responses. The two Supabase calls are the same in almost every
+ * test, and repeating them would bury the one line that differs — and because
+ * `impl` never sees them, an assertion on which URLs were requested still
+ * counts only the upstream ones.
+ */
+function upstream(impl: (input: Parameters<typeof fetch>[0], init?: RequestInit) => Promise<Response>) {
+  globalThis.fetch = vi.fn(async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+    const url = String(input);
+    if (url.startsWith(`${SUPABASE_URL}/auth/v1/user`)) return supabaseUser();
+    if (url.startsWith(`${SUPABASE_URL}/rest/v1/snaptrade_users`)) return snaptradeRow();
+    return impl(input, init);
+  });
+}
 
 const CONNECTION = {
   id: 'conn-1',
@@ -36,18 +82,27 @@ const ACCOUNT = {
 };
 
 beforeEach(() => {
-  process.env.SNAPTRADE_PERSONAL_CLIENT_ID = 'demo-client';
-  process.env.SNAPTRADE_PERSONAL_CONSUMER_KEY = 'demo-key';
+  process.env.SNAPTRADE_CLIENT_ID = 'demo-client';
+  process.env.SNAPTRADE_CONSUMER_KEY = 'demo-key';
+  process.env.SNAPTRADE_SECRET_KEY = ENC_KEY_B64;
+  process.env.SUPABASE_URL = SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
+  delete process.env.SNAPTRADE_PERSONAL_CLIENT_ID;
+  delete process.env.SNAPTRADE_PERSONAL_CONSUMER_KEY;
+  supabaseUser = async () => jsonResponse({ id: AUTH_USER_ID });
+  snaptradeRow = async () =>
+    jsonResponse([
+      { snaptrade_user_id: AUTH_USER_ID, user_secret: seal(USER_SECRET, Buffer.from(ENC_KEY_B64, 'base64')) },
+    ]);
   vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
 
 afterEach(() => {
   globalThis.fetch = ORIGINAL_FETCH;
   vi.restoreAllMocks();
-  for (const [name, value] of [
-    ['SNAPTRADE_PERSONAL_CLIENT_ID', ORIGINAL_ENV.id],
-    ['SNAPTRADE_PERSONAL_CONSUMER_KEY', ORIGINAL_ENV.key],
-  ] as const) {
+  for (const name of ENV_NAMES) {
+    const value = ORIGINAL_ENV[name];
     if (value === undefined) delete process.env[name];
     else process.env[name] = value;
   }
@@ -62,29 +117,104 @@ describe('/api/snaptrade handler', () => {
   });
 
   it('reports a missing credential as a configuration fault, without naming the variable publicly', async () => {
-    delete process.env.SNAPTRADE_PERSONAL_CONSUMER_KEY;
+    delete process.env.SNAPTRADE_CONSUMER_KEY;
     const res = makeRes();
-    await handler({ method: 'GET', query: {} }, res);
+    await handler(REQ, res);
     expect(res._status).toBe(500);
     expect((res._body as { error: string }).error).toBe('not_configured');
     expect(JSON.stringify(res._body)).not.toMatch(/CONSUMER_KEY/);
   });
 
+  it('still reads the SNAPTRADE_PERSONAL_* names a previous deployment was configured with', async () => {
+    // The single-account demo's variables. Honouring them means this change
+    // does not take a working deployment down until someone edits a dashboard.
+    delete process.env.SNAPTRADE_CLIENT_ID;
+    delete process.env.SNAPTRADE_CONSUMER_KEY;
+    process.env.SNAPTRADE_PERSONAL_CLIENT_ID = 'legacy-client';
+    process.env.SNAPTRADE_PERSONAL_CONSUMER_KEY = 'legacy-key';
+    const seen: string[] = [];
+    upstream(async (input: Parameters<typeof fetch>[0]) => {
+      seen.push(String(input));
+      return jsonResponse([]);
+    });
+    const res = makeRes();
+    await handler(REQ, res);
+    expect(res._status).toBe(200);
+    expect(seen[0]).toContain('clientId=legacy-client');
+  });
+
+  it('refuses a caller with no bearer token', async () => {
+    upstream(async () => jsonResponse([]));
+    const res = makeRes();
+    await handler({ method: 'GET', query: {} }, res);
+    expect(res._status).toBe(401);
+    expect((res._body as { error: string }).error).toBe('unauthorized');
+  });
+
+  it('refuses a token Supabase does not recognise', async () => {
+    supabaseUser = async () => jsonResponse({ msg: 'invalid JWT' }, 401);
+    upstream(async () => jsonResponse([]));
+    const res = makeRes();
+    await handler(REQ, res);
+    expect(res._status).toBe(401);
+  });
+
+  it('does not report an unverifiable session as an expired one', async () => {
+    // The distinction matters because the two ask different things of the
+    // user: "sign in again" versus "try again". Collapsing them signs someone
+    // out over a failed network hop.
+    supabaseUser = async () => {
+      throw new Error('ECONNRESET');
+    };
+    upstream(async () => jsonResponse([]));
+    const res = makeRes();
+    await handler(REQ, res);
+    expect(res._status).toBe(502);
+    expect((res._body as { error: string }).error).toBe('session_unavailable');
+  });
+
+  it('answers linked: false for a user who has connected nothing, without calling SnapTrade', async () => {
+    snaptradeRow = async () => jsonResponse([]);
+    const seen: string[] = [];
+    upstream(async (input: Parameters<typeof fetch>[0]) => {
+      seen.push(String(input));
+      return jsonResponse([]);
+    });
+    const res = makeRes();
+    await handler(REQ, res);
+    expect(res._status).toBe(200);
+    expect(res._body).toEqual({ linked: false, accounts: [], connections: [], source: 'daily' });
+    // Nothing to ask about: there is no user at SnapTrade to ask for.
+    expect(seen).toEqual([]);
+  });
+
+  it('reports a stored secret that will not decrypt, rather than calling it "not connected"', async () => {
+    // Answering "no account linked" here would invite the user to connect a
+    // second brokerage on top of a live connection they still have.
+    snaptradeRow = async () =>
+      jsonResponse([{ snaptrade_user_id: AUTH_USER_ID, user_secret: 'v1.aaa.bbb.ccc' }]);
+    upstream(async () => jsonResponse([]));
+    const res = makeRes();
+    await handler(REQ, res);
+    expect(res._status).toBe(500);
+    expect((res._body as { error: string }).error).toBe('link_unreadable');
+  });
+
   it('distinguishes unparseable account rows from a user with no accounts', async () => {
     // Both used to answer {"accounts":[]}, which sent a reader looking for a
     // brokerage connection that was in fact already there.
-    globalThis.fetch = vi.fn(async () => jsonResponse([{ name: 'no id here' }])) as unknown as typeof fetch;
+    upstream(async () => jsonResponse([{ name: 'no id here' }]));
     const res = makeRes();
-    await handler({ method: 'GET', query: {} }, res);
+    await handler(REQ, res);
     expect(res._status).toBe(502);
     expect((res._body as { error: string }).error).toBe('bad_response');
   });
 
   it('returns an honest empty list when neither the daily cache nor any connection has an account', async () => {
     // No connections and no accounts: no brokerage linked at all.
-    globalThis.fetch = vi.fn(async () => jsonResponse([])) as unknown as typeof fetch;
+    upstream(async () => jsonResponse([]));
     const res = makeRes();
-    await handler({ method: 'GET', query: {} }, res);
+    await handler(REQ, res);
     expect(res._status).toBe(200);
     // connections: 0 is the diagnostic — SnapTrade sees no connection at all
     // for this key, which is a different fault from a connection whose
@@ -98,16 +228,16 @@ describe('/api/snaptrade handler', () => {
     // The daily route never runs the per-connection fan-out, and counting
     // that fan-out there produced a response claiming one account and
     // "this connection reported 0 accounts" at the same time.
-    globalThis.fetch = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
+    upstream(async (input: Parameters<typeof fetch>[0]) => {
       const url = String(input);
       if (url.includes('/authorizations')) return jsonResponse([CONNECTION]);
       if (url.includes('/positions/all')) return jsonResponse({ results: [] });
       if (url.includes('/api/v1/accounts?')) return jsonResponse([ACCOUNT]);
       return jsonResponse([]);
-    }) as unknown as typeof fetch;
+    });
 
     const res = makeRes();
-    await handler({ method: 'GET', query: {} }, res);
+    await handler(REQ, res);
     const body = res._body as {
       accounts: unknown[];
       source: string;
@@ -125,16 +255,16 @@ describe('/api/snaptrade handler', () => {
     // with holdings of entirely unknown age. Showing those as current is the
     // same lie as serving a stale screener snapshot, and here it is money.
     const seen: string[] = [];
-    globalThis.fetch = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
+    upstream(async (input: Parameters<typeof fetch>[0]) => {
       const url = String(input);
       seen.push(new URL(url).pathname);
       if (url.includes('/authorizations')) return jsonResponse([{ ...CONNECTION, disabled: true }]);
       if (url.includes('/api/v1/accounts?')) return jsonResponse([ACCOUNT]);
       return jsonResponse([]);
-    }) as unknown as typeof fetch;
+    });
 
     const res = makeRes();
-    await handler({ method: 'GET', query: {} }, res);
+    await handler(REQ, res);
 
     const body = res._body as { accounts: unknown[]; connections: Array<{ disabled: boolean }> };
     expect(body.accounts).toEqual([]);
@@ -147,7 +277,7 @@ describe('/api/snaptrade handler', () => {
   });
 
   it("keeps a live connection's accounts when a second connection is disabled", async () => {
-    globalThis.fetch = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
+    upstream(async (input: Parameters<typeof fetch>[0]) => {
       const url = String(input);
       if (url.includes('/authorizations')) {
         return jsonResponse([CONNECTION, { ...CONNECTION, id: 'conn-dead', disabled: true }]);
@@ -157,26 +287,26 @@ describe('/api/snaptrade handler', () => {
         return jsonResponse([ACCOUNT, { ...ACCOUNT, id: 'acc-dead', brokerage_authorization: 'conn-dead' }]);
       }
       return jsonResponse([]);
-    }) as unknown as typeof fetch;
+    });
 
     const res = makeRes();
-    await handler({ method: 'GET', query: {} }, res);
+    await handler(REQ, res);
     const body = res._body as { accounts: Array<{ id: string }>; connections: unknown[] };
     expect(body.accounts.map((a) => a.id)).toEqual(['acc-1']);
     expect(body.connections).toHaveLength(2);
   });
 
   it('treats an unstated disabled flag as live rather than hiding a real account', async () => {
-    globalThis.fetch = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
+    upstream(async (input: Parameters<typeof fetch>[0]) => {
       const url = String(input);
       if (url.includes('/authorizations')) return jsonResponse([{ id: 'conn-1' }]);
       if (url.includes('/positions/all')) return jsonResponse({ results: [] });
       if (url.includes('/api/v1/accounts?')) return jsonResponse([ACCOUNT]);
       return jsonResponse([]);
-    }) as unknown as typeof fetch;
+    });
 
     const res = makeRes();
-    await handler({ method: 'GET', query: {} }, res);
+    await handler(REQ, res);
     expect((res._body as { accounts: unknown[] }).accounts).toHaveLength(1);
   });
 
@@ -184,7 +314,7 @@ describe('/api/snaptrade handler', () => {
     // The state the real IBKR connection is in: SnapTrade sees it, and the
     // brokerage returns an empty account list. Reporting that as "nothing
     // connected" sent us looking for a connection that already existed.
-    globalThis.fetch = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
+    upstream(async (input: Parameters<typeof fetch>[0]) => {
       const url = String(input);
       if (url.includes('/authorizations?')) {
         return jsonResponse([
@@ -198,10 +328,10 @@ describe('/api/snaptrade handler', () => {
         ]);
       }
       return jsonResponse([]);
-    }) as unknown as typeof fetch;
+    });
 
     const res = makeRes();
-    await handler({ method: 'GET', query: {} }, res);
+    await handler(REQ, res);
     expect(res._status).toBe(200);
     const body = res._body as { accounts: unknown[]; connections: Array<Record<string, unknown>> };
     expect(body.accounts).toEqual([]);
@@ -218,14 +348,14 @@ describe('/api/snaptrade handler', () => {
   });
 
   it('drops a connection row with no id — it cannot be queried for accounts', async () => {
-    globalThis.fetch = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
+    upstream(async (input: Parameters<typeof fetch>[0]) => {
       const url = String(input);
       if (url.includes('/authorizations?')) return jsonResponse([{ brokerage: { name: 'Ghost' } }]);
       return jsonResponse([]);
-    }) as unknown as typeof fetch;
+    });
 
     const res = makeRes();
-    await handler({ method: 'GET', query: {} }, res);
+    await handler(REQ, res);
     expect(res._body).toMatchObject({ accounts: [], connections: [] });
   });
 
@@ -233,7 +363,7 @@ describe('/api/snaptrade handler', () => {
     // /accounts is daily data, so a brokerage linked today answers [] there
     // while the connection is live. The account must still be found.
     const seen: string[] = [];
-    globalThis.fetch = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
+    upstream(async (input: Parameters<typeof fetch>[0]) => {
       const url = String(input);
       seen.push(new URL(url).pathname);
       if (url.includes('/api/v1/accounts?')) return jsonResponse([]);
@@ -241,10 +371,10 @@ describe('/api/snaptrade handler', () => {
       if (url.includes('/authorizations/conn-1/accounts')) return jsonResponse([ACCOUNT]);
       if (url.includes('/positions/all')) return jsonResponse({ results: [] });
       return jsonResponse([]);
-    }) as unknown as typeof fetch;
+    });
 
     const res = makeRes();
-    await handler({ method: 'GET', query: {} }, res);
+    await handler(REQ, res);
     expect(res._status).toBe(200);
     const body = res._body as { accounts: unknown[]; source: string };
     expect(body.accounts).toHaveLength(1);
@@ -257,22 +387,22 @@ describe('/api/snaptrade handler', () => {
     // The regression this guards: /positions/all answers an object with a
     // results array. Reading it as a bare array silently yields zero
     // positions — invented emptiness, with no error anywhere.
-    globalThis.fetch = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
+    upstream(async (input: Parameters<typeof fetch>[0]) => {
       const url = String(input);
       if (url.includes('/positions/all')) return jsonResponse([{ instrument: { symbol: 'AAPL' } }]);
       if (url.includes('/balances')) return jsonResponse([]);
       return jsonResponse([ACCOUNT]);
-    }) as unknown as typeof fetch;
+    });
 
     const res = makeRes();
-    await handler({ method: 'GET', query: {} }, res);
+    await handler(REQ, res);
     expect(res._status).toBe(502);
     expect((res._body as { error: string }).error).toBe('bad_response');
   });
 
   it('fetches accounts, balances and positions and never touches a trading path', async () => {
     const seen: string[] = [];
-    globalThis.fetch = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
+    upstream(async (input: Parameters<typeof fetch>[0]) => {
       const url = String(input);
       seen.push(url);
       if (url.includes('/positions/all')) {
@@ -284,10 +414,10 @@ describe('/api/snaptrade handler', () => {
       if (url.includes('/balances')) return jsonResponse([{ currency: { code: 'USD' }, cash: 42 }]);
       if (url.includes('/authorizations')) return jsonResponse([CONNECTION]);
       return jsonResponse([ACCOUNT]);
-    }) as unknown as typeof fetch;
+    });
 
     const res = makeRes();
-    await handler({ method: 'GET', query: {} }, res);
+    await handler(REQ, res);
 
     expect(res._status).toBe(200);
     const { accounts } = res._body as { accounts: Array<Record<string, unknown>> };
@@ -320,26 +450,31 @@ describe('/api/snaptrade handler', () => {
     }
   });
 
-  it('never sends userId or userSecret, and never leaks the consumer key into the URL', async () => {
+  it("carries the caller's own SnapTrade user, and never the consumer key, in the URL", async () => {
     const seen: string[] = [];
-    globalThis.fetch = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
+    upstream(async (input: Parameters<typeof fetch>[0]) => {
       seen.push(String(input));
       return jsonResponse([]);
-    }) as unknown as typeof fetch;
+    });
 
-    await handler({ method: 'GET', query: {} }, makeRes());
+    await handler(REQ, makeRes());
     expect(seen[0]).toMatch(/clientId=demo-client&timestamp=\d+/);
-    expect(seen[0]).not.toMatch(/userId|userSecret|demo-key/);
+    // The user pair is what scopes the read to one person. It comes from the
+    // stored link, which came from the verified token.
+    expect(seen[0]).toContain(`userId=${AUTH_USER_ID}`);
+    expect(seen[0]).toContain(`userSecret=${USER_SECRET}`);
+    // The consumer key only ever keys the signature; it never travels.
+    expect(seen[0]).not.toContain('demo-key');
   });
 
   it('sends the signature as a header, not a query parameter', async () => {
     let init: RequestInit | undefined;
-    globalThis.fetch = vi.fn(async (_input: Parameters<typeof fetch>[0], i?: RequestInit) => {
+    upstream(async (_input: Parameters<typeof fetch>[0], i?: RequestInit) => {
       init = i;
       return jsonResponse([]);
-    }) as unknown as typeof fetch;
+    });
 
-    await handler({ method: 'GET', query: {} }, makeRes());
+    await handler(REQ, makeRes());
     expect((init?.headers as Record<string, string>).Signature).toMatch(/^[A-Za-z0-9+/]+=*$/);
     // The shared transport leaves the verb unset, which fetch defaults to
     // GET. What matters is that it is never a mutating one.
@@ -348,29 +483,33 @@ describe('/api/snaptrade handler', () => {
 
   it('ignores caller-supplied query parameters — the upstream path is never caller-steered', async () => {
     const seen: string[] = [];
-    globalThis.fetch = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
+    upstream(async (input: Parameters<typeof fetch>[0]) => {
       seen.push(String(input));
       return jsonResponse([]);
-    }) as unknown as typeof fetch;
+    });
 
     await handler(
-      { method: 'GET', query: { path: '/trade/place-order', accountId: '../../evil' } },
+      { ...REQ, query: { path: '/trade/place-order', accountId: '../../evil', userId: 'someone-else' } },
       makeRes(),
     );
     // Two calls: the daily list, then the empty-cache fallback. Both are
     // paths from READ_ONLY_PATHS, neither carries anything the caller sent.
     expect(seen.map((u) => new URL(u).pathname)).toEqual(['/api/v1/authorizations', '/api/v1/accounts']);
     for (const url of seen) {
-      expect(new URL(url).search).toMatch(/^\?clientId=demo-client&timestamp=\d+$/);
+      // The userId is the one the token resolved to — NOT the 'someone-else'
+      // the caller put in the query. That is the whole security property of
+      // this route, asserted rather than assumed.
+      expect(new URL(url).search).toBe(
+        `?clientId=demo-client&timestamp=${new URL(url).searchParams.get('timestamp')}` +
+          `&userId=${AUTH_USER_ID}&userSecret=${USER_SECRET}`,
+      );
     }
   });
 
   it('maps a 401 to a credentials fault rather than an empty account list', async () => {
-    globalThis.fetch = vi.fn(async () =>
-      jsonResponse({ detail: 'bad signature' }, 401),
-    ) as unknown as typeof fetch;
+    upstream(async () => jsonResponse({ detail: 'bad signature' }, 401));
     const res = makeRes();
-    await handler({ method: 'GET', query: {} }, res);
+    await handler(REQ, res);
     expect(res._status).toBe(502);
     // The shared upstream taxonomy, so this route reports a rejected key the
     // same way /api/news and /api/earnings do.
@@ -379,34 +518,34 @@ describe('/api/snaptrade handler', () => {
   });
 
   it('maps a 429 to a rate-limited error', async () => {
-    globalThis.fetch = vi.fn(async () => jsonResponse({}, 429)) as unknown as typeof fetch;
+    upstream(async () => jsonResponse({}, 429));
     const res = makeRes();
-    await handler({ method: 'GET', query: {} }, res);
+    await handler(REQ, res);
     expect((res._body as { error: string }).error).toBe('upstream_rate_limited');
   });
 
   it('reports a network failure as unavailable instead of returning stale or invented holdings', async () => {
-    globalThis.fetch = vi.fn(async () => {
+    upstream(async () => {
       throw new Error('ECONNRESET');
-    }) as unknown as typeof fetch;
+    });
     const res = makeRes();
-    await handler({ method: 'GET', query: {} }, res);
+    await handler(REQ, res);
     expect(res._status).toBe(502);
     expect((res._body as { error: string }).error).toBe('upstream_unavailable');
     expect(res._body).not.toHaveProperty('accounts');
   });
 
   it('reports an unexpected upstream shape rather than guessing at it', async () => {
-    globalThis.fetch = vi.fn(async () => jsonResponse({ accounts: 'nope' })) as unknown as typeof fetch;
+    upstream(async () => jsonResponse({ accounts: 'nope' }));
     const res = makeRes();
-    await handler({ method: 'GET', query: {} }, res);
+    await handler(REQ, res);
     expect(res._status).toBe(502);
     expect((res._body as { error: string }).error).toBe('bad_response');
   });
 
   it('times out a stalled upstream and reports it, with no success cache header', async () => {
     const slow = createHandler(10);
-    globalThis.fetch = vi.fn(
+    upstream(
       (_input: Parameters<typeof fetch>[0], init?: RequestInit) =>
         new Promise((_resolve, reject) => {
           // A real fetch rejects with a DOMException named AbortError, which
@@ -415,29 +554,31 @@ describe('/api/snaptrade handler', () => {
           init?.signal?.addEventListener('abort', () =>
             reject(new DOMException('The operation was aborted.', 'AbortError')),
           );
-        }),
-    ) as unknown as typeof fetch;
+        }) as Promise<Response>,
+    );
 
     const res = makeRes();
-    await slow({ method: 'GET', query: {} }, res);
+    await slow(REQ, res);
     expect(res._status).toBe(502);
     // A timeout is reported as a timeout, not as an unreachable host — the
     // two are different operational facts.
     expect((res._body as { error: string }).error).toBe('upstream_timeout');
-    expect(res._headers['Cache-Control']).toBeUndefined();
+    expect(res._headers['Cache-Control']).toBe('private, no-store');
   });
 
-  it('caches a successful response briefly, without stale-while-revalidate', async () => {
-    globalThis.fetch = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
+  it('never lets a per-user response into a shared cache', async () => {
+    upstream(async (input: Parameters<typeof fetch>[0]) => {
       const url = String(input);
       if (url.includes('/positions/all')) return jsonResponse({ results: [] });
       if (url.includes('/authorizations')) return jsonResponse([CONNECTION]);
       if (url.includes('/api/v1/accounts?')) return jsonResponse([ACCOUNT]);
       return jsonResponse([]);
-    }) as unknown as typeof fetch;
+    });
     const res = makeRes();
-    await handler({ method: 'GET', query: {} }, res);
-    expect(res._headers['Cache-Control']).toBe('public, max-age=0, s-maxage=60');
-    expect(res._headers['Cache-Control']).not.toMatch(/stale-while-revalidate/);
+    await handler(REQ, res);
+    // The previous single-account demo could be cached at the edge because
+    // everyone got the same answer. This one is one named person's holdings.
+    expect(res._headers['Cache-Control']).toBe('private, no-store');
+    expect(res._headers['Cache-Control']).not.toMatch(/public|s-maxage/);
   });
 });

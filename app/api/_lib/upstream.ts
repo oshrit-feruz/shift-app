@@ -140,11 +140,23 @@ export async function fetchUpstreamJson(
    * routes are unaffected.
    */
   headers?: Record<string, string>,
+  /**
+   * Method and body for the requests that are not GETs. Only SnapTrade's
+   * account-linking calls use it — registering a user, opening the connection
+   * portal, and deleting a user again — and every one of those is about the
+   * link itself, never about the money behind it. The default is the plain GET
+   * the other routes send.
+   */
+  init?: { method?: string; body?: string },
 ): Promise<UpstreamResult> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetchImpl(url, { signal: controller.signal, ...(headers ? { headers } : {}) });
+    const res = await fetchImpl(url, {
+      signal: controller.signal,
+      ...(headers ? { headers } : {}),
+      ...(init ?? {}),
+    });
     if (!res.ok) {
       console.error(`${route}: upstream returned ${res.status}`);
       return { ok: false, failure: classifyUpstreamStatus(res.status, provider) };

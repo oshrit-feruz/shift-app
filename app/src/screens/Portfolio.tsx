@@ -22,7 +22,7 @@ import { useToast } from '../components/Toast';
 import { useLedger } from '../state/useLedgerSync';
 import { demoService } from '../data/demoAdapter';
 import { appService } from '../data/appService';
-import { useDemoFlag } from '../data/useDemoFlag';
+import { useLinked } from '../data/useLinked';
 import { loading, ok, unavailable, type Holding, type Loadable } from '../data/types';
 import { useLoadable } from '../data/useLoadable';
 import { isoDate, money, moneyOrDash, pctOrDash, signalColor, signedCurrency } from '../lib/format';
@@ -48,11 +48,11 @@ export function PortfolioScreen(_: ScreenProps) {
   // In the deps so flipping the switch re-reads, and gating the fetch itself:
   // every account this screen used to list was a demo account.
   const demo = useDemoMode();
-  // A real connected account outranks the sample-data switch — it is not
-  // sample data. appService routes to SnapTrade when the flag is on and to
-  // the demo adapter when it is off; both flags sit in the deps so either
-  // flip re-reads.
-  const live = useDemoFlag('liveAccount');
+  // A connected brokerage account outranks the sample-data switch — it is
+  // not sample data. appService routes to SnapTrade for a user who has
+  // connected one and to the demo adapter for everyone else; both sit in the
+  // deps so connecting, disconnecting or flipping sample data re-reads.
+  const live = useLinked();
   const portfolios = useLoadable(() => appService.portfolios(), [demo, live]);
   const [txOpen, setTxOpen] = useState(false);
   // The row being corrected, or null for a new one. Held here rather than in

@@ -2,6 +2,7 @@ import { demoService } from '../data/demoAdapter';
 import { appService } from '../data/appService';
 import { fetchQuotes } from '../data/quotes';
 import { DEMO_FLAGS } from '../data/demoFlags';
+import { isLinked } from '../data/linkState';
 import { ok, unavailable, type Loadable } from '../data/types';
 import type { Holding, PortfolioSummary, Quote } from '../data/types';
 import { buildPositions, valuePositions, type PortfolioValuation } from './positions';
@@ -137,9 +138,9 @@ export async function fetchYourPositions(
   manualTransactions: Record<string, ManualTransaction[]>,
   manualPortfolios: ManualPortfolio[] = [],
 ): Promise<Loadable<TickerPosition[]>> {
-  // A real connected account outranks both demo paths: it is the one source
-  // here that is neither sample data nor absent.
-  const pfs = DEMO_FLAGS.liveAccount
+  // A connected brokerage account outranks both demo paths: it is the one
+  // source here that is neither sample data nor absent.
+  const pfs = isLinked()
     ? await appService.portfolios()
     : DEMO_FLAGS.demoData
       ? await demoService.portfolios()
@@ -152,7 +153,7 @@ export async function fetchYourPositions(
   const eligible = all.filter((pf) => pf.kind !== 'aggregate');
   const settled = await Promise.all(
     eligible.map((pf) =>
-      DEMO_FLAGS.liveAccount
+      isLinked()
         ? appService.holdings(pf.id)
         : DEMO_FLAGS.demoData
           ? demoService.holdings(pf.id)

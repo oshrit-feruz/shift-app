@@ -980,31 +980,52 @@ export const STRINGS = {
   'set.deleteCancel': p('Cancel', 'ביטול'),
   'set.deleting': p('Deleting…', 'מוחק…'),
   'set.deleteFailedTitle': p('The account was not deleted', 'החשבון לא נמחק'),
-  // ── Connected account (founder demo, SnapTrade Personal) ──────────────
-  // A demo-only, single-account, read-only integration. Every string here is
-  // written to make that scope unmistakable — nothing may read as a feature
-  // an end user can use today.
+  // ── Connected account (the user's own brokerage, read-only) ───────────
+  // A real feature: each user connects their own account, in SnapTrade's
+  // hosted portal, with read permission only. Every string here is written to
+  // keep two things unmistakable — the app cannot trade, and it never sees a
+  // brokerage password.
   'title.snaptrade': p('Connected account', 'חשבון מקושר'),
-  'kicker.snaptrade': p('Demo · read-only', 'הדגמה · קריאה בלבד'),
-  'live.title': p('Connected account (demo)', 'חשבון מקושר (הדגמה)'),
+  'kicker.snaptrade': p('Read-only', 'קריאה בלבד'),
+  'live.title': p('Connected account', 'חשבון מקושר'),
   'live.badge': p('Real data', 'נתונים אמיתיים'),
   'live.intro': p(
-    "One real brokerage account, read live and read-only through SnapTrade. This is a founder demo on SnapTrade's free Personal tier — a single account, not account linking for users.",
-    'חשבון ברוקר אמיתי אחד, נקרא בזמן אמת ובקריאה בלבד דרך SnapTrade. זו הדגמה של המייסדת בשכבת Personal החינמית של SnapTrade — חשבון בודד, לא חיבור חשבונות למשתמשים.',
-  ),
-  'live.notForUsers': p(
-    "Not available to users. Multi-user account linking would need SnapTrade's Commercial tier with KYC and billing — a separate decision that has not been made.",
-    'לא זמין למשתמשים. חיבור חשבונות לריבוי משתמשים ידרוש את שכבת Commercial של SnapTrade עם KYC וחיוב — החלטה נפרדת שטרם התקבלה.',
+    'Your own brokerage account, read live through SnapTrade. Every figure below comes from the brokerage.',
+    'חשבון הברוקר שלך, נקרא בזמן אמת דרך SnapTrade. כל נתון כאן מגיע מהברוקר.',
   ),
   'live.readOnly': p(
-    'Read-only: balances and positions only. No trading endpoint is ever called.',
-    'קריאה בלבד: יתרות ופוזיציות בלבד. לא מתבצעת שום קריאה לממשק מסחר.',
+    'Read-only: balances and positions only. Shift cannot place orders, move money, or see your brokerage password.',
+    'קריאה בלבד: יתרות ופוזיציות בלבד. Shift אינה יכולה לבצע פעולות, להעביר כספים או לראות את הסיסמה שלך אצל הברוקר.',
   ),
   'live.none': p('No brokerage account connected yet.', 'עדיין לא מקושר חשבון ברוקר.'),
   'live.noneHelp': p(
-    "Connect one in SnapTrade's own Connection Portal and it will appear here. Nothing is shown until a real account is linked.",
-    'אפשר לקשר חשבון בפורטל החיבורים של SnapTrade והוא יופיע כאן. עד שיקושר חשבון אמיתי לא יוצג דבר.',
+    'Connecting one takes a minute: you approve a read-only connection at your brokerage, and the account appears here. Nothing is shown until you do.',
+    'החיבור לוקח דקה: מאשרים חיבור לקריאה בלבד אצל הברוקר, והחשבון מופיע כאן. עד אז לא מוצג דבר.',
   ),
+  // ── Connecting and disconnecting ──────────────────────────────────────
+  'link.title': p('Connect a brokerage account', 'חיבור חשבון ברוקר'),
+  'link.help': p(
+    'See your real positions and balances in Shift. You sign in at your own brokerage through SnapTrade, our connection provider — Shift never sees those details.',
+    'כדי לראות את הפוזיציות והיתרות האמיתיות שלך ב-Shift. ההתחברות מתבצעת אצל הברוקר שלך דרך SnapTrade, ספק החיבורים שלנו — Shift אינה רואה את פרטי ההתחברות.',
+  ),
+  'link.permission': p(
+    'You grant read permission only. It can be disconnected at any time, from this screen.',
+    'ההרשאה שניתנת היא לקריאה בלבד. אפשר לנתק בכל רגע, מהמסך הזה.',
+  ),
+  'link.cta': p('Connect an account', 'חיבור חשבון'),
+  'link.opening': p('Opening the secure portal…', 'פותחים את הפורטל המאובטח…'),
+  'link.failedTitle': p('The connection could not be started', 'לא הצלחנו להתחיל את החיבור'),
+  'link.signedOut': p('Sign in to connect an account.', 'יש להתחבר כדי לקשר חשבון.'),
+  'link.disconnect': p('Disconnect account', 'ניתוק החשבון'),
+  'link.disconnectTitle': p('Disconnect this account?', 'לנתק את החשבון?'),
+  'link.disconnectWarn': p(
+    'The connection to your brokerage is revoked, at the brokerage and here, and the stored access is deleted. Your positions stop appearing in Shift. Nothing in your brokerage account itself changes, and you can connect again later.',
+    'החיבור לברוקר מבוטל, אצל הברוקר וגם כאן, והגישה השמורה נמחקת. הפוזיציות שלך יפסיקו להופיע ב-Shift. שום דבר בחשבון עצמו אצל הברוקר לא משתנה, ואפשר לחבר אותו מחדש בהמשך.',
+  ),
+  'link.disconnectConfirm': p('Disconnect', 'לנתק'),
+  'link.disconnectCancel': p('Cancel', 'ביטול'),
+  'link.disconnecting': p('Disconnecting…', 'מנתקים…'),
+  'link.disconnectFailedTitle': p('The account was not disconnected', 'החשבון לא נותק'),
   'live.balances': p('Balances', 'יתרות'),
   'live.positions': p('Positions', 'פוזיציות'),
   'live.noPositions': p('This account holds no positions.', 'בחשבון הזה אין פוזיציות.'),
@@ -1032,11 +1053,6 @@ export const STRINGS = {
     'The brokerage did not price these positions, so no allocation can be shown.',
     'הברוקר לא תמחר את הפוזיציות, ולכן לא ניתן להציג פילוח.',
   ),
-  'live.setting': p('Demo: real connected account', 'הדגמה: חשבון מקושר אמיתי'),
-  'live.settingHelp': p(
-    'Off shows the app exactly as it is today, with demo accounts. On replaces them with the one real brokerage account read through SnapTrade. Founder demo only.',
-    'כבוי מציג את האפליקציה בדיוק כפי שהיא היום, עם חשבונות הדגמה. דלוק מחליף אותם בחשבון הברוקר האמיתי היחיד שנקרא דרך SnapTrade. להדגמת המייסדת בלבד.',
-  ),
   'live.freshRealtime': p('Read from the brokerage just now', 'נקרא מהברוקר ממש עכשיו'),
   'live.freshDaily': p("SnapTrade's daily snapshot", 'תמונת המצב היומית של SnapTrade'),
   'live.asOf': p('Brokerage data fetched {when}', 'נתוני הברוקר נקראו {when}'),
@@ -1045,7 +1061,7 @@ export const STRINGS = {
     'מקושר ל-{broker}, אך הברוקר אינו מדווח על אף חשבון.',
   ),
   'live.connectedNoAccountsHelp': p(
-    'The connection is live, so this is what SnapTrade currently holds for it. Some brokerages — Interactive Brokers among them — deliver data through a scheduled report feed rather than a live API, and that feed can take a day or two to start after it is first enabled. Check that the reporting service is switched on at the broker.',
+    'The connection is live, so this is what SnapTrade currently holds for it. Some brokerages — Interactive Brokers among them — deliver data through a scheduled report feed rather than a live API, and that feed can take a day or two to start after it is first enabled. Check that the reporting service is switched on at your broker.',
     'החיבור פעיל, ולכן זה מה ש-SnapTrade מחזיקה עבורו כרגע. חלק מהברוקרים — ובהם Interactive Brokers — מעבירים נתונים דרך דוח מתוזמן ולא דרך API חי, והזנת הדוח הזו יכולה להתחיל רק יום-יומיים אחרי שמפעילים אותה לראשונה. כדאי לוודא ששירות הדיווח מופעל אצל הברוקר.',
   ),
   'live.connectedNoAccountsDelayed': p(
@@ -1107,8 +1123,8 @@ export const STRINGS = {
     'Opens in its own window, without browser chrome.',
     'נפתחת בחלון משלה, בלי סרגלי הדפדפן.',
   ),
-  'more.snaptrade': p('Connected account (demo)', 'חשבון מקושר (הדגמה)'),
-  'more.snaptradeHelp': p('One real account, read-only', 'חשבון אמיתי אחד, קריאה בלבד'),
+  'more.snaptrade': p('Connected account', 'חשבון מקושר'),
+  'more.snaptradeHelp': p('Your brokerage, read-only', 'הברוקר שלך, קריאה בלבד'),
 } as const;
 
 export type StringKey = keyof typeof STRINGS;

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Card, CardTitle } from '../components/Card';
 import { Tag } from '../components/Tag';
 import { Num } from '../components/Num';
@@ -5,7 +6,11 @@ import { ListRow, RowValues } from '../components/ListRow';
 import { DataState, EmptyState } from '../components/DataState';
 import { SkeletonCard } from '../components/Skeleton';
 import { useLoadable } from '../data/useLoadable';
+import { useLinked } from '../data/useLinked';
 import { fetchConnectedAccounts } from '../data/snaptradeAccount';
+import { ConnectBrokerage } from '../components/ConnectBrokerage';
+import { DisconnectBrokerageSheet } from '../sheets/DisconnectBrokerageSheet';
+import { Button } from '../components/Button';
 import type { ConnectedAccount, ConnectedConnection, ConnectedPosition } from '../data/types';
 import { useT } from '../i18n/useT';
 import { useTheme } from '../theme/ThemeProvider';
@@ -13,15 +18,16 @@ import { money, pct, positionReturnPct, signalColor } from '../lib/format';
 import type { ScreenProps } from '../App';
 
 /**
- * "חשבון מקושר (הדגמה)" — the founder-demo screen.
+ * "חשבון מקושר" — the user's own brokerage account, read-only.
  *
- * It shows ONE real brokerage account, read live and read-only through
- * SnapTrade's free Personal tier. It is deliberately its own screen with its
- * own framing rather than a card folded into the portfolio: the point it
- * makes ("we can connect to a real brokerage account and read it") is a
- * different claim from the Core-Satellite recommendation or the Recovery
- * Detector's signals, and mixing it into either would blur what is real,
- * what is modelled and what is demo data.
+ * It is deliberately its own screen with its own framing rather than a card
+ * folded into the portfolio: what it shows is neither a recommendation nor a
+ * model but a direct read of somebody's money, and mixing it into either
+ * would blur what is real, what is modelled and what is sample data.
+ *
+ * It is also where the connection is managed, because that is where someone
+ * looks when they want it gone. Connecting and disconnecting live next to the
+ * figures they produce, not in a settings page two taps away.
  *
  * Every number here comes from the brokerage or is absent. A field the
  * brokerage did not report renders as "—" and the card says so; nothing is
@@ -29,7 +35,11 @@ import type { ScreenProps } from '../App';
  */
 export function ConnectedAccountScreen(_: ScreenProps) {
   const t = useT();
-  const accounts = useLoadable(() => fetchConnectedAccounts(), []);
+  const linked = useLinked();
+  const [disconnectOpen, setDisconnectOpen] = useState(false);
+  // Re-read when the link is created or revoked, so the screen follows the
+  // connection rather than the state it was mounted in.
+  const accounts = useLoadable(() => fetchConnectedAccounts(), [linked]);
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
@@ -57,12 +67,14 @@ export function ConnectedAccountScreen(_: ScreenProps) {
             color: 'var(--muted)',
           }}
         >
-          {t('live.notForUsers')}
-        </p>
-        <p className="text-muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.55 }}>
           {t('live.readOnly')}
         </p>
       </Card>
+
+      {/* Nothing connected: the one thing this screen can usefully offer is
+          the way to connect something, so it is the whole screen rather than
+          a footnote under an empty state. */}
+      {!linked && <ConnectBrokerage />}
 
       <DataState
         state={accounts.state}
@@ -120,6 +132,15 @@ export function ConnectedAccountScreen(_: ScreenProps) {
           })()
         }
       </DataState>
+
+      {/* Only where there is something to revoke. Opening the sheet is all
+          this does; nothing is disconnected from this tap. */}
+      {linked && (
+        <Button variant="danger" alignSelf="flex-start" fontSize={16} onClick={() => setDisconnectOpen(true)}>
+          {t('link.disconnect')}
+        </Button>
+      )}
+      <DisconnectBrokerageSheet open={disconnectOpen} onClose={() => setDisconnectOpen(false)} />
     </div>
   );
 }

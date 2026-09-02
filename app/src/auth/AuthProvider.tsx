@@ -3,6 +3,9 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { loading, ok, unavailable, type Loadable } from '../data/types';
 import { readProfile, type UserProfile } from './profile';
+import { clearLinked } from '../data/linkState';
+import { disconnectBrokerage } from '../data/snaptradeAccount';
+import { resetConnectedAccountCache } from '../data/appService';
 
 /**
  * Auth state for the whole app, following the honest-status contract:
@@ -125,12 +128,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut: async () => {
         if (!supabase) return;
         await supabase.auth.signOut();
+        // The next person to open this browser is not this one. Forgetting
+        // whether a brokerage was connected keeps a connected-account entry
+        // from being offered to someone who has no account, and drops the
+        // cached answer that entry was built from.
+        clearLinked();
+        resetConnectedAccountCache();
       },
       deleteAccount: async (): Promise<DeleteResult> => {
         if (!supabase) return { ok: false, reason: NOT_CONFIGURED };
         const { data } = await supabase.auth.getSession();
         const token = data.session?.access_token;
         if (!token) return { ok: false, reason: DELETE_FAILED };
+        // Revoke the brokerage connection BEFORE the account goes, while
+        // there is still a session to authorise it with. Deleting the user
+        // cascades the stored secret away, which would leave a live
+        // read connection at SnapTrade that nothing left here could revoke.
+        // Its failure is not fatal to the deletion — the account is the
+        // user's to remove either way, and reconnecting later resets a
+        // divergent link (see api/snaptrade-link.ts) — but it is attempted
+        // first, every time.
+        await disconnectBrokerage();
         let body: unknown = null;
         try {
           const response = await fetch('/api/delete-account', {
@@ -153,6 +171,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // keeps rendering as though the user still exists until the token
         // happens to expire.
         await supabase.auth.signOut();
+        clearLinked();
+        resetConnectedAccountCache();
         return { ok: true };
       },
       clearSignInError: () => setSignInError(null),

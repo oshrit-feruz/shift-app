@@ -8,13 +8,14 @@ import { InstitutionRows } from './advisory/InstitutionRows';
 import { NewPortfolioSheet } from '../sheets/NewPortfolioSheet';
 import { DataState, EmptyState } from '../components/DataState';
 import { SkeletonList } from '../components/Skeleton';
-import { useDemoFlag } from '../data/useDemoFlag';
+import { useLinked } from '../data/useLinked';
 import { useLoadable } from '../data/useLoadable';
 import { fetchConnectedAccounts } from '../data/snaptradeAccount';
 import { useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { money } from '../lib/format';
+import { ConnectBrokerage } from '../components/ConnectBrokerage';
 import { DemoOnly } from '../components/DemoOnly';
 import { useDemoMode } from '../lib/DemoModeProvider';
 import type { ScreenProps } from '../App';
@@ -46,14 +47,14 @@ const LINKED = [
 export function ConnectionsScreen(_: ScreenProps) {
   const { language } = useTheme();
   const t = useT();
-  const live = useDemoFlag('liveAccount');
+  const live = useLinked();
   const [newPfOpen, setNewPfOpen] = useState(false);
   const demo = useDemoMode();
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-      {/* A real connected account outranks the sample-data switch: it is not
-          sample data, so it shows even with that switch off. */}
+      {/* A connected brokerage account outranks the sample-data switch: it
+          is not sample data, so it shows even with that switch off. */}
       {live || demo ? (
         <>
           <Card padding={13} gap={5}>
@@ -63,8 +64,10 @@ export function ConnectionsScreen(_: ScreenProps) {
             </p>
           </Card>
 
-          {/* With the founder-demo switch on, the three demo brokers
-              give way to the one real account read through SnapTrade. */}
+          {/* Once a real account is connected, the three sample brokers give
+              way to it. They are illustrations of what this list looks like
+              full; a real account is the thing itself, and the two must never
+              appear in the same list. */}
           {live ? (
             <LiveLinkedAccounts />
           ) : (
@@ -125,6 +128,11 @@ export function ConnectionsScreen(_: ScreenProps) {
         <DemoOnly feature="connScreen.linked" />
       )}
 
+      {/* The way in. Only where there is nothing connected yet — with an
+          account linked, the connection is managed on its own screen, next to
+          the figures it produces. */}
+      {!live && <ConnectBrokerage />}
+
       <Card padding="4px 0" gap={0}>
         <CardTitle>
           <span style={{ display: 'block', padding: '9px 13px 2px', fontSize: 'var(--text-title)' }}>
@@ -174,14 +182,14 @@ export function ConnectionsScreen(_: ScreenProps) {
 }
 
 /**
- * The real connected account in the linked-accounts list, in place of the
- * demo brokers.
+ * The user's real connected accounts in the linked-accounts list, in place of
+ * the sample brokers.
  *
- * The row carries the same "real data" framing as the dedicated demo screen
- * and links to it, so a total shown here can always be traced to the
- * per-field view that marks what the brokerage did not report. Loading,
- * unavailable and "nothing connected yet" are all rendered honestly — a
- * failure here never falls back to the demo rows above.
+ * Each row links to the connected-account screen, so a total shown here can
+ * always be traced to the per-field view that marks what the brokerage did
+ * not report. Loading, unavailable and "nothing connected yet" are all
+ * rendered honestly — a failure here never falls back to the sample rows
+ * above.
  */
 function LiveLinkedAccounts() {
   const t = useT();
