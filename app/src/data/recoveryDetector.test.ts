@@ -129,6 +129,10 @@ describe('extractPolicy / extractStockRadar — the engine’s sizing rule', () 
       { sleeve_pct_of_budget: 0, max_sleeves: 10 },
       { sleeve_pct_of_budget: 150, max_sleeves: 10 },
       { sleeve_pct_of_budget: 10, max_sleeves: 0 },
+      // A cap below one name once floored, and slices that would put more
+      // than the whole sleeve to work.
+      { sleeve_pct_of_budget: 10, max_sleeves: 0.5 },
+      { sleeve_pct_of_budget: 60, max_sleeves: 2 },
       { sleeve_pct_of_budget: 'ten', max_sleeves: 10 },
       { max_sleeves: 10 },
       [],

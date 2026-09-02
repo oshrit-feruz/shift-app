@@ -186,8 +186,19 @@ export function extractPolicy(body: unknown): SatellitePolicy | null {
   const sleevePctOfBudget = pickNumber(policy, ['sleeve_pct_of_budget']);
   const maxSleeves = pickNumber(policy, ['max_sleeves']);
   if (sleevePctOfBudget === null || maxSleeves === null) return null;
-  if (sleevePctOfBudget <= 0 || sleevePctOfBudget > 100 || maxSleeves < 1) return null;
-  return { sleevePctOfBudget, maxSleeves: Math.floor(maxSleeves) };
+  // The cap is a count of names, so it is floored before it is judged: a cap
+  // of 0.5 is a cap of 0. And the slices must fit the budget they are cut
+  // from — a 60% slice with a cap of 2 would put 120% of the sleeve to work.
+  const cappedSleeves = Math.floor(maxSleeves);
+  if (
+    sleevePctOfBudget <= 0 ||
+    sleevePctOfBudget > 100 ||
+    cappedSleeves < 1 ||
+    sleevePctOfBudget * cappedSleeves > 100
+  ) {
+    return null;
+  }
+  return { sleevePctOfBudget, maxSleeves: cappedSleeves };
 }
 
 /**

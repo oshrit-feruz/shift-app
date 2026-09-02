@@ -332,57 +332,64 @@ function RadarCard({ amount, pct }: Readonly<{ amount: number; pct: number }>) {
                   centres under the one above it instead of hanging off the
                   leading edge with a hole beside it. */}
               <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: TILE_GAP }}>
-                {signals.slice(0, TILES).map((x) => (
-                  <div
-                    key={x.ticker}
-                    style={{
-                      flex: `0 0 calc((100% - ${(TILE_COLUMNS - 1) * TILE_GAP}px) / ${TILE_COLUMNS})`,
-                      minWidth: 0,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: 5,
-                      padding: '10px 4px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--color-divider)',
-                      background: 'var(--sunk)',
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}
+                {signals.slice(0, TILES).map((x, i) => {
+                  // The policy caps how many names get a slice. A name past
+                  // the cap is still information the engine published, so it
+                  // keeps its tile — but with the price, not an amount, and
+                  // without a buy button: nothing of the sleeve is put on it.
+                  const sized = sizing !== null && i < sizing.names;
+                  return (
+                    <div
+                      key={x.ticker}
                       style={{
+                        flex: `0 0 calc((100% - ${(TILE_COLUMNS - 1) * TILE_GAP}px) / ${TILE_COLUMNS})`,
+                        minWidth: 0,
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
                         gap: 5,
-                        minHeight: 44,
-                        border: 0,
-                        padding: 0,
-                        background: 'transparent',
-                        color: 'inherit',
-                        font: 'inherit',
-                        cursor: 'pointer',
+                        padding: '10px 4px',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--color-divider)',
+                        background: 'var(--sunk)',
                       }}
                     >
-                      <TickerTile ticker={x.ticker} size={28} />
-                      {/* With a sleeve and a policy, the tile leads with the
+                      <button
+                        type="button"
+                        onClick={() => dispatch({ type: 'openStock', ticker: x.ticker })}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: 5,
+                          minHeight: 44,
+                          border: 0,
+                          padding: 0,
+                          background: 'transparent',
+                          color: 'inherit',
+                          font: 'inherit',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <TickerTile ticker={x.ticker} size={28} />
+                        {/* With a sleeve and a policy, the tile leads with the
                         engine's slice of it; otherwise with the name and the
                         live price. A missing price renders as an em dash —
                         never guessed, never back-filled. */}
-                      <Num size="var(--text-row)" weight={700}>
-                        {/* The same slice on every tile: the policy sets it
+                        <Num size="var(--text-row)" weight={700}>
+                          {/* The same slice on every tile: the policy sets it
                           per name, so it does not depend on how many passed
                           today or on how many of them have a tile. */}
-                        {sizing ? money(sizing.perName, 0) : x.ticker}
-                      </Num>
-                      <Num size="var(--text-caption)" style={{ color: 'var(--muted)' }}>
-                        {sizing ? x.ticker : priceLabel(x.price)}
-                      </Num>
-                    </button>
-                    <BuyAtBrokerButton ticker={x.ticker} />
-                  </div>
-                ))}
+                          {sized ? money(sizing.perName, 0) : x.ticker}
+                        </Num>
+                        <Num size="var(--text-caption)" style={{ color: 'var(--muted)' }}>
+                          {sized ? x.ticker : priceLabel(x.price)}
+                        </Num>
+                      </button>
+                      {(sizing === null || sized) && <BuyAtBrokerButton ticker={x.ticker} />}
+                    </div>
+                  );
+                })}
               </div>
               {/* Only the first two rows get tiles, so on a day when more
                   clear the checks the tiles no longer add up to the sleeve
