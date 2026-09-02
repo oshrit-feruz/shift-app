@@ -23,7 +23,7 @@ import { useLedger } from '../state/useLedgerSync';
 import { demoService } from '../data/demoAdapter';
 import { appService } from '../data/appService';
 import { useDemoFlag } from '../data/useDemoFlag';
-import { loading, ok, unavailable, type Holding, type Loadable } from '../data/types';
+import { loading, ok, unavailable, type Holding, type Loadable, type PortfolioSummary } from '../data/types';
 import { useLoadable } from '../data/useLoadable';
 import { isoDate, money, moneyOrDash, pctOrDash, signalColor, signedCurrency } from '../lib/format';
 import { TxSheet } from '../sheets/TxSheet';
@@ -44,7 +44,7 @@ import type { ScreenProps } from '../App';
 export function PortfolioScreen(_: ScreenProps) {
   const s = useAppState();
   const dispatch = useDispatch();
-  const { mode, language } = useTheme();
+  const { mode } = useTheme();
   const t = useT();
   const beg = mode === 'beginner';
   // In the deps so flipping the switch re-reads, and gating the fetch itself:
@@ -183,132 +183,20 @@ export function PortfolioScreen(_: ScreenProps) {
                 </Button>
               </div>
 
-              {/* Source strip */}
-              <Card padding="11px 12px" gap={0} row>
-                {pf.kind === 'linked' && <LogoTile src={pf.logo} size={28} />}
-                {isAgg && (
-                  <span style={{ display: 'flex', flex: 'none', marginInlineEnd: 8 }}>
-                    {linked.map((l) => (
-                      <span
-                        key={l.id}
-                        style={{
-                          marginInlineEnd: -8,
-                          borderRadius: 7,
-                          boxShadow: '0 0 0 2px var(--color-surface)',
-                        }}
-                      >
-                        <LogoTile src={l.logo} size={26} />
-                      </span>
-                    ))}
-                  </span>
-                )}
-                {isManual && (
-                  <LogoTile src={null} dashed label={pf.name.slice(0, 2).toUpperCase()} size={28} />
-                )}
-                <span style={{ flex: 1, minWidth: 0, marginInlineStart: 10 }}>
-                  <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>
-                    {isAgg ? t('pf.allLinked') : isManual ? pf.name : `${pf.broker} ${pf.acct}`}
-                  </span>
-                  <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-caption)' }}>
-                    {isAgg
-                      ? t('pf.aggDetail')
-                      : isManual
-                        ? t('pf.manualDetail')
-                        : t('pf.synced', { when: pf.syncedAgo?.[language] ?? '' })}
-                  </span>
-                </span>
-                {/* Hidden for the default portfolio, matching the RLS
-                    predicate in 0005_ledger.sql (`and not is_default`) rather
-                    than the UI merely declining to offer it — so the button a
-                    user can see is exactly the one the database will allow.
-                    Sandbox is where a trade can always be recorded, so it
-                    cannot be deleted out from under that. */}
-                {isManual && !isSandbox(pf.id) ? (
-                  <Button variant="ghost" fontSize={15.5} onClick={() => removePortfolio(pf)}>
-                    {t('pf.delete')}
-                  </Button>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    fontSize={15.5}
-                    onClick={() => dispatch({ type: 'go', screen: 'connections' })}
-                  >
-                    {isAgg || pf.kind === 'linked' ? t('pf.manage') : t('pf.link')}
-                  </Button>
-                )}
-              </Card>
+              <SourceStrip
+                pf={pf}
+                linked={linked}
+                onDelete={() => removePortfolio(pf)}
+                onManage={() => dispatch({ type: 'go', screen: 'connections' })}
+              />
 
               {isAgg && (
-                <Card padding="4px 0" gap={0}>
-                  <CardTitle size={17}>
-                    <span style={{ padding: '9px 13px 2px', display: 'block' }}>{t('pf.byAccount')}</span>
-                  </CardTitle>
-                  <div
-                    className="text-muted"
-                    style={{ fontSize: 'var(--text-caption)', padding: '0 13px 6px' }}
-                  >
-                    {t('pf.aggPickHelp')}
-                  </div>
-                  {linked.map((x) => {
-                    const on = !s.aggExcluded[x.id];
-                    return (
-                      <button
-                        key={x.id}
-                        type="button"
-                        onClick={() => dispatch({ type: 'toggleAggAccount', id: x.id })}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 10,
-                          width: '100%',
-                          padding: '10px 13px',
-                          border: 0,
-                          borderTop: '1px solid var(--color-divider)',
-                          background: 'transparent',
-                          color: 'inherit',
-                          font: 'inherit',
-                          cursor: 'pointer',
-                          textAlign: 'start',
-                          opacity: on ? 1 : 0.45,
-                        }}
-                      >
-                        <span
-                          style={{
-                            width: 20,
-                            height: 20,
-                            flex: 'none',
-                            borderRadius: '50%',
-                            display: 'grid',
-                            placeItems: 'center',
-                            fontSize: 'var(--text-caption)',
-                            ...(on
-                              ? { background: 'var(--color-accent)', color: 'var(--g2)' }
-                              : { border: '1px solid var(--color-divider)', color: 'transparent' }),
-                          }}
-                        >
-                          ✓
-                        </span>
-                        <LogoTile src={x.logo} size={26} />
-                        <span style={{ flex: 1, minWidth: 0 }}>
-                          <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>{x.name}</span>
-                          <span
-                            className="text-muted"
-                            style={{ display: 'block', fontSize: 'var(--text-caption)' }}
-                          >
-                            {on ? sharePct(x.total, aggTotal) : t('pf.excluded')}
-                          </span>
-                        </span>
-                        <span style={{ textAlign: 'end', whiteSpace: 'nowrap' }}>
-                          <RowValues
-                            main={moneyOrDash(x.total)}
-                            sub={pctOrDash(x.dayPct)}
-                            subColor={signalColor(x.dayPct)}
-                          />
-                        </span>
-                      </button>
-                    );
-                  })}
-                </Card>
+                <AggregateAccounts
+                  linked={linked}
+                  aggTotal={aggTotal}
+                  aggExcluded={s.aggExcluded}
+                  onToggle={(id) => dispatch({ type: 'toggleAggAccount', id })}
+                />
               )}
 
               <Card padding={14} gap={8}>
@@ -542,6 +430,175 @@ function PerformanceSlot({
         <span>{t('pf.benchmark')}</span>
       </div>
     </>
+  );
+}
+
+/**
+ * Which portfolio is selected, said in its own terms, plus the one action that
+ * belongs to it.
+ *
+ * The three kinds are asked once at the top and answered by name, rather than
+ * re-tested down each line of the card. Lifting this out of the screen also
+ * lifted the two stacked conditionals that used to choose its title and its
+ * subtitle inline — a reader following "what does the header say for a manual
+ * portfolio" had to unwind both.
+ */
+function SourceStrip({
+  pf,
+  linked,
+  onDelete,
+  onManage,
+}: Readonly<{
+  pf: PortfolioSummary;
+  linked: PortfolioSummary[];
+  onDelete: () => void;
+  onManage: () => void;
+}>) {
+  const t = useT();
+  const { language } = useTheme();
+  const isAgg = pf.kind === 'aggregate';
+  const isManual = pf.kind === 'manual';
+
+  let title: string;
+  if (isAgg) title = t('pf.allLinked');
+  else if (isManual) title = pf.name;
+  else title = `${pf.broker} ${pf.acct}`;
+
+  let detail: string;
+  if (isAgg) detail = t('pf.aggDetail');
+  else if (isManual) detail = t('pf.manualDetail');
+  else detail = t('pf.synced', { when: pf.syncedAgo?.[language] ?? '' });
+
+  return (
+    <Card padding="11px 12px" gap={0} row>
+      {pf.kind === 'linked' && <LogoTile src={pf.logo} size={28} />}
+      {isAgg && (
+        <span style={{ display: 'flex', flex: 'none', marginInlineEnd: 8 }}>
+          {linked.map((l) => (
+            <span
+              key={l.id}
+              style={{
+                marginInlineEnd: -8,
+                borderRadius: 7,
+                boxShadow: '0 0 0 2px var(--color-surface)',
+              }}
+            >
+              <LogoTile src={l.logo} size={26} />
+            </span>
+          ))}
+        </span>
+      )}
+      {isManual && <LogoTile src={null} dashed label={pf.name.slice(0, 2).toUpperCase()} size={28} />}
+      <span style={{ flex: 1, minWidth: 0, marginInlineStart: 10 }}>
+        <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>{title}</span>
+        <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-caption)' }}>
+          {detail}
+        </span>
+      </span>
+      {/* Hidden for the default portfolio, matching the RLS
+          predicate in 0005_ledger.sql (`and not is_default`) rather
+          than the UI merely declining to offer it — so the button a
+          user can see is exactly the one the database will allow.
+          Sandbox is where a trade can always be recorded, so it
+          cannot be deleted out from under that. */}
+      {isManual && !isSandbox(pf.id) ? (
+        <Button variant="ghost" fontSize={15.5} onClick={() => onDelete()}>
+          {t('pf.delete')}
+        </Button>
+      ) : (
+        <Button variant="ghost" fontSize={15.5} onClick={() => onManage()}>
+          {isAgg || pf.kind === 'linked' ? t('pf.manage') : t('pf.link')}
+        </Button>
+      )}
+    </Card>
+  );
+}
+
+/**
+ * The accounts inside the aggregate, and which of them it is counting.
+ *
+ * Excluding one is the user's own choice about their own total, so the row
+ * says which state it is in rather than only dimming: a greyed row with a
+ * figure beside it reads as a number the app failed to refresh.
+ */
+function AggregateAccounts({
+  linked,
+  aggTotal,
+  aggExcluded,
+  onToggle,
+}: Readonly<{
+  linked: PortfolioSummary[];
+  aggTotal: number | null;
+  aggExcluded: Record<string, boolean>;
+  onToggle: (id: string) => void;
+}>) {
+  const t = useT();
+
+  return (
+    <Card padding="4px 0" gap={0}>
+      <CardTitle size={17}>
+        <span style={{ padding: '9px 13px 2px', display: 'block' }}>{t('pf.byAccount')}</span>
+      </CardTitle>
+      <div className="text-muted" style={{ fontSize: 'var(--text-caption)', padding: '0 13px 6px' }}>
+        {t('pf.aggPickHelp')}
+      </div>
+      {linked.map((x) => {
+        const on = !aggExcluded[x.id];
+        return (
+          <button
+            key={x.id}
+            type="button"
+            onClick={() => onToggle(x.id)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              width: '100%',
+              padding: '10px 13px',
+              border: 0,
+              borderTop: '1px solid var(--color-divider)',
+              background: 'transparent',
+              color: 'inherit',
+              font: 'inherit',
+              cursor: 'pointer',
+              textAlign: 'start',
+              opacity: on ? 1 : 0.45,
+            }}
+          >
+            <span
+              style={{
+                width: 20,
+                height: 20,
+                flex: 'none',
+                borderRadius: '50%',
+                display: 'grid',
+                placeItems: 'center',
+                fontSize: 'var(--text-caption)',
+                ...(on
+                  ? { background: 'var(--color-accent)', color: 'var(--g2)' }
+                  : { border: '1px solid var(--color-divider)', color: 'transparent' }),
+              }}
+            >
+              ✓
+            </span>
+            <LogoTile src={x.logo} size={26} />
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>{x.name}</span>
+              <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-caption)' }}>
+                {on ? sharePct(x.total, aggTotal) : t('pf.excluded')}
+              </span>
+            </span>
+            <span style={{ textAlign: 'end', whiteSpace: 'nowrap' }}>
+              <RowValues
+                main={moneyOrDash(x.total)}
+                sub={pctOrDash(x.dayPct)}
+                subColor={signalColor(x.dayPct)}
+              />
+            </span>
+          </button>
+        );
+      })}
+    </Card>
   );
 }
 
