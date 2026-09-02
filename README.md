@@ -289,6 +289,43 @@ on the actual closes, and they start where their window fills rather than
 averaging whatever happens to sit at the left edge under a label claiming
 fifty sessions.
 
+**The portfolio's value through time is real too, and it was the last thing
+here that wasn't.** A manual portfolio now draws its own value on every session
+it can be placed on, from `app/src/lib/portfolioSeries.ts` — the shares come
+from the user's ledger, the prices from the same `/api/candles` the stock pages
+read, and the fold is `buildPositions`, the same function the holdings card and
+the portfolio total already run on. Using that function rather than a faster
+purpose-built walk is deliberate: the curve's last point and the total printed
+above it are then the same arithmetic over the same rows, and cannot drift.
+
+Three rules shape it, and each one is a place where the easy version lies:
+
+- **A day it could not price completely is `null`, not the sum of the legs it
+  could.** The line breaks there and the caption names the ticker responsible.
+  A total that quietly drops a holding is not a smaller total, it is a wrong
+  one — the same rule the portfolio total obeys.
+- **A close carries forward at most seven days** (`MAX_CARRY_DAYS`). A position
+  really is worth its last traded price on a day its exchange was shut, so
+  carrying Friday's close across a weekend states a fact. Carrying a halted or
+  delisted ticker's price across a month does not, so past the bound the day is
+  reported unpriced instead.
+- **The figure beside it is the gap between the two lines, not the value line's
+  own endpoints.** Reading first point against last looks like performance and
+  is not: it rises when money is paid *in*, so a portfolio that never gained a
+  shekel would report a profit the size of the deposit. The gap cannot be moved
+  that way, because buying more lifts value and cost together.
+
+The second, dashed line is what those positions cost. It is never gapped, and
+the asymmetry is the point: what someone paid is their own arithmetic over
+their own rows, and no provider outage can make it unknown.
+
+Only a manual portfolio gets this. A linked account is read through SnapTrade,
+which reports no priced history at all, and the seeded walk that remains under
+the demo portfolios is labelled as sample data and never drawn beneath a real
+figure. `fetchRealDailySeries` exists so this one reader bypasses the
+sample-data switch: a seeded walk under share counts the user actually typed
+would be invented history of a portfolio that never existed.
+
 **Why two providers, and not one.** Finnhub serves `/quote` on a free key but
 keeps `/stock/candle` for its paid tiers, where a free key gets a 403 — so
 every chart in the app rendered "this subscription may not include this data",
@@ -815,7 +852,7 @@ switch on they are replaced by a statement of what is known, not redrawn:
 
 | Surface | With the switch on |
 | --- | --- |
-| Home hero + Portfolio day change and performance chart | Replaced by an explicit "no performance history" note — those come from a seeded pseudo-random walk, and SnapTrade reports no day change or priced history here |
+| Home hero + Portfolio day change and performance chart | Replaced by an explicit "no performance history" note — SnapTrade reports no day change or priced history for a linked account. A *manual* portfolio is the exception and draws a real value curve from its own ledger (see above) |
 | Portfolio allocation donut | Computed from the account's **real** position values; positions the brokerage did not price are excluded, and if none are priced the card says so |
 | Any unreported field | Renders `—`. `null` is never coerced to `0`, and a total is never summed from partially-priced positions — if the total cannot be determined the account reports `unavailable` with that reason |
 | Open P&L | SnapTrade's position schema carries no such field. It is derived as `units × (price − cost_basis)` from three numbers the brokerage did report, and is `—` the moment any of them is missing — never estimated |

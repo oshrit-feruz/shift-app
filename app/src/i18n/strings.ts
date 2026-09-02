@@ -552,15 +552,6 @@ export const STRINGS = {
   'pf.totalReturn': p('Total return', 'רווח כולל'),
   /** Says what the percentage is a percentage OF, so it cannot be read as a day change. */
   'pf.returnBasis': p('of {invested} invested', 'מתוך {invested} שהושקעו'),
-  /**
-   * Why the profit is a number but the CHART above it is not. Two different
-   * facts: today's return is arithmetic over prices we have, while a line
-   * needs a price for every day behind it, and the quote feed carries none.
-   */
-  'pf.noReturnHistory': p(
-    'Return over time needs daily price history, which this data plan does not include.',
-    'רווח לאורך זמן דורש היסטוריית מחירים יומית, שאינה כלולה בתוכנית הנתונים הנוכחית.',
-  ),
   'pf.closed': p('Closed positions', 'פוזיציות שנסגרו'),
   'pf.soldOut': p('sold out', 'נמכרה במלואה'),
   // Used for any manual portfolio, not only Sandbox.
@@ -593,6 +584,41 @@ export const STRINGS = {
   'pf.namePlaceholder': p('e.g. Dividend income', 'למשל: הכנסה מדיבידנדים'),
   'pf.syncedAgo': p('synced 12 min ago', 'סונכרן לפני 12 דק׳'),
   'pf.benchmark': p('- - S&P 500', '- - S&P 500'),
+
+  // ── A manual portfolio's value through time ───────────────────────────
+  // Two lines, and the legend has to say which is a claim about the market
+  // and which is arithmetic over the user's own rows.
+  'pf.valueLine': p('Value', 'שווי'),
+  'pf.costLine': p('- - Invested', '- - הושקע'),
+  // Deliberately not "return": this is the gap between the two lines on the
+  // last priced day — what the open positions have made on paper. Money paid
+  // in lifts both lines together and cannot inflate it.
+  'pf.openGain': p('On paper', 'על הנייר'),
+  'pf.valueBasis': p(
+    'Each day values the positions held that day at that day’s close.',
+    'כל יום מציג את הפוזיציות שהוחזקו בו, לפי מחיר הסגירה של אותו יום.',
+  ),
+  // The gap in the line, named. Plural and singular are separate strings
+  // because Hebrew inflects the verb, not only the noun.
+  'pf.valueGapOne': p(
+    'The line breaks on days {tickers} had no price — a total missing a holding would be wrong, not smaller.',
+    'הקו נקטע בימים שבהם לא היה מחיר ל־{tickers} — סכום שחסרה בו החזקה הוא שגוי, לא קטן יותר.',
+  ),
+  'pf.valueGapMany': p(
+    'The line breaks on days {tickers} had no price — a total missing a holding would be wrong, not smaller.',
+    'הקו נקטע בימים שבהם לא היו מחירים ל־{tickers} — סכום שחסרות בו החזקות הוא שגוי, לא קטן יותר.',
+  ),
+  // Shown when the ledger reaches further back than the price window does.
+  'pf.valueClipped': p(
+    'Your first trade was on {date}; the chart starts where the daily price history reaches.',
+    'העסקה הראשונה שלך היא מ־{date}; הגרף מתחיל היכן שהיסטוריית המחירים היומית מגיעה.',
+  ),
+  'pf.valueNoneYet': p('The chart appears once a trade is recorded.', 'הגרף יופיע אחרי שתירשם עסקה.'),
+  // Distinct from unavailable: the provider answered, and had nothing.
+  'pf.valueNoHistory': p(
+    'No daily price history is published for the holdings in this portfolio, so its value over time cannot be drawn.',
+    'לא מתפרסמת היסטוריית מחירים יומית להחזקות בתיק הזה, ולכן אי אפשר לשרטט את השווי לאורך זמן.',
+  ),
 
   // ── Watchlist / alerts ────────────────────────────────────────────────
   // The subtitle counts what the user actually has, so it is built from two

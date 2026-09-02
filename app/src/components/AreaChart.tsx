@@ -1,24 +1,41 @@
 import { useId } from 'react';
-import { areaPath, fit, linePath } from './charts';
+import { fit, fitSparse, linePath, sparseAreaPath, sparseLinePath } from './charts';
 
-/** Accent-gradient area chart (portfolio sparkline, beginner stock chart). */
+/**
+ * Accent-gradient area chart (portfolio value, beginner stock chart).
+ *
+ * `values` may carry nulls, and what happens at one is the whole reason this
+ * component knows about them. A null is a point the series genuinely does not
+ * have — a day a portfolio held something nobody could price — and the line
+ * breaks there rather than being drawn straight across. Joining the two sides
+ * would draw a calm, confident segment through the gap, which is a claim about
+ * days the data has nothing to say about.
+ *
+ * `compare` is a second, dashed line on the same vertical scale. It is never
+ * gapped, because the thing drawn against a value is arithmetic the app owns
+ * rather than something it has to read from anyone.
+ */
 export function AreaChart({
   values,
   width = 340,
   height = 76,
   pad = 5,
-  benchmark,
+  compare,
 }: {
-  values: number[];
+  values: Array<number | null>;
   width?: number;
   height?: number;
   pad?: number;
-  benchmark?: number[];
+  compare?: number[];
 }) {
   const id = useId();
-  const domainValues = benchmark ? [...values, ...benchmark] : values;
+  const real = values.filter((v): v is number => v !== null);
+  const domainValues = compare ? [...real, ...compare] : real;
+  // Nothing priced at all means nothing to scale against; the caller decides
+  // what to say instead, and this refuses to draw an empty axis.
+  if (domainValues.length === 0) return null;
   const domain = [Math.min(...domainValues), Math.max(...domainValues)] as const;
-  const pts = fit(values, width, height, pad, domain);
+  const pts = fitSparse(values, width, height, pad, domain);
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
@@ -32,11 +49,11 @@ export function AreaChart({
           <stop offset="1" stopColor="var(--color-accent)" stopOpacity="0" />
         </linearGradient>
       </defs>
-      <path d={areaPath(pts, height)} fill={`url(#${id})`} />
-      <path d={linePath(pts)} fill="none" stroke="var(--acc-lite)" strokeWidth="1.6" />
-      {benchmark && (
+      <path d={sparseAreaPath(pts, height)} fill={`url(#${id})`} />
+      <path d={sparseLinePath(pts)} fill="none" stroke="var(--acc-lite)" strokeWidth="1.6" />
+      {compare && (
         <path
-          d={linePath(fit(benchmark, width, height, pad, domain))}
+          d={linePath(fitSparse(compare, width, height, pad, domain).filter((p) => p !== null))}
           fill="none"
           stroke="var(--muted)"
           strokeWidth="1.1"

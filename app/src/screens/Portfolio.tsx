@@ -29,6 +29,8 @@ import { isoDate, money, moneyOrDash, pctOrDash, signalColor, signedCurrency } f
 import { TxSheet } from '../sheets/TxSheet';
 import { NewPortfolioSheet } from '../sheets/NewPortfolioSheet';
 import { fetchPortfolioHoldings, portfolioList, sumTotals } from '../lib/holdings';
+import { fetchPortfolioSeries } from '../data/portfolioHistory';
+import { openGain, type PortfolioSeries } from '../lib/portfolioSeries';
 import type { ScreenProps } from '../App';
 
 /**
@@ -365,6 +367,7 @@ export function PortfolioScreen(_: ScreenProps) {
                   demo={demo}
                   series={series}
                   bench={bench}
+                  ledger={s.manualTransactions[pf.id] ?? []}
                   label={isAgg ? t('pf.allAccounts') : pf.name}
                 />
               </Card>
@@ -551,6 +554,7 @@ function PerformanceSlot({
   demo,
   series,
   bench,
+  ledger,
   label,
 }: Readonly<{
   live: boolean;
@@ -558,6 +562,7 @@ function PerformanceSlot({
   demo: boolean;
   series: number[];
   bench: number[];
+  ledger: ManualTransaction[];
   label: string;
 }>) {
   const t = useT();
@@ -574,9 +579,12 @@ function PerformanceSlot({
   // explained itself as a brokerage that reports no priced history, which is
   // not what it is.
   //
-  // A manual portfolio's return IS a number (see ManualValue); only the line
-  // through time is missing, and this says which of the two is which.
-  if (isManual) return note(t('pf.noReturnHistory'));
+  // A manual portfolio is the one case that CAN be drawn honestly: its shares
+  // are the user's own rows and its prices are real closes, so the line is
+  // computed rather than invented. It is asked first for the same reason as
+  // before — `live` is a switch on the whole app, while being manual is a
+  // property of the row the user selected, and the two can be true at once.
+  if (isManual) return <ManualValueChart ledger={ledger} label={label} />;
   // A live read of a connected account's current state: the brokerage reports
   // no priced history through the integration at all.
   if (live) return note(t('live.noHistory'));
@@ -585,7 +593,7 @@ function PerformanceSlot({
   if (!demo) return <DemoOnly feature="pf.performance" card={false} />;
   return (
     <>
-      <AreaChart values={series} height={110} pad={8} benchmark={bench} />
+      <AreaChart values={series} height={110} pad={8} compare={bench} />
       <div className="text-muted" style={{ display: 'flex', gap: 14, fontSize: 'var(--text-caption)' }}>
         <span>
           <span style={{ color: 'var(--acc-lite)' }}>—</span> {label}
@@ -593,6 +601,101 @@ function PerformanceSlot({
         <span>{t('pf.benchmark')}</span>
       </div>
     </>
+  );
+}
+
+/**
+ * A manual portfolio's value through time, drawn from the user's own ledger
+ * priced at real daily closes.
+ *
+ * This is the one performance line in the app that is neither a seeded walk
+ * nor a brokerage's own figure: the shares come from rows the user typed, the
+ * prices from the same provider the stock pages read, and the arithmetic from
+ * the same fold the holdings card runs on.
+ *
+ * Three of its states are deliberately different from one another, because
+ * they are different facts and a reader has to be able to tell which one they
+ * are looking at:
+ *
+ *   no trades yet     — nothing to draw, and nothing wrong
+ *   no history        — the provider answered, and publishes none for these
+ *                       holdings; a real answer about the symbols
+ *   unavailable       — every read failed, and the app does not know
+ *
+ * Only the middle one is a statement about the portfolio.
+ */
+function ManualValueChart({ ledger, label }: Readonly<{ ledger: ManualTransaction[]; label: string }>) {
+  const t = useT();
+  const { language } = useTheme();
+  // Keyed on the rows themselves rather than on the portfolio id: editing a
+  // trade has to redraw the line, and the id does not change when it does.
+  const key = ledger
+    .map((tx) => `${tx.id}:${tx.side}:${tx.ticker}:${tx.shares}:${tx.price}:${tx.date}`)
+    .join('|');
+  const { state, retry } = useLoadable<PortfolioSeries>(() => fetchPortfolioSeries(ledger), [key]);
+
+  const note = (text: string) => (
+    <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
+      {text}
+    </p>
+  );
+
+  if (ledger.length === 0) return note(t('pf.valueNoneYet'));
+
+  return (
+    <DataState state={state} onRetry={retry} skeleton={<Skeleton height={110} />}>
+      {(series) => {
+        const priced = series.points.filter((p) => p.value !== null);
+        // The provider answered and had nothing to say about these symbols —
+        // which is a fact about the holdings, not a failure of the read, and
+        // the two must not be worded the same way.
+        if (priced.length === 0) return note(t('pf.valueNoHistory'));
+
+        const gain = openGain(series.points);
+        const gap =
+          series.unpriced.length > 0
+            ? t(series.unpriced.length === 1 ? 'pf.valueGapOne' : 'pf.valueGapMany').replace(
+                '{tickers}',
+                series.unpriced.join(', '),
+              )
+            : null;
+
+        return (
+          <>
+            <AreaChart
+              values={series.points.map((p) => p.value)}
+              height={110}
+              pad={8}
+              compare={series.points.map((p) => p.cost)}
+            />
+            <div
+              className="text-muted"
+              style={{ display: 'flex', gap: 14, fontSize: 'var(--text-caption)', flexWrap: 'wrap' }}
+            >
+              <span>
+                <span style={{ color: 'var(--acc-lite)' }}>—</span> {label}
+              </span>
+              <span>{t('pf.costLine')}</span>
+              {gain && (
+                <span style={{ color: signalColor(gain.abs), marginInlineStart: 'auto' }}>
+                  {t('pf.openGain')} <Num>{signedCurrency(gain.abs)}</Num>
+                  {gain.pct !== null && (
+                    <>
+                      {' '}
+                      (<Num>{pctOrDash(gain.pct)}</Num>)
+                    </>
+                  )}
+                </span>
+              )}
+            </div>
+            {note(t('pf.valueBasis'))}
+            {gap && note(gap)}
+            {series.ledgerStartsBefore &&
+              note(t('pf.valueClipped').replace('{date}', isoDate(series.ledgerStartsBefore, language)))}
+          </>
+        );
+      }}
+    </DataState>
   );
 }
 
