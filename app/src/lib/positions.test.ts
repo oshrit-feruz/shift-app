@@ -12,7 +12,16 @@ const tx = (
   date = '2026-08-20',
 ): ManualTransaction => ({ id: `tx-${seq++}`, side, ticker, shares, price, date });
 
-const quote = (price: number | null): Quote => ({ price, high52w: null, drawdownPct: null });
+const quote = (price: number): Quote => ({
+  price,
+  change: 0,
+  changePct: 0,
+  prevClose: price,
+  dayHigh: price,
+  dayLow: price,
+  open: price,
+  asOf: '2026-08-31T13:00:00.000Z',
+});
 
 const only = (txs: ManualTransaction[]) => {
   const [pos] = buildPositions(txs);
@@ -123,8 +132,10 @@ describe('valuePositions — three ways a price can be missing, and never zero',
     expect(v.unpriced).toEqual(['NVDA']);
   });
 
-  it('reports null, not 0, for a ranked ticker with no price', () => {
-    const v = valuePositions(held, { NVDA: quote(null) });
+  it('reports null, not 0, when the quote map has no entry for the ticker', () => {
+    // A live quote is whole or absent: there is no "priced with a null
+    // price" any more, so an unpriced ticker is simply not in the map.
+    const v = valuePositions(held, {});
     expect(v.positions[0].value).toBeNull();
     expect(v.total).toBeNull();
   });

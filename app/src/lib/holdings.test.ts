@@ -207,7 +207,16 @@ describe('sumTotals', () => {
 });
 
 describe('mergeManualTransactions', () => {
-  const quote = (price: number | null): Quote => ({ price, high52w: null, drawdownPct: null });
+  const quote = (price: number): Quote => ({
+    price,
+    change: 0,
+    changePct: 0,
+    prevClose: price,
+    dayHigh: price,
+    dayLow: price,
+    open: price,
+    asOf: '2026-08-31T13:00:00.000Z',
+  });
 
   it('values the user’s own position at the live price, not at cost', () => {
     const [row] = mergeManualTransactions([], [buy('NVDA', 10, 100)], { NVDA: quote(150) });

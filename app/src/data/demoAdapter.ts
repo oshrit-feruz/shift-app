@@ -2,18 +2,18 @@
  * DEMO DATA ADAPTER — every number here is demonstration data carried over
  * from the design prototype.
  *
- * TWO EXCEPTIONS, both reading the daily mirror in data/recoveryDetector.ts
- * and neither ever returning demo data — not on failure, not on an empty
- * result:
- *   1. `satelliteSignals()` — the engine's BUY candidates.
- *   2. Every price this adapter hands out. `symbols()` and `symbol()` attach
- *      the mirror's real last close as `SymbolInfo.quote`; a ticker the
- *      ranking does not cover, or a snapshot that cannot be read, gets
- *      `quote: null` and renders as "—". The prototype's frozen prices
- *      survive only under `SymbolInfo.demo`, which no screen renders as
- *      *the* price.
- * The rest — day change, volume, market cap, P/E, RSI, portfolios, holdings,
- * news, the chart series — is still demonstration data; swap in a real
+ * TWO EXCEPTIONS, neither ever returning demo data — not on failure, not on
+ * an empty result:
+ *   1. `satelliteSignals()` — the engine's BUY candidates, from the daily
+ *      snapshot in data/recoveryDetector.ts.
+ *   2. Every price this adapter hands out, and the day change beside it.
+ *      `symbols()`, `symbol()` and `watchRows()` attach a LIVE quote from
+ *      data/quotes.ts as `SymbolInfo.quote`; a ticker the provider does not
+ *      price, or a read that failed, gets `quote: null` and renders as "—".
+ *      The prototype's frozen prices survive only under `SymbolInfo.demo`,
+ *      which no screen renders as *the* price.
+ * The rest — volume, market cap, P/E, RSI, portfolios, holdings, news, the
+ * portfolio chart series — is still demonstration data; swap in a real
  * DataService implementation to take it live (see service.ts).
  *
  * Two switches, both in data/demoFlags.ts:
@@ -30,7 +30,8 @@
  */
 
 import type { DataService } from './service';
-import { fetchQuotes, fetchSatelliteSignals } from './recoveryDetector';
+import { fetchRankedTickers, fetchSatelliteSignals } from './recoveryDetector';
+import { fetchQuotes } from './quotes';
 import { fetchDailySeries } from './priceHistory';
 import {
   ok,
@@ -60,16 +61,16 @@ type SymbolRow = Omit<SymbolInfo, 'quote'>;
 // left formatted by hand on purpose.
 // prettier-ignore
 const SYMS: SymbolRow[] = [
-  { ticker: 'NVDA', name: 'NVIDIA', sector: 'Technology', demo: { price: 182.44, changePct: 2.31, volume: '148.2M', marketCap: '4.45T', pe: 52.1, rsi: 61 }, plain: { en: 'Chips that power AI data centres', he: 'שבבים שמריצים מרכזי נתונים של AI' }, why: { en: 'Data-centre revenue guide above consensus', he: 'תחזית הכנסות ממרכזי נתונים מעל הקונצנזוס' } },
-  { ticker: 'AAPL', name: 'Apple', sector: 'Technology', demo: { price: 226.79, changePct: 0.42, volume: '41.6M', marketCap: '3.36T', pe: 34.8, rsi: 55 }, plain: { en: 'iPhone, Mac and services', he: 'אייפון, מק ושירותים' }, why: { en: 'Analyst raised target on iPhone 17 cycle', he: 'אנליסט העלה מחיר יעד לקראת אייפון 17' } },
-  { ticker: 'MSFT', name: 'Microsoft', sector: 'Technology', demo: { price: 508.12, changePct: -0.67, volume: '18.9M', marketCap: '3.78T', pe: 36.2, rsi: 48 }, plain: { en: 'Windows, Office and Azure cloud', he: 'ווינדוס, אופיס וענן Azure' }, why: { en: 'Azure capacity spending questioned', he: 'סימני שאלה על הוצאות התרחבות ב-Azure' } },
-  { ticker: 'AMD', name: 'Advanced Micro', sector: 'Technology', demo: { price: 171.35, changePct: 4.86, volume: '62.4M', marketCap: '277B', pe: 88.4, rsi: 72 }, plain: { en: 'Rival chipmaker to NVIDIA', he: 'יצרנית שבבים מתחרה ל-NVIDIA' }, why: { en: 'New MI400 accelerator design win', he: 'זכייה בעיצוב למאיץ MI400 החדש' } },
-  { ticker: 'TSLA', name: 'Tesla', sector: 'Consumer', demo: { price: 334.62, changePct: -3.18, volume: '96.1M', marketCap: '1.08T', pe: 197.5, rsi: 38 }, plain: { en: 'Electric cars and energy storage', he: 'מכוניות חשמליות ואגירת אנרגיה' }, why: { en: 'European deliveries fell again in July', he: 'המסירות באירופה ירדו שוב ביולי' } },
-  { ticker: 'JPM', name: 'JPMorgan Chase', sector: 'Financials', demo: { price: 291.04, changePct: 0.88, volume: '9.2M', marketCap: '812B', pe: 14.6, rsi: 58 }, plain: { en: 'The largest US bank', he: 'הבנק הגדול בארה״ב' }, why: { en: 'Net interest income outlook lifted', he: 'תחזית הכנסות מריבית עלתה' } },
-  { ticker: 'XOM', name: 'Exxon Mobil', sector: 'Energy', demo: { price: 112.47, changePct: -1.24, volume: '15.7M', marketCap: '486B', pe: 14.1, rsi: 44 }, plain: { en: 'Oil and natural gas', he: 'נפט וגז טבעי' }, why: { en: 'Crude slipped on demand data', he: 'הנפט ירד על נתוני ביקוש' } },
-  { ticker: 'LLY', name: 'Eli Lilly', sector: 'Healthcare', demo: { price: 742.18, changePct: 1.96, volume: '3.4M', marketCap: '705B', pe: 61.9, rsi: 63 }, plain: { en: 'Weight-loss and diabetes drugs', he: 'תרופות להרזיה וסוכרת' }, why: { en: 'Phase 3 readout for oral GLP-1', he: 'תוצאות שלב 3 ל-GLP-1 בכמוסה' } },
-  { ticker: 'TEVA', name: 'Teva Pharmaceutical', sector: 'Healthcare', demo: { price: 18.42, changePct: 1.21, volume: '12.4M', marketCap: '21B', pe: 9.8, rsi: 58 }, plain: { en: 'Generic medicines maker', he: 'יצרנית תרופות גנריות' }, why: { en: 'Generics pricing outlook improved', he: 'תחזית מחירי הגנריקה השתפרה' } },
-  { ticker: 'MDA', name: 'MDA Space', sector: 'Industrials', demo: { price: 29.14, changePct: -1.42, volume: '2.1M', marketCap: '3.6B', pe: 31.2, rsi: 47 }, plain: { en: 'Satellites and space robotics', he: 'לוויינים ורובוטיקה לחלל' }, why: { en: 'Contract award timing slipped', he: 'לוחות הזמנים לזכייה בחוזה נדחו' } },
+  { ticker: 'NVDA', name: 'NVIDIA', sector: 'Technology', demo: { price: 182.44, volume: '148.2M', marketCap: '4.45T', pe: 52.1, rsi: 61 }, plain: { en: 'Chips that power AI data centres', he: 'שבבים שמריצים מרכזי נתונים של AI' }, why: { en: 'Data-centre revenue guide above consensus', he: 'תחזית הכנסות ממרכזי נתונים מעל הקונצנזוס' } },
+  { ticker: 'AAPL', name: 'Apple', sector: 'Technology', demo: { price: 226.79, volume: '41.6M', marketCap: '3.36T', pe: 34.8, rsi: 55 }, plain: { en: 'iPhone, Mac and services', he: 'אייפון, מק ושירותים' }, why: { en: 'Analyst raised target on iPhone 17 cycle', he: 'אנליסט העלה מחיר יעד לקראת אייפון 17' } },
+  { ticker: 'MSFT', name: 'Microsoft', sector: 'Technology', demo: { price: 508.12, volume: '18.9M', marketCap: '3.78T', pe: 36.2, rsi: 48 }, plain: { en: 'Windows, Office and Azure cloud', he: 'ווינדוס, אופיס וענן Azure' }, why: { en: 'Azure capacity spending questioned', he: 'סימני שאלה על הוצאות התרחבות ב-Azure' } },
+  { ticker: 'AMD', name: 'Advanced Micro', sector: 'Technology', demo: { price: 171.35, volume: '62.4M', marketCap: '277B', pe: 88.4, rsi: 72 }, plain: { en: 'Rival chipmaker to NVIDIA', he: 'יצרנית שבבים מתחרה ל-NVIDIA' }, why: { en: 'New MI400 accelerator design win', he: 'זכייה בעיצוב למאיץ MI400 החדש' } },
+  { ticker: 'TSLA', name: 'Tesla', sector: 'Consumer', demo: { price: 334.62, volume: '96.1M', marketCap: '1.08T', pe: 197.5, rsi: 38 }, plain: { en: 'Electric cars and energy storage', he: 'מכוניות חשמליות ואגירת אנרגיה' }, why: { en: 'European deliveries fell again in July', he: 'המסירות באירופה ירדו שוב ביולי' } },
+  { ticker: 'JPM', name: 'JPMorgan Chase', sector: 'Financials', demo: { price: 291.04, volume: '9.2M', marketCap: '812B', pe: 14.6, rsi: 58 }, plain: { en: 'The largest US bank', he: 'הבנק הגדול בארה״ב' }, why: { en: 'Net interest income outlook lifted', he: 'תחזית הכנסות מריבית עלתה' } },
+  { ticker: 'XOM', name: 'Exxon Mobil', sector: 'Energy', demo: { price: 112.47, volume: '15.7M', marketCap: '486B', pe: 14.1, rsi: 44 }, plain: { en: 'Oil and natural gas', he: 'נפט וגז טבעי' }, why: { en: 'Crude slipped on demand data', he: 'הנפט ירד על נתוני ביקוש' } },
+  { ticker: 'LLY', name: 'Eli Lilly', sector: 'Healthcare', demo: { price: 742.18, volume: '3.4M', marketCap: '705B', pe: 61.9, rsi: 63 }, plain: { en: 'Weight-loss and diabetes drugs', he: 'תרופות להרזיה וסוכרת' }, why: { en: 'Phase 3 readout for oral GLP-1', he: 'תוצאות שלב 3 ל-GLP-1 בכמוסה' } },
+  { ticker: 'TEVA', name: 'Teva Pharmaceutical', sector: 'Healthcare', demo: { price: 18.42, volume: '12.4M', marketCap: '21B', pe: 9.8, rsi: 58 }, plain: { en: 'Generic medicines maker', he: 'יצרנית תרופות גנריות' }, why: { en: 'Generics pricing outlook improved', he: 'תחזית מחירי הגנריקה השתפרה' } },
+  { ticker: 'MDA', name: 'MDA Space', sector: 'Industrials', demo: { price: 29.14, volume: '2.1M', marketCap: '3.6B', pe: 31.2, rsi: 47 }, plain: { en: 'Satellites and space robotics', he: 'לוויינים ורובוטיקה לחלל' }, why: { en: 'Contract award timing slipped', he: 'לוחות הזמנים לזכייה בחוזה נדחו' } },
 ];
 
 /* NOTE: the demo satellite-positions array that used to live here (MRNA/ALB/
@@ -176,10 +177,10 @@ async function respond<T>(data: T): Promise<Loadable<T>> {
 }
 
 /**
- * Attach the mirror's real numbers to a static symbol row.
+ * Attach a live quote to a static symbol row.
  *
- * Null `quote` covers both honest misses at once — the snapshot could not be
- * read, or it was read fine and simply does not rank this ticker. Neither is
+ * Null `quote` covers both honest misses at once — the read failed, or it
+ * succeeded and the provider simply has no price for this ticker. Neither is
  * back-filled from `row.demo.price`: a fabricated price that looks live is
  * the exact failure this split exists to prevent, and the two cases read the
  * same on screen ("—") because in both the app genuinely does not know.
@@ -194,18 +195,24 @@ function withQuote(row: SymbolRow, quotes: Loadable<Record<string, Quote>>): Sym
  * when it has a row; a symbol it does not cover keeps those null rather than
  * borrowing another company's.
  */
-function watchRow(rawTicker: string, quotes: Loadable<Record<string, Quote>>): WatchRow {
+function watchRow(
+  rawTicker: string,
+  quotes: Loadable<Record<string, Quote>>,
+  ranked: ReadonlySet<string>,
+): WatchRow {
   const ticker = rawTicker.trim().toUpperCase();
   const row = SYMS.find((x) => x.ticker === ticker);
-  const quote = quotes.status === 'ok' ? (quotes.data[ticker] ?? null) : null;
   return {
     ticker,
     name: row?.name ?? null,
     sector: row?.sector ?? null,
     plain: row?.plain ?? null,
-    quote,
-    demoChangePct: row?.demo.changePct ?? null,
-    ranked: quote !== null,
+    quote: quotes.status === 'ok' ? (quotes.data[ticker] ?? null) : null,
+    // Membership of the engine's ranking, read from the ranking itself. It
+    // used to be inferred from "has a price", which was sound while the
+    // ranking WAS the price source and is nonsense now that a live quote
+    // prices almost any US symbol: it would mark every ticker as ranked.
+    ranked: ranked.has(ticker),
   };
 }
 
@@ -218,49 +225,68 @@ function rng(seed: number) {
   };
 }
 
+/**
+ * The tickers the engine ranks today, as a set. Never throws.
+ *
+ * An unavailable ranking becomes an EMPTY set rather than a failure: the flag
+ * it feeds says "the engine has a view on this stock", and the honest answer
+ * when the snapshot cannot be read is that we do not know of one — which is
+ * what an absent flag already means. Nothing on screen claims otherwise.
+ */
+async function rankedSet(): Promise<ReadonlySet<string>> {
+  const ranked = await fetchRankedTickers();
+  return new Set(ranked.status === 'ok' ? ranked.data : []);
+}
+
 export const demoService: DataService & { isDemo: true } = {
   isDemo: true,
 
   /**
-   * The symbol list, with REAL prices attached.
+   * The symbol list, with REAL live prices attached.
    *
-   * The one await left here is the mirror read: the simulated latency it used
-   * to run alongside is gone. A failed or stale snapshot leaves every `quote`
-   * null — the list of symbols is still perfectly good, and a watchlist that
-   * renders its rows with "—" for the price tells the reader more than a
-   * screen-wide "unavailable" would.
+   * A failed quote read leaves every `quote` null — the list of symbols is
+   * still perfectly good, and a list that renders its rows with "—" for the
+   * price tells the reader more than a screen-wide "unavailable" would.
    */
   async symbols() {
-    const quotes = await fetchQuotes();
+    const quotes = await fetchQuotes(SYMS.map((row) => row.ticker));
     if (DEMO_FLAGS.unavailable) return unavailable();
     return ok(SYMS.map((row) => withQuote(row, quotes)));
   },
 
+  /**
+   * One symbol. Only that symbol's quote is fetched: opening a stock page
+   * must not cost ten quotes out of the provider's per-minute allowance for
+   * nine tickers nobody is looking at.
+   */
   async symbol(ticker: string) {
-    const quotes = await fetchQuotes();
-    if (DEMO_FLAGS.unavailable) return unavailable();
     const s = SYMS.find((x) => x.ticker === ticker);
+    const quotes = await fetchQuotes(s ? [s.ticker] : []);
+    if (DEMO_FLAGS.unavailable) return unavailable();
     return s ? ok(withQuote(s, quotes)) : unavailable();
   },
 
   /**
-   * The user's watchlist, in their order.
+   * The user's watchlist, in their order, priced live.
    *
-   * The sample table is consulted for a name, a sector and the demo day
-   * change, but it does not gate the row: a ticker it has never heard of is
-   * still returned, described by its real quote alone. A watchlist that
-   * silently dropped the symbols the sample table misses would be the demo
-   * list wearing the user's name.
+   * The sample table is consulted for a name and a sector, but it does not
+   * gate the row: a ticker it has never heard of is still returned, described
+   * by its real quote alone. A watchlist that silently dropped the symbols
+   * the sample table misses would be the demo list wearing the user's name.
    *
-   * An empty watchlist returns ok([]) without touching the mirror — a new
-   * account should cost no request at all, and "you have not added anything"
-   * is not a failure to report.
+   * An empty watchlist returns ok([]) with no request at all — a new account
+   * should cost nothing, and "you have not added anything" is not a failure
+   * to report.
+   *
+   * The ranking read runs alongside the quotes rather than after them, and a
+   * failed one only clears the `ranked` flag: the engine having no view today
+   * is no reason to withhold the user's own list, priced and correct.
    */
   async watchRows(tickers: string[]) {
     if (tickers.length === 0) return ok<WatchRow[]>([]);
-    const quotes = await fetchQuotes();
+    const [quotes, ranked] = await Promise.all([fetchQuotes(tickers), rankedSet()]);
     if (DEMO_FLAGS.unavailable) return unavailable<WatchRow[]>();
-    return ok(tickers.map((ticker) => watchRow(ticker, quotes)));
+    return ok(tickers.map((ticker) => watchRow(ticker, quotes, ranked)));
   },
 
   /**
@@ -274,29 +300,36 @@ export const demoService: DataService & { isDemo: true } = {
    * it off — a list that quietly omits it cannot be used to do that, and
    * disagrees with `watchRows`, which keeps it.
    *
-   * Dedupe is on the normalised ticker, not the raw mirror key. mapSignal
+   * DELIBERATELY UNPRICED: every row comes back with `quote: null`. This list
+   * is a hundred-odd tickers and quotes now cost one provider request each,
+   * so pricing the universe to render five visible rows would spend a minute's
+   * allowance per keystroke. The search sheet prices the handful of rows it
+   * actually shows (see SearchOverlay), which is both cheaper and fresher.
+   *
+   * Dedupe is on the normalised ticker, not the raw snapshot key. mapSignal
    * uppercases what the snapshot carries but does not trim it, so a key with
    * stray whitespace failed a raw comparison against the sample table while
    * watchRow normalised it to the same symbol — two rows for one company,
    * under one React key.
    *
-   * A dead mirror leaves the sample table, which is still a usable — if
+   * A dead ranking leaves the sample table, which is still a usable — if
    * short — list to search, so this is only 'unavailable' under the demo
    * failure flag.
    */
   async searchUniverse(include: string[] = []) {
-    const quotes = await fetchQuotes();
+    const ranked = await rankedSet();
     if (DEMO_FLAGS.unavailable) return unavailable<WatchRow[]>();
+    const unpriced = ok<Record<string, Quote>>({});
     const rows: WatchRow[] = [];
     const seen = new Set<string>();
     const add = (raw: string) => {
-      const row = watchRow(raw, quotes);
+      const row = watchRow(raw, unpriced, ranked);
       if (seen.has(row.ticker)) return;
       seen.add(row.ticker);
       rows.push(row);
     };
     for (const row of SYMS) add(row.ticker);
-    if (quotes.status === 'ok') for (const ticker of Object.keys(quotes.data)) add(ticker);
+    for (const ticker of ranked) add(ticker);
     for (const ticker of include) add(ticker);
     return ok(rows);
   },

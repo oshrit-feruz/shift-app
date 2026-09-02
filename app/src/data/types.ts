@@ -1,31 +1,43 @@
 /** Domain types shared by the data service and the UI. */
 
 /**
- * Real market numbers for one ticker, read from the daily mirror
- * (data/recoveryDetector.ts). Every field is nullable for the same reason
- * SatelliteSignal's are: the mirror ranks 100 names and the app can open any
- * symbol, so "we do not have this number" is a normal answer that renders as
- * "—" rather than being guessed or back-filled.
+ * A real-time quote for one ticker, from data/quotes.ts (Finnhub, via
+ * /api/quote).
+ *
+ * Every field is required, which is the whole difference from the shape this
+ * replaced. The old quote came from a daily snapshot of the screener engine
+ * and had a nullable price, a nullable 52-week high and no day change at all,
+ * so "priced" and "ranked but priceless" and "not ranked" were three states a
+ * screen had to tell apart. A live quote is one state: either the provider
+ * priced this symbol, in which case every number below is real, or it did
+ * not, in which case the whole Quote is null and the screen shows "—".
  */
 export interface Quote {
-  /** Last close the engine saw. */
-  price: number | null;
-  /** 52-week high the drawdown is measured against. */
-  high52w: number | null;
-  /** How far below the 52-week high, in percent (positive = below). */
-  drawdownPct: number | null;
+  /** Last traded price. */
+  price: number;
+  /** Day change in currency, signed. */
+  change: number;
+  /** Day change in percent, signed. */
+  changePct: number;
+  /** The previous session's close, which the day change is measured from. */
+  prevClose: number;
+  /** Today's session high, low and open. */
+  dayHigh: number;
+  dayLow: number;
+  open: number;
+  /** When the provider stamped this quote, as an ISO instant. */
+  asOf: string;
 }
 
 /**
- * One real trading session, from the daily price-history mirror
- * (data/priceHistory.ts).
+ * One real trading session, from the daily history route
+ * (data/priceHistory.ts, /api/candles).
  *
- * Unlike Quote, no field here is nullable: the publisher drops a row that is
- * missing any of them rather than passing a half-bar through
- * (scripts/mirror-prices.mjs). A candlestick needs all four prices to mean
- * what it draws — a bar with a guessed high is a lie in a shape a reader
- * cannot see through, where a guessed price at least renders as a number they
- * could question.
+ * No field here is nullable: the route drops a row that is missing any of
+ * them rather than passing a half-bar through (api/_lib/finnhub.ts). A
+ * candlestick needs all four prices to mean what it draws — a bar with a
+ * guessed high is a lie in a shape a reader cannot see through, where a
+ * guessed price at least renders as a number they could question.
  */
 export interface Bar {
   /** Session date, raw YYYY-MM-DD. */
@@ -42,22 +54,21 @@ export interface Bar {
  * prototype.
  *
  * They live behind their own key so no call site can render an invented
- * number while believing it is real: `x.demo.changePct` says what it is at
- * the point of use, where a flat `x.changePct` sitting beside a real price
+ * number while believing it is real: `x.demo.marketCap` says what it is at
+ * the point of use, where a flat `x.marketCap` sitting beside a real price
  * would not. That naming is now the whole guard — the standing on-screen
  * note was removed, so nothing but the key tells a call site what it holds.
  *
- * Day change is the notable absence from Quote: the mirrored ranking has no
- * day-change field, so it cannot be made real from this source and is not
- * borrowed from anywhere either — it stays here until an intraday quote
- * source exists.
+ * Day change USED to live here, and no longer does: the live quote carries a
+ * real one (Quote.changePct), so every screen that ranked, coloured or
+ * printed a day change now does it from the actual session. It was the last
+ * demo figure any screen showed beside a real price.
  */
 export interface SymbolDemoStats {
   /** Prototype price. Kept only as the basis for the other demo figures and
    *  for the demo portfolio's valuation — never rendered as *the* price,
    *  which comes from `SymbolInfo.quote`. */
   price: number;
-  changePct: number; // day change, signed
   volume: string;
   marketCap: string;
   pe: number;
@@ -77,7 +88,7 @@ export interface SymbolInfo {
   /** Beginner-mode "why it moved" line (per language). */
   why: { en: string; he: string };
   /**
-   * REAL, from the daily mirror. Null when the mirror does not cover this
+   * REAL, live, from /api/quote. Null when the provider does not price this
    * ticker or could not be read — the UI renders "—", never a demo price.
    */
   quote: Quote | null;
@@ -95,10 +106,10 @@ export interface SymbolInfo {
  * borrowed field nullable instead and each renders as "—" or is simply
  * omitted.
  *
- * `quote` is real (the daily mirror). `demoChangePct` is the one demo figure
- * carried over, and only for the sample-table tickers that have one — it is
- * null for everything else rather than fabricated, which is why it keeps the
- * `demo` prefix at the point of use.
+ * `quote` is real and live. There is no demo figure left on this row: the
+ * day change used to be borrowed from the sample table for the handful of
+ * tickers that had one and left null for everything else, and it now comes
+ * from the quote itself for every ticker the provider prices.
  */
 export interface WatchRow {
   ticker: string;
@@ -107,10 +118,8 @@ export interface WatchRow {
   sector: string | null;
   /** Beginner-mode plain-language description, when the sample table has one. */
   plain: { en: string; he: string } | null;
-  /** REAL, from the daily mirror; null when the mirror does not cover it. */
+  /** REAL and live; null when the provider does not price this ticker. */
   quote: Quote | null;
-  /** DEMO day change, only for tickers in the sample table. */
-  demoChangePct: number | null;
   /** True when the ticker appears in the engine's daily ranking. */
   ranked: boolean;
 }

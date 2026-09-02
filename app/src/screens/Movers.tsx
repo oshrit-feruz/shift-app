@@ -13,7 +13,9 @@ import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
-import { moneyOrDash, pct, signalColor } from '../lib/format';
+import { PRICE_REFRESH_MS } from '../data/quotes';
+import { moneyOrDash, pctOrDash, signalColor } from '../lib/format';
+import type { SymbolInfo } from '../data/types';
 import type { StringKey } from '../i18n/strings';
 import type { ScreenProps } from '../App';
 
@@ -33,10 +35,14 @@ const SECTORS: Array<[string, StringKey]> = [
 ];
 
 /**
- * Split so the hooks below never run with sample data off. The ranking this
- * screen exists to show — which stocks moved most, and by how much — is
- * ordered and populated entirely by `demo.changePct` and `demo.volume`, so
- * there is no honest partial version of it to render.
+ * Split so the hooks below never run with sample data off.
+ *
+ * The day change this screen ranks by is REAL now — it comes from the live
+ * quote, like the price beside it. What is still demonstration data is
+ * volume: the provider's quote carries no volume figure, so the "Most active"
+ * tab, the Vol column and RVol are all prototype numbers, and the gate stays
+ * until they have a source. Gainers and Losers are ordered by the actual
+ * session.
  */
 export function MoversScreen(props: ScreenProps) {
   const demo = useDemoMode();
@@ -50,7 +56,7 @@ function MoversBody(_: ScreenProps) {
   const beg = mode === 'beginner';
   const [tab, setTab] = useState('Gainers');
   const [sector, setSector] = useState('All');
-  const symbols = useLoadable(() => demoService.symbols(), []);
+  const symbols = useLoadable(() => demoService.symbols(), [], PRICE_REFRESH_MS);
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
@@ -87,14 +93,26 @@ function MoversBody(_: ScreenProps) {
         }
       >
         {(syms) => {
+          // A symbol the provider could not price has no day change to rank by,
+          // so it sorts to the bottom of Gainers and Losers alike rather than
+          // being treated as a flat 0% — which would place it in the middle
+          // of the board, among the stocks that genuinely did not move.
+          const byChange = (a: SymbolInfo, b: SymbolInfo, sign: 1 | -1) => {
+            const x = a.quote?.changePct ?? null;
+            const y = b.quote?.changePct ?? null;
+            if (x === null && y === null) return 0;
+            if (x === null) return 1;
+            if (y === null) return -1;
+            return sign * (y - x);
+          };
           const pool = syms
             .slice()
             .sort((a, b) =>
               tab === 'Losers'
-                ? a.demo.changePct - b.demo.changePct
+                ? byChange(a, b, -1)
                 : tab === 'Most active'
                   ? parseFloat(b.demo.volume) - parseFloat(a.demo.volume)
-                  : b.demo.changePct - a.demo.changePct,
+                  : byChange(a, b, 1),
             );
           const filtered = sector === 'All' ? pool : pool.filter((x) => x.sector === sector);
 
@@ -127,9 +145,12 @@ function MoversBody(_: ScreenProps) {
                       </span>
                       <Num
                         size={23}
-                        style={{ fontFamily: 'var(--font-heading)', color: signalColor(x.demo.changePct) }}
+                        style={{
+                          fontFamily: 'var(--font-heading)',
+                          color: signalColor(x.quote?.changePct),
+                        }}
                       >
-                        {pct(x.demo.changePct)}
+                        {pctOrDash(x.quote?.changePct)}
                       </Num>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -169,8 +190,8 @@ function MoversBody(_: ScreenProps) {
                       <Td>
                         <Num>{moneyOrDash(x.quote?.price)}</Num>
                       </Td>
-                      <Td color={signalColor(x.demo.changePct)}>
-                        <Num>{pct(x.demo.changePct)}</Num>
+                      <Td color={signalColor(x.quote?.changePct)}>
+                        <Num>{pctOrDash(x.quote?.changePct)}</Num>
                       </Td>
                       <Td muted>
                         <Num>{x.demo.volume}</Num>

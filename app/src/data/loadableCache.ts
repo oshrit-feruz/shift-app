@@ -76,3 +76,18 @@ export function cachedLoadable<T>(
 export function clearLoadableCache(): void {
   entries.clear();
 }
+
+/**
+ * Drop the entries whose key starts with `prefix`.
+ *
+ * One caller's cache and this shared one can hold two halves of the same
+ * answer — the quote layer keys a batch response here while keeping the
+ * per-ticker quotes itself — and clearing only its own half leaves the batch
+ * to be replayed for the rest of the TTL. A caller that owns a key prefix can
+ * drop both halves together.
+ */
+export function clearLoadableCachePrefix(prefix: string): void {
+  for (const key of entries.keys()) {
+    if (key.startsWith(prefix)) entries.delete(key);
+  }
+}
