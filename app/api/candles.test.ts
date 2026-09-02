@@ -88,6 +88,16 @@ describe('/api/candles', () => {
     expect(res._body).toMatchObject({ bars: [], as_of: null });
   });
 
+  it('reads a 404 as "no history for this symbol", not as a failure', async () => {
+    // EODHD answers 404 for a ticker it does not carry. That is the provider
+    // naming the symbol, and it must reach the reader as the same honest
+    // "no price history" an empty series does — never as "unavailable",
+    // which claims we could not find out.
+    const res = await call({ symbol: 'ZZZZQQ' }, respond({ error: 'not found' }, 404));
+    expect(res._status).toBe(200);
+    expect(res._body).toMatchObject({ bars: [], as_of: null });
+  });
+
   it('reports a plan problem as a plan problem, not as an outage', async () => {
     const res = await call({ symbol: 'NVDA' }, respond({}, 403));
     expect(res._status).toBe(502);
