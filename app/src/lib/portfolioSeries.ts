@@ -88,7 +88,9 @@ function indexCloses(bars: Bar[]): Closes {
     // caller ever hands over intraday stamps by mistake, and costs nothing.
     at.set(bar.date.slice(0, 10), bar.close);
   }
-  const dates = [...at.keys()].sort((x, y) => (x < y ? -1 : x > y ? 1 : 0));
+  // Bare sort(): these are YYYY-MM-DD strings, whose lexicographic order is
+  // their chronological one, which is the whole reason the field is raw.
+  const dates = [...at.keys()].sort();
   return { dates, at };
 }
 
@@ -147,7 +149,7 @@ export function buildValueSeries(
   for (const closes of closesBy.values()) for (const date of closes.dates) axis.add(date);
 
   const firstTrade = transactions.reduce((min, tx) => (tx.date < min ? tx.date : min), transactions[0].date);
-  const dates = [...axis].filter((d) => d >= firstTrade).sort((x, y) => (x < y ? -1 : x > y ? 1 : 0));
+  const dates = [...axis].filter((d) => d >= firstTrade).sort();
   if (dates.length === 0) return { ...empty, ledgerStartsBefore: firstTrade };
 
   const unpriced = new Set<string>();
@@ -179,7 +181,7 @@ export function buildValueSeries(
 
   return {
     points,
-    unpriced: [...unpriced].sort((x, y) => (x < y ? -1 : x > y ? 1 : 0)),
+    unpriced: [...unpriced].sort(),
     ledgerStartsBefore: firstTrade < dates[0] ? firstTrade : null,
   };
 }
