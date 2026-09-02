@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { buildPositions } from '../lib/positions';
 import {
   EMPTY_LEDGER,
   applyToSnapshot,
   classifyError,
+  ledgerWithout,
   planLegacyImport,
   portfoliosOf,
   reconcile,
@@ -401,5 +403,93 @@ describe('applyToSnapshot — a confirmed op is a server row now', () => {
 
   it('is a no-op for a delete of something that is not there', () => {
     expect(applyToSnapshot(server, { kind: 'deleteTransaction', userId: ME, id: 'nope' })).toEqual(server);
+  });
+});
+
+/**
+ * An edit is a delete and a re-add — the sentence at the top of ledger.ts,
+ * exercised as the pair `replaceTransaction` actually queues.
+ */
+describe('a correction, expressed as delete + insert', () => {
+  const corrected: LedgerOp[] = [
+    { kind: 'deleteTransaction', userId: ME, id: 't1' },
+    { kind: 'insertTransaction', userId: ME, row: tx('t1-fixed', 'sandbox', { price: 162.97 }) },
+  ];
+
+  it('leaves exactly the corrected row in place of the original', () => {
+    const out = reconcile(server, corrected, ME);
+    expect(out.transactions).toHaveLength(1);
+    expect(out.transactions[0].id).toBe('t1-fixed');
+    expect(out.transactions[0].price).toBe(162.97);
+  });
+
+  // The reason the replacement gets a NEW id rather than reusing the old one.
+  // The two ops commute, so the pair may reach the server in either order —
+  // and with one id the delete would remove the row the insert had just
+  // written, losing the trade to a race the design otherwise does not have.
+  it('survives the two halves arriving in the wrong order', () => {
+    const forwards = reconcile(server, corrected, ME);
+    const backwards = reconcile(server, [corrected[1], corrected[0]], ME);
+    expect(backwards).toEqual(forwards);
+  });
+
+  it('is idempotent, so a retried flush cannot double the row', () => {
+    const once = reconcile(server, corrected, ME);
+    const twice = reconcile(server, [...corrected, ...corrected], ME);
+    expect(twice).toEqual(once);
+  });
+
+  // Each half is confirmed separately as it leaves the queue, and the row must
+  // read correctly at the moment in between rather than only at the end.
+  it('never shows the ticker as unheld between the two confirmations', () => {
+    const afterDelete = applyToSnapshot(server, corrected[0]);
+    expect(afterDelete.transactions).toEqual([]);
+    const afterInsert = applyToSnapshot(afterDelete, corrected[1]);
+    expect(afterInsert.transactions.map((x) => x.price)).toEqual([162.97]);
+  });
+});
+
+describe('ledgerWithout — what a correction is measured against', () => {
+  const rows = [
+    { id: 'a', side: 'buy' as const, ticker: 'QCOM', shares: 55, price: 162.97, date: '2026-09-02' },
+    { id: 'b', side: 'sell' as const, ticker: 'QCOM', shares: 55, price: 170.48, date: '2026-09-03' },
+  ];
+
+  it('is the whole ledger when nothing is being edited', () => {
+    expect(ledgerWithout(rows, null)).toEqual(rows);
+    expect(ledgerWithout(rows, undefined)).toEqual(rows);
+  });
+
+  // The case the plain fold gets wrong: this position was sold out in full, so
+  // measured against the whole ledger it holds nothing — and correcting the
+  // sell's own price would be refused as selling shares that are not there.
+  it('excludes the row being corrected, so its own effect cannot refuse it', () => {
+    const withoutTheSell = ledgerWithout(rows, 'b');
+    expect(buildPositions(rows).find((p) => p.ticker === 'QCOM')?.shares).toBe(0);
+    expect(buildPositions(withoutTheSell).find((p) => p.ticker === 'QCOM')?.shares).toBe(55);
+    expect(
+      validateTx(
+        { side: 'sell', ticker: 'QCOM', shares: '55', price: '171.02', date: '2026-09-03' },
+        buildPositions(withoutTheSell).find((p) => p.ticker === 'QCOM')?.shares ?? 0,
+        '2026-09-04',
+      ),
+    ).toEqual([]);
+  });
+
+  // Excluding the edited row must not excuse a genuine oversell in its
+  // replacement: 55 held, 60 sold is still 60 sold.
+  it('still refuses a correction that sells more than is held without it', () => {
+    const held = buildPositions(ledgerWithout(rows, 'b')).find((p) => p.ticker === 'QCOM')?.shares ?? 0;
+    expect(
+      validateTx(
+        { side: 'sell', ticker: 'QCOM', shares: '60', price: '171.02', date: '2026-09-03' },
+        held,
+        '2026-09-04',
+      ),
+    ).toContain('oversell');
+  });
+
+  it('leaves the ledger alone when the id is not in it', () => {
+    expect(ledgerWithout(rows, 'missing')).toEqual(rows);
   });
 });

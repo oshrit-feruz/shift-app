@@ -73,6 +73,23 @@ export interface LedgerApi {
     tx: { side: TransactionSide; ticker: string; shares: number; price: number; date: string },
   ) => void;
   removeTransaction: (portfolioId: string, id: string) => void;
+  /**
+   * Correct a transaction already recorded, as one queued pair: the old row
+   * deleted and a new one inserted.
+   *
+   * Not an update, because there is no update anywhere — the client has none,
+   * and 0005_ledger.sql grants the table no update policy at all. That is the
+   * design rather than an omission (see state/ledger.ts): immutable rows are
+   * what make reconcile() a set computation and give the outbox its
+   * concurrency argument. An edit expressed as delete-plus-insert keeps every
+   * bit of that, and the pair is queued in ONE write so the row never blinks
+   * out of the list between the two halves.
+   */
+  replaceTransaction: (
+    portfolioId: string,
+    id: string,
+    tx: { side: TransactionSide; ticker: string; shares: number; price: number; date: string },
+  ) => void;
   /** Ops the server refused permanently. Surfaced rather than swallowed: a
    *  queued write that can never succeed and quietly disappears is the same
    *  silent loss the jsonb bag was losing transactions to. */
@@ -86,6 +103,7 @@ const NOOP: LedgerApi = {
   removePortfolio: () => {},
   addTransaction: () => {},
   removeTransaction: () => {},
+  replaceTransaction: () => {},
   rejected: [],
 };
 
@@ -186,14 +204,20 @@ function useLedgerSync(): LedgerApi {
     }
   }, [userId, saveOutbox, publish]);
 
-  const enqueue = useCallback(
-    (op: LedgerOp) => {
-      saveOutbox([...outboxRef.current, op]);
+  const enqueueMany = useCallback(
+    (ops: LedgerOp[]) => {
+      // One outbox write and one publish for the whole group. A caller queuing
+      // a delete and an insert separately would publish between them, and the
+      // screen would render the moment where the row is gone and its
+      // replacement has not arrived.
+      saveOutbox([...outboxRef.current, ...ops]);
       publish();
       void flush();
     },
     [saveOutbox, publish, flush],
   );
+
+  const enqueue = useCallback((op: LedgerOp) => enqueueMany([op]), [enqueueMany]);
 
   /**
    * Read the server's rows and adopt them.
@@ -384,8 +408,32 @@ function useLedgerSync(): LedgerApi {
         if (!userId) return;
         enqueue({ kind: 'deleteTransaction', userId, id });
       },
+      replaceTransaction: (portfolioId, id, tx) => {
+        if (!userId) return;
+        // The replacement is a NEW row with a new id. Reusing the old id would
+        // race the queued delete of it — the two ops commute, and the pair
+        // could reach the server in the order that removes what it just
+        // inserted.
+        enqueueMany([
+          { kind: 'deleteTransaction', userId, id },
+          {
+            kind: 'insertTransaction',
+            userId,
+            row: {
+              id: newId('tx'),
+              portfolioId,
+              side: tx.side,
+              ticker: tx.ticker,
+              shares: tx.shares,
+              price: tx.price,
+              tradeDate: tx.date,
+              createdAt: new Date().toISOString(),
+            },
+          },
+        ]);
+      },
     }),
-    [state, rejected, userId, enqueue],
+    [state, rejected, userId, enqueue, enqueueMany],
   );
 }
 

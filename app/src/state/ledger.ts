@@ -181,6 +181,26 @@ export function portfoliosOf(snapshot: LedgerSnapshot): ManualPortfolio[] {
  */
 export const TICKER_PATTERN = /^[A-Z0-9][A-Z0-9.-]{0,9}$/;
 
+/**
+ * The rows the oversell check should measure a draft against.
+ *
+ * Everything in the portfolio when recording a new trade — and everything
+ * EXCEPT the row itself when correcting one. The difference is not cosmetic:
+ * a position sold out in full, then reopened for editing, is measured against
+ * a holding of zero that its own sell created, so the sheet refuses to let
+ * anyone fix the price of the very trade being corrected.
+ *
+ * Filtering rather than reversing the row's effect, because a correction
+ * replaces the row outright: what the ledger holds without it is exactly what
+ * the replacement will be added to.
+ */
+export function ledgerWithout(
+  transactions: ManualTransaction[],
+  excludeId: string | null | undefined,
+): ManualTransaction[] {
+  return excludeId == null ? transactions : transactions.filter((tx) => tx.id !== excludeId);
+}
+
 export type TxProblem = 'ticker' | 'shares' | 'price' | 'date' | 'oversell';
 
 export interface TxDraft {

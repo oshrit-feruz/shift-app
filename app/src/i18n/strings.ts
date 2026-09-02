@@ -541,6 +541,12 @@ export const STRINGS = {
     '{priced} of {held} holdings priced · no price for {tickers}',
     '{priced} מתוך {held} החזקות תומחרו · אין מחיר ל-{tickers}',
   ),
+  /**
+   * What the shares still held cost, on the holding row. Labelled rather than
+   * left as a bare figure: beside a market value and a return percentage, an
+   * unlabelled third number is a guess.
+   */
+  'pf.costLabel': p('cost', 'עלות'),
   'pf.closed': p('Closed positions', 'פוזיציות שנסגרו'),
   'pf.soldOut': p('sold out', 'נמכרה במלואה'),
   // Used for any manual portfolio, not only Sandbox.
@@ -828,6 +834,9 @@ export const STRINGS = {
   'tx.date': p('Date', 'תאריך'),
   'tx.symbolPlaceholder': p('e.g. NVDA', 'למשל NVDA'),
   'tx.saved': p('{ticker} transaction saved', 'העסקה ב-{ticker} נשמרה'),
+  'tx.editTitle': p('Edit transaction', 'עריכת עסקה'),
+  'tx.updated': p('{ticker} transaction updated', 'העסקה ב-{ticker} עודכנה'),
+  'tx.editAria': p('Edit {ticker} transaction', 'לערוך את העסקה ב-{ticker}'),
   'tx.removed': p('Transaction removed', 'העסקה נמחקה'),
   // Says what a valid symbol looks like rather than only that this one is
   // not — a reader who typed "brk b" needs to know about the dot.

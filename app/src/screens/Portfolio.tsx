@@ -15,7 +15,7 @@ import { DemoOnly } from '../components/DemoOnly';
 import { Skeleton, SkeletonCard, SkeletonList } from '../components/Skeleton';
 import { ALLOC_COLORS } from '../components/AllocationBar';
 import { useDemoMode } from '../lib/DemoModeProvider';
-import { useAppState, useDispatch, type TransactionSide } from '../state/appState';
+import { useAppState, useDispatch, type ManualTransaction, type TransactionSide } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { useToast } from '../components/Toast';
@@ -55,6 +55,10 @@ export function PortfolioScreen(_: ScreenProps) {
   const live = useDemoFlag('liveAccount');
   const portfolios = useLoadable(() => appService.portfolios(), [demo, live]);
   const [txOpen, setTxOpen] = useState(false);
+  // The row being corrected, or null for a new one. Held here rather than in
+  // <Transactions/> because the sheet is mounted at this level; the list only
+  // says which row was tapped.
+  const [editingTx, setEditingTx] = useState<ManualTransaction | null>(null);
   const ledger = useLedger();
   const toast = useToast();
   const removePortfolio = (pf: { id: string; name: string }) => {
@@ -180,7 +184,13 @@ export function PortfolioScreen(_: ScreenProps) {
                 {isManual && (
                   <Button
                     style={{ flex: 1, fontSize: 'var(--text-body)', minHeight: 36 }}
-                    onClick={() => setTxOpen(true)}
+                    onClick={() => {
+                      // Clearing is not optional: the sheet stays mounted, so
+                      // "add" after an edit would otherwise reopen on the row
+                      // that was last corrected.
+                      setEditingTx(null);
+                      setTxOpen(true);
+                    }}
                   >
                     ＋ {t('pf.addTx')}
                   </Button>
@@ -416,10 +426,24 @@ export function PortfolioScreen(_: ScreenProps) {
                   number of transactions, so a row there has no single record
                   behind it to remove. Manual portfolios only — a linked
                   account's history is the broker's, not ours to edit. */}
-              {isManual && <Transactions pfId={pf.id} />}
+              {isManual && (
+                <Transactions
+                  pfId={pf.id}
+                  onEdit={(tx) => {
+                    setEditingTx(tx);
+                    setTxOpen(true);
+                  }}
+                />
+              )}
 
               {demo ? <LongTermSavings /> : <DemoOnly feature="pf.longTerm" />}
-              <TxSheet open={txOpen} onClose={() => setTxOpen(false)} pfId={pf.id} pfName={pf.name} />
+              <TxSheet
+                open={txOpen}
+                onClose={() => setTxOpen(false)}
+                pfId={pf.id}
+                pfName={pf.name}
+                editing={editingTx}
+              />
               <NewPortfolioSheet open={newPfOpen} onClose={() => setNewPfOpen(false)} />
             </>
           );
@@ -496,7 +520,19 @@ function HoldingRow({ h, closed, onOpen }: { h: Holding; closed?: boolean; onOpe
   return (
     <ListRow
       title={h.ticker}
-      subtitle={<Num>{closed ? t('pf.soldOut') : `${h.shares} sh · avg ${money(h.avgCost)}`}</Num>}
+      subtitle={
+        closed ? (
+          <Num>{t('pf.soldOut')}</Num>
+        ) : (
+          // Cost sits beside the share count rather than opposite the value,
+          // because it belongs to the same half of the row: these two are what
+          // the user did, and the figures on the right are what the market did
+          // with it. It is also the one number here the market cannot take
+          // away — an unpriced holding shows "—" for worth and still says what
+          // it cost.
+          <Num>{`${h.shares} sh · avg ${money(h.avgCost)} · ${t('pf.costLabel')} ${money(h.costBasis)}`}</Num>
+        )
+      }
       right={
         <RowValues
           main={closed ? '—' : moneyOrDash(h.value, 0)}
@@ -635,7 +671,13 @@ function LiveAllocation({ pfId }: { pfId: string }) {
  * exactly what makes the sync commutative: operations replay in any order
  * without changing the result.
  */
-function Transactions({ pfId }: { pfId: string }) {
+function Transactions({
+  pfId,
+  onEdit,
+}: {
+  readonly pfId: string;
+  readonly onEdit: (tx: ManualTransaction) => void;
+}) {
   const s = useAppState();
   const t = useT();
   const { language } = useTheme();
@@ -659,6 +701,12 @@ function Transactions({ pfId }: { pfId: string }) {
               divider={i > 0}
               title={`${t(sideKey(tx.side))} ${tx.ticker}`}
               subtitle={<Num>{`${tx.shares} × ${money(tx.price)} · ${isoDate(tx.date, language)}`}</Num>}
+              // The row itself opens the correction, and the button beside it
+              // still deletes: fixing a mistyped price should not cost the
+              // trade's date and side as well, which is what re-entering it
+              // was costing.
+              onClick={() => onEdit(tx)}
+              ariaLabel={t('tx.editAria', { ticker: tx.ticker })}
               trailing={
                 <RowIconButton
                   label={t('tx.removeAria', { ticker: tx.ticker })}

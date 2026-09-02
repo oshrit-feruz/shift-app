@@ -8,8 +8,8 @@ import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { useToast } from '../components/Toast';
 import { buildPositions } from '../lib/positions';
-import { useAppState, type TransactionSide } from '../state/appState';
-import { validateTx, type TxProblem } from '../state/ledger';
+import { useAppState, type ManualTransaction, type TransactionSide } from '../state/appState';
+import { ledgerWithout, validateTx, type TxProblem } from '../state/ledger';
 import { useLedger } from '../state/useLedgerSync';
 
 /**
@@ -21,17 +21,25 @@ import { useLedger } from '../state/useLedgerSync';
  * openings because it stays mounted, so the second trade anyone logged
  * arrived pre-filled with the first one's numbers — in a form whose whole
  * purpose is recording what they actually paid.
+ *
+ * `editing` turns the same form into a correction of a row already recorded.
+ * The alternative — delete the row and type it again — is what the app used
+ * to require, and it loses everything about the trade to fix one digit of its
+ * price.
  */
 export function TxSheet({
   open,
   onClose,
   pfId,
   pfName,
+  editing = null,
 }: {
   open: boolean;
   onClose: () => void;
   pfId: string;
   pfName: string;
+  /** The transaction being corrected, or null to record a new one. */
+  editing?: ManualTransaction | null;
 }) {
   const { mode, language } = useTheme();
   const t = useT();
@@ -50,19 +58,28 @@ export function TxSheet({
   // still see them.
   useEffect(() => {
     if (!open) return;
-    setSide('buy');
-    setTicker('');
-    setShares('');
-    setPrice('');
-    setDate(todayLocal());
+    setSide(editing?.side ?? 'buy');
+    setTicker(editing?.ticker ?? '');
+    setShares(editing ? String(editing.shares) : '');
+    setPrice(editing ? String(editing.price) : '');
+    setDate(editing?.date ?? todayLocal());
     setTouched(false);
-  }, [open]);
+    // `editing` belongs in the deps beside `open`: the sheet stays mounted, so
+    // opening it on a different row without this would show the previous
+    // row's numbers under the new row's title.
+  }, [open, editing]);
 
   const today = todayLocal();
   const symbol = ticker.trim().toUpperCase();
   // What this portfolio holds of this ticker right now, which is what makes
   // the oversell refusal possible at entry rather than after the fact.
-  const held = buildPositions(s.manualTransactions[pfId] ?? []).find((p) => p.ticker === symbol)?.shares ?? 0;
+  // The row being edited is excluded from the fold. Counting it would measure
+  // the holding against a version of itself that is being replaced — someone
+  // who sold their whole position and wants to fix its price would be told
+  // they cannot sell shares they no longer hold, by the very row that sold
+  // them.
+  const ledgerRows = ledgerWithout(s.manualTransactions[pfId] ?? [], editing?.id);
+  const held = buildPositions(ledgerRows).find((p) => p.ticker === symbol)?.shares ?? 0;
 
   const draft = { side, ticker: symbol, shares, price, date };
   const problems = validateTx(draft, held, today);
@@ -75,13 +92,25 @@ export function TxSheet({
     // Through the ledger, so it reaches the outbox and survives a reload even
     // with no network — rather than into the reducer, which is now a view of
     // the ledger rather than the place it lives.
-    ledger.addTransaction(pfId, { side, ticker: symbol, shares: sh, price: px, date });
-    toast(t('tx.saved', { ticker: symbol }));
+    const row = { side, ticker: symbol, shares: sh, price: px, date };
+    if (editing) {
+      ledger.replaceTransaction(pfId, editing.id, row);
+      toast(t('tx.updated', { ticker: symbol }));
+    } else {
+      ledger.addTransaction(pfId, row);
+      toast(t('tx.saved', { ticker: symbol }));
+    }
     onClose();
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title={t('tx.title')} meta={pfName} maxHeight="84%">
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title={t(editing ? 'tx.editTitle' : 'tx.title')}
+      meta={pfName}
+      maxHeight="84%"
+    >
       <SegmentedControl
         options={[
           { value: 'buy', label: t('tx.buy') },

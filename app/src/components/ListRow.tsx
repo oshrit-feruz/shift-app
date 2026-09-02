@@ -12,6 +12,7 @@ export function ListRow({
   right,
   trailing,
   onClick,
+  ariaLabel,
   minHeight = 48,
   divider = true,
   padding = '8px 0',
@@ -22,6 +23,12 @@ export function ListRow({
   right?: ReactNode;
   trailing?: ReactNode;
   onClick?: () => void;
+  /**
+   * Accessible name for the row's own button, when the text inside it does
+   * not say what tapping does. A transaction row reads out its ticker and
+   * price either way; only this says that tapping corrects it.
+   */
+  ariaLabel?: string;
   minHeight?: number;
   divider?: boolean;
   padding?: string;
@@ -106,6 +113,7 @@ export function ListRow({
         type="button"
         className={trailing == null ? `${anim} tap` : 'tap'}
         onClick={onClick}
+        aria-label={ariaLabel}
         style={{
           ...base,
           // With a trailing slot the divider and the row's own padding move

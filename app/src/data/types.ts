@@ -242,6 +242,15 @@ export interface Holding {
   value: number | null;
   /** Total return, or `null` on the same three unpriced cases. */
   plPct: number | null;
+  /**
+   * What the shares still held cost: `shares * avgCost`.
+   *
+   * A number, never null, and that is the point of carrying it separately
+   * from `value`. What someone paid is their own arithmetic over their own
+   * ledger — the market cannot make it unknown — so a holding the provider
+   * could not price still says what it cost, beside a worth that reads "—".
+   */
+  costBasis: number;
 }
 
 export type PortfolioKind = 'aggregate' | 'linked' | 'manual' | 'institution';
