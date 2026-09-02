@@ -21,9 +21,10 @@ import { appService } from '../data/appService';
 import { useDemoFlag } from '../data/useDemoFlag';
 import { useLoadable } from '../data/useLoadable';
 import { PRICE_REFRESH_MS } from '../data/quotes';
+import { fetchStatsFor } from '../data/stats';
 import { fetchWeekEarnings } from '../data/earnings';
 import { useDemoMode } from '../lib/DemoModeProvider';
-import { money, moneyOrDash, pct, pctOrDash, signalColor } from '../lib/format';
+import { compactCount, money, moneyOrDash, pct, pctOrDash, signalColor } from '../lib/format';
 import { ROW_BUTTON_STYLE } from '../lib/rowButton';
 import type { ScreenProps } from '../App';
 
@@ -485,14 +486,27 @@ function MetricStripDemo() {
 /**
  * The movers preview: the biggest movers by the day's ACTUAL change, from the
  * live quote, same as the Movers screen. The volume printed beside the price
- * is still a demo figure — the provider's quote carries no volume — and is
- * the only fabricated number left on this card.
+ * is real too now — the session total from /api/stats, which is where the
+ * movers table reads it — and renders "—" for a ticker the provider does not
+ * carry. Nothing on this card is fabricated any more.
  */
+/** The session's volume for the preview line, or a dash when there is none. */
+function volumeLabel(volume: number | null | undefined): string {
+  return volume === null || volume === undefined ? '—' : compactCount(volume);
+}
+
 function MoversPreview({ beg }: { beg: boolean }) {
   const dispatch = useDispatch();
   const { language } = useTheme();
   const t = useT();
   const symbols = useLoadable(() => demoService.symbols(), [], PRICE_REFRESH_MS);
+  const tickers = symbols.state.status === 'ok' ? symbols.state.data.map((x) => x.ticker) : [];
+  // No refresh interval, unlike the quotes above: these are shared for
+  // fifteen minutes client-side (data/stats.ts) against a feed that is
+  // itself delayed by about as long, so a thirty-second poll would only
+  // re-read the same cached numbers while claiming to be live.
+  const statsRead = useLoadable(() => fetchStatsFor(tickers), [tickers.join(',')]);
+  const stats = statsRead.state.status === 'ok' ? statsRead.state.data : {};
 
   return (
     <>
@@ -564,7 +578,9 @@ function MoversPreview({ beg }: { beg: boolean }) {
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {beg ? x.why[language] : `${moneyOrDash(x.quote?.price)} · vol ${x.demo.volume}`}
+                      {beg
+                        ? x.why[language]
+                        : `${moneyOrDash(x.quote?.price)} · vol ${volumeLabel(stats[x.ticker]?.volume)}`}
                     </span>
                     <Num size={18} style={{ color: signalColor(x.quote?.changePct) }}>
                       {pctOrDash(x.quote?.changePct)}

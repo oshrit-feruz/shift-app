@@ -53,34 +53,34 @@ export interface Bar {
  * What is left of the design prototype's invented figures.
  *
  * They live behind their own key so no call site can render an invented
- * number while believing it is real: `x.demo.volume` says what it is at the
- * point of use, where a flat `x.volume` sitting beside a real price would
- * not. That naming is now the whole guard — the standing on-screen note was
+ * number while believing it is real: `x.demo.price` says what it is at the
+ * point of use, where a flat `x.price` sitting beside a real one would not.
+ * That naming is now the whole guard — the standing on-screen note was
  * removed, so nothing but the key tells a call site what it holds.
  *
- * This bag keeps shrinking as sources arrive, and each departure is the same
- * story. Day change went first (the live quote carries one). Market cap and
- * P/E followed, to a per-ticker route of their own (data/stats.ts), taking
- * with them a forward P/E that was `pe * 0.62` and three string constants
- * that read the same under every ticker in the app. Volume is what remains.
+ * The bag kept shrinking as sources arrived, and one field is left. Day change
+ * went first (the live quote carries one). Market cap and P/E followed, to a
+ * per-ticker route of their own (data/stats.ts), taking with them a forward
+ * P/E that was `pe * 0.62` and three string constants that read the same
+ * under every ticker in the app. Volume went to that same route, along with
+ * the average it is measured against — the relative-volume column had been
+ * computed from the length of the ticker symbol.
  */
 export interface SymbolDemoStats {
-  /** Prototype price. Kept only as the basis for the demo portfolio's
-   *  valuation — never rendered as *the* price, which comes from
-   *  `SymbolInfo.quote`. */
-  price: number;
   /**
-   * The last invented figure any screen still shows: the movers table ranks
-   * its "Most active" tab on this and prints it in the Vol column, and the
-   * home card repeats it beside the price. The live quote carries no volume,
-   * so it has no real source yet — the daily bars do carry one (see
-   * data/priceHistory.ts), which is what will retire this.
+   * The prototype's price, and the only field left in this bag.
    *
-   * `marketCap`, `pe` and `rsi` used to sit here and are gone: the first two
-   * are read live per ticker now (data/stats.ts) and the third was already
-   * unread, computed from real bars on the stock page instead.
+   * It is never rendered as *the* price — that comes from `SymbolInfo.quote`,
+   * live — and exists solely to value the demo portfolio, whose share counts
+   * and accounts are invented too. Pricing those at real prices would produce
+   * a portfolio that is neither.
+   *
+   * Everything else has left, each to a real source: the day change to the
+   * live quote, market cap and P/E to data/stats.ts, and volume to the same
+   * route, which carries the session total and the average it is measured
+   * against. `rsi` went unread, computed from real bars on the stock page.
    */
-  volume: string;
+  price: number;
 }
 
 /**
@@ -297,6 +297,16 @@ export interface StockStats {
   dividendYield: number | null;
   fiftyTwoWeekHigh: number | null;
   fiftyTwoWeekLow: number | null;
+  /**
+   * The current session's cumulative volume and the provider's own average
+   * daily volume. They travel together because the only thing built on them
+   * is the ratio of one to the other — relative volume — and a ratio across
+   * two providers or two moments would not mean that. See `relativeVolume`
+   * in data/stats.ts, which is also where the caveat lives: `volume` is the
+   * session so far, so the ratio runs low all morning by construction.
+   */
+  volume: number | null;
+  averageVolume: number | null;
 }
 
 export type PortfolioKind = 'aggregate' | 'linked' | 'manual' | 'institution';

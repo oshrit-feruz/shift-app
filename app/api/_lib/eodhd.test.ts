@@ -199,10 +199,12 @@ describe('mapUsStats', () => {
     dividendYield: 0.0216,
     fiftyTwoWeekHigh: 259.92,
     fiftyTwoWeekLow: 121.99,
+    volume: 8831907,
+    averageVolume: 15642960,
     lastTradePrice: 166.431,
   };
 
-  it('maps the figures the grid renders', () => {
+  it('maps the figures the screens render', () => {
     expect(mapUsStats(row)).toEqual({
       marketCap: 174752550000,
       pe: 19.483429,
@@ -210,6 +212,8 @@ describe('mapUsStats', () => {
       dividendYield: 0.0216,
       fiftyTwoWeekHigh: 259.92,
       fiftyTwoWeekLow: 121.99,
+      volume: 8831907,
+      averageVolume: 15642960,
     });
   });
 
@@ -234,7 +238,18 @@ describe('mapUsStats', () => {
       dividendYield: null,
       fiftyTwoWeekHigh: null,
       fiftyTwoWeekLow: null,
+      volume: null,
+      averageVolume: null,
     });
+  });
+
+  it('keeps a zero session volume but refuses a zero average', () => {
+    // A session that has genuinely traded nothing is a real zero. A zero
+    // average is the provider having no history to average — seen on newly
+    // listed names — and it is the denominator of the relative-volume ratio.
+    const row0 = mapUsStats({ ...row, volume: 0, averageVolume: 0 })!;
+    expect(row0.volume).toBe(0);
+    expect(row0.averageVolume).toBeNull();
   });
 
   it('refuses a non-positive market cap, P/E or 52-week bound', () => {

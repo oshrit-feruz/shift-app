@@ -14,8 +14,9 @@ import { useT } from '../i18n/useT';
 import { demoService } from '../data/demoAdapter';
 import { useLoadable } from '../data/useLoadable';
 import { PRICE_REFRESH_MS } from '../data/quotes';
-import { moneyOrDash, pctOrDash, signalColor } from '../lib/format';
-import type { SymbolInfo } from '../data/types';
+import { fetchStatsFor, relativeVolume } from '../data/stats';
+import { compactCount, moneyOrDash, pctOrDash, signalColor } from '../lib/format';
+import type { StockStats, SymbolInfo } from '../data/types';
 import type { StringKey } from '../i18n/strings';
 import type { ScreenProps } from '../App';
 
@@ -37,12 +38,24 @@ const SECTORS: Array<[string, StringKey]> = [
 /**
  * Split so the hooks below never run with sample data off.
  *
- * The day change this screen ranks by is REAL now — it comes from the live
- * quote, like the price beside it. What is still demonstration data is
- * volume: the provider's quote carries no volume figure, so the "Most active"
- * tab, the Vol column and RVol are all prototype numbers, and the gate stays
- * until they have a source. Gainers and Losers are ordered by the actual
- * session.
+ * EVERY NUMBER ON THIS SCREEN IS REAL NOW. The day change comes from the live
+ * quote, the price beside it from the same quote, and the Vol column, the
+ * RVol column and the "Most active" ranking from /api/stats — the session's
+ * volume and the provider's average daily volume. What those replaced is
+ * worth naming: the volume was a frozen string per ticker, and RVol was
+ * `1.1 + (ticker.length % 4) * 0.4`, a number derived from how many letters
+ * the symbol has and printed with an "×" beside a real price.
+ *
+ * THE GATE STAYS ANYWAY, and for a different reason than before. This screen
+ * ranks `demoService.symbols()` — the app's ten-row sample table — so it is
+ * "the movers among ten sample stocks", not the market's. Real figures over a
+ * hand-picked universe would be a more convincing wrong answer than obvious
+ * placeholders were, which is exactly the trade this app does not make. The
+ * gate lifts when the universe is real: EODHD's screener is on this plan and
+ * can rank the actual market, though it answers on the last completed session
+ * rather than intraday, and picking sensible filters (a price floor, a volume
+ * floor, primary listings only) is a product decision rather than a wiring
+ * one — sorted naively by day change it returns sub-penny OTC listings.
  */
 export function MoversScreen(props: ScreenProps) {
   const demo = useDemoMode();
@@ -57,6 +70,18 @@ function MoversBody(_: ScreenProps) {
   const [tab, setTab] = useState('Gainers');
   const [sector, setSector] = useState('All');
   const symbols = useLoadable(() => demoService.symbols(), [], PRICE_REFRESH_MS);
+  // Volume and its average, per ticker, from /api/stats. Read for the whole
+  // table in one request rather than per row: the route batches natively, and
+  // the "Most active" ranking needs every row's volume before it can order any
+  // of them. A ticker the provider does not carry is simply absent, which the
+  // Vol and RVol columns render as "—".
+  const tickers = symbols.state.status === 'ok' ? symbols.state.data.map((x) => x.ticker) : [];
+  // No refresh interval, unlike the quotes above: these are shared for
+  // fifteen minutes client-side (data/stats.ts) against a feed that is
+  // itself delayed by about as long, so a thirty-second poll would only
+  // re-read the same cached numbers while claiming to be live.
+  const statsRead = useLoadable(() => fetchStatsFor(tickers), [tickers.join(',')]);
+  const stats = statsRead.state.status === 'ok' ? statsRead.state.data : {};
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
@@ -105,13 +130,24 @@ function MoversBody(_: ScreenProps) {
             if (y === null) return -1;
             return sign * (y - x);
           };
+          // Same rule as byChange, for the same reason: a ticker whose volume
+          // we do not have has not "traded nothing", so it sorts to the bottom
+          // rather than into the middle of the board as a zero.
+          const byVolume = (a: SymbolInfo, b: SymbolInfo) => {
+            const x = stats[a.ticker]?.volume ?? null;
+            const y = stats[b.ticker]?.volume ?? null;
+            if (x === null && y === null) return 0;
+            if (x === null) return 1;
+            if (y === null) return -1;
+            return y - x;
+          };
           const pool = syms
             .slice()
             .sort((a, b) =>
               tab === 'Losers'
                 ? byChange(a, b, -1)
                 : tab === 'Most active'
-                  ? parseFloat(b.demo.volume) - parseFloat(a.demo.volume)
+                  ? byVolume(a, b)
                   : byChange(a, b, 1),
             );
           const filtered = sector === 'All' ? pool : pool.filter((x) => x.sector === sector);
@@ -194,10 +230,10 @@ function MoversBody(_: ScreenProps) {
                         <Num>{pctOrDash(x.quote?.changePct)}</Num>
                       </Td>
                       <Td muted>
-                        <Num>{x.demo.volume}</Num>
+                        <Num>{volumeOrDash(stats[x.ticker]?.volume)}</Num>
                       </Td>
                       <Td color="var(--color-accent-300)">
-                        <Num>{(1.1 + (x.ticker.length % 4) * 0.4).toFixed(1)}×</Num>
+                        <Num>{rvolOrDash(stats[x.ticker])}</Num>
                       </Td>
                     </tr>
                   ))}
@@ -209,6 +245,25 @@ function MoversBody(_: ScreenProps) {
       </DataState>
     </div>
   );
+}
+
+/** The session's volume, or the dash owed when the provider carries none. */
+function volumeOrDash(volume: number | null | undefined): string {
+  return volume === null || volume === undefined ? '—' : compactCount(volume);
+}
+
+/**
+ * Relative volume, or a dash.
+ *
+ * This column used to read `1.1 + (ticker.length % 4) * 0.4` — a number
+ * derived from how many letters the symbol has, rendered with an "×" beside a
+ * real price and a real day change. It is now the session's volume over the
+ * provider's average daily volume, both from one snapshot, and null whenever
+ * either is missing or the average is zero (see relativeVolume).
+ */
+function rvolOrDash(stats: StockStats | undefined): string {
+  const rvol = relativeVolume(stats);
+  return rvol === null ? '—' : `${rvol.toFixed(1)}×`;
 }
 
 function Th({ children, align = 'end' }: { children: React.ReactNode; align?: 'start' | 'end' }) {

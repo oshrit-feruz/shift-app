@@ -208,10 +208,29 @@ those rows as `—`.
 snapshot that once stood in for a price carried no day-change field, so every
 percentage beside a real price was a demo figure. The live quote carries one,
 so the watchlist rows, the movers ranking (Gainers and Losers alike) and the
-stock header all print and sort by the actual session. Volume is what is left:
-the quote has none, so the "Most active" tab, the Vol column and RVol are
-still prototype numbers, and the Movers screen stays behind the sample-data
-switch until they have a source.
+stock header all print and sort by the actual session.
+
+**Volume followed it, and took relative volume with it.** The quote carries no
+volume, so the "Most active" tab, the Vol column and RVol were prototype
+numbers — and RVol was the worst of them, computed as
+`1.1 + (ticker.length % 4) * 0.4`, a figure derived from how many letters the
+symbol has and printed with an "×" beside a real price. Both now come from
+`/api/stats`: the session's cumulative volume and the provider's own average
+daily volume, from one snapshot, with RVol as the ratio. It reads low all
+morning because the session total is partial — which is what relative volume
+means everywhere — and it is `—` rather than `∞×` for a newly listed name
+whose average is zero.
+
+**The Movers screen stays behind the sample-data switch anyway,** for a
+different reason than before. It ranks the ten-row sample table, so it is "the
+movers among ten sample stocks" rather than the market's, and real figures over
+a hand-picked universe would be a more convincing wrong answer than obvious
+placeholders were. The gate lifts when the universe is real: EODHD's screener
+is on this plan and can rank the actual market, with two caveats that make it a
+product decision rather than a wiring one — it answers on the last completed
+session rather than intraday, and sorted naively by day change it returns
+sub-penny OTC listings, so it needs a price floor, a volume floor and primary
+listings only.
 
 **Where the prices come from.** `app/src/data/quotes.ts` batches a screen's
 tickers into one call to `app/api/quote.ts`, which fans out to Finnhub's

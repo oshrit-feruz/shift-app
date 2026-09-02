@@ -191,6 +191,20 @@ export interface UsStats {
   dividendYield: number | null;
   fiftyTwoWeekHigh: number | null;
   fiftyTwoWeekLow: number | null;
+  /**
+   * The current session's cumulative volume, and the provider's own average
+   * daily volume. They travel together because the only thing the app does
+   * with them is divide one by the other — relative volume, "is this stock
+   * busier than usual today" — and a ratio built from two providers, or from
+   * two moments, would not mean that.
+   *
+   * Both are delayed with the rest of this snapshot, and `volume` is
+   * partial while a session is open: at lunchtime it is half a day's
+   * trading, so the ratio reads low by construction. That is what relative
+   * volume is everywhere; it is not an error to correct for.
+   */
+  volume: number | null;
+  averageVolume: number | null;
 }
 
 /** The delayed US extended-quote URL for one or more symbols. */
@@ -257,6 +271,13 @@ export function mapUsStats(raw: unknown): UsStats | null {
     dividendYield: numOrNull(row.dividendYield),
     fiftyTwoWeekHigh: positive(row.fiftyTwoWeekHigh),
     fiftyTwoWeekLow: positive(row.fiftyTwoWeekLow),
+    // A session that has genuinely traded nothing yet is a real zero, so
+    // volume is read as any finite number. The average is not: a zero there
+    // is the provider having no history to average (seen on recently listed
+    // names), and it is also the denominator of the relative-volume ratio,
+    // where zero would divide into infinity.
+    volume: numOrNull(row.volume),
+    averageVolume: positive(row.averageVolume),
   };
 }
 
