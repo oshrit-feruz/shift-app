@@ -138,7 +138,11 @@ export function mapSignal(raw: unknown): SatelliteSignal | null {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const row = raw as Record<string, unknown>;
 
-  const ticker = pickString(row, ['ticker', 'symbol']);
+  // Trimmed as well as uppercased: the ticker is the key every other read is
+  // joined on — the live quote map, the sample table, the watchlist — and
+  // those all normalise. A padded key from the snapshot used to survive to
+  // here, miss its own quote, and render a dash beside a price we had.
+  const ticker = pickString(row, ['ticker', 'symbol'])?.trim();
   if (!ticker) return null;
 
   // An unrecognised verdict is reported as-is rather than coerced to BUY.

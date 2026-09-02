@@ -288,6 +288,14 @@ describe('stockRadar() — priced live, from the same source as the stock page',
     expect(radar!.quotes.ORCL).toBeUndefined();
   });
 
+  it('keys the quote by the normalised ticker, so a padded snapshot key still finds its price', async () => {
+    vi.stubGlobal('fetch', radarWorld({ NVDA: 144.76 }, [{ ...engineClose, ticker: ' nvda ' }]));
+    const r = await demoService.stockRadar();
+    const radar = r.status === 'ok' ? r.data : null;
+    expect(radar!.signals[0].ticker).toBe('NVDA');
+    expect(radar!.quotes[radar!.signals[0].ticker]?.price).toBeCloseTo(144.76, 6);
+  });
+
   it('leaves a name the provider does not price out of the map — never the engine close', async () => {
     vi.stubGlobal('fetch', radarWorld({}, [engineClose]));
     const r = await demoService.stockRadar();

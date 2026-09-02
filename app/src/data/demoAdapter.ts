@@ -316,10 +316,10 @@ export const demoService: DataService & { isDemo: true } = {
    * actually shows (see SearchOverlay), which is both cheaper and fresher.
    *
    * Dedupe is on the normalised ticker, not the raw snapshot key. mapSignal
-   * uppercases what the snapshot carries but does not trim it, so a key with
-   * stray whitespace failed a raw comparison against the sample table while
-   * watchRow normalised it to the same symbol — two rows for one company,
-   * under one React key.
+   * now trims and uppercases what the snapshot carries, but this list also
+   * takes `include` from the caller, so it normalises again rather than
+   * trusting every source to have — a key with stray whitespace once made
+   * two rows for one company, under one React key.
    *
    * A dead ranking leaves the sample table, which is still a usable — if
    * short — list to search, so this is only 'unavailable' under the demo
