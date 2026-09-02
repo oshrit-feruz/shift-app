@@ -566,11 +566,6 @@ function PerformanceSlot({
   label: string;
 }>) {
   const t = useT();
-  const note = (text: string) => (
-    <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
-      {text}
-    </p>
-  );
 
   // isManual is asked FIRST because the two are not the same kind of fact:
   // `live` is a switch on the whole app, while a manual portfolio is a
@@ -587,7 +582,7 @@ function PerformanceSlot({
   if (isManual) return <ManualValueChart ledger={ledger} label={label} />;
   // A live read of a connected account's current state: the brokerage reports
   // no priced history through the integration at all.
-  if (live) return note(t('live.noHistory'));
+  if (live) return <Note>{t('live.noHistory')}</Note>;
   // The line and its benchmark are both seeded walks, so with sample data off
   // there is nothing honest left to draw.
   if (!demo) return <DemoOnly feature="pf.performance" card={false} />;
@@ -601,6 +596,21 @@ function PerformanceSlot({
         <span>{t('pf.benchmark')}</span>
       </div>
     </>
+  );
+}
+
+/**
+ * The muted caption every "why there is no chart here" sentence takes.
+ *
+ * One definition rather than one per card: these lines are the app saying what
+ * it does not know, and they would be a strange thing to let drift apart in
+ * size or spacing between two cards that sit on the same screen.
+ */
+function Note({ children }: Readonly<{ children: ReactNode }>) {
+  return (
+    <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
+      {children}
+    </p>
   );
 }
 
@@ -634,13 +644,7 @@ function ManualValueChart({ ledger, label }: Readonly<{ ledger: ManualTransactio
     .join('|');
   const { state, retry } = useLoadable<PortfolioSeries>(() => fetchPortfolioSeries(ledger), [key]);
 
-  const note = (text: string) => (
-    <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
-      {text}
-    </p>
-  );
-
-  if (ledger.length === 0) return note(t('pf.valueNoneYet'));
+  if (ledger.length === 0) return <Note>{t('pf.valueNoneYet')}</Note>;
 
   return (
     <DataState state={state} onRetry={retry} skeleton={<Skeleton height={110} />}>
@@ -649,16 +653,13 @@ function ManualValueChart({ ledger, label }: Readonly<{ ledger: ManualTransactio
         // The provider answered and had nothing to say about these symbols —
         // which is a fact about the holdings, not a failure of the read, and
         // the two must not be worded the same way.
-        if (priced.length === 0) return note(t('pf.valueNoHistory'));
+        if (priced.length === 0) return <Note>{t('pf.valueNoHistory')}</Note>;
 
         const gain = openGain(series.points);
+        // Two sentences, because Hebrew inflects the verb and not only the noun.
+        const gapKey = series.unpriced.length === 1 ? 'pf.valueGapOne' : 'pf.valueGapMany';
         const gap =
-          series.unpriced.length > 0
-            ? t(series.unpriced.length === 1 ? 'pf.valueGapOne' : 'pf.valueGapMany').replace(
-                '{tickers}',
-                series.unpriced.join(', '),
-              )
-            : null;
+          series.unpriced.length === 0 ? null : t(gapKey).replace('{tickers}', series.unpriced.join(', '));
 
         return (
           <>
@@ -688,10 +689,13 @@ function ManualValueChart({ ledger, label }: Readonly<{ ledger: ManualTransactio
                 </span>
               )}
             </div>
-            {note(t('pf.valueBasis'))}
-            {gap && note(gap)}
-            {series.ledgerStartsBefore &&
-              note(t('pf.valueClipped').replace('{date}', isoDate(series.ledgerStartsBefore, language)))}
+            <Note>{t('pf.valueBasis')}</Note>
+            {gap && <Note>{gap}</Note>}
+            {series.ledgerStartsBefore && (
+              <Note>
+                {t('pf.valueClipped').replace('{date}', isoDate(series.ledgerStartsBefore, language))}
+              </Note>
+            )}
           </>
         );
       }}

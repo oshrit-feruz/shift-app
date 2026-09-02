@@ -78,9 +78,11 @@ export function sparseAreaPath(pts: Array<Pt | null>, h: number): string {
   const parts: string[] = [];
   let run: Pt[] = [];
   const flush = () => {
-    if (run.length > 1) {
-      const first = run[0];
-      const last = run[run.length - 1];
+    const first = run[0];
+    const last = run.at(-1);
+    // Two points minimum: a single isolated sample has no area under it, and
+    // the hairline one would draw reads as a spike.
+    if (first && last && run.length > 1) {
       parts.push(`${linePath(run)} L${last[0].toFixed(1)} ${h} L${first[0].toFixed(1)} ${h} Z`);
     }
     run = [];
