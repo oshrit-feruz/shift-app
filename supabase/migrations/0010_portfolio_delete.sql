@@ -1,4 +1,4 @@
--- 0008: any portfolio can be deleted by its owner — the Sandbox included.
+-- 0010: any portfolio can be deleted by its owner — the Sandbox included.
 --
 -- 0005 kept the Sandbox with `and not is_default` on the delete policy, on
 -- the reasoning that every user must always have somewhere to record a

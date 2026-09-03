@@ -486,23 +486,6 @@ export interface EarningsEvent {
   lastSurprise: string;
 }
 
-export interface ActiveAlert {
-  glyph: string;
-  title: { en: string; he: string };
-  detail: { en: string; he: string };
-}
-
-export interface AppNotification {
-  glyph: string;
-  title: { en: string; he: string };
-  detail: { en: string; he: string };
-  ago: { en: string; he: string };
-  ticker: string;
-  unread: boolean;
-  /** Threshold alerts are informational-only and render with the fixed disclaimer. */
-  isThresholdAlert?: boolean;
-}
-
 export interface InstitutionProvider {
   name: { en: string; he: string };
   logo: string | null;
@@ -631,6 +614,16 @@ export interface ConnectedConnection {
  * screen uses to tell "nothing connected" from "connected, reporting nothing".
  */
 export interface ConnectedAccountsResult {
+  /**
+   * Whether this user has authorised a brokerage connection at all.
+   *
+   * The distinction the screens live on: `false` with no accounts means
+   * nobody has ever connected anything, and the app shows its own data
+   * instead. `true` with no accounts means they DID connect one and the
+   * brokerage reported nothing — a fact about their account, which must not
+   * be papered over with sample numbers.
+   */
+  linked: boolean;
   accounts: ConnectedAccount[];
   connections: ConnectedConnection[];
 }

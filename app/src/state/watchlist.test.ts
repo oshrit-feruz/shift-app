@@ -78,7 +78,7 @@ describe("alerts are the user's too", () => {
     id: 'a1',
     ticker: 'NVDA',
     kind: 'price' as const,
-    condition: 'rise' as const,
+    condition: 'cross' as const,
     value: '200',
     remind: 'day' as const,
     sources: { wires: true, filings: true },
@@ -115,11 +115,23 @@ describe("alerts are the user's too", () => {
     expect(again.savedAlerts[0].notifyBy).toEqual({ push: false, email: true });
   });
 
+  it('collapses two rules on the same level, whatever direction they were stored with', () => {
+    // Price rules lost their direction: "NVDA at 200" is one question, and a
+    // row saved as 'rise' and a row saved as 'fall' on the same level are the
+    // same question asked twice.
+    const rise = reducer(initial, { type: 'addAlert', alert });
+    const fall = reducer(rise, { type: 'addAlert', alert: { ...alert, id: 'a2' } });
+    expect(fall.savedAlerts).toHaveLength(1);
+    expect(fall.savedAlerts[0].id).toBe('a1');
+  });
+
   it('keeps alerts that watch for different things', () => {
     const price = reducer(initial, { type: 'addAlert', alert });
+    // A different LEVEL is a different alert; a price rule has no direction
+    // that could tell two apart on the same level.
     const lower = reducer(price, {
       type: 'addAlert',
-      alert: { ...alert, id: 'a2', condition: 'fall' as const },
+      alert: { ...alert, id: 'a2', value: '150' },
     });
     const other = reducer(lower, { type: 'addAlert', alert: { ...alert, id: 'a3', ticker: 'AMD' } });
     const news = reducer(other, {

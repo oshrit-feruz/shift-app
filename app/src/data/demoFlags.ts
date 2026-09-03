@@ -37,12 +37,12 @@ const memory = new Map<DemoFlag, boolean>();
  * halves stay live either way: prices and the day change beside them come
  * from the quote route with the switch in either position.
  *
- * `unavailable` starts off: it is a QA switch for rendering failure states
- * on purpose, not a state to put a reader in without them asking.
+ * `unavailable` starts off: it is a QA switch for rendering failure states on
+ * purpose, which is not a state to put a reader in without them asking.
  *
  * There used to be a third flag, `liveAccount`, that pointed the app at the
  * one real brokerage account while sample data stayed on. It is gone: with
- * sample data OFF the accounts are the real one (data/appService.ts), so one
+ * sample data OFF the accounts are the real ones (data/appService.ts), so one
  * switch answers "is this money real" instead of two.
  */
 const DEFAULTS: Record<DemoFlag, boolean> = {
@@ -54,9 +54,9 @@ const DEFAULTS: Record<DemoFlag, boolean> = {
  * Subscribers notified when any flag flips — see data/useDemoFlag.ts.
  *
  * DemoModeProvider mirrors `demoData` into React state and is its only
- * writer, which covers that flag. `unavailable` is read straight out of
- * storage by useDemoFlag() instead, so it needs a change signal of its own;
- * this is it. Both go through `set` below, so neither can drift.
+ * writer; anything reading a flag straight out of storage needs a change
+ * signal of its own, and this is it. Every write goes through `set` below, so
+ * the two cannot drift.
  */
 const listeners = new Set<() => void>();
 

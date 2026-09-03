@@ -6,6 +6,7 @@ import { useDemoMode, useSetDemoMode } from '../lib/DemoModeProvider';
 import { useDispatch, type Screen } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
+import { useLinked } from '../data/useLinked';
 import { InstallSteps } from '../components/InstallSteps';
 import { useIsStandalone } from '../lib/useInstall';
 import type { StringKey } from '../i18n/strings';
@@ -21,6 +22,19 @@ const LINKS: Array<{ screen: Screen; icon: IconName; label: StringKey; help: Str
   { screen: 'settings', icon: 'settings', label: 'more.settings', help: 'more.settingsHelp' },
 ];
 
+/**
+ * The founder-demo connected-account screen. Kept out of LINKS because it is
+ * listed only while the Settings switch is on — with the switch off the app
+ * shows no trace of it, which is what makes the before/after comparison a
+ * real comparison.
+ */
+const LIVE_LINK: (typeof LINKS)[number] = {
+  screen: 'snaptrade',
+  icon: 'grid',
+  label: 'more.snaptrade',
+  help: 'more.snaptradeHelp',
+};
+
 export function MoreScreen(_: ScreenProps) {
   const dispatch = useDispatch();
   const { mode, setMode } = useTheme();
@@ -28,11 +42,13 @@ export function MoreScreen(_: ScreenProps) {
   const beg = mode === 'beginner';
   const demo = useDemoMode();
   const setDemo = useSetDemoMode();
+  const live = useLinked();
   // Only in a browser tab. On a phone in production this screen is only
   // reachable from the installed app, so the card is really for desktop and
   // for builds where the gate is off — there is no point offering an install
   // to a window that is already the installed app.
   const standalone = useIsStandalone();
+  const links = live ? [...LINKS, LIVE_LINK] : LINKS;
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -90,7 +106,7 @@ export function MoreScreen(_: ScreenProps) {
       )}
 
       <Card padding="6px 0" gap={0}>
-        {LINKS.map((r) => (
+        {links.map((r) => (
           <button
             key={r.screen}
             type="button"

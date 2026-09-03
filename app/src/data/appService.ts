@@ -1,30 +1,41 @@
 /**
  * The DataService the screens actually read.
  *
- * Two of its methods change source with the sample-data switch. With sample
- * data ON, portfolios() and holdings() return the demo adapter's invented
- * accounts, like everything else that switch fabricates. With it OFF they
- * return the one REAL brokerage account read through SnapTrade
- * (data/snaptradeAccount.ts) — or an honest empty list when none is linked
- * yet. Everything else — symbols, satellite signals, news, earnings, chart
- * series — is untouched by the switch and keeps its existing source.
+ * By default it *is* the demo adapter — every method delegates straight
+ * through, so a user who has not connected a brokerage sees exactly the app
+ * that existed before this file.
  *
- * There used to be a third state: a separate "real connected account" switch
- * that swapped the demo accounts for the SnapTrade one. It went, because it
- * made the same fact — "is this money real" — depend on two switches, and a
- * reader who turned sample data off was still shown demo brokers.
+ * Once a user connects one (Connections → "connect an account", which opens
+ * SnapTrade's hosted portal), two methods change source: portfolios() and
+ * holdings() stop returning the demo adapter's invented accounts and return
+ * that person's REAL brokerage accounts instead (data/snaptradeAccount.ts).
+ * Everything else — symbols, satellite signals, news, earnings, chart series
+ * — is untouched and keeps its existing source.
  *
- * The SnapTrade integration is a single-account Personal-tier read: see
- * data/snaptradeAccount.ts and the README for what it is and is not.
+ * WHAT DECIDES WHICH SOURCE. Two things, in order — see liveDataActive()
+ * below. First the sample-data switch: while it is on these methods answer
+ * from the demo adapter no matter what is connected, because that switch is
+ * what makes the app safe to put on a screen in front of other people, and a
+ * mode that still drew the presenter's own positions would not be. Then
+ * `isLinked()` (data/linkState.ts), the remembered answer to "has this user
+ * connected a brokerage", written only by a real response from the server.
  *
- * DATA HONESTY: with sample data off and the SnapTrade call failing, these
+ * Nothing is disconnected by the switch. The account is simply not read until
+ * it goes off, and the screen that manages the connection
+ * (screens/ConnectedAccount.tsx) shows the truth either way — that is where
+ * someone goes to look at or revoke it rather than to present the app.
+ *
+ * DATA HONESTY: when a user IS linked and the SnapTrade call fails, these
  * methods return 'unavailable'. They never silently fall back to the demo
- * numbers — a screen promising a real account must not quietly show an
- * invented one.
+ * numbers — a screen showing a real account must not quietly show an invented
+ * one. The one case that does fall back is `linked: false`, which is not a
+ * failure at all: it is the server saying this person has connected nothing,
+ * and the app's own data is then the honest thing to show.
  */
 
 import { demoService } from './demoAdapter';
 import { DEMO_FLAGS } from './demoFlags';
+import { isLinked } from './linkState';
 import { fetchConnectedAccounts } from './snaptradeAccount';
 import { positionReturnPct } from '../lib/format';
 import type { DataService } from './service';
@@ -48,12 +59,17 @@ const AGGREGATE_ID = 'agg';
  * holdings(), and the stock page asks for both again per ticker. Without this
  * each of those would be a separate three-call fan-out to SnapTrade, whose
  * own guidance is to keep holdings reads to a handful per day. The window is
- * deliberately short: a reload must still show the account's current state,
- * not a minute-old one.
+ * deliberately short: a demo being reloaded on stage must still show the
+ * account's current state, not a minute-old one.
  */
 const CACHE_MS = 20_000;
 let cache: { at: number; promise: Promise<Loadable<ConnectedAccountsResult>> } | null = null;
 
+/**
+ * One shared read of the connected accounts, briefly cached, so the several
+ * screens that ask within the same moment cost one upstream call rather than
+ * one each.
+ */
 function connectedAccounts(): Promise<Loadable<ConnectedAccountsResult>> {
   const now = Date.now();
   if (cache && now - cache.at < CACHE_MS) return cache.promise;
@@ -67,7 +83,11 @@ function connectedAccounts(): Promise<Loadable<ConnectedAccountsResult>> {
   return promise;
 }
 
-/** Drops the cache so the next read goes back to SnapTrade — used when the switch flips. */
+/**
+ * Drops the cache so the next read goes back to SnapTrade — used the moment a
+ * connection is created or revoked, where serving the previous answer for the
+ * next twenty seconds would show an account that has just been disconnected.
+ */
 export function resetConnectedAccountCache() {
   cache = null;
 }
@@ -95,28 +115,15 @@ function accountTotal(account: ConnectedAccount): number | null {
 }
 
 /**
- * When the brokerage data was fetched, as the "synced …" line under the
- * account's name. Null when SnapTrade gave no timestamp — the line then
- * makes no freshness claim rather than implying one. An unparseable stamp
- * is shown verbatim: it is still a fact the provider reported.
- */
-export function syncedAt(asOf: string | null): { en: string; he: string } | null {
-  if (asOf === null) return null;
-  const d = new Date(asOf);
-  if (Number.isNaN(d.getTime())) return { en: asOf, he: asOf };
-  const opts = { dateStyle: 'short', timeStyle: 'short' } as const;
-  return { en: d.toLocaleString('en-GB', opts), he: d.toLocaleString('he-IL', opts) };
-}
-
-/**
  * A real connected account as a PortfolioSummary row, so it sits in the same
  * list as any other account and no screen needs to know where it came from.
  *
- * dayPct and allTimePct are null, not 0: SnapTrade's positions carry no
- * day-change field and no priced history to derive one from, and a 0 would
- * render as a measured flat day the app never measured. Today's move on the
- * positions themselves comes from the live quote, per holding, in
- * lib/holdings.ts — which is where the Portfolio tab reads it.
+ * dayPct and allTimePct are 0 for the same reason manualPortfolioSummaries()
+ * sets them to 0 (lib/holdings.ts): SnapTrade's positions carry no day-change
+ * field and no priced history to derive one from. That 0 is a real "no data",
+ * not a computed return — the connected-account demo screen is where the
+ * per-field truth (including which numbers the brokerage did not report) is
+ * shown, and it renders every unknown as "—".
  */
 function toPortfolioSummary(account: ConnectedAccount, total: number): PortfolioSummary {
   return {
@@ -126,8 +133,12 @@ function toPortfolioSummary(account: ConnectedAccount, total: number): Portfolio
     broker: account.institution,
     logo: null,
     acct: account.numberMasked ?? '',
-    syncedAgo: syncedAt(account.asOf),
+    syncedAgo: null,
     total,
+    // null, not 0. The brokerage reports no day change and no priced history
+    // through this integration, and PortfolioSummary now says so in the type
+    // — the screens render null as "—" via pctOrDash, where a 0 rendered as
+    // a measured flat day the app never measured.
     dayPct: null,
     allTimePct: null,
   };
@@ -136,26 +147,34 @@ function toPortfolioSummary(account: ConnectedAccount, total: number): Portfolio
 /**
  * A real position as a Holding row.
  *
- * shares/avgCost fall back to 0 only where the Holding type has no way to
- * express "unknown". Everything derived is null the moment an input is
- * missing: value is the brokerage's own market value or null, and the P&L
- * pair is derived only when units, price and cost basis are all known.
- * Today's move is null here and attached from the live quote downstream.
+ * shares/avgCost/value fall back to 0 only where the Holding type has no way
+ * to express "unknown"; the connected-account demo screen reads the
+ * ConnectedPosition directly and shows those same fields as "—" when the
+ * brokerage did not report them. plPct is derived only when both the open P&L
+ * and the cost basis are known and the basis is non-zero.
  */
 function toHolding(position: ConnectedAccount['positions'][number]): Holding {
   const units = position.units ?? 0;
   const avgCost = position.avgCost ?? 0;
-  // Shared with the rest of the app so no two places can disagree about the
-  // same position — and so the short-position sign fix lives once.
-  const plPct = positionReturnPct(position.openPnl, position.units, position.avgCost);
+  // Shared with the connected-account screen so the two can never disagree
+  // about the same position — and so the short-position sign fix lives once.
+  const plPct = positionReturnPct(position.openPnl, position.units, position.avgCost) ?? 0;
   return {
     ticker: position.ticker,
     shares: units,
     avgCost,
-    price: position.price,
+    // null, not 0: Holding.value is nullable now, and a position the
+    // brokerage did not price renders as "—" rather than as worthless.
     value: position.marketValue,
+    // The brokerage's own price and open P/L. Both nullable: a position it
+    // did not price has no price and no knowable return, and "—" is the only
+    // honest rendering of either.
+    price: position.price,
     pl: position.openPnl,
     plPct,
+    // Today's move comes from the live quote, attached where these rows are
+    // merged with the user's own (lib/holdings.ts). The brokerage's snapshot
+    // has no day to speak of.
     dayChange: null,
     dayChangePct: null,
     // The brokerage's own cost basis where it reported one, and units × avg
@@ -165,13 +184,22 @@ function toHolding(position: ConnectedAccount['positions'][number]): Holding {
   };
 }
 
+/**
+ * The portfolio list as the brokerage reports it, with the app's own data as
+ * the fallback when nothing is connected — an unlinked user sees the demo
+ * portfolios, not an error and not an empty screen.
+ */
 async function livePortfolios(): Promise<Loadable<PortfolioSummary[]>> {
   const result = await connectedAccounts();
   if (result.status !== 'ok') return result;
+  // The remembered link state was stale — this user has connected nothing
+  // (or signed out). Not an error: fall back to the app's own portfolios,
+  // which is what someone with no brokerage connection should see.
+  if (!result.data.linked) return demoService.portfolios();
   // No account to show: a real, honest empty list. The screens render their
   // genuine empty state rather than an error or a placeholder account. Which
   // KIND of empty this is — nothing connected, or a connection reporting
-  // nothing — is the Connections screen's job to explain.
+  // nothing — is the connected-account demo screen's job to explain.
   if (result.data.accounts.length === 0) return ok([]);
 
   const rows: PortfolioSummary[] = [];
@@ -180,9 +208,6 @@ async function livePortfolios(): Promise<Loadable<PortfolioSummary[]>> {
     if (total === null) return unavailable(NO_TOTAL);
     rows.push(toPortfolioSummary(account, total));
   }
-  // One account needs no rollup: "all accounts" over a single account is the
-  // same figure twice, and a chip the reader has to compare against itself.
-  if (rows.length === 1) return ok(rows);
   const aggregate: PortfolioSummary = {
     id: AGGREGATE_ID,
     kind: 'aggregate',
@@ -198,9 +223,17 @@ async function livePortfolios(): Promise<Loadable<PortfolioSummary[]>> {
   return ok([aggregate, ...rows]);
 }
 
+/**
+ * The holdings under one portfolio, from the same source and with the same
+ * fallback as the list it hangs under.
+ */
 async function liveHoldings(portfolioId: string): Promise<Loadable<Holding[]>> {
   const result = await connectedAccounts();
   if (result.status !== 'ok') return result;
+  // Same fallback as livePortfolios, and it must be the same: holdings that
+  // came from a different source than the portfolio list they hang under
+  // would be an empty account beside a full one.
+  if (!result.data.linked) return demoService.holdings(portfolioId);
   const accounts =
     portfolioId === AGGREGATE_ID
       ? result.data.accounts
@@ -211,13 +244,29 @@ async function liveHoldings(portfolioId: string): Promise<Loadable<Holding[]>> {
 }
 
 /**
- * Spread first, then override: every method the switch does not touch stays
+ * Whether to read the connected account rather than the sample data.
+ *
+ * Both conditions, and in this order. A connection is necessary but not
+ * sufficient: while the sample-data switch is on it wins, because that switch
+ * is what makes the app safe to show to a room, and a mode that still drew
+ * the presenter's own positions would not be. Nothing is disconnected by it —
+ * the account is simply not read until the switch goes off.
+ *
+ * The data layer's copy of the rule; the React side is useLiveData()
+ * (data/useLinked.ts), and the two must say the same thing.
+ */
+export function liveDataActive(): boolean {
+  return !DEMO_FLAGS.demoData && isLinked();
+}
+
+/**
+ * Spread first, then override: every method the flag does not touch stays
  * bound to the demo adapter, so adding a method to DataService cannot
  * accidentally leave it unimplemented here.
  */
 export const appService: DataService = {
   ...demoService,
-  portfolios: () => (DEMO_FLAGS.demoData ? demoService.portfolios() : livePortfolios()),
+  portfolios: () => (liveDataActive() ? livePortfolios() : demoService.portfolios()),
   holdings: (portfolioId: string) =>
-    DEMO_FLAGS.demoData ? demoService.holdings(portfolioId) : liveHoldings(portfolioId),
+    liveDataActive() ? liveHoldings(portfolioId) : demoService.holdings(portfolioId),
 };

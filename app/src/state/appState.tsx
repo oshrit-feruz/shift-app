@@ -1,5 +1,11 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, useRef, type ReactNode } from 'react';
 import type { Answer } from '../lib/advisory';
+import type { ManualTransaction } from '../lib/transaction';
+
+// Re-exported from lib/transaction, where they moved so that the server-side
+// alert engine (api/alerts-run.ts) can share lib/positions.ts without pulling
+// this React module into a Node typecheck. Every existing import keeps working.
+export type { ManualTransaction, TransactionSide } from '../lib/transaction';
 
 export type Screen =
   | 'home'
@@ -13,6 +19,7 @@ export type Screen =
   | 'more'
   | 'settings'
   | 'connections'
+  | 'snaptrade'
   | 'advChat'
   | 'advDisc'
   | 'advDash'
@@ -28,13 +35,19 @@ export const ADV_ORDER: Screen[] = ['advChat', 'advDisc', 'advDash', 'advConnect
 export type InstitutionKey = 'broker' | 'bank' | 'pension' | 'hisht';
 
 export type AlertKind = 'price' | 'news' | 'earn';
-export type TransactionSide = 'buy' | 'sell' | 'div';
 
 export interface SavedAlert {
   id: string;
   ticker: string;
   kind: AlertKind;
-  condition: 'rise' | 'fall';
+  /**
+   * A price alert watches a LEVEL. It fires when the price crosses it,
+   * whichever way it was going: "tell me when NVDA is at 200" is one
+   * question, and which direction it arrived from is part of the answer the
+   * notification gives, not part of what you asked. Rules saved before this
+   * carry 'rise' or 'fall' and are read as the same rule.
+   */
+  condition: 'cross';
   value: string;
   remind: 'day' | 'morning' | 'lands';
   sources: { wires: boolean; filings: boolean };
@@ -45,7 +58,7 @@ export interface SavedAlert {
  * What makes two alerts the same alert.
  *
  * Everything the alert *watches for* is in the key; the delivery channels are
- * not. Asking twice for "tell me when MSFT falls below $200" is one alert the
+ * not. Asking twice for "tell me when MSFT is at $200" is one alert the
  * second time as much as the first — the user wants that notification, not two
  * of it — while asking for it by email as well is a change to how the same
  * alert reaches them, so it edits the one that exists rather than filing a
@@ -60,7 +73,8 @@ export function alertKey(a: Omit<SavedAlert, 'id'>): string {
 function alertDetailKey(a: Omit<SavedAlert, 'id'>): string {
   switch (a.kind) {
     case 'price':
-      return `${a.condition}|${a.value.trim()}`;
+      // The level alone: a price rule has no direction to tell two apart.
+      return a.value.trim();
     case 'news':
       return `${a.value.trim().toLowerCase()}|${a.sources.wires}|${a.sources.filings}`;
     default:
@@ -83,15 +97,6 @@ export function addAlert(alerts: SavedAlert[], alert: SavedAlert): SavedAlert[] 
 export interface ManualPortfolio {
   id: string;
   name: string;
-}
-
-export interface ManualTransaction {
-  id: string;
-  side: TransactionSide;
-  ticker: string;
-  shares: number;
-  price: number;
-  date: string;
 }
 
 /** A view the user can be returned to: the screen and, for a stock page, which
@@ -135,21 +140,8 @@ export interface AppState {
   /** price-alert thresholds — opt-in, blank by default, informational only */
   alertUpThreshold: string;
   alertDownThreshold: string;
-  notificationsRead: boolean;
   /** portfolio tab index */
   pfIndex: number;
-  /**
-   * A portfolio the reader asked for BY ID, not by position — set when they
-   * tap a specific account somewhere other than the Portfolio tab's own
-   * chips. Resolved to an index there, once the list has actually loaded,
-   * and cleared the moment any index is chosen.
-   *
-   * By id rather than by index because the two screens read the accounts
-   * through separate fetches: the same account can sit at a different
-   * position in each, and an index computed against one list would then
-   * select the wrong account in the other.
-   */
-  pfWanted: string | null;
   aggExcluded: Record<string, boolean>;
   savedAlerts: SavedAlert[];
   manualPortfolios: ManualPortfolio[];
@@ -171,9 +163,7 @@ export const initial: AppState = {
   fromSteps: false,
   alertUpThreshold: '',
   alertDownThreshold: '',
-  notificationsRead: false,
   pfIndex: 0,
-  pfWanted: null,
   aggExcluded: {},
   savedAlerts: [],
   manualPortfolios: [],
@@ -198,9 +188,7 @@ export type Action =
   | { type: 'firstRunSeen' }
   | { type: 'stepDone'; key: string; done: boolean }
   | { type: 'setThreshold'; which: 'up' | 'down'; value: string }
-  | { type: 'markNotificationsRead' }
   | { type: 'pfIndex'; index: number }
-  | { type: 'pfWanted'; id: string | null }
   | { type: 'toggleAggAccount'; id: string }
   | { type: 'addAlert'; alert: SavedAlert }
   | { type: 'removeAlert'; id: string }
@@ -271,6 +259,37 @@ export function trailTo(s: AppState, screen: Screen, ticker: string): NavEntry[]
   return trail.length > MAX_TRAIL ? trail.slice(trail.length - MAX_TRAIL) : trail;
 }
 
+/**
+ * Symbols reach the reducer from search, the earnings calendar and news chips
+ * as well as the stock page, so they are normalised in one place rather than
+ * at each call site — 'nvda' and 'NVDA' must never become two rows.
+ */
+function normaliseTicker(raw: string): string {
+  return raw.trim().toUpperCase();
+}
+
+/** The watchlist with `raw` added if absent and removed if present. */
+function toggleWatched(s: AppState, raw: string): AppState {
+  const ticker = normaliseTicker(raw);
+  if (!ticker) return s;
+  const watchlist = s.watchlist.includes(ticker)
+    ? s.watchlist.filter((t) => t !== ticker)
+    : [...s.watchlist, ticker];
+  return { ...s, watchlist };
+}
+
+/** The chosen providers with one institution set, or cleared when null. */
+function withConnection(
+  current: AppState['advConnections'],
+  inst: InstitutionKey,
+  provider: string | null | undefined,
+): AppState['advConnections'] {
+  const next = { ...current };
+  if (provider == null) delete next[inst];
+  else next[inst] = provider;
+  return next;
+}
+
 /** Exported for tests — the app itself only ever reaches this via dispatch. */
 export function reducer(s: AppState, a: Action): AppState {
   switch (a.type) {
@@ -289,7 +308,7 @@ export function reducer(s: AppState, a: Action): AppState {
         navStack: trailTo(s, 'stock', a.ticker),
       };
     case 'back': {
-      const previous = s.navStack[s.navStack.length - 1];
+      const previous = s.navStack.at(-1);
       if (previous == null) return s;
       // Spread whole: an entry is every field that makes the view what it was,
       // so nothing can be added to NavEntry and then quietly not restored.
@@ -318,27 +337,12 @@ export function reducer(s: AppState, a: Action): AppState {
       };
     case 'advBroker':
       return { ...s, advBroker: a.broker };
-    case 'advConnect': {
-      const next = { ...s.advConnections };
-      if (a.provider == null) delete next[a.inst];
-      else next[a.inst] = a.provider;
-      return { ...s, advConnections: next };
-    }
-    case 'toggleWatch': {
-      // Symbols reach this from search, the earnings calendar and news chips
-      // as well as the stock page, so they are normalised here rather than at
-      // each call site — 'nvda' and 'NVDA' must never become two rows.
-      const ticker = a.ticker.trim().toUpperCase();
-      if (!ticker) return s;
-      return {
-        ...s,
-        watchlist: s.watchlist.includes(ticker)
-          ? s.watchlist.filter((t) => t !== ticker)
-          : [...s.watchlist, ticker],
-      };
-    }
+    case 'advConnect':
+      return { ...s, advConnections: withConnection(s.advConnections, a.inst, a.provider) };
+    case 'toggleWatch':
+      return toggleWatched(s, a.ticker);
     case 'removeWatch': {
-      const ticker = a.ticker.trim().toUpperCase();
+      const ticker = normaliseTicker(a.ticker);
       if (!s.watchlist.includes(ticker)) return s;
       return { ...s, watchlist: s.watchlist.filter((t) => t !== ticker) };
     }
@@ -348,14 +352,8 @@ export function reducer(s: AppState, a: Action): AppState {
       return { ...s, stepsDone: { ...s.stepsDone, [a.key]: a.done } };
     case 'setThreshold':
       return a.which === 'up' ? { ...s, alertUpThreshold: a.value } : { ...s, alertDownThreshold: a.value };
-    case 'markNotificationsRead':
-      return { ...s, notificationsRead: true };
     case 'pfIndex':
-      // Clears the wanted id: an index the reader picked outranks one this
-      // state was still holding on their behalf.
-      return { ...s, pfIndex: a.index, pfWanted: null };
-    case 'pfWanted':
-      return { ...s, pfWanted: a.id };
+      return { ...s, pfIndex: a.index };
     case 'toggleAggAccount':
       return { ...s, aggExcluded: { ...s.aggExcluded, [a.id]: !s.aggExcluded[a.id] } };
     case 'addAlert':
@@ -514,6 +512,13 @@ export function readPersisted(saved: Record<string, unknown>): Partial<AppState>
     // heals that list once, on the next boot.
     picked.savedAlerts = picked.savedAlerts
       .filter(isSavedAlert)
+      // A price rule stored before the direction was dropped carries 'rise'
+      // or 'fall'. It is the same rule — a level — so it is read as one here
+      // rather than left sitting in a field whose type says 'cross', where
+      // every later reader would have to remember that it might not be. Only
+      // those two reach this point: isSavedAlert has already dropped a row
+      // carrying anything else.
+      .map((alert) => (alert.condition === 'cross' ? alert : { ...alert, condition: 'cross' as const }))
       // Wrapped rather than passed straight to reduce: the callback is handed
       // an index and the source array too, and addAlert must not be reading a
       // third and fourth argument it never declared.
@@ -522,15 +527,25 @@ export function readPersisted(saved: Record<string, unknown>): Partial<AppState>
   return picked;
 }
 
+/**
+ * Every condition any version of this app has written: the current one and
+ * the two directions it replaced. A row carrying anything else — or nothing
+ * — was not written by the app, and is dropped rather than healed: reading
+ * it as 'cross' would turn a corrupted row into an armed alert.
+ */
+const STORED_CONDITIONS = new Set(['cross', 'rise', 'fall']);
+
 /** A stored row shaped like an alert; anything else is dropped on read. */
 function isSavedAlert(value: unknown): value is SavedAlert {
   if (value === null || typeof value !== 'object') return false;
-  const a = value as Partial<SavedAlert>;
+  const a = value as Partial<SavedAlert> & { condition?: unknown };
   return (
     typeof a.id === 'string' &&
     typeof a.ticker === 'string' &&
     typeof a.value === 'string' &&
     (a.kind === 'price' || a.kind === 'news' || a.kind === 'earn') &&
+    typeof a.condition === 'string' &&
+    STORED_CONDITIONS.has(a.condition) &&
     typeof a.sources === 'object' &&
     a.sources !== null &&
     typeof a.notifyBy === 'object' &&

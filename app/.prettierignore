@@ -11,3 +11,4 @@ public/data
 # breaks a literal comparison against the design. The formatting conflicts
 # this config exists to stop were all in .ts/.tsx anyway.
 *.css
+dist-worker

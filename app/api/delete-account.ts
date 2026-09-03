@@ -1,4 +1,10 @@
 import { readBearerToken, type ApiRequest, type ApiResponse } from './_lib/http.js';
+import {
+  SUPABASE_TIMEOUT_MS,
+  fetchJsonWithTimeout,
+  readAdminConfig,
+  resolveUserId,
+} from './_lib/supabaseAdmin.js';
 
 /**
  * Permanently deletes the calling user's account.
@@ -12,61 +18,28 @@ import { readBearerToken, type ApiRequest, type ApiResponse } from './_lib/http.
  *
  * The security property that makes this endpoint safe to expose: the user id
  * being deleted is taken from the *verified* access token and never from the
- * request body or query. A caller therefore cannot delete anyone but
- * themselves, whatever they send. The token is verified by asking Supabase
- * who it belongs to rather than by decoding it locally — a decode would
- * happily read the claims out of a forged or expired token.
+ * request body or query (see _lib/supabaseAdmin.ts). A caller therefore
+ * cannot delete anyone but themselves, whatever they send.
  *
- * Deleting the auth user cascades to public.profiles and public.user_state
- * (`on delete cascade` in supabase/migrations/0001_auth.sql), so this one
- * call removes the user's data too — there is no second cleanup step that
- * could silently fail and leave orphaned rows behind.
+ * Deleting the auth user cascades to public.profiles, public.user_state, the
+ * ledger tables and public.snaptrade_users (`on delete cascade` in
+ * supabase/migrations/), so this one call removes the user's data too — there
+ * is no second cleanup step that could silently fail and leave orphaned rows
+ * behind. The brokerage connection at SnapTrade's end is revoked before this
+ * is called, by the client asking /api/snaptrade-link to disconnect; that is
+ * an upstream call with its own failure modes, and putting it inside this
+ * function's budget would risk the deletion itself timing out.
  */
-/**
- * Per-call budget for each Supabase auth request, well under the function's
- * 30s maxDuration so a hung upstream yields this endpoint's own JSON error
- * rather than the platform's 504 page — the same contract api/news.ts and
- * api/earnings.ts keep.
- */
-const UPSTREAM_TIMEOUT_MS = 10_000;
 
 /**
  * Budget for the reconciliation read after a lost DELETE. Deliberately
- * tighter than UPSTREAM_TIMEOUT_MS: in the worst case it runs THIRD, after
- * the session check and the DELETE each spent their full 10s — so it must
- * fit inside what remains of the function's 30s maxDuration, or the
+ * tighter than the shared per-call budget: in the worst case it runs THIRD,
+ * after the session check and the DELETE each spent their full 10s — so it
+ * must fit inside what remains of the function's 30s maxDuration, or the
  * platform would kill the invocation before the honest delete_unconfirmed
  * answer goes out (10 + 10 + 5 = 25s, with margin to respond).
  */
 const RECONCILE_TIMEOUT_MS = 5_000;
-
-/**
- * fetch + body read under one AbortController timeout. Throws on timeout like
- * any abort. The timer stays armed through the body read on purpose: fetch()
- * resolves at response HEADERS, and a body that then stalls would otherwise
- * hang past the budget (the same subtlety _lib/upstream.ts handles).
- * `body` is null when the response carries no parseable JSON.
- */
-async function fetchJsonWithTimeout(
-  url: string,
-  init: RequestInit,
-  timeoutMs: number = UPSTREAM_TIMEOUT_MS,
-): Promise<{ ok: boolean; status: number; body: unknown }> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { ...init, signal: controller.signal });
-    let body: unknown = null;
-    try {
-      body = await res.json();
-    } catch {
-      // Non-JSON or empty body — the status code still tells the story.
-    }
-    return { ok: res.ok, status: res.status, body };
-  } finally {
-    clearTimeout(timer);
-  }
-}
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== 'POST') {
@@ -74,12 +47,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return res.status(405).json({ error: 'method_not_allowed', message: 'Use POST.' });
   }
 
-  // The URL is not a secret, so the client's own copy is a fine fallback —
-  // it saves configuring the same value twice and forgetting one of them.
-  // The service-role key has no such fallback and never should.
-  const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) {
+  const admin = readAdminConfig();
+  if (!admin) {
     // An honest 500: the deployment is missing configuration. Saying "deleted"
     // here would be the worst possible lie on this particular endpoint.
     return res.status(500).json({
@@ -87,6 +56,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       message: 'Account deletion is not configured on this deployment.',
     });
   }
+  const { url, serviceKey } = admin;
 
   const token = readBearerToken(req);
   if (!token) {
@@ -94,20 +64,13 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   }
 
   // Step 1 — establish WHO is calling, from the token itself.
-  let userId: string;
-  try {
-    const who = await fetchJsonWithTimeout(`${url}/auth/v1/user`, {
-      headers: { apikey: serviceKey, Authorization: `Bearer ${token}` },
-    });
-    const id =
-      who.body !== null && typeof who.body === 'object' ? (who.body as { id?: unknown }).id : undefined;
-    if (!who.ok || typeof id !== 'string' || !id) {
-      return res.status(401).json({ error: 'unauthorized', message: 'Invalid or expired session.' });
-    }
-    userId = id;
-  } catch {
-    return res.status(502).json({ error: 'upstream_unreachable', message: 'Could not verify the session.' });
+  const who = await resolveUserId(admin, token, SUPABASE_TIMEOUT_MS);
+  if ('failure' in who) {
+    return who.failure === 'unauthorized'
+      ? res.status(401).json({ error: 'unauthorized', message: 'Invalid or expired session.' })
+      : res.status(502).json({ error: 'upstream_unreachable', message: 'Could not verify the session.' });
   }
+  const userId = who.userId;
 
   // Step 2 — delete that user, and only that user.
   try {

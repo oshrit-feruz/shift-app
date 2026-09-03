@@ -120,7 +120,7 @@ export function createHandler(timeoutMs: number, fetchImpl: typeof fetch = fetch
       timeoutMs,
       'key statistics',
       '/api/stats',
-      fetchImpl,
+      { fetchImpl },
     );
     if (!result.ok) return res.status(result.failure.status).json(failureBody(result.failure));
 

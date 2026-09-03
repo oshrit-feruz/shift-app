@@ -1,5 +1,5 @@
 import type { Quote } from '../data/types';
-import type { ManualTransaction } from '../state/appState';
+import type { ManualTransaction } from './transaction';
 
 /**
  * A position built from the user's own transaction log, and the valuation of
@@ -140,7 +140,7 @@ export interface PortfolioValuation {
  */
 export function buildPositions(transactions: ManualTransaction[]): Position[] {
   const byTicker = new Map<string, Position>();
-  const ordered = [...transactions].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  const ordered = [...transactions].sort(byTradeDate);
 
   for (const tx of ordered) {
     const ticker = tx.ticker;
@@ -191,6 +191,13 @@ export function buildPositions(transactions: ManualTransaction[]): Position[] {
   }
 
   return [...byTicker.values()];
+}
+
+/** Oldest trade first; equal dates keep their relative order (the sort is stable). */
+function byTradeDate(a: ManualTransaction, b: ManualTransaction): number {
+  if (a.date < b.date) return -1;
+  if (a.date > b.date) return 1;
+  return 0;
 }
 
 /** What an open position is worth at `price`, or null when there is none. */

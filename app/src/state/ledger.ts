@@ -1,4 +1,5 @@
 import type { ManualPortfolio, ManualTransaction, TransactionSide } from './appState';
+import { compareStrings } from '../lib/compare';
 
 /**
  * Pure logic for the holdings ledger — the user's own portfolios and the
@@ -176,7 +177,7 @@ export function applyToSnapshot(snapshot: LedgerSnapshot, op: LedgerOp): LedgerS
  *  same rows never disagree about their sequence. */
 function byCreatedAtThenId(a: { createdAt: string; id: string }, b: { createdAt: string; id: string }) {
   if (a.createdAt !== b.createdAt) return a.createdAt < b.createdAt ? -1 : 1;
-  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  return compareStrings(a.id, b.id);
 }
 
 /** Which transactions belong to which portfolio, in the shape the valuation
@@ -184,13 +185,18 @@ function byCreatedAtThenId(a: { createdAt: string; id: string }, b: { createdAt:
 export function transactionsByPortfolio(snapshot: LedgerSnapshot): Record<string, ManualTransaction[]> {
   const out: Record<string, ManualTransaction[]> = {};
   for (const row of snapshot.transactions) {
-    (out[row.portfolioId] ??= []).push({
+    const rows = (out[row.portfolioId] ??= []);
+    rows.push({
       id: row.id,
       side: row.side,
       ticker: row.ticker,
       shares: row.shares,
       price: row.price,
       date: row.tradeDate,
+      // Carried through so the log can order two trades entered on the same
+      // day. Dropping it here left the screen with nothing to break that tie
+      // with, and equal rows sort in whatever order they arrived in.
+      createdAt: row.createdAt,
     });
   }
   return out;

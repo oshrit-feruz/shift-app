@@ -18,6 +18,7 @@ import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { demoService } from '../data/demoAdapter';
 import { appService } from '../data/appService';
+import { useLiveData } from '../data/useLinked';
 import { useLoadable } from '../data/useLoadable';
 import { PRICE_REFRESH_MS } from '../data/quotes';
 import { fetchMovers, type MoverRow } from '../data/movers';
@@ -44,16 +45,16 @@ export function HomeScreen({ openSearch }: ScreenProps) {
   );
   const setup = setupProgress(s);
   const demo = useDemoMode();
+  const live = useLiveData();
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* The advisory track, first and full-bleed — see home/AdvisoryBand. */}
       <AdvisoryBand />
 
-      {/* Always: with sample data on this is the demo Blink account, and
-          with it off it is the real connected account — or the honest
-          "no portfolio yet" card when none is linked. */}
-      {beg && <HeroPortfolio />}
+      {/* A connected brokerage account outranks the sample-data switch: it is
+          not sample data, so the hero shows even with that switch off. */}
+      {beg && (live || demo ? <HeroPortfolio /> : <DemoOnly feature="home.pfToday" />)}
 
       {setup.showBanner && (
         <Card
@@ -79,7 +80,7 @@ export function HomeScreen({ openSearch }: ScreenProps) {
         </Card>
       )}
 
-      {!beg && (demo ? <MetricStripDemo /> : <DemoOnly feature="home.pfToday" />)}
+      {!beg && <ProMetrics demo={demo} live={live} />}
 
       {/* Watchlist preview */}
       <Card padding="13px 13px 4px" gap={6}>
@@ -316,6 +317,21 @@ function monthLabel(iso: string, language: 'en' | 'he'): string {
 }
 
 /**
+ * What the non-beginner home screen puts where the beginner one puts the
+ * portfolio hero: sample metrics, the real portfolio, or neither.
+ *
+ * Three claims rather than three shades of one, so they are three returns.
+ * The middle one is the whole reason this exists — before it, a linked user
+ * got a "only in demo" placeholder while their actual portfolio sat one tab
+ * away, on the only screen that did not know they had connected anything.
+ */
+function ProMetrics({ demo, live }: Readonly<{ demo: boolean; live: boolean }>) {
+  if (demo) return <MetricStripDemo />;
+  if (live) return <HeroPortfolio />;
+  return <DemoOnly feature="home.pfToday" />;
+}
+
+/**
  * The beginner hero: total, day change, value line and the blurb under it.
  * Every figure is invented — the total is the demo Blink account, the line a
  * seeded walk — so it sits behind the switch, in its own component so the
@@ -324,12 +340,10 @@ function monthLabel(iso: string, language: 'en' | 'he'): string {
 function HeroPortfolio() {
   const dispatch = useDispatch();
   const t = useT();
-  // Re-fetched when the sample-data switch flips, so the headline follows
-  // the same source as the Portfolio tab: demo brokers on, the real
-  // connected account off.
-  const demo = useDemoMode();
-  const live = !demo;
-  const portfolios = useLoadable(() => appService.portfolios(), [demo]);
+  // Re-fetched when a brokerage is connected or disconnected, so the headline
+  // follows the same source as the Portfolio tab.
+  const live = useLiveData();
+  const portfolios = useLoadable(() => appService.portfolios(), [live]);
   // Deterministic for a given key, so compute the walk once, not per render.
   const pfSeries = useMemo(() => demoService.series('home-pf', 60, 0.42, 2.2), []);
 
@@ -354,9 +368,9 @@ function HeroPortfolio() {
       }
     >
       {(pfs) => {
-        // The first linked account, not a hardcoded id: with the demo
-        // switch off that is still Blink (the demo adapter lists it
-        // first), and with it on it is the real connected account, so the
+        // The first linked account, not a hardcoded id: with nothing
+        // connected that is still Blink (the demo adapter lists it first),
+        // and with a brokerage connected it is that real account, so the
         // hero follows whichever source is in effect instead of falling to
         // the "no portfolio" state.
         const main = pfs.find((x) => x.kind === 'linked');

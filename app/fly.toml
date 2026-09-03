@@ -1,0 +1,33 @@
+# The price worker on Fly.io — worker/README.md walks through the setup.
+#
+# One machine, never stopped: the whole point is a socket that stays open.
+# `auto_stop_machines = "off"` and `min_machines_running = 1` are what make
+# that true; the health check is the worker's own /healthz, which is green
+# only while the socket is authorised and the rules were re-read recently.
+
+app = "shift-alerts-worker"
+primary_region = "iad"
+
+[build]
+  dockerfile = "worker/Dockerfile"
+
+[env]
+  PORT = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "30s"
+    method = "GET"
+    path = "/healthz"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

@@ -58,7 +58,7 @@ row into a dozen lines and lose the shape of the data.
 - **Two tracks.** Self-directed (watchlist, movers, news, stock pages, own
   portfolios — manual **theoretical portfolios** are the only place "Add
   transaction" exists, and they are the user's own ledger, not a fixture;
-  broker-linked portfolios are read-only synced) and the **"קבלי המלצה" advisory track**.
+  broker-linked portfolios are read-only synced through SnapTrade) and the **"קבלי המלצה" advisory track**.
 - **Deterministic advisory mapping** (`app/src/lib/advisory.ts`, unit-tested):
   four answers → fixed scoring → Conservative (0% satellite) / Balanced (10%) /
   Growth (15%); **hard rule:** horizon under 2 years OR no safety net ⇒
@@ -75,7 +75,10 @@ row into a dozen lines and lose the shape of the data.
   broker's own site; account connections are read-only; alerts (including the
   opt-in percent thresholds in Settings) are informational only — a fired
   threshold notification carries the fixed equal-prominence disclaimer and a
-  mark-as-read affordance, never a confirm/execute button.
+  mark-as-read affordance, never a confirm/execute button. Alerts are
+  evaluated on a schedule by `app/api/alerts-run.ts` and delivered to the
+  in-app notification centre and, where a device subscribed, by push — see
+  "Alerts" under Data.
 - **Data honesty** (`app/src/data/`): every data-service method returns
   `loading | unavailable | ok`, and screens render all three honestly — an API
   failure shows an explicit "unavailable" state, never a fabricated number, and
@@ -396,12 +399,20 @@ lag. So the tab carries the same line the movers board does, whenever the
 session it draws is not today's.
 
 Two details the feed forced, both verified against it rather than read off the
-documentation. Five minutes and not one: a session is 79 five-minute bars, a
-legible line on a phone, where 1m is 390 points for the same picture at the
-same cost. And every session ends with a zero-width bar stamped at 20:00 UTC
-whose volume is `null` — the closing print, seen on five sessions across two
-symbols and never in an interior bar. It is dropped rather than drawn as five
-minutes in which nothing traded; a missing volume anywhere else still
+documentation — and both stated as what was *observed*, because neither is a
+constant. Five minutes and not one: a full regular session came back as 79
+five-minute bars, a legible line on a phone, where 1m is 390 points for the
+same picture at the same cost. And each of those sessions ended with a
+zero-width bar whose volume is `null` — the closing print, seen on five
+sessions across two symbols and never in an interior bar — stamped at 20:00
+UTC, which is 16:00 in New York while daylight time is in force.
+
+Neither number is safe to assume. Standard time moves that close to 21:00 UTC,
+and a half day (the afternoons before Thanksgiving, Christmas and July 4th)
+ends at 13:00 local with roughly half the bars. Nothing in the code counts
+bars or matches that timestamp: the closing print is recognised by being
+zero-width with a `null` volume, and it is dropped rather than drawn as five
+minutes in which nothing traded. A missing volume anywhere else still
 invalidates the series.
 
 The 1D tab is offered only with **sample data off**. Every other window still
@@ -652,6 +663,106 @@ replaced carried a full article body; real articles deliberately carry only a
 out. Keeping the in-app reader would have meant either an empty sheet or
 re-introducing the full text the proxy exists to avoid.
 
+### Alerts (`app/api/alerts-run.ts`)
+
+An alert used to be a row in the watchlist's "Active alerts" card and nothing
+else: nothing read it against a price, and the notification centre was four
+literal rows shown only with sample data on. Now it is a rule the engine
+evaluates on a schedule, a row in `notifications` when it fires, and a banner
+on the phone that subscribed.
+
+**Where the pieces live.**
+
+| Piece | Where |
+| --- | --- |
+| The rules | Unchanged: `savedAlerts`, `alertUpThreshold`, `alertDownThreshold` in `user_state.state` (the persisted slice), written by the alert sheet and Settings. |
+| The deciding | `app/api/_lib/alerts.ts` — pure functions, unit-tested per rule kind. |
+| The run | `POST /api/alerts-run?scope=prices\|news\|daily`, guarded by `ALERTS_CRON_SECRET`, reading and writing every user's rows with the service-role key. |
+| The clock | `.github/workflows/alerts.yml` — prices every 5 minutes across the US session on weekdays, news every half hour, the earnings calendar once a morning. |
+| The price worker | `app/worker/` — one always-on process on EODHD's US trades socket, checking price rules on every trade, 04:00–20:00 New York time. `app/worker/README.md` has the deploy. While its heartbeat (`worker_heartbeat`, migration 0007) is fresh the route's `prices` scope stands down for the symbols the worker covers — the socket takes 50, and any past that are named in the heartbeat and checked by the route instead. When the heartbeat goes stale the route takes over everything at its slower cadence. |
+| What fired | `notifications` (`supabase/migrations/0007_alerts.sql`), read by `src/data/notifications.ts` under RLS; the header badge and the sheet share one read (`useNotifications`). |
+| The engine's memory | `alert_states` — which side of its level each rule was on at the last check. Engine-only. |
+| Push | `push_subscriptions` + `VAPID_*`; `src/lib/push.ts` subscribes from the Settings toggle, `public/sw.js` shows the banner. |
+
+**An alert fires on a crossing, not on a state.** "Rise above 200" fires the
+first time a check sees the price at or above 200 after having seen it below —
+not every five minutes while it stays there, and not the moment the rule is
+saved while the price already sits at 210. The first check after a rule is
+created only records which side it is on; the alert sheet says so under the
+field. The cost is that a crossing between saving the rule and the first check
+is not seen, and a price that crosses back and forth all afternoon is one row
+for the day, not thirty (the row's `dedupe_key`).
+
+**What each kind reads, honestly:**
+
+- *Price levels* watch a level, not a direction: a rule is "NVDA at 200", and
+  it fires when the price crosses that level either way — the notification is
+  what says "rose above" or "fell below", because that is the observation.
+  Saving a rule only records which side the price is on now, so nothing fires
+  for a level the price is already past. A crossing up and a later crossing
+  down on the same day are two notifications; repeated crossings the same way
+  that day are one. They are checked by the worker on every trade from EODHD's
+  US feed (the real-time one on this plan — `docs/eodhd-plan-decision.md`
+  measured it seconds behind the tape, against 15–21 minutes for EODHD's
+  REST quote), so a crossing fires within about a second, pre-market and
+  after-hours included. The feed carries US stocks only and 50 symbols per
+  connection; a rule beyond that, or on a Toronto or London symbol, waits for
+  the route. The route's own `prices` scope reads Finnhub's `/quote` — the
+  same provider every screen prints — every few minutes as the fallback,
+  and stands down while the worker's heartbeat is fresh so that two
+  providers never argue over the cents around a level. The price in a
+  notification is whichever source saw the crossing.
+- *Settings thresholds* ("alert me if I rise above +25%") apply to every held
+  position, measured from the position's average cost — the same fold the
+  portfolio screen uses (`src/lib/positions.ts`, shared with the server via
+  `src/lib/transaction.ts`) folded across every portfolio. Unpriced or
+  fully-sold positions are skipped. The wording is the client's own
+  `thresh.fired` string, which was written for this notification and never
+  had a firer. Editing a threshold re-arms it.
+- *News* reads EODHD's per-ticker feed (10 credits a ticker, at most 30
+  tickers a run) and fires for a new article that mentions one of the rule's
+  comma-separated keywords, or any new article when the field is blank. The
+  first check records the newest article and fires nothing — otherwise every
+  new rule would open with last week's coverage. There is no source filter:
+  the sheet no longer offers "wires / filings", because the feed does not
+  distinguish them and a filter that filtered nothing would be a lie.
+- *Earnings reminders* read Alpha Vantage's forward calendar once a day
+  (04:00 UTC, 07:00 Israel, because a free key allows a couple of dozen calls
+  a day). "Day before" and "morning of" fire from the calendar; "when results
+  land" cannot, because the feed drops a row once the report has happened —
+  so the engine remembers the date on the day and fires the next morning with
+  the words "was due to report yesterday", which is what it knows.
+
+**Delivery.** Every firing is a row in the notification centre. A device that
+turned push on in Settings also gets a banner, in the language it subscribed
+in. The sheet opens its level field at the stock's live price rather than a literal 200.00, and refuses to save a price rule whose level the engine could not read. Email is listed in Settings and on the sheet as *not yet available*
+rather than as a toggle that stores nothing — there is no mail provider
+configured, and the checkbox that used to be there promised one. The old
+SMS / morning digest / unusual movers toggles, which were local component
+state and nothing more, are gone.
+
+**GitHub's schedule is not a metronome.** A scheduled workflow runs when a
+runner is free, some minutes after its slot at busy hours and occasionally not
+at all. The engine is built for that — a late run still sees a crossing,
+because it compares against the last recorded side — but it means a price
+alert lands "within a few minutes", and the README does not claim tighter.
+
+**To turn it on for a deployment** (each step is one-time):
+
+1. Run `supabase/migrations/0007_alerts.sql`, `0008_worker_heartbeat.sql` and `0009_alert_hardening.sql` in the SQL editor.
+2. Set `ALERTS_CRON_SECRET` (any long random string) in Vercel, and the same
+   value as the `ALERTS_CRON_SECRET` repository secret on GitHub beside
+   `ALERTS_RUN_URL` (`https://<deployment>/api/alerts-run`).
+3. For push: `npx web-push generate-vapid-keys` once; set `VAPID_PUBLIC_KEY`,
+   `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` and `VITE_VAPID_PUBLIC_KEY` (the same
+   public key) in Vercel; redeploy. Without them the engine still records every
+   alert in the app and its response says `push: not_configured`.
+4. Trigger the workflow by hand once (Actions → Run the alert engine →
+   scope `prices`) and read the JSON it prints: `users`, `fired`, `recorded`,
+   `pushed` and any upstream failure counts.
+5. For trade-by-trade price alerts, deploy the worker: `app/worker/README.md`.
+   Once it is up, the same manual run answers `skipped: worker_alive`.
+
 ### Earnings calendar (`app/api/earnings.ts`)
 
 Proxies **Alpha Vantage** so the key stays server-side. One route answers two
@@ -715,12 +826,17 @@ news:
 | `EODHD_API_KEY` | `/api/news` (the news feed), `/api/candles` (daily bars — every chart and sparkline), `/api/intraday` (the chart's 1D tab), `/api/movers` (the market-movers boards) and `/api/stats` (market cap, P/E, volume, the 52-week range). **Required for every chart and for the movers screen.** A plan refusal comes back as 402/403 and is reported as a plan problem rather than as an outage. |
 | `GOOGLE_TRANSLATE_API_KEY` | `/api/news?lang=he` — Hebrew headlines, via the Cloud Translation API. **Optional**: without it the news is served in the provider's English rather than failing. The key travels as the API's `key=` query parameter, so restrict it **to the Cloud Translation API** in the Google Cloud console — an HTTP-referrer restriction would break it, since the call is server-side. The first 500k characters a month are free, but the project still needs billing enabled. |
 | `ALPHAVANTAGE_API_KEY` | `/api/earnings` — the calendar and per-stock history. |
-| `FINNHUB_API_KEY` | `/api/quote` — the last price and day change on every screen, and nothing else. **Required for prices.** A free key covers quotes; its historical candles are a paid tier, which is why the charts moved to EODHD. |
+| `FINNHUB_API_KEY` | `/api/quote` — the last price and day change on every screen, and nothing else — and `/api/alerts-run?scope=prices`, so a price alert fires on the same number. **Required for prices.** A free key covers quotes; its historical candles are a paid tier, which is why the charts moved to EODHD. |
+| `ALERTS_CRON_SECRET` | `/api/alerts-run` — the bearer token the scheduled workflow must present. **Required for alerts to fire at all.** |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | `/api/alerts-run` — Web Push delivery. **Optional**: without them alerts still reach the in-app notification centre and the run reports `push: not_configured`. |
 
-All four are read **only on the server** — every one of them is used inside a
-function under `api/`, and no client code ever reads them. That is why none may
-be given a `VITE_` prefix: Vite inlines any `VITE_`-prefixed variable into the
-client bundle, which would publish the key to every visitor.
+All of the above are read **only on the server** — every one of them is used
+inside a function under `api/`, and no client code ever reads them. That is why
+none may be given a `VITE_` prefix: Vite inlines any `VITE_`-prefixed variable
+into the client bundle, which would publish the key to every visitor. The one
+deliberate exception is `VITE_VAPID_PUBLIC_KEY`: the same value as
+`VAPID_PUBLIC_KEY`, which the browser needs to subscribe and which is public by
+design — it identifies the sender and cannot send.
 
 Pure request/response mapping lives in `app/api/_lib/news.ts` (unit-tested in
 `news.test.ts`) so it doesn't require mocking global `fetch` or a Vercel
@@ -728,69 +844,124 @@ request/response pair to test. The `api/` directory has its own
 `tsconfig.json` (`npm run typecheck:api`) since it's excluded from the main
 app's `src`-scoped one and isn't bundled into the client build.
 
-## Connected account — founder demo only (SnapTrade Personal)
+## Connected account — the user's own brokerage, read-only (SnapTrade)
 
-**A third live surface, and the only one that is deliberately not a product
-feature.** `app/api/snaptrade.ts` reads **one real brokerage account**,
-read-only, through [SnapTrade's](https://docs.snaptrade.com) free **Personal**
-tier, so the "connect your real portfolio" concept can be shown with actual
-data instead of a mockup.
+**The third live surface, and a real feature rather than a demo.** A
+signed-in user connects their own brokerage account through
+[SnapTrade](https://docs.snaptrade.com), read-only, and the app shows what
+that account actually holds. `app/api/snaptrade.ts` reads it;
+`app/api/snaptrade-link.ts` creates and revokes the connection.
 
-**This is not the architecture for real end users, and must not be mistaken
-for one.** SnapTrade Personal issues a single free `clientId`/`consumerKey`
-pair for one person's own account. It has no notion of multiple users: the
-Personal key *is* the identity, which is exactly why requests omit `userId`
-and `userSecret` (a Personal user has no `userSecret` to send — see
-[Personal vs Commercial](https://docs.snaptrade.com/docs/personal-vs-commercial)).
-Letting real users link their own accounts would require SnapTrade's
-**Commercial** tier — per-user registration, `userSecret` storage, connection
-lifecycle and reconnection handling, webhooks, KYC and billing. That is a
-separate product and compliance decision that **has not been made**. Nothing
-in this integration scales to it, and nothing here should be read as a
-prototype of it.
+**Why this is a legitimate way to read someone's portfolio.** The brokerage
+credentials are entered in SnapTrade's own hosted Connection Portal, over
+SnapTrade's own connection to the brokerage. This app never sees a brokerage
+username or password.
 
-**Read-only, structurally.** The function can reach exactly five upstream
-paths, all `GET`, listed in one `READ_ONLY_PATHS` constant: `/accounts`,
-`/accounts/{id}/balances`, `/accounts/{id}/positions/all`, `/authorizations`
-and `/authorizations/{id}/accounts`. Ids come from SnapTrade's own responses,
-never from the caller, so no request to `/api/snaptrade` can steer it at
-another path.
+**Two separate restrictions then apply, and they are worth keeping apart.**
+The portal is opened with `connectionType: 'read'`, which is SnapTrade's
+data-access-only permission: the connection they create cannot place a trade
+at all. Independently of that, this app's own account routes reach five `GET`
+paths and nothing else. The first is a property of what the user granted; the
+second is a property of this code. Conflating them would credit SnapTrade with
+a narrowness that is ours, and ours with a guarantee that is theirs.
+
+The only credential stored on this side is the per-user `userSecret` SnapTrade
+issues, and it is stored encrypted (below).
+
+**Disconnecting is queued upstream, and immediate here.** It calls SnapTrade's
+`deleteUser`, whose 200 confirms the request was *accepted* — the removal
+itself is asynchronous, and SnapTrade reports completion on its `USER_DELETED`
+webhook, which this app does not yet listen for (see what is deliberately
+missing, below). So there is a short window where revocation at SnapTrade is
+pending. What is not pending is this side: the row goes immediately, so from
+the moment the user presses the button nothing here can read the account.
+
+**One SnapTrade user per app user.** `POST /snapTrade/registerUser` is called
+with the Supabase user id — stable, unique, and not an email, which is the one
+identifier people change — and the returned `userSecret` is sealed and stored
+in `public.snaptrade_users` (`supabase/migrations/0006_snaptrade.sql`). Every
+account read then carries that user's `userId` + `userSecret`, so a request
+can only ever reach the accounts of whoever holds the access token.
+
+**The secret is encrypted at rest.** `app/api/_lib/secretBox.ts` seals it with
+AES-256-GCM under `SNAPTRADE_SECRET_KEY`, an environment variable that exists
+only on the server — never in the database, never in the client bundle. GCM
+rather than a bare cipher because it authenticates as well as encrypts: a row
+altered in the database fails to open rather than decrypting to something
+else. A dump of that table on its own therefore reads no brokerage data. The
+table has **no RLS policies at all**, which with RLS enabled denies the
+browser even its own row; the service-role key, which bypasses RLS, is the
+only thing that reaches it and never leaves `app/api/`.
+
+**Who is calling is never taken from the request.** Both routes resolve the
+user by asking Supabase who the *access token* belongs to
+(`app/api/_lib/supabaseAdmin.ts`), never from a body, query or header the
+caller controls — decoding the token locally would happily read the claims out
+of a forged one. A test passes `userId: 'someone-else'` in the query and
+asserts the upstream call still carries the token's own user.
+
+**Nothing is cached at the edge.** The previous single-account demo could
+share one answer with everybody; this response is one named person's holdings,
+so every link and account response is `Cache-Control: private, no-store`. The
+repeat reads a single screen makes are absorbed by a 20-second in-memory
+window on the client instead (`app/src/data/appService.ts`).
+
+**Read-only, structurally.** The account routes can reach exactly five
+upstream paths, all `GET`, listed in one `READ_ONLY_PATHS` constant:
+`/accounts`, `/accounts/{id}/balances`, `/accounts/{id}/positions/all`,
+`/authorizations` and `/authorizations/{id}/accounts`. The only non-`GET`
+calls in the whole integration are the three in `LINK_PATHS`
+(`registerUser`, `login`, `deleteUser`), which create and destroy the link
+itself and cannot describe an order. Ids come from SnapTrade's own responses,
+never from the caller, and a unit test asserts no upstream path ever matches a
+trading route.
+
+**What decides which source a screen reads.** `data/linkState.ts` — the
+remembered answer to "has this user connected a brokerage", written only by a
+real response from `/api/snaptrade` and cleared on sign-out. It replaced the
+Settings switch this integration used to sit behind: connecting an account is
+now the thing that turns it on, and `data/appService.ts` swaps `portfolios()`
+and `holdings()` to the real account for a linked user and leaves them on the
+demo adapter for everyone else. It is a cache of a server fact and never a
+source of truth — a stale "linked" is corrected by the next read, and the
+figures themselves always come from the response.
 
 **Why two account routes.** `/accounts` is documented as *daily* data —
 "cached and refreshed once a day" — so a brokerage connected today
 legitimately answers an empty list there while the connection is live and
-active in SnapTrade's dashboard. When that happens the function walks
-`/authorizations` and asks each connection directly, which is the real-time
-route. `source` in the response says which one answered, and the demo screen
-shows it along with SnapTrade's own `data_freshness.as_of`, so the freshness
-of what is on screen is stated rather than implied.
+active. When that happens the function walks `/authorizations` and asks each
+connection directly, which is the real-time route. `source` in the response
+says which one answered, and the screen shows it along with SnapTrade's own
+`data_freshness.as_of`, so the freshness of what is on screen is stated rather
+than implied.
 
 **Read `data_freshness_mode`; do not infer it from the plan.** The spec says
 manual refresh "is disabled for Real-time plans (Personal and Pay as you go)
 **unless the connection is delayed**… Refer to the `data_freshness_mode` field
-on a connection to determine this." It is tempting to read that as "Personal is
-real-time, therefore refresh never applies" — and that is wrong. The mode is a
-property of the *connection*, not the plan, and is `delayed` when the
+on a connection to determine this." It is tempting to read that as "this plan
+is real-time, therefore refresh never applies" — and that is wrong. The mode
+is a property of the *connection*, not the plan, and is `delayed` when the
 brokerage forces it. The real IBKR connection here reports **`delayed`**: its
 data comes from a cache, and manual refresh does apply to it.
 
-The route still never issues that `POST` — `/api/snaptrade` is public and
-unauthenticated and stays GET-only. Refresh lives in
-`app/scripts/snaptrade-refresh.mjs`, an operator script run by hand with the
-credentials in the environment. It lists connections and stops unless given
-`--refresh`, because SnapTrade bills per refresh call. It imports the signing
-helpers from `api/_lib/snaptrade.ts` rather than copying them, so it cannot
-drift from what the route sends.
+The routes still never issue that `POST` — SnapTrade bills per refresh call,
+and firing one from a route any screen load reaches would put the bill in the
+hands of whoever is pulling to refresh. Refresh lives in
+`app/scripts/snaptrade-refresh.mjs`, an operator script run by hand for one
+named user with the credentials in the environment. It lists connections and
+stops unless given `--refresh`. It imports the signing helpers from
+`api/_lib/snaptrade.ts` rather than copying them, so it cannot drift from what
+the routes send.
 
 **Three empty states, not one.** How an empty answer should be read depends on
 that same field: on a `realtime` connection it is the brokerage's current
 answer, while on a `delayed` one it may just be a cache that was never filled.
 The screen says which. And an empty list is a different fact again from having
-no connection at all:
+no connection at all — which `linked` in the response separates:
 
-| What SnapTrade reports | What the screen says |
+| What the response says | What the screen says |
 | --- | --- |
-| no connections | "עדיין לא מקושר חשבון ברוקר" — nothing has been linked in the portal |
+| `linked: false` | the connect card — this user has authorised nothing, and the app shows its own data meanwhile |
 | a live connection, zero accounts | names the brokerage and says it is connected but reporting no accounts, with the connection's state (read/trade, realtime/delayed) |
 | a **disabled** connection | says so, and shows none of its figures — see below |
 | accounts | the real balances and positions |
@@ -827,30 +998,23 @@ That is also why the real-time/delayed distinction above does not rescue it:
 IBKR's report feed starts.
 
 Reporting this as "nothing connected" sent us hunting for a connection that
-already existed, which is why the response now carries the connection list
+already existed, which is why the response carries the connection list
 (states and counts only; nothing identifying). Nothing in this repo can
-resolve it — the app's job is to say precisely which state it is in. SnapTrade's trading endpoints
-appear nowhere in the codebase, and a unit test asserts that no upstream path
-ever matches a trading route.
+resolve it — the app's job is to say precisely which state it is in.
 
-**Off by default.** Settings → Data & display carries the
-`הדגמה: חשבון מקושר אמיתי` switch (`DEMO_FLAGS.liveAccount`). With it **off**,
-the app is exactly what it was before this integration existed — the demo
-adapter backs every account, and the connected-account screen is not listed
-anywhere. With it **on**, `app/src/data/appService.ts` swaps the demo
-adapter's `portfolios()` and `holdings()` for the real account, so the Home
-hero, the Portfolio tab and the Connections list all show it, and the
-dedicated `חשבון מקושר (הדגמה)` screen appears under "עוד". The switch exists
-so the before/after can be shown side by side in one session; it is read
-through `useDemoFlag()` so flipping it re-renders immediately rather than on
-the next mount. Nothing else — Core-Satellite, Satellite recommendations,
-news, fundamentals — changes in either position.
+**The divergence case, and why it is a 409 rather than a fresh start.** A
+`userSecret` is returned only at registration and can never be read back. So
+if SnapTrade still holds a user this app has no secret for — what a
+half-completed disconnect leaves behind — the only way forward is to delete
+that user and register again. `POST /api/snaptrade-link` does exactly that and
+answers `link_reset`, asking for a retry in a moment, because SnapTrade queues
+the deletion. It does not pretend the next call will succeed.
 
 **Where invented numbers were removed rather than shown over real ones.** Two
-demo-derived visuals cannot honestly sit above a real account, so with the
-switch on they are replaced by a statement of what is known, not redrawn:
+demo-derived visuals cannot honestly sit above a real account, so for a linked
+user they are replaced by a statement of what is known, not redrawn:
 
-| Surface | With the switch on |
+| Surface | With an account connected |
 | --- | --- |
 | Home hero + Portfolio day change and performance chart | Replaced by an explicit "no performance history" note — SnapTrade reports no day change or priced history for a linked account. A *manual* portfolio is the exception and draws a real value curve from its own ledger (see above) |
 | Portfolio allocation donut | Computed from the account's **real** position values; positions the brokerage did not price are excluded, and if none are priced the card says so |
@@ -898,41 +1062,70 @@ holding to fill the space.
 
 ### One-time setup
 
-**Required environment variables** — `SNAPTRADE_PERSONAL_CLIENT_ID` and
-`SNAPTRADE_PERSONAL_CONSUMER_KEY`, added in the Vercel dashboard under
+**Required environment variables**, added in the Vercel dashboard under
 **Project → Settings → Environment Variables**, scoped to Production, Preview
-and Development so PR previews and local `vercel dev` work too. Both are read
-only server-side (`process.env.…`) and neither may ever be given a `VITE_`
-prefix, which would bundle the secret into the client build. The consumer key
-is used only as an HMAC key and never appears in a URL or a response body.
+and Development so PR previews and local `vercel dev` work too. All are read
+only server-side (`process.env.…`) and none may ever be given a `VITE_`
+prefix, which would bundle the secret into the client build.
 
-Then, once deployed:
+| Variable | What it is |
+| --- | --- |
+| `SNAPTRADE_CLIENT_ID` | From SnapTrade's dashboard. The legacy `SNAPTRADE_PERSONAL_CLIENT_ID` is still honoured, so an existing deployment keeps working until it is renamed |
+| `SNAPTRADE_CONSUMER_KEY` | Used only as an HMAC key; it never appears in a URL or a response body. `SNAPTRADE_PERSONAL_CONSUMER_KEY` likewise still works |
+| `SNAPTRADE_SECRET_KEY` | 32 bytes of base64 — `openssl rand -base64 32` — that encrypt every stored `userSecret`. **Losing or changing it makes every existing connection unreadable**, and the affected users have to disconnect and connect again (they are told exactly that, not "no account connected") |
+| `SNAPTRADE_REDIRECT_URL` | Optional. Where the Connection Portal returns the user. Without it the request's own host is used, so preview deploys return to themselves |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Already required by `/api/delete-account`; the SnapTrade routes use the same pair to resolve the caller and reach the link table |
 
-1. Create the free Personal account at [snaptrade.com](https://snaptrade.com)
-   and copy the `clientId` and `consumerKey` from its dashboard.
-2. Add both to Vercel as above and redeploy (environment variables are read at
-   invocation, but a redeploy is the reliable way to pick them up everywhere).
-3. In **SnapTrade's own dashboard**, open the hosted **Connection Portal** and
-   link the brokerage account. The app deliberately cannot do this: it issues
-   no non-`GET` SnapTrade call, so it can read connections but never create
-   one.
-4. In the app: Settings → Data & display → turn on `הדגמה: חשבון מקושר אמיתי`,
-   then open **עוד → חשבון מקושר (הדגמה)**.
+Then:
 
-**The endpoint is public and unauthenticated**, exactly like `/api/news`.
-Anyone who knows the deployment URL can `GET /api/snaptrade` and see this
-account's holdings and balances. The account number is masked to its last four
-digits server-side before it is ever sent, and no other identifying field is
-returned, but the positions and totals themselves are real. That is an
-accepted, deliberate trade-off for a founder demo on a demo deployment — it is
-**not** acceptable for anything carrying real users, and is a second reason
-this integration cannot simply be promoted to production.
+1. Create the account at [snaptrade.com](https://snaptrade.com) and copy the
+   `clientId` and `consumerKey` from its dashboard.
+
+   **Read the plan limits carefully, because one of them is not what it looks
+   like.** The free **Starter** plan is for *building and testing*: it allows
+   **one connected user** and up to five brokerage connections under that user
+   — not five users. So it covers development and a single real account end to
+   end, and it does **not** cover even a small pilot with several people. Past
+   that it is $1/user/month for daily read-only data, $2 for real-time
+   ([pricing](https://snaptrade.com/pricing)).
+
+   **Personal and Commercial are account models, not plans.** An app that reads
+   accounts on behalf of end users is Commercial regardless of what it pays,
+   so this integration needs a SnapTrade **Commercial** account configured in
+   their dashboard — a test phase, then production keys after KYC — before it
+   serves anyone but its own developer.
+2. Add the variables above to Vercel and redeploy (environment variables are
+   read at invocation, but a redeploy is the reliable way to pick them up
+   everywhere).
+3. Run `supabase/migrations/0006_snaptrade.sql` in the Supabase SQL editor.
+4. In the app: **חיבורים → חיבור חשבון**, which opens SnapTrade's portal. Once
+   the connection is authorised the account appears on the Portfolio tab, the
+   Home hero and under **עוד → חשבון מקושר**, where it can also be
+   disconnected.
+
+**The account routes are authenticated**, unlike `/api/news`. Both require a
+Supabase bearer token and serve only the accounts belonging to it; there is no
+URL anybody can visit to see somebody else's holdings. The account number is
+still masked to its last four digits server-side before it is ever sent, and
+no other identifying field is returned.
+
+**What is deliberately still missing**, and should be decided before this
+carries anyone but its own developer: a SnapTrade **Commercial** account (see
+the setup steps — the free plan is one connected user, so the current one does
+not reach a second person), SnapTrade's own webhooks (`USER_DELETED` confirms
+a disconnect completed, and a connection can be disabled at the brokerage
+without the app hearing about it until the next read), a reconnect flow for
+exactly that case, and whatever disclosure and record-keeping the jurisdiction
+you operate in asks of an app that reads customer holdings. Only the webhooks
+are code; the rest are decisions.
 
 Request signing lives in `app/api/_lib/snaptrade.ts` (unit-tested in
-`snaptrade.test.ts`, handler behaviour in `snaptradeHandler.test.ts`), split
-from the handler for the same reason `_lib/news.ts` is: the canonical-JSON
-signature rule and the defensive upstream field mapping are testable without a
-request/response pair or a mocked `fetch`.
+`snaptrade.test.ts`, handler behaviour in `snaptradeHandler.test.ts` and
+`snaptradeLinkHandler.test.ts`), split from the handlers for the same reason
+`_lib/news.ts` is: the canonical-JSON signature rule and the defensive
+upstream field mapping are testable without a request/response pair or a
+mocked `fetch`. The encryption is `secretBox.ts`, tested against a tampered
+ciphertext and a wrong key rather than only a round trip.
 
 ## ⚠ Needs product sign-off before production
 

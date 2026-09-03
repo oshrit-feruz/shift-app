@@ -49,10 +49,9 @@ describe('defaults', () => {
 
   it('starts with the QA switch off', async () => {
     withStorage();
-    const flags = await freshFlags();
     // Not a state to put a reader in without them asking for it: it renders
     // failure states on purpose.
-    expect(flags.unavailable).toBe(false);
+    expect((await freshFlags()).unavailable).toBe(false);
   });
 
   it('keeps the default when storage cannot be reached at all', async () => {

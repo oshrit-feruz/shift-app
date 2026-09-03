@@ -69,30 +69,6 @@ describe('removeManualPortfolio', () => {
   });
 });
 
-describe('pfWanted', () => {
-  // An account is named by id and placed by the Portfolio tab, because the
-  // Connections screen and that tab read the accounts through separate
-  // fetches: a position in one list does not identify an account in the other.
-  it('holds the id the reader asked for', () => {
-    const next = reducer({ pfIndex: 2, pfWanted: null } as AppState, { type: 'pfWanted', id: 'acct-7' });
-    expect(next.pfWanted).toBe('acct-7');
-    // The stored index is untouched: it is still the fallback if the id turns
-    // out not to be in the list.
-    expect(next.pfIndex).toBe(2);
-  });
-
-  it('is cleared by choosing an index, which is a later and more direct choice', () => {
-    const wanted = reducer({ pfIndex: 0, pfWanted: null } as AppState, { type: 'pfWanted', id: 'acct-7' });
-    const picked = reducer(wanted, { type: 'pfIndex', index: 1 });
-    expect(picked.pfIndex).toBe(1);
-    expect(picked.pfWanted).toBeNull();
-  });
-
-  it('starts empty', () => {
-    expect(initial.pfWanted).toBeNull();
-  });
-});
-
 describe('ledgerLoaded', () => {
   it('replaces both keys wholesale', () => {
     // reconcile() has already merged server rows with the outbox; a second

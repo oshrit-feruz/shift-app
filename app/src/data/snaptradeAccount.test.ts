@@ -1,5 +1,29 @@
-import { describe, expect, it } from 'vitest';
-import { fetchConnectedAccounts } from './snaptradeAccount';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+/**
+ * A signed-in session, because every read here is scoped to one. The token
+ * itself is opaque — the route is what resolves it — so a fixed string is
+ * enough, and it keeps each test about the response it is describing.
+ */
+let token: string | null = 'access-token';
+let USER_ID = 'user-1';
+vi.mock('../lib/supabase', () => ({
+  supabase: {
+    auth: {
+      getSession: async () => ({
+        data: { session: token ? { access_token: token, user: { id: USER_ID } } : null },
+      }),
+    },
+  },
+}));
+
+import { disconnectBrokerage, fetchConnectedAccounts, startBrokerageConnection } from './snaptradeAccount';
+import { isLinked, linkedUserId } from './linkState';
+
+beforeEach(() => {
+  token = 'access-token';
+  USER_ID = 'user-1';
+});
 
 function res(body: unknown, status = 200): Response {
   return {
@@ -35,7 +59,7 @@ const ACCOUNT = {
 
 describe('freshness and source', () => {
   it('carries the brokerage fetch time and the route that answered', async () => {
-    const r = await fetchConnectedAccounts(async () => res({ accounts: [ACCOUNT] }));
+    const r = await fetchConnectedAccounts(async () => res({ linked: true, accounts: [ACCOUNT] }));
     expect(r.status).toBe('ok');
     if (r.status !== 'ok') return;
     expect(r.data.accounts[0].asOf).toBe('2026-08-28T14:30:00Z');
@@ -44,7 +68,7 @@ describe('freshness and source', () => {
 
   it('defaults to the weaker daily claim when the source is absent or unrecognised', async () => {
     const r = await fetchConnectedAccounts(async () =>
-      res({ accounts: [{ ...ACCOUNT, source: undefined, asOf: undefined }] }),
+      res({ linked: true, accounts: [{ ...ACCOUNT, source: undefined, asOf: undefined }] }),
     );
     expect(r.status).toBe('ok');
     if (r.status !== 'ok') return;
@@ -55,20 +79,21 @@ describe('freshness and source', () => {
 
 describe('fetchConnectedAccounts', () => {
   it('returns the real account on a well-formed response', async () => {
-    const r = await fetchConnectedAccounts(async () => res({ accounts: [ACCOUNT] }));
+    const r = await fetchConnectedAccounts(async () => res({ linked: true, accounts: [ACCOUNT] }));
     expect(r.status).toBe('ok');
     if (r.status !== 'ok') return;
     expect(r.data.accounts).toEqual([ACCOUNT]);
   });
 
   it('treats zero connected accounts as a real ok, not an error', async () => {
-    const r = await fetchConnectedAccounts(async () => res({ accounts: [] }));
-    expect(r).toEqual({ status: 'ok', data: { accounts: [], connections: [] } });
+    const r = await fetchConnectedAccounts(async () => res({ linked: true, accounts: [] }));
+    expect(r).toEqual({ status: 'ok', data: { linked: true, accounts: [], connections: [] } });
   });
 
   it('carries a live connection that reported no accounts, so it is not read as "nothing connected"', async () => {
     const r = await fetchConnectedAccounts(async () =>
       res({
+        linked: true,
         accounts: [],
         connections: [
           {
@@ -91,7 +116,7 @@ describe('fetchConnectedAccounts', () => {
 
   it('drops a connection row with no id rather than half-rendering it', async () => {
     const r = await fetchConnectedAccounts(async () =>
-      res({ accounts: [], connections: [{ brokerage: 'Ghost' }] }),
+      res({ linked: true, accounts: [], connections: [{ brokerage: 'Ghost' }] }),
     );
     expect(r.status).toBe('ok');
     if (r.status !== 'ok') return;
@@ -102,7 +127,7 @@ describe('fetchConnectedAccounts', () => {
     const r = await fetchConnectedAccounts(async () => res({ error: 'not_configured' }, 500));
     expect(r.status).toBe('unavailable');
     if (r.status !== 'unavailable') return;
-    expect(r.reason?.he).toContain('אינם מוגדרים');
+    expect(r.reason?.he).toContain('אינו מוגדר');
   });
 
   it('reports rejected credentials distinctly from an unreachable service', async () => {
@@ -129,7 +154,7 @@ describe('fetchConnectedAccounts', () => {
   });
 
   it('reports an unrecognised shape rather than guessing at it', async () => {
-    const r = await fetchConnectedAccounts(async () => res({ accounts: 'nope' }));
+    const r = await fetchConnectedAccounts(async () => res({ linked: true, accounts: 'nope' }));
     expect(r.status).toBe('unavailable');
     if (r.status !== 'unavailable') return;
     expect(r.reason?.en).toMatch(/shape/);
@@ -144,7 +169,7 @@ describe('fetchConnectedAccounts', () => {
 
   it('drops a position with no ticker instead of rendering a blank row', async () => {
     const r = await fetchConnectedAccounts(async () =>
-      res({ accounts: [{ ...ACCOUNT, positions: [{ units: 1 }, ACCOUNT.positions[0]] }] }),
+      res({ linked: true, accounts: [{ ...ACCOUNT, positions: [{ units: 1 }, ACCOUNT.positions[0]] }] }),
     );
     expect(r.status).toBe('ok');
     if (r.status !== 'ok') return;
@@ -153,7 +178,10 @@ describe('fetchConnectedAccounts', () => {
 
   it('keeps an unreported number as null rather than coercing it to zero', async () => {
     const r = await fetchConnectedAccounts(async () =>
-      res({ accounts: [{ ...ACCOUNT, totalValue: undefined, positions: [{ ticker: 'NVDA' }] }] }),
+      res({
+        linked: true,
+        accounts: [{ ...ACCOUNT, totalValue: undefined, positions: [{ ticker: 'NVDA' }] }],
+      }),
     );
     expect(r.status).toBe('ok');
     if (r.status !== 'ok') return;
@@ -167,7 +195,176 @@ describe('fetchConnectedAccounts', () => {
   });
 
   it('drops an account with no id — it could not be addressed or trusted', async () => {
-    const r = await fetchConnectedAccounts(async () => res({ accounts: [{ name: 'ghost' }] }));
-    expect(r).toEqual({ status: 'ok', data: { accounts: [], connections: [] } });
+    const r = await fetchConnectedAccounts(async () => res({ linked: true, accounts: [{ name: 'ghost' }] }));
+    expect(r).toEqual({ status: 'ok', data: { linked: true, accounts: [], connections: [] } });
+  });
+
+  it('answers "nothing connected" for a signed-out reader without asking the server', async () => {
+    // Not a failure: there is no user for the route to resolve, and the app's
+    // own data is what a signed-out reader sees anyway.
+    token = null;
+    let called = false;
+    const r = await fetchConnectedAccounts(async () => {
+      called = true;
+      return res({ linked: true, accounts: [ACCOUNT] });
+    });
+    expect(r).toEqual({ status: 'ok', data: { linked: false, accounts: [], connections: [] } });
+    expect(called).toBe(false);
+  });
+
+  it('records the answer against the user it is about, not whoever is signed in later', async () => {
+    // A response that lands after a sign-out or an account switch must not be
+    // read as the new user's. The id travels with the answer so the auth layer
+    // can tell whose it is and drop it (auth/AuthProvider.tsx).
+    await fetchConnectedAccounts(async () => res({ linked: true, accounts: [ACCOUNT] }));
+    expect(isLinked()).toBe(true);
+    expect(linkedUserId()).toBe(USER_ID);
+  });
+
+  it("remembers the server's word on whether anything is connected", async () => {
+    await fetchConnectedAccounts(async () => res({ linked: true, accounts: [ACCOUNT] }));
+    expect(isLinked()).toBe(true);
+    // And corrects it: a stale "linked" must not survive one honest answer.
+    await fetchConnectedAccounts(async () => res({ linked: false, accounts: [] }));
+    expect(isLinked()).toBe(false);
+  });
+});
+
+describe('connecting and disconnecting', () => {
+  it('returns the portal URL to send the user to', async () => {
+    const r = await startBrokerageConnection(async () =>
+      res({ redirectURI: 'https://app.snaptrade.com/portal/abc' }),
+    );
+    expect(r).toEqual({ status: 'ok', data: { redirectURI: 'https://app.snaptrade.com/portal/abc' } });
+  });
+
+  it('reports a response with no portal URL rather than navigating nowhere', async () => {
+    const r = await startBrokerageConnection(async () => res({ sessionId: 'only-this' }));
+    expect(r.status).toBe('unavailable');
+  });
+
+  it('names the half-removed previous connection instead of a generic failure', async () => {
+    // The 409 the link route answers when SnapTrade still holds a user whose
+    // secret this app no longer has. Retrying in a moment is the real remedy,
+    // so that is what it says.
+    const r = await startBrokerageConnection(async () => res({ error: 'link_reset' }, 409));
+    expect(r.status).toBe('unavailable');
+    if (r.status !== 'unavailable') return;
+    expect(r.reason?.en).toMatch(/being removed/);
+  });
+
+  it('asks for a sign-in rather than calling the route with no session', async () => {
+    token = null;
+    let called = false;
+    const r = await startBrokerageConnection(async () => {
+      called = true;
+      return res({ redirectURI: 'https://app.snaptrade.com/portal/abc' });
+    });
+    expect(r.status).toBe('unavailable');
+    expect(called).toBe(false);
+  });
+
+  it('forgets the link only once the server confirms it is gone', async () => {
+    await fetchConnectedAccounts(async () => res({ linked: true, accounts: [ACCOUNT] }));
+    expect(isLinked()).toBe(true);
+
+    const failed = await disconnectBrokerage(async () => res({ error: 'upstream_error' }, 502));
+    expect(failed.status).toBe('unavailable');
+    // Still connected, because it still is: telling the app otherwise would
+    // hide a live brokerage connection the user thinks they revoked.
+    expect(isLinked()).toBe(true);
+
+    const done = await disconnectBrokerage(async () => res({ disconnected: true }));
+    expect(done.status).toBe('ok');
+    expect(isLinked()).toBe(false);
+  });
+
+  it('ignores an account read that lands after a different user has signed in', async () => {
+    // The auth layer clears state on a switch, but it cannot cancel a request
+    // already in flight. Without this check, user A's answer would be written
+    // down as user B's the moment it arrived.
+    await fetchConnectedAccounts(async () => res({ linked: false, accounts: [] }));
+    expect(isLinked()).toBe(false);
+    expect(linkedUserId()).toBe('user-1');
+
+    const late = fetchConnectedAccounts(async () => {
+      // Somebody else signs in while this request is on the wire.
+      USER_ID = 'user-2';
+      return res({ linked: true, accounts: [ACCOUNT] });
+    });
+    const r = await late;
+
+    // The caller still gets the answer it asked for...
+    expect(r.status).toBe('ok');
+    if (r.status === 'ok') expect(r.data.linked).toBe(true);
+    // ...but nothing about user-1 was recorded against the session now in
+    // place. The state is still the last thing known for its own user.
+    expect(linkedUserId()).toBe('user-1');
+    expect(isLinked()).toBe(false);
+  });
+
+  it('does not let an older account read undo a disconnect for the same user', async () => {
+    // The session check cannot see this one: the same person is signed in
+    // throughout. The read simply describes a moment that has passed.
+    await fetchConnectedAccounts(async () => res({ linked: true, accounts: [ACCOUNT] }));
+    expect(isLinked()).toBe(true);
+
+    let release: (r: Response) => void = () => {};
+    const late = fetchConnectedAccounts(() => new Promise<Response>((resolve) => (release = resolve)));
+
+    const done = await disconnectBrokerage(async () => res({ disconnected: true }));
+    expect(done.status).toBe('ok');
+    expect(isLinked()).toBe(false);
+
+    // Now the earlier read answers, still saying the account is connected.
+    release(res({ linked: true, accounts: [ACCOUNT] }));
+    const r = await late;
+
+    // Its caller is told what the server said...
+    expect(r.status).toBe('ok');
+    if (r.status === 'ok') expect(r.data.linked).toBe(true);
+    // ...and the state stays as the disconnect left it. Otherwise the app
+    // would offer live data for a connection the user has just revoked.
+    expect(isLinked()).toBe(false);
+  });
+
+  it("does not let one user's disconnect throw away another user's answer", async () => {
+    // The revision is per user for this reason. With one counter for
+    // everybody, A revoking their account would invalidate the read B is
+    // waiting on, and B would sit with no link status at all until something
+    // happened to ask again.
+    await fetchConnectedAccounts(async () => res({ linked: true, accounts: [ACCOUNT] }));
+
+    let release: (r: Response) => void = () => {};
+    USER_ID = 'user-2';
+    const forUser2 = fetchConnectedAccounts(() => new Promise<Response>((resolve) => (release = resolve)));
+
+    // user-1's disconnect lands while user-2's read is still on the wire.
+    USER_ID = 'user-1';
+    expect((await disconnectBrokerage(async () => res({ disconnected: true }))).status).toBe('ok');
+    USER_ID = 'user-2';
+
+    release(res({ linked: true, accounts: [ACCOUNT] }));
+    await forUser2;
+
+    // user-2's own answer is recorded: nothing about it was made untrue by
+    // what user-1 did.
+    expect(linkedUserId()).toBe('user-2');
+    expect(isLinked()).toBe(true);
+  });
+
+  it('ignores a disconnect that completes after a different user has signed in', async () => {
+    await fetchConnectedAccounts(async () => res({ linked: true, accounts: [ACCOUNT] }));
+    expect(isLinked()).toBe(true);
+
+    const done = await disconnectBrokerage(async () => {
+      USER_ID = 'user-2';
+      return res({ disconnected: true });
+    });
+
+    expect(done.status).toBe('ok');
+    // user-2 is not told they have nothing connected on user-1's behalf.
+    expect(isLinked()).toBe(true);
+    expect(linkedUserId()).toBe('user-1');
   });
 });

@@ -6,15 +6,17 @@ import { Num } from '../components/Num';
 import { LogoTile } from '../components/TickerTile';
 import { InstitutionRows } from './advisory/InstitutionRows';
 import { NewPortfolioSheet } from '../sheets/NewPortfolioSheet';
-import { DataState } from '../components/DataState';
+import { DataState, EmptyState } from '../components/DataState';
 import { SkeletonList } from '../components/Skeleton';
+import { useLinkStatus } from '../data/useLinked';
 import { useLoadable } from '../data/useLoadable';
 import { fetchConnectedAccounts } from '../data/snaptradeAccount';
-import type { ConnectedAccount, ConnectedConnection } from '../data/types';
 import { useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { money } from '../lib/format';
+import { ConnectBrokerage } from '../components/ConnectBrokerage';
+import { DemoOnly } from '../components/DemoOnly';
 import { useDemoMode } from '../lib/DemoModeProvider';
 import type { ScreenProps } from '../App';
 
@@ -45,75 +47,115 @@ const LINKED = [
 export function ConnectionsScreen(_: ScreenProps) {
   const { language } = useTheme();
   const t = useT();
-  const [newPfOpen, setNewPfOpen] = useState(false);
+  // Three states, not two. `unknown` is the moment before the first read
+  // lands — most visibly on the way back from the connection portal, where
+  // treating it as "not linked" would offer a connect button to someone who
+  // has just connected an account.
+  const status = useLinkStatus();
   const demo = useDemoMode();
+  // The connection's own figures are read only while the sample-data switch
+  // is off (data/useLinked.ts, useLiveData). With it on this list shows the
+  // sample rows instead — and says they are samples rather than claiming
+  // anything about what is or is not connected.
+  const live = status === 'linked' && !demo;
+  const [newPfOpen, setNewPfOpen] = useState(false);
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-      <Card padding={13} gap={5}>
-        <CardTitle>{t('connScreen.linked')}</CardTitle>
-        <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0 }}>
-          {t('connScreen.linkedHelp')}
-        </p>
-      </Card>
+      {/* A connected brokerage account outranks the sample-data switch: it
+          is not sample data, so it shows even with that switch off. */}
+      {live || demo ? (
+        <>
+          <Card padding={13} gap={5}>
+            <CardTitle>{t('connScreen.linked')}</CardTitle>
+            <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0 }}>
+              {t('connScreen.linkedHelp')}
+            </p>
+          </Card>
 
-      {/* Sample data on: the three demo brokers. Off: the one real account
-          read through SnapTrade, or the honest reason there is none. */}
-      {demo ? (
-        <Card padding="4px 0" gap={0}>
-          {LINKED.map((c, i) => (
-            <div
-              key={i}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '11px 13px',
-                borderTop: '1px solid var(--color-divider)',
-              }}
-            >
-              <LogoTile src={c.logo} />
-              <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>
-                  {c.broker}{' '}
-                  <span className="text-muted" style={{ fontSize: 'var(--text-body)' }}>
-                    <Num>{c.acct}</Num>
-                  </span>
-                </span>
-                <span
-                  className="text-muted"
-                  style={{
-                    display: 'block',
-                    fontSize: 'var(--text-caption)',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {c.detail[language]}
-                </span>
-              </span>
-              <span
+          {/* Once a real account is connected, the three sample brokers give
+              way to it. They are illustrations of what this list looks like
+              full; a real account is the thing itself, and the two must never
+              appear in the same list. */}
+          {live ? (
+            <LiveLinkedAccounts />
+          ) : (
+            <Card padding="4px 0" gap={0}>
+              {/* Said once, above the rows, rather than left to the tag on
+                  each of them: a reader scanning for "is my account here"
+                  reads the block, not the badges. */}
+              <p
+                className="text-muted"
                 style={{
-                  textAlign: 'end',
-                  whiteSpace: 'nowrap',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 3,
-                  alignItems: 'flex-end',
+                  fontSize: 'var(--text-caption)',
+                  margin: 0,
+                  padding: '9px 13px 3px',
+                  lineHeight: 1.5,
                 }}
               >
-                <Num size={17}>{c.value}</Num>
-                <Tag variant="accent" fontSize={14}>
-                  {t('connScreen.live')}
-                </Tag>
-              </span>
-            </div>
-          ))}
-        </Card>
+                {t('connScreen.sampleHelp')}
+              </p>
+              {LINKED.map((c, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '11px 13px',
+                    borderTop: '1px solid var(--color-divider)',
+                  }}
+                >
+                  <LogoTile src={c.logo} />
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>
+                      {c.broker}{' '}
+                      <span className="text-muted" style={{ fontSize: 'var(--text-body)' }}>
+                        <Num>{c.acct}</Num>
+                      </span>
+                    </span>
+                    <span
+                      className="text-muted"
+                      style={{
+                        display: 'block',
+                        fontSize: 'var(--text-caption)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {c.detail[language]}
+                    </span>
+                  </span>
+                  <span
+                    style={{
+                      textAlign: 'end',
+                      whiteSpace: 'nowrap',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 3,
+                      alignItems: 'flex-end',
+                    }}
+                  >
+                    <Num size={17}>{c.value}</Num>
+                    {/* Not connScreen.live. These are invented rows, and the
+                        live tag is what a real connected account wears. */}
+                    <Tag fontSize={14}>{t('connScreen.sample')}</Tag>
+                  </span>
+                </div>
+              ))}
+            </Card>
+          )}
+        </>
       ) : (
-        <LiveLinkedAccounts />
+        <DemoOnly feature="connScreen.linked" />
       )}
+
+      {/* The way in. Only once we KNOW there is nothing connected — with an
+          account linked, the connection is managed on its own screen, next to
+          the figures it produces, and while the answer is still unknown this
+          waits rather than guessing. */}
+      {status === 'unlinked' && <ConnectBrokerage />}
 
       <Card padding="4px 0" gap={0}>
         <CardTitle>
@@ -164,249 +206,101 @@ export function ConnectionsScreen(_: ScreenProps) {
 }
 
 /**
- * The real connected account, read live and read-only through SnapTrade.
+ * The user's real connected accounts in the linked-accounts list, in place of
+ * the sample brokers.
  *
- * Every state is rendered honestly and none falls back to the demo rows
- * above: loading, unavailable, a connection SnapTrade has disabled, a live
- * connection whose brokerage reports no accounts, and no connection at all.
- * The last two used to look identical, and they are different facts — one
- * says "go connect something", the other says "it is connected; the broker
- * has not reported yet".
+ * Each row links to the connected-account screen, so a total shown here can
+ * always be traced to the per-field view that marks what the brokerage did
+ * not report. Loading, unavailable and "nothing connected yet" are all
+ * rendered honestly — a failure here never falls back to the sample rows
+ * above.
  */
 function LiveLinkedAccounts() {
   const t = useT();
+  const dispatch = useDispatch();
   const accounts = useLoadable(() => fetchConnectedAccounts(), []);
 
   return (
-    <DataState
-      state={accounts.state}
-      onRetry={accounts.retry}
-      skeleton={
-        <Card padding="4px 0" gap={0}>
-          <div style={{ padding: '10px 13px 2px' }}>
-            <SkeletonList count={1} leading minHeight={52} />
-          </div>
-        </Card>
-      }
-    >
-      {({ accounts, connections }) => {
-        // A disabled connection is reported whether or not other accounts
-        // loaded: its figures are withheld, and silently omitting the whole
-        // connection would read as "you never linked that".
-        const dead = connections.filter((c) => c.disabled === true);
-        const quiet = connections.filter((c) => c.disabled !== true);
-        // What the live connections say they hold, against what actually came
-        // back below.
-        const claimed = quiet.reduce((sum, c) => sum + c.accountCount, 0);
-        return (
-          <>
-            {dead.map((connection) => (
-              <DisabledConnectionCard key={connection.id} connection={connection} />
-            ))}
-            {/* A connection that is live and reporting nothing is its own
-                fact, and it used to vanish the moment ANY other account
-                loaded — the branch below rendered account rows or connection
-                cards, never both, so a second brokerage sitting empty
-                disappeared from the screen entirely. Rendered on its own
-                terms now: any active connection with no accounts of its own,
-                whatever the rest of the list did. */}
-            {quiet
-              .filter((connection) => connection.accountCount === 0)
-              .map((connection) => (
-                <ConnectionCard key={connection.id} connection={connection} />
-              ))}
-            {accounts.length > 0 ? (
-              <Card padding="4px 0" gap={0}>
-                <div style={{ padding: '4px 13px 2px' }}>
-                  {accounts.map((account) => (
-                    <AccountRow key={account.id} account={account} />
-                  ))}
-                </div>
-                <p
-                  className="text-muted"
-                  style={{
-                    fontSize: 'var(--text-caption)',
-                    margin: 0,
-                    padding: '4px 13px 10px',
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {t('live.readOnly')}
-                </p>
-                {/* An account that fails to arrive looks exactly like one the
-                    reader never linked. Which connection is short cannot be
-                    said here — ConnectedAccount carries no connection id, and
-                    the route that would add one belongs to the brokerage-
-                    linking branch, not this one — so the shortfall is stated
-                    in aggregate rather than not at all. */}
-                {claimed > accounts.length && (
-                  <p
-                    className="text-muted"
+    <Card padding="4px 0" gap={0}>
+      <div style={{ padding: '10px 13px 2px' }}>
+        <DataState
+          state={accounts.state}
+          onRetry={accounts.retry}
+          skeleton={<SkeletonList count={1} leading minHeight={52} />}
+        >
+          {({ accounts }) =>
+            accounts.length === 0 ? (
+              // Registered upstream but holding no brokerage connection —
+              // a real state, reached by starting the portal and not
+              // finishing it. The connect card is gated on `unlinked`, which
+              // this is not, so without offering it here the one person who
+              // most needs the way in is the one who cannot see it.
+              <>
+                <EmptyState>{t('live.none')}</EmptyState>
+                <ConnectBrokerage card={false} />
+              </>
+            ) : (
+              <>
+                {accounts.map((account) => (
+                  <button
+                    key={account.id}
+                    type="button"
+                    onClick={() => dispatch({ type: 'go', screen: 'snaptrade' })}
                     style={{
-                      fontSize: 'var(--text-caption)',
-                      margin: 0,
-                      padding: '0 13px 10px',
-                      lineHeight: 1.5,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      width: '100%',
+                      padding: '9px 0',
+                      border: 0,
+                      background: 'transparent',
+                      color: 'inherit',
+                      font: 'inherit',
+                      cursor: 'pointer',
+                      textAlign: 'start',
                     }}
                   >
-                    {t('live.accountsShort', { claimed, shown: accounts.length })}
-                  </p>
-                )}
-              </Card>
-            ) : quiet.length === 0 && dead.length === 0 ? (
-              <Card padding={16} gap={6}>
-                <span style={{ fontSize: 'var(--text-row)' }}>{t('live.none')}</span>
-                <span className="text-muted" style={{ fontSize: 'var(--text-caption)', lineHeight: 1.5 }}>
-                  {t('live.noneHelp')}
-                </span>
-              </Card>
-            ) : (
-              // Only the ones the block above did not already render: a
-              // connection that claims accounts but delivered none is still
-              // worth stating, and is not covered by the accountCount === 0
-              // filter.
-              quiet
-                .filter((connection) => connection.accountCount !== 0)
-                .map((connection) => <ConnectionCard key={connection.id} connection={connection} />)
-            )}
-          </>
-        );
-      }}
-    </DataState>
-  );
-}
-
-/**
- * One real account, as a row that opens the Portfolio tab. The total shown
- * here is the brokerage's own; a total it did not report is "—", never a
- * sum of the parts it did.
- */
-function AccountRow({ account }: Readonly<{ account: ConnectedAccount }>) {
-  const t = useT();
-  const dispatch = useDispatch();
-  return (
-    <button
-      type="button"
-      onClick={() => {
-        // Name the account, do not place it. Going to 'pf' alone left the tab
-        // on whichever portfolio pfIndex already held, so tapping the second
-        // account opened the first — but computing an index here would be
-        // worse: this screen and the Portfolio tab read the accounts through
-        // separate fetches, and a position from one list does not identify an
-        // account in the other. The tab resolves the id against its own list.
-        dispatch({ type: 'pfWanted', id: account.id });
-        dispatch({ type: 'go', screen: 'pf' });
-      }}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        width: '100%',
-        padding: '9px 0',
-        border: 0,
-        background: 'transparent',
-        color: 'inherit',
-        font: 'inherit',
-        cursor: 'pointer',
-        textAlign: 'start',
-      }}
-    >
-      <LogoTile src={null} label={(account.institution ?? 'A').slice(0, 2).toUpperCase()} />
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>
-          {account.institution ?? account.name ?? account.id}{' '}
-          {account.numberMasked && (
-            <span className="text-muted" style={{ fontSize: 'var(--text-body)' }}>
-              <Num>{account.numberMasked}</Num>
-            </span>
-          )}
-        </span>
-        <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-caption)' }}>
-          {t('live.title')}
-          {account.currency ? ` · ${account.currency}` : ''}
-        </span>
-      </span>
-      <span
-        style={{
-          textAlign: 'end',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 3,
-          alignItems: 'flex-end',
-        }}
-      >
-        {account.totalValue === null ? (
-          <span className="text-muted" style={{ fontSize: 'var(--text-row)' }}>
-            —
-          </span>
-        ) : (
-          <Num size={17}>{money(account.totalValue)}</Num>
-        )}
-        <Tag variant="accent" fontSize={14}>
-          {t('live.badge')}
-        </Tag>
-      </span>
-    </button>
-  );
-}
-
-/**
- * A connection SnapTrade has marked disabled.
- *
- * Its accounts are never fetched (see the API handler), because a disabled
- * connection keeps serving its last cached state and nothing says how old it
- * is. This card exists so that withholding is visible rather than silent.
- */
-function DisabledConnectionCard({ connection }: Readonly<{ connection: ConnectedConnection }>) {
-  const t = useT();
-  const broker = connection.brokerage ?? connection.id;
-  return (
-    <Card padding={16} gap={7}>
-      <span style={{ fontSize: 'var(--text-row)', color: 'var(--down)' }}>
-        {t('live.connDisabledTitle', { broker })}
-      </span>
-      <span className="text-muted" style={{ fontSize: 'var(--text-caption)', lineHeight: 1.55 }}>
-        {t('live.connDisabledHelp')}
-      </span>
-    </Card>
-  );
-}
-
-/**
- * A live connection that is reporting no accounts.
- *
- * Deliberately not the "nothing connected yet" card: the brokerage IS
- * connected, and this states what it actually said, so nobody goes looking
- * for a connection that already exists.
- */
-function ConnectionCard({ connection }: Readonly<{ connection: ConnectedConnection }>) {
-  const t = useT();
-  const broker = connection.brokerage ?? connection.id;
-  const state =
-    connection.disabled === null ? null : connection.disabled ? t('live.connDisabled') : t('live.connActive');
-
-  return (
-    <Card padding={16} gap={7}>
-      <span style={{ fontSize: 'var(--text-row)' }}>{t('live.connectedNoAccounts', { broker })}</span>
-      <span className="text-muted" style={{ fontSize: 'var(--text-caption)', lineHeight: 1.55 }}>
-        {t('live.connectedNoAccountsHelp')}
-      </span>
-      {/* A delayed connection is answered from a cache, so "no accounts" may
-          mean "the cache was never filled" rather than "the account is
-          empty". Said only when SnapTrade actually reports that mode — it is
-          not something to infer from the plan. */}
-      {connection.dataFreshnessMode === 'delayed' && (
-        <span className="text-muted" style={{ fontSize: 'var(--text-caption)', lineHeight: 1.55 }}>
-          {t('live.connectedNoAccountsDelayed')}
-        </span>
-      )}
-      {state && (
-        <span className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
-          {t('live.connState', { state })}
-          {connection.type ? ` · ${connection.type}` : ''}
-          {connection.dataFreshnessMode ? ` · ${connection.dataFreshnessMode}` : ''}
-        </span>
-      )}
+                    <LogoTile src={null} label={(account.institution ?? 'A').slice(0, 2).toUpperCase()} />
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ display: 'block', fontSize: 14 }}>
+                        {account.institution ?? account.name ?? account.id}{' '}
+                        {account.numberMasked && (
+                          <span className="text-muted" style={{ fontSize: 13 }}>
+                            <Num>{account.numberMasked}</Num>
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-muted" style={{ display: 'block', fontSize: 12.5 }}>
+                        {t('live.title')}
+                      </span>
+                    </span>
+                    <span
+                      style={{
+                        textAlign: 'end',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 3,
+                        alignItems: 'flex-end',
+                      }}
+                    >
+                      {account.totalValue === null ? (
+                        <span className="text-muted" style={{ fontSize: 14 }}>
+                          —
+                        </span>
+                      ) : (
+                        <Num size={14}>{money(account.totalValue)}</Num>
+                      )}
+                      <Tag variant="accent" fontSize={11}>
+                        {t('live.badge')}
+                      </Tag>
+                    </span>
+                  </button>
+                ))}
+              </>
+            )
+          }
+        </DataState>
+      </div>
     </Card>
   );
 }

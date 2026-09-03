@@ -189,7 +189,7 @@ async function main() {
       "shares changed",
     );
 
-    // Since 0008 the Sandbox is ordinary user content too: its owner can
+    // Since 0010 the Sandbox is ordinary user content too: its owner can
     // delete it (the app confirms first), and the policy must let them, or
     // the delete would affect no rows, report no error, and the Sandbox
     // would come back on the next read.
@@ -199,7 +199,7 @@ async function main() {
       .select("id")
       .eq("id", sandboxA.id);
     check(
-      "Sandbox can be deleted by its owner (0008)",
+      "Sandbox can be deleted by its owner (0010)",
       (sandboxStill.data ?? []).length === 0,
     );
 

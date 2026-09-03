@@ -494,8 +494,8 @@ export const STRINGS = {
   // the movers ranking by "most active" is still sample data.
   'more.demoData': p('Sample data', 'נתוני דמו'),
   'more.demoDataHelp': p(
-    'Fills the app with sample figures: generated price charts, an illustrative earnings week, and the demo brokers, market movers, analyst ratings and notifications. With it off, each of those says so in place, everything else uses real market data, and the portfolio shows the brokerage account connected through SnapTrade.',
-    'ממלא את האפליקציה בנתוני הדגמה: גרפים מומצאים, שבוע דוחות לדוגמה, וגם ברוקרים לדוגמה, מובילי השוק, דירוגי האנליסטים וההתראות. כשהוא כבוי, כל אחד מהם אומר זאת במקומו, כל השאר משתמש בנתוני שוק אמיתיים, והתיק מציג את חשבון הברוקר שמקושר דרך SnapTrade.',
+    'Fills the app with sample figures: generated price charts, an illustrative earnings week, and the demo portfolio, market movers, analyst ratings and notifications. With it off, each of those says so in place and everything else uses real market data. A brokerage account you connected yourself is never sample data and is unaffected.',
+    'ממלא את האפליקציה בנתוני הדגמה: גרפים מומצאים, שבוע דוחות לדוגמה, וגם תיק הדמו, מובילי השוק, דירוגי האנליסטים וההתראות. כשהוא כבוי, כל אחד מהם אומר זאת במקומו, וכל השאר משתמש בנתוני שוק אמיתיים. חשבון ברוקר שחיברת בעצמך אינו נתוני הדגמה ואינו מושפע.',
   ),
   // The stand-in for a whole fabricated feature while sample data is off.
   // Verbless in Hebrew on purpose — see the note in components/DemoOnly.tsx
@@ -747,11 +747,23 @@ export const STRINGS = {
     'Add a stock to your watchlist first — an alert has to be about something.',
     'קודם להוסיף מניה לווטצ׳ליסט — התראה חייבת להיות על משהו.',
   ),
-  'alert.condition': p('Condition', 'תנאי'),
-  'alert.rises': p('Rises above', 'עולה מעל'),
-  'alert.falls': p('Falls below', 'יורד מתחת'),
+  'alert.crosses': p('Crosses', 'נחצה'),
   'alert.price': p('Price', 'מחיר'),
-  'alert.priceHint': p("That's about 9.6% above today's price.", 'זה בערך 9.6% מעל המחיר של היום.'),
+  'alert.hintAbove': p("That's about {pct}% above today's price.", 'זה בערך {pct}% מעל המחיר של היום.'),
+  'alert.hintBelow': p("That's about {pct}% below today's price.", 'זה בערך {pct}% מתחת למחיר של היום.'),
+  'alert.priceNote': p(
+    'Fires when the price crosses this level, in either direction, after the alert is saved. Saving only notes which side the price is on now.',
+    'תופעל כשהמחיר יחצה את הרמה הזו, לכל כיוון, אחרי שההתראה נשמרה. השמירה רק רושמת באיזה צד המחיר נמצא עכשיו.',
+  ),
+  'alert.newsNote': p(
+    "Checks the stock's news every half hour. Any new article mentioning a keyword fires; leave blank for any article.",
+    'בודקת את חדשות המניה כל חצי שעה. כל כתבה חדשה שמזכירה מילת מפתח תפעיל התראה; אפשר להשאיר ריק לכל כתבה.',
+  ),
+  'alert.earnNote': p(
+    'Checked once each morning against the earnings calendar.',
+    'נבדקת פעם ביום בבוקר מול לוח הדוחות.',
+  ),
+  'alert.emailSoon': p('Email (not yet available)', 'אימייל (עדיין לא זמין)'),
   'alert.mentions': p('Mentions of', 'אזכורים של'),
   'alert.keywords': p('data centre, guidance', 'מרכזי נתונים, תחזית'),
   'alert.sources': p('Sources', 'מקורות'),
@@ -790,6 +802,28 @@ export const STRINGS = {
   'notif.caughtUp': p('all caught up', 'הכול מעודכן'),
   'notif.markAll': p('Mark all read', 'לסמן הכול כנקרא'),
   'notif.manageRules': p('Manage alert rules', 'לנהל כללי התראה'),
+  'notif.empty': p(
+    'No notifications yet. Alerts you set will show up here.',
+    'אין עדיין התראות. התראות שתגדירי יופיעו כאן.',
+  ),
+  'notif.signIn': p('Sign in to receive alerts.', 'כדי לקבל התראות צריך להתחבר.'),
+
+  // ── Notification channels (Settings) ──────────────────────────────────
+  'set.push': p('Push notifications', 'התראות פוש'),
+  'set.pushHelp': p('Price, news and earnings alerts on this device', 'מחיר, חדשות ודוחות במכשיר הזה'),
+  'set.pushSignIn': p('Sign in to turn on push.', 'כדי להפעיל פוש צריך להתחבר.'),
+  'set.pushUnsupported': p(
+    'Not available in this browser. On iPhone, add Shift to the home screen first.',
+    'לא זמין בדפדפן הזה. באייפון קודם מוסיפים את Shift למסך הבית.',
+  ),
+  'set.pushDenied': p('Blocked in the browser settings for this site.', 'חסום בהגדרות הדפדפן לאתר הזה.'),
+  'set.pushNotConfigured': p('Push is not configured on this deployment.', 'פוש לא מוגדר בפריסה הזו.'),
+  'set.pushFailed': p('Could not turn on push. Try again.', 'לא הצלחנו להפעיל פוש. נסי שוב.'),
+  'set.email': p('Email', 'אימייל'),
+  'set.emailSoon': p(
+    'Not available yet — alerts arrive in the app and by push.',
+    'עדיין לא זמין — התראות מגיעות באפליקציה ובפוש.',
+  ),
 
   // ── Search ────────────────────────────────────────────────────────────
   'search.placeholder': p('Search ticker or company', 'חיפוש סימבול או חברה'),
@@ -891,7 +925,10 @@ export const STRINGS = {
   'more.open': p('Open an investment account', 'לפתוח חשבון השקעות'),
   'more.openHelp': p('What a broker asks, in five questions', 'מה ברוקר מבקש, בחמש שאלות'),
   'more.connections': p('Broker connections', 'חיבורי ברוקר'),
-  'more.connectionsHelp': p('Three linked accounts, one theoretical', 'שלושה חשבונות מחוברים, אחד תיאורטי'),
+  'more.connectionsHelp': p(
+    'Connect a brokerage, or keep a theoretical portfolio',
+    'לחבר חשבון ברוקר, או לנהל תיק תיאורטי',
+  ),
   'more.advChat': p('Get a recommendation', 'לקבל המלצה'),
   'more.advChatHelp': p('Four questions, then a suggested portfolio', 'ארבע שאלות, ואז הצעה לתיק'),
   'more.settings': p('Settings', 'הגדרות'),
@@ -933,6 +970,21 @@ export const STRINGS = {
   ),
   'connScreen.add': p('Connect an institution', 'לחבר מוסד'),
   'connScreen.live': p('Live', 'מחובר'),
+  // The sample rows' own tag. They used to carry connScreen.live — the same
+  // word a real connected account uses — so with sample data on and nothing
+  // actually connected, the screen showed three brokers marked "Live" and
+  // there was no way to tell them from the real thing. Naming them is the
+  // whole fix: an illustration that says it is one is honest; one wearing the
+  // real label is not.
+  'connScreen.sample': p('Sample', 'לדוגמה'),
+  // Says what the rows are and stops there. It deliberately does NOT report
+  // whether anything is connected: with sample data on, a real connection is
+  // not read, and announcing one on a screen being shown to other people
+  // would give away exactly what that switch was flipped to keep private.
+  'connScreen.sampleHelp': p(
+    'These three are an illustration of what this list looks like with accounts in it.',
+    'שלושת אלה הם המחשה של איך הרשימה נראית כשיש בה חשבונות.',
+  ),
   'connScreen.theo': p('Theoretical portfolios', 'תיקים תיאורטיים'),
   // Names no portfolio: Sandbox is a demo account, so with sample data off it
   // is not there to be described.
@@ -1093,27 +1145,66 @@ export const STRINGS = {
   'set.deleteCancel': p('Cancel', 'ביטול'),
   'set.deleting': p('Deleting…', 'מוחק…'),
   'set.deleteFailedTitle': p('The account was not deleted', 'החשבון לא נמחק'),
-  // ── Connected account (SnapTrade Personal, read-only) ─────────────────
-  // The one real brokerage account, shown with sample data OFF. Everything
-  // here is read-only and single-account; nothing may read as trading.
+  // ── Connected account (the user's own brokerage, read-only) ───────────
+  // A real feature: each user connects their own account, in SnapTrade's
+  // hosted portal, with read permission only. Every string here is written to
+  // keep two things unmistakable — the app cannot trade, and it never sees a
+  // brokerage password.
+  'title.snaptrade': p('Connected account', 'חשבון מקושר'),
+  'kicker.snaptrade': p('Read-only', 'קריאה בלבד'),
   'live.title': p('Connected account', 'חשבון מקושר'),
   'live.badge': p('Real data', 'נתונים אמיתיים'),
-  // The connections say how many accounts they hold; the accounts list says
-  // which ones actually came back. When those disagree the difference is
-  // stated, because an account that silently fails to arrive looks exactly
-  // like an account the reader never linked.
-  'live.accountsShort': p(
-    'Your connections report {claimed} accounts and {shown} came back. The rest could not be read just now.',
-    'החיבורים שלך מדווחים על {claimed} חשבונות, ו-{shown} חזרו. את השאר לא ניתן היה לקרוא כרגע.',
+  'live.intro': p(
+    'Your own brokerage account, read through SnapTrade. Every figure below comes from the brokerage, and how current it is depends on how often they report — the freshness of what is on screen is stated with it.',
+    'חשבון הברוקר שלך, נקרא דרך SnapTrade. כל נתון כאן מגיע מהברוקר, ועד כמה הוא עדכני תלוי בקצב הדיווח שלו — מידת הרעננות מוצגת לצד הנתונים.',
   ),
   'live.readOnly': p(
-    'Read-only: balances and positions only. No trading endpoint is ever called.',
-    'קריאה בלבד: יתרות ופוזיציות בלבד. לא מתבצעת שום קריאה לממשק מסחר.',
+    'Read-only: balances and positions only. Shift cannot place orders, move money, or see your brokerage password.',
+    'קריאה בלבד: יתרות ופוזיציות בלבד. Shift אינה יכולה לבצע פעולות, להעביר כספים או לראות את הסיסמה שלך אצל הברוקר.',
   ),
   'live.none': p('No brokerage account connected yet.', 'עדיין לא מקושר חשבון ברוקר.'),
   'live.noneHelp': p(
-    "Connect a brokerage in SnapTrade's dashboard and it appears here after its next sync. Nothing is shown until a real account is linked.",
-    'מקשרים חשבון ברוקר בדשבורד של SnapTrade והוא יופיע כאן אחרי הסנכרון הבא. עד שיקושר חשבון אמיתי לא יוצג דבר.',
+    'Connecting one takes a minute: you approve a read-only connection at your brokerage. Some brokerages then take a day or two to deliver their first report, and the screen says which state the connection is in. Nothing is shown until there is something real to show.',
+    'החיבור לוקח דקה: מאשרים חיבור לקריאה בלבד אצל הברוקר. אצל חלק מהברוקרים לוקח יום-יומיים עד שמגיע הדיווח הראשון, והמסך אומר באיזה מצב החיבור נמצא. עד שיהיה מה להציג באמת, לא מוצג דבר.',
+  ),
+  // ── Connecting and disconnecting ──────────────────────────────────────
+  'link.title': p('Connect a brokerage account', 'חיבור חשבון ברוקר'),
+  'link.help': p(
+    'See your real positions and balances in Shift. You sign in at your own brokerage through SnapTrade, our connection provider — Shift never sees those details.',
+    'כדי לראות את הפוזיציות והיתרות האמיתיות שלך ב-Shift. ההתחברות מתבצעת אצל הברוקר שלך דרך SnapTrade, ספק החיבורים שלנו — Shift אינה רואה את פרטי ההתחברות.',
+  ),
+  'link.permission': p(
+    'You grant read permission only. It can be disconnected at any time, from this screen.',
+    'ההרשאה שניתנת היא לקריאה בלבד. אפשר לנתק בכל רגע, מהמסך הזה.',
+  ),
+  'link.cta': p('Connect an account', 'חיבור חשבון'),
+  'link.opening': p('Opening the secure portal…', 'פותחים את הפורטל המאובטח…'),
+  'link.failedTitle': p('The connection could not be started', 'לא הצלחנו להתחיל את החיבור'),
+  'link.signedOut': p('Sign in to connect an account.', 'יש להתחבר כדי לקשר חשבון.'),
+  'link.disconnect': p('Disconnect account', 'ניתוק החשבון'),
+  'link.disconnectTitle': p('Disconnect this account?', 'לנתק את החשבון?'),
+  'link.disconnectWarn': p(
+    'The connection to your brokerage is revoked, at the brokerage and here, and the stored access is deleted. Your positions stop appearing in Shift. Nothing in your brokerage account itself changes, and you can connect again later.',
+    'החיבור לברוקר מבוטל, אצל הברוקר וגם כאן, והגישה השמורה נמחקת. הפוזיציות שלך יפסיקו להופיע ב-Shift. שום דבר בחשבון עצמו אצל הברוקר לא משתנה, ואפשר לחבר אותו מחדש בהמשך.',
+  ),
+  'link.disconnectConfirm': p('Disconnect', 'לנתק'),
+  'link.disconnectCancel': p('Cancel', 'ביטול'),
+  'link.disconnecting': p('Disconnecting…', 'מנתקים…'),
+  'link.disconnectFailedTitle': p('The account was not disconnected', 'החשבון לא נותק'),
+  'live.balances': p('Balances', 'יתרות'),
+  'live.positions': p('Positions', 'פוזיציות'),
+  'live.noPositions': p('This account holds no positions.', 'בחשבון הזה אין פוזיציות.'),
+  'live.cash': p('Cash', 'מזומן'),
+  'live.buyingPower': p('Buying power', 'כוח קנייה'),
+  'live.total': p('Total value', 'שווי כולל'),
+  'live.units': p('Units', 'יחידות'),
+  'live.price': p('Price', 'מחיר'),
+  'live.value': p('Value', 'שווי'),
+  'live.avgCost': p('Avg cost', 'עלות ממוצעת'),
+  'live.openPnl': p('Open P&L', 'רווח/הפסד פתוח'),
+  'live.unknownFields': p(
+    'A dash means the brokerage did not report that field. Nothing here is estimated or filled in.',
+    'מקף פירושו שהברוקר לא דיווח על השדה הזה. שום נתון כאן אינו משוער או מושלם מעצמנו.',
   ),
   'live.noHistory': p(
     "No performance history: this is a live read of the account's current state. Today's move comes from live quotes; the brokerage publishes no priced history through this connection.",
@@ -1127,12 +1218,15 @@ export const STRINGS = {
     'None of the open positions has a price, so no allocation can be shown.',
     'לאף פוזיציה פתוחה אין מחיר, ולכן לא ניתן להציג פילוח.',
   ),
+  'live.freshRealtime': p('Read from the brokerage just now', 'נקרא מהברוקר ממש עכשיו'),
+  'live.freshDaily': p("SnapTrade's daily snapshot", 'תמונת המצב היומית של SnapTrade'),
+  'live.asOf': p('Brokerage data fetched {when}', 'נתוני הברוקר נקראו {when}'),
   'live.connectedNoAccounts': p(
     'Connected to {broker}, but the brokerage is reporting no accounts.',
     'מקושר ל-{broker}, אך הברוקר אינו מדווח על אף חשבון.',
   ),
   'live.connectedNoAccountsHelp': p(
-    'The connection is live, so this is what SnapTrade currently holds for it. Some brokerages — Interactive Brokers among them — deliver data through a scheduled report feed rather than a live API, and that feed can take a day or two to start after it is first enabled. Check that the reporting service is switched on at the broker.',
+    'The connection is live, so this is what SnapTrade currently holds for it. Some brokerages — Interactive Brokers among them — deliver data through a scheduled report feed rather than a live API, and that feed can take a day or two to start after it is first enabled. Check that the reporting service is switched on at your broker.',
     'החיבור פעיל, ולכן זה מה ש-SnapTrade מחזיקה עבורו כרגע. חלק מהברוקרים — ובהם Interactive Brokers — מעבירים נתונים דרך דוח מתוזמן ולא דרך API חי, והזנת הדוח הזו יכולה להתחיל רק יום-יומיים אחרי שמפעילים אותה לראשונה. כדאי לוודא ששירות הדיווח מופעל אצל הברוקר.',
   ),
   'live.connectedNoAccountsDelayed': p(
@@ -1194,6 +1288,8 @@ export const STRINGS = {
     'Opens in its own window, without browser chrome.',
     'נפתחת בחלון משלה, בלי סרגלי הדפדפן.',
   ),
+  'more.snaptrade': p('Connected account', 'חשבון מקושר'),
+  'more.snaptradeHelp': p('Your brokerage, read-only', 'הברוקר שלך, קריאה בלבד'),
 } as const;
 
 export type StringKey = keyof typeof STRINGS;

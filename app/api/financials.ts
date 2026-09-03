@@ -166,15 +166,10 @@ export function createHandler(timeoutMs: number, fetchImpl: typeof fetch = fetch
     // The ticker file, from the cache when it is fresh.
     let map = tickerMap && Date.now() - tickerMap.at < TICKER_MAP_TTL_MS ? tickerMap.map : null;
     if (!map) {
-      const result = await fetchUpstreamJson(
-        TICKER_FILE_URL,
-        remaining(),
-        PROVIDER,
-        ROUTE,
+      const result = await fetchUpstreamJson(TICKER_FILE_URL, remaining(), PROVIDER, ROUTE, {
         fetchImpl,
-        'json',
         headers,
-      );
+      });
       if (!result.ok) return res.status(result.failure.status).json(failureBody(result.failure));
       map = readTickerMap(result.body);
       if (map === null) {
@@ -194,15 +189,10 @@ export function createHandler(timeoutMs: number, fetchImpl: typeof fetch = fetch
       return res.status(200).json(notListed(ticker));
     }
 
-    const facts = await fetchUpstreamJson(
-      companyFactsUrl(entry.cik),
-      remaining(),
-      PROVIDER,
-      ROUTE,
+    const facts = await fetchUpstreamJson(companyFactsUrl(entry.cik), remaining(), PROVIDER, ROUTE, {
       fetchImpl,
-      'json',
       headers,
-    );
+    });
     if (!facts.ok) {
       // A filer with no XBRL facts at all answers 404 here — a fund, or a
       // company that has never filed a tagged statement. That is an answer

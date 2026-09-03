@@ -37,12 +37,12 @@ import { LedgerProvider } from './state/useLedgerSync';
 import { useProviderLanguage } from './auth/useProviderLanguage';
 import { useProfile } from './auth/ProfileProvider';
 import { SearchOverlay } from './sheets/SearchOverlay';
-import { NotificationsSheet, unreadNotifications } from './sheets/NotificationsSheet';
+import { NotificationsSheet } from './sheets/NotificationsSheet';
+import { useNotifications } from './data/useNotifications';
 import { AlertSheet } from './sheets/AlertSheet';
 import { useT as useTranslate } from './i18n/useT';
 import { Button } from './components/Button';
 import { SHELL_ID } from './components/Sheet';
-import { useDemoMode } from './lib/DemoModeProvider';
 import { SkeletonCard } from './components/Skeleton';
 
 // Screens outside the core tab set load on demand: the advisory flow,
@@ -75,6 +75,9 @@ const StepsScreen = lazy(() =>
 const OpenAccountScreen = lazy(() =>
   import('./screens/onboarding/OpenAccount').then((m) => ({ default: m.OpenAccountScreen })),
 );
+const ConnectedAccountScreen = lazy(() =>
+  import('./screens/ConnectedAccount').then((m) => ({ default: m.ConnectedAccountScreen })),
+);
 
 const SCREENS: Record<Screen, ComponentType<ScreenProps>> = {
   home: HomeScreen,
@@ -88,6 +91,7 @@ const SCREENS: Record<Screen, ComponentType<ScreenProps>> = {
   more: MoreScreen,
   settings: SettingsScreen,
   connections: ConnectionsScreen,
+  snaptrade: ConnectedAccountScreen,
   advChat: AdvisoryChat,
   advDisc: AdvisoryDisclosure,
   advDash: AdvisoryRecommendation,
@@ -240,9 +244,10 @@ function RemoteSync() {
 
 function AppShell() {
   const s = useAppState();
-  // The header badge counts the demo notifications, so it has to disappear
-  // with them — see unreadNotifications in sheets/NotificationsSheet.
-  const demo = useDemoMode();
+  // The notification centre, read once here and shared with the header badge
+  // and the sheet, so the count and the list cannot disagree.
+  const { session } = useAuth();
+  const centre = useNotifications(session.status === 'ok' && session.data ? session.data.user.id : null);
   // The merged profile, so a user who renamed themselves is greeted by the
   // name they chose rather than the one Google holds.
   const { profile } = useProfile();
@@ -261,7 +266,6 @@ function AppShell() {
   const currentSymbol =
     symbols.state.status === 'ok' ? symbols.state.data.find((x) => x.ticker === s.ticker) : undefined;
   const alertFor = alertTicker ?? (s.screen === 'stock' ? s.ticker : '');
-  const alertSymbol = currentSymbol?.ticker === alertFor ? currentSymbol : null;
 
   const titleKey = `title.${s.screen}` as StringKey;
   const kickerKey = `kicker.${s.screen}` as StringKey;
@@ -286,7 +290,6 @@ function AppShell() {
   // what a home-screen app is expected to do.
   useBackEntries(s.navStack.length, () => dispatch({ type: 'back' }));
 
-  const unread = unreadNotifications(s.notificationsRead, demo);
   const ScreenView = SCREENS[s.screen];
   // Stable identity so MemoScreen below can bail out when only local shell
   // state (an opened overlay) changed. Screens read app state via context, so
@@ -379,7 +382,7 @@ function AppShell() {
             <AppHeader
               kicker={kicker}
               title={title}
-              unreadCount={unread}
+              unreadCount={centre.unread}
               onSearch={openSearch}
               onNotifications={() => setNotifOpen(true)}
             />
@@ -413,13 +416,8 @@ function AppShell() {
           avatarUrl={profile.avatarUrl}
         />
         <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
-        <NotificationsSheet open={notifOpen} onClose={() => setNotifOpen(false)} />
-        <AlertSheet
-          open={alertOpen}
-          onClose={() => setAlertOpen(false)}
-          ticker={alertFor}
-          symbol={alertSymbol}
-        />
+        <NotificationsSheet open={notifOpen} onClose={() => setNotifOpen(false)} centre={centre} />
+        <AlertSheet open={alertOpen} onClose={() => setAlertOpen(false)} ticker={alertFor} />
         {!s.firstRunSeen && <FirstRunOverlay />}
       </div>
     </div>

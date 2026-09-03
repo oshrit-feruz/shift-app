@@ -93,14 +93,27 @@ const EXCHANGES = new Set([
  * ("BRK.B" -> "BRK-B.US"). A ticker already written the provider's way
  * ("RY-PT") only needs the exchange.
  */
+/** `s` without the dots at its end. Linear, and without a regex that can be
+ *  made to backtrack. */
+function stripTrailingDots(s: string): string {
+  let end = s.length;
+  while (end > 0 && s[end - 1] === '.') end -= 1;
+  return s.slice(0, end);
+}
+
 export function resolveSymbol(ticker: string): string {
   // Trailing dots would otherwise produce an empty suffix and a trailing
   // hyphen ("NVDA." -> "NVDA-.US"), which is a symbol nobody meant.
-  const clean = ticker.trim().toUpperCase().replace(/\.+$/, '');
+  //
+  // Trimmed by index rather than with /\.+$/, which backtracks: on a symbol
+  // like "A....B" the engine retries the run of dots from every position, so
+  // the cost is quadratic in the length of the input. This is linear, and the
+  // input here comes from a URL.
+  const clean = stripTrailingDots(ticker.trim().toUpperCase());
   const dot = clean.lastIndexOf('.');
   if (dot === -1) return `${clean}.US`;
   if (EXCHANGES.has(clean.slice(dot + 1))) return clean;
-  return `${clean.replace(/\./g, '-')}.US`;
+  return `${clean.replaceAll('.', '-')}.US`;
 }
 
 /**
@@ -472,7 +485,9 @@ export type IntradayInterval = '1m' | '5m' | '1h';
  * `from` and `to` are UNIX seconds, unlike `/api/eod`'s calendar dates. The
  * window is inclusive of whole sessions at both ends, and the provider
  * answers regular trading hours only for 5m and 1h — verified on QCOM and
- * AAPL, whose 5m days start at 13:30 UTC and end at 20:00 UTC.
+ * AAPL, whose 5m days ran 13:30 to 20:00 UTC on the sessions observed. Those
+ * are 09:30 and 16:00 in New York under daylight time; standard time and half
+ * days move both, which is why nothing here matches on them.
  */
 export function intradayUrl(
   ticker: string,
@@ -505,11 +520,13 @@ function toInstant(datetime: unknown): string | null {
  *
  * The price rules are the daily mapper's, for the same reasons. The one
  * difference is the session's closing print, and it is worth spelling out:
- * the feed ends every session with a bar stamped exactly at the close whose
- * open, high, low and close are the same number and whose volume is `null`.
+ * the feed ends every session with a bar stamped at the close whose open,
+ * high, low and close are the same number and whose volume is `null`.
  * Verified on five sessions across two symbols — QCOM 5m and AAPL 1h — where
  * a null volume appeared at 20:00:00 UTC and nowhere else, never in an
- * interior bar. That bar is the closing price, not a five-minute session, and
+ * interior bar. The time is an observation, not the rule this matches on:
+ * standard time and early closes move it, so the shape is what identifies
+ * the row. That bar is the closing price, not a five-minute session, and
  * it carries no price its neighbour does not.
  *
  * So it is reported as a distinct outcome — 'closing-print' — rather than as
@@ -571,7 +588,8 @@ export function mapIntradayBars(body: unknown): CandleRow[] | null {
  * none of which this app would otherwise know.
  */
 export function latestSession(bars: readonly CandleRow[]): CandleRow[] {
-  if (bars.length === 0) return [];
-  const day = bars[bars.length - 1].d.slice(0, 10);
+  const last = bars.at(-1);
+  if (last === undefined) return [];
+  const day = last.d.slice(0, 10);
   return bars.filter((b) => b.d.startsWith(day));
 }

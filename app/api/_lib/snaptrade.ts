@@ -4,10 +4,14 @@
  * without a request/response pair or a mocked global fetch. Same split as
  * _lib/news.ts.
  *
- * SCOPE — READ ONLY, PERSONAL TIER, ONE ACCOUNT:
- * This module knows about exactly three SnapTrade paths, all GET, all
- * read-only (see READ_ONLY_PATHS in ../snaptrade.ts). Nothing here can
- * describe an order, and no trading path appears anywhere in this file.
+ * SCOPE — READ ONLY, PER USER:
+ * The data paths this signing serves are all GET and all read-only (see
+ * READ_ONLY_PATHS in ../snaptrade.ts). The only non-GET calls it signs are
+ * the three account-LINKING ones in _lib/snaptradeClient.ts — register a
+ * user, open the connection portal, delete a user — which create and destroy
+ * the link itself and cannot describe an order. No trading path appears
+ * anywhere in this file, and a unit test asserts that none appears anywhere
+ * in the integration.
  */
 
 import { createHmac } from 'node:crypto';
@@ -81,13 +85,41 @@ export function computeSignature({
 }
 
 /**
- * The query string carried by every request: the Personal clientId and a Unix
- * timestamp. Deliberately no userId/userSecret — under Personal API key auth
- * SnapTrade resolves the user from the key itself, and a Personal user has no
- * userSecret to send (docs.snaptrade.com/docs/personal-vs-commercial).
+ * Who a user-scoped request is on behalf of.
+ *
+ * `userSecret` is optional for the one call that identifies a user without
+ * acting on their data — deleting them. Sending a secret where the documented
+ * request does not carry one would put a live credential in a query string for
+ * no gain.
  */
-export function buildQuery(clientId: string, timestampSec: number): string {
-  return `clientId=${encodeURIComponent(clientId)}&timestamp=${timestampSec}`;
+export interface SnapTradeUser {
+  userId: string;
+  userSecret?: string;
+}
+
+/**
+ * The query string carried by every request: the clientId, a Unix timestamp,
+ * and — for everything except registering a user — the SnapTrade user this
+ * call is on behalf of.
+ *
+ * The user pair is what makes this a multi-user integration. Under a
+ * Commercial client id SnapTrade cannot resolve a user from the key alone
+ * (that was the Personal tier's whole shape), so `userId` and `userSecret`
+ * travel with every account read; a request without them reaches nobody's
+ * data rather than a default user's.
+ *
+ * The string is built ONCE and used for both the signature and the URL. The
+ * signing spec hashes the raw query exactly as sent, so re-encoding it
+ * separately for the URL is the classic way to produce a valid-looking
+ * signature that SnapTrade rejects.
+ */
+export function buildQuery(clientId: string, timestampSec: number, user?: SnapTradeUser): string {
+  const parts = [`clientId=${encodeURIComponent(clientId)}`, `timestamp=${timestampSec}`];
+  if (user) {
+    parts.push(`userId=${encodeURIComponent(user.userId)}`);
+    if (user.userSecret !== undefined) parts.push(`userSecret=${encodeURIComponent(user.userSecret)}`);
+  }
+  return parts.join('&');
 }
 
 /** First candidate that is a non-empty string, trimmed. Upstream field names vary by brokerage. */

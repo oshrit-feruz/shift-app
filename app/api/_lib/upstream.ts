@@ -125,26 +125,50 @@ export type UpstreamResult = { ok: true; body: unknown } | { ok: false; failure:
  * the budget. Hence the json() call inside the same try, and clearTimeout
  * only in the finally.
  */
+export interface UpstreamOptions {
+  /** Injectable for tests, and for a caller that has its own instrumented fetch. */
+  fetchImpl?: typeof fetch;
+  /** 'text' for a provider that answers CSV; the body then comes back as a string. */
+  as?: 'json' | 'text';
+  /**
+   * Extra request headers, for a provider that authenticates with one rather
+   * than with a query parameter — SnapTrade signs each request and sends the
+   * signature in a `Signature` header. Optional so the query-authenticated
+   * routes are unaffected.
+   */
+  headers?: Record<string, string>;
+  /**
+   * Method and body for the requests that are not GETs. Only SnapTrade's
+   * account-linking calls use it — registering a user, opening the connection
+   * portal, and deleting a user again — and every one of those is about the
+   * link itself, never about the money behind it. The default is the plain GET
+   * the other routes send.
+   */
+  init?: { method?: string; body?: string };
+}
+
+/**
+ * The four that identify the request stay positional; everything optional
+ * moved behind one object. They had grown to eight parameters, and the fifth
+ * through eighth were four things a reader had to count commas to tell apart
+ * — `fetchUpstreamJson(url, ms, name, route, fetch, 'text')` says nothing
+ * about what 'text' is answering.
+ */
 export async function fetchUpstreamJson(
   url: URL,
   timeoutMs: number,
   provider: string,
   route: string,
-  fetchImpl: typeof fetch = fetch,
-  /** 'text' for a provider that answers CSV; the body then comes back as a string. */
-  as: 'json' | 'text' = 'json',
-  /**
-   * Extra request headers, for a provider that authenticates with one rather
-   * than with a query parameter — SnapTrade signs each request and sends the
-   * signature in a `Signature` header. Optional so the two query-authenticated
-   * routes are unaffected.
-   */
-  headers?: Record<string, string>,
+  { fetchImpl = fetch, as = 'json', headers, init }: UpstreamOptions = {},
 ): Promise<UpstreamResult> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetchImpl(url, { signal: controller.signal, ...(headers ? { headers } : {}) });
+    const res = await fetchImpl(url, {
+      signal: controller.signal,
+      ...init,
+      ...(headers ? { headers } : undefined),
+    });
     if (!res.ok) {
       console.error(`${route}: upstream returned ${res.status}`);
       return { ok: false, failure: classifyUpstreamStatus(res.status, provider) };
