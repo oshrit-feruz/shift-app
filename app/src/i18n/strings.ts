@@ -540,6 +540,11 @@ export const STRINGS = {
   /** Says what the percentage is a percentage OF, so it cannot be read as a day change. */
   'pf.returnBasis': p('of {invested} invested', 'מתוך {invested} שהושקעו'),
   'pf.closed': p('Closed positions', 'פוזיציות שנסגרו'),
+  // On a holding row with negative shares: the position is a short, and the
+  // count shown is the size of it.
+  'pf.short': p('short', 'שורט'),
+  'pf.cover': p('Cover', 'לכסות'),
+  'pf.coverAria': p('Buy back the {ticker} short', 'לקנות חזרה את השורט ב-{ticker}'),
   'pf.soldOut': p('sold out', 'נמכרה במלואה'),
   // Used for any manual portfolio, not only Sandbox.
   'pf.manualDetail': p('No broker — you record the transactions', 'בלי ברוקר — העסקאות נרשמות ידנית'),
@@ -590,8 +595,9 @@ export const STRINGS = {
   'pf.viewDay': p('Today', 'יומי'),
   'pf.viewOpen': p('Since purchase', 'פתוח'),
   'pf.sincePurchase': p('since purchase', 'מהקנייה'),
-  // Opens the transaction sheet pre-filled with a sell of every share held.
-  // Nothing is recorded until the reader confirms it.
+  // Opens the transaction sheet pre-filled with a sell of every share held
+  // (or, on a short, a buy of every share owed). Nothing is recorded until
+  // the reader confirms it.
   'pf.closePosition': p('Close', 'לסגור'),
   'pf.closeAria': p('Close the {ticker} position', 'לסגור את הפוזיציה ב-{ticker}'),
   'pf.holdingsEmpty': p('No positions yet', 'עדיין אין פוזיציות'),
@@ -917,11 +923,17 @@ export const STRINGS = {
     'Pick a date — a trade cannot be in the future.',
     'צריך לבחור תאריך — עסקה לא יכולה להיות בעתיד.',
   ),
-  // The number matters: "you cannot sell that many" leaves the reader
-  // guessing how many they can.
-  'tx.oversell': p(
-    'You hold {held} {ticker} in this portfolio — you cannot sell more than that.',
-    'יש לך {held} {ticker} בתיק הזה — אי אפשר למכור יותר מזה.',
+  // Not warnings: a sell beyond the holding is a short, and a buy against a
+  // short covers it. Said beside the button so the reader knows which kind
+  // of position they are about to record. Singular and plural separately —
+  // Hebrew inflects the noun.
+  'tx.opensShort': p(
+    'This sell opens a short of {n} {ticker} — shares sold that you do not hold, to be bought back later.',
+    'המכירה הזו פותחת שורט של {n} {ticker} — מניות שנמכרות בלי להחזיק בהן, לקנייה חזרה בהמשך.',
+  ),
+  'tx.coversShort': p(
+    'This buy covers {n} of your {ticker} short.',
+    'הקנייה הזו מכסה {n} מהשורט שלך ב-{ticker}.',
   ),
   'tx.none': p('No transactions yet', 'עדיין אין עסקאות'),
   'tx.transactions': p('Transactions', 'עסקאות'),

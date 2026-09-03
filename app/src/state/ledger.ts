@@ -213,13 +213,14 @@ export function portfoliosOf(snapshot: LedgerSnapshot): ManualPortfolio[] {
 export const TICKER_PATTERN = /^[A-Z0-9][A-Z0-9.-]{0,9}$/;
 
 /**
- * The rows the oversell check should measure a draft against.
+ * The rows a draft should be measured against — what the sheet folds to say
+ * whether a sell opens a short or a buy covers one.
  *
  * Everything in the portfolio when recording a new trade — and everything
  * EXCEPT the row itself when correcting one. The difference is not cosmetic:
- * a position sold out in full, then reopened for editing, is measured against
- * a holding of zero that its own sell created, so the sheet refuses to let
- * anyone fix the price of the very trade being corrected.
+ * a position sold out in full, then reopened for editing, would be measured
+ * against a holding of zero that its own sell created, so the sheet would
+ * describe the very trade being corrected as opening a short.
  *
  * Filtering rather than reversing the row's effect, because a correction
  * replaces the row outright: what the ledger holds without it is exactly what
@@ -232,7 +233,7 @@ export function ledgerWithout(
   return excludeId == null ? transactions : transactions.filter((tx) => tx.id !== excludeId);
 }
 
-export type TxProblem = 'ticker' | 'shares' | 'price' | 'date' | 'oversell';
+export type TxProblem = 'ticker' | 'shares' | 'price' | 'date';
 
 export interface TxDraft {
   side: TransactionSide;
@@ -247,13 +248,12 @@ export interface TxDraft {
  * cannot.
  *
  * A pure function rather than checks scattered through the sheet, because
- * this codebase tests logic and not components — and because the oversell
- * rule below is the one that matters. `heldShares` is what the portfolio
- * currently holds of this ticker; refusing a sell larger than that removes
- * oversell at the source, so the fold in lib/positions.ts only ever has to
- * cope with rows logged before this check existed.
+ * this codebase tests logic and not components. There is deliberately no
+ * "you cannot sell more than you hold" rule here any more: a sell beyond the
+ * holding opens a short, which lib/positions.ts folds like any other
+ * position, and the sheet says so beside the button rather than refusing.
  */
-export function validateTx(draft: TxDraft, heldShares: number, today: string): TxProblem[] {
+export function validateTx(draft: TxDraft, today: string): TxProblem[] {
   const problems: TxProblem[] = [];
   const ticker = draft.ticker.trim().toUpperCase();
   if (!TICKER_PATTERN.test(ticker)) problems.push('ticker');
@@ -267,12 +267,6 @@ export function validateTx(draft: TxDraft, heldShares: number, today: string): T
   if (!Number.isFinite(price) || price <= 0) problems.push('price');
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.date) || draft.date > today) problems.push('date');
-
-  // Only when the share count itself is sound: "you cannot sell 10, you hold
-  // 4" on top of "shares must be a number" is two complaints about one field.
-  if (draft.side === 'sell' && Number.isFinite(shares) && shares > 0 && shares > heldShares) {
-    problems.push('oversell');
-  }
   return problems;
 }
 
@@ -363,11 +357,10 @@ export function planLegacyImport(
 
 /**
  * The stored row's own check. Deliberately NOT validateTx: that one refuses a
- * sell larger than the holding, which is right at entry and wrong here — a
- * legacy row that oversells is a fact about what the user recorded, and
- * lib/positions.ts already reports it as `oversold` rather than clamping it.
- * Refusing to import it would delete the evidence of the very mistake the
- * reader needs to see.
+ * draft's shape for entry, and a stored row is not a draft: it is a fact
+ * about what the user recorded, however odd, and refusing to import it would
+ * delete the evidence of the very mistake the reader needs to see. Only what
+ * the database itself would refuse is rejected here.
  */
 function validateLegacyTx(tx: ManualTransaction): TxProblem[] {
   const problems: TxProblem[] = [];

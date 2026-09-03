@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPositions, oversellsAtAnyPoint, valuePositions } from './positions';
+import { buildPositions, valuePositions } from './positions';
 import type { ManualTransaction } from '../state/appState';
 import type { Quote } from '../data/types';
 
@@ -75,19 +75,74 @@ describe('buildPositions — sells that exhaust or exceed the holding', () => {
     expect(pos.costBasis).toBe(0);
   });
 
-  it('records an oversell rather than clamping it away', () => {
+  it('opens a short for the excess of a sell beyond the holding', () => {
     const pos = only([tx('buy', 'NVDA', 4, 100), tx('sell', 'NVDA', 10, 130)]);
-    expect(pos.shares).toBe(0);
-    expect(pos.oversold).toBe(6);
-    // Only the shares actually held are booked.
+    // The 4 held are sold and booked; the other 6 are a short at 130.
+    expect(pos.shares).toBe(-6);
     expect(pos.realised).toBe(120);
+    expect(pos.avgCost).toBe(130);
+    expect(pos.costBasis).toBe(-780);
+  });
+});
+
+describe('buildPositions — short positions', () => {
+  it('opens a short from a sell of a ticker never bought', () => {
+    const pos = only([tx('sell', 'NVDA', 5, 130)]);
+    expect(pos.shares).toBe(-5);
+    expect(pos.avgCost).toBe(130);
+    expect(pos.costBasis).toBe(-650);
+    expect(pos.realised).toBe(0);
   });
 
-  it('does not book a sell against a ticker never bought', () => {
-    const pos = only([tx('sell', 'NVDA', 5, 130)]);
+  it('averages a second short sale into the open short', () => {
+    const pos = only([tx('sell', 'NVDA', 5, 100), tx('sell', 'NVDA', 5, 120)]);
+    expect(pos.shares).toBe(-10);
+    expect(pos.avgCost).toBe(110);
+  });
+
+  it('covers a short with a buy and books the difference', () => {
+    // Sold at 130, bought back at 100: 30 a share on 5 shares.
+    const pos = only([tx('sell', 'NVDA', 5, 130), tx('buy', 'NVDA', 5, 100)]);
     expect(pos.shares).toBe(0);
-    expect(pos.realised).toBe(0);
-    expect(pos.oversold).toBe(5);
+    expect(pos.realised).toBe(150);
+    expect(pos.costBasis).toBe(0);
+    expect(pos.soldCost).toBe(650);
+  });
+
+  it('books a loss when the cover costs more than the short brought in', () => {
+    const pos = only([tx('sell', 'NVDA', 5, 100), tx('buy', 'NVDA', 5, 130)]);
+    expect(pos.realised).toBe(-150);
+  });
+
+  it('covers first, then opens a long with what is left of the buy', () => {
+    const pos = only([tx('sell', 'NVDA', 5, 130), tx('buy', 'NVDA', 8, 100)]);
+    expect(pos.shares).toBe(3);
+    expect(pos.realised).toBe(150);
+    // The long starts fresh at the buy price, not at the short's.
+    expect(pos.avgCost).toBe(100);
+    expect(pos.costBasis).toBe(300);
+  });
+
+  it('values a short at its negative worth and its return by size', () => {
+    const [pos] = valuePositions(buildPositions([tx('sell', 'NVDA', 10, 100)]), {
+      NVDA: quote(90),
+    }).positions;
+    expect(pos.value).toBe(-900);
+    // Sold at 100, now 90: up 10 a share on 10 shares, against 1000 at risk.
+    expect(pos.pl).toBe(100);
+    expect(pos.plPct).toBeCloseTo(10, 6);
+  });
+
+  it('counts a short as an open, priced leg of the portfolio', () => {
+    const v = valuePositions(buildPositions([tx('buy', 'AAPL', 10, 100), tx('sell', 'NVDA', 10, 100)]), {
+      AAPL: quote(110),
+      NVDA: quote(110),
+    });
+    expect(v.held).toBe(2);
+    // 1100 long, −1100 short: net nothing, and the two legs cancel.
+    expect(v.total).toBe(0);
+    expect(v.pl).toBe(0);
+    expect(v.invested).toBe(2000);
   });
 });
 
@@ -196,41 +251,6 @@ describe('total return', () => {
   it('reports null rather than dividing by nothing ever invested', () => {
     const v = valuePositions(buildPositions([tx('div', 'NVDA', 0, 12)]), { NVDA: quote(150) });
     expect(v.positions[0].plPct).toBeNull();
-  });
-});
-
-/**
- * The two corrections CodeRabbit named on #48: both leave the FINAL held
- * total right and break the history above it, which is exactly what a
- * held-share check cannot see.
- */
-describe('oversellsAtAnyPoint', () => {
-  it('is false for a ledger that never sells what it does not hold', () => {
-    expect(oversellsAtAnyPoint([tx('buy', 'QCOM', 55, 162.97), tx('sell', 'QCOM', 55, 170.48)])).toBe(false);
-  });
-
-  // Moving a sale before its buy. End state: 0 shares, which balances — but on
-  // the day of the sale there was nothing to sell.
-  it('catches a sale dated before the buy that covers it', () => {
-    const rows = [
-      { ...tx('buy', 'QCOM', 55, 162.97), date: '2026-09-02' },
-      { ...tx('sell', 'QCOM', 55, 170.48), date: '2026-09-01' },
-    ];
-    expect(oversellsAtAnyPoint(rows)).toBe(true);
-  });
-
-  // Cutting an earlier buy down. The sale that followed it now sells shares
-  // that were never bought.
-  it('catches an earlier buy reduced below the sale that followed it', () => {
-    const rows = [
-      { ...tx('buy', 'QCOM', 10, 162.97), date: '2026-09-01' },
-      { ...tx('sell', 'QCOM', 55, 170.48), date: '2026-09-02' },
-    ];
-    expect(oversellsAtAnyPoint(rows)).toBe(true);
-  });
-
-  it('is false for an empty ledger', () => {
-    expect(oversellsAtAnyPoint([])).toBe(false);
   });
 });
 

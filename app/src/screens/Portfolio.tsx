@@ -211,10 +211,13 @@ export function PortfolioScreen(_: ScreenProps) {
                 onClosePosition={(h) => {
                   setEditingTx(null);
                   // Every share held, at the price the row was just valued
-                  // at. A short cannot be closed here: the ledger has no
-                  // buy-to-cover, and offering a "sell" of negative shares
-                  // would be a row the validator rightly refuses.
-                  setTxPreset({ side: 'sell', ticker: h.ticker, shares: h.shares, price: h.price });
+                  // at: a sell for a long, a buy-to-cover for a short.
+                  setTxPreset({
+                    side: h.shares < 0 ? 'buy' : 'sell',
+                    ticker: h.ticker,
+                    shares: Math.abs(h.shares),
+                    price: h.price,
+                  });
                   setTxOpen(true);
                 }}
               />
@@ -432,8 +435,7 @@ function Holdings({
           h={h}
           view={view}
           onOpen={() => dispatch({ type: 'openStock', ticker: h.ticker })}
-          // Only a long can be closed by a sell; see onClosePosition above.
-          onClose={onClose && h.shares > 0 ? () => onClose(h) : undefined}
+          onClose={onClose ? () => onClose(h) : undefined}
         />
       ))}
       {closed.length > 0 && (
@@ -476,9 +478,21 @@ function HoldingRow({
   const abs = view === 'day' ? (closed ? null : h.dayChange) : h.pl;
   const pct = view === 'day' ? (closed ? null : h.dayChangePct) : h.plPct;
   const change = abs === null ? '—' : `${signedCurrency(abs)}${pct === null ? '' : ` (${pctOrDash(pct)})`}`;
+  const short = h.shares < 0;
   return (
     <ListRow
-      title={h.ticker}
+      title={
+        short ? (
+          <>
+            {h.ticker}{' '}
+            <Tag variant="outline" fontSize={12}>
+              {t('pf.short')}
+            </Tag>
+          </>
+        ) : (
+          h.ticker
+        )
+      }
       subtitle={
         closed ? (
           <Num>{t('pf.soldOut')}</Num>
@@ -489,7 +503,12 @@ function HoldingRow({
           // with it. It is also the one number here the market cannot take
           // away — an unpriced holding shows "—" for worth and still says what
           // it cost.
-          <Num>{`${h.shares} sh · avg ${money(h.avgCost)} · ${t('pf.costLabel')} ${money(h.costBasis)}`}</Num>
+          // A short's size, not its sign: "−5 sh" beside a "short" tag says
+          // the same thing twice, and its basis is shown by size for the same
+          // reason a short's return is measured against it.
+          <Num>
+            {`${Math.abs(h.shares)} sh · avg ${money(h.avgCost)} · ${t('pf.costLabel')} ${money(Math.abs(h.costBasis))}`}
+          </Num>
         )
       }
       right={
@@ -498,7 +517,9 @@ function HoldingRow({
       trailing={
         onClose && (
           <Button variant="ghost" fontSize={14} minHeight={32} onClick={onClose}>
-            <span aria-label={t('pf.closeAria', { ticker: h.ticker })}>{t('pf.closePosition')}</span>
+            <span aria-label={t(short ? 'pf.coverAria' : 'pf.closeAria', { ticker: h.ticker })}>
+              {t(short ? 'pf.cover' : 'pf.closePosition')}
+            </span>
           </Button>
         )
       }
