@@ -325,11 +325,13 @@ function RowIconButton({
  * it had two alerts and anything the user actually created showed nothing.
  */
 function alertTags(alerts: SavedAlert[], ticker: string, t: TFn): string[] {
-  return alerts
-    .filter((a) => a.ticker === ticker)
-    .map((a) =>
-      a.kind === 'price' ? `$${a.value} ⇅` : a.kind === 'news' ? t('alert.newsType') : t('alert.earnType'),
-    );
+  return alerts.filter((a) => a.ticker === ticker).map((a) => alertTag(a, t));
+}
+
+/** One alert as a pill: the level for a price rule, the kind's name for the others. */
+function alertTag(a: SavedAlert, t: TFn): string {
+  if (a.kind === 'price') return `$${a.value} ⇅`;
+  return t(a.kind === 'news' ? 'alert.newsType' : 'alert.earnType');
 }
 
 /**

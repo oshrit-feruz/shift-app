@@ -57,15 +57,7 @@ export function SegmentedControl<T extends string>({
       };
       // Same rect, same object: `options` is a fresh array on most renders, so
       // an unconditional set here would re-render, re-measure and never stop.
-      setPill((prev) =>
-        prev &&
-        prev.left === next.left &&
-        prev.top === next.top &&
-        prev.width === next.width &&
-        prev.height === next.height
-          ? prev
-          : next,
-      );
+      setPill((prev) => (sameRect(prev, next) ? prev : next));
     };
     measure();
     // The row is laid out before the interface knows its direction — see the
@@ -113,4 +105,13 @@ export function SegmentedControl<T extends string>({
       ))}
     </div>
   );
+}
+
+/**
+ * Whether the pill already sits exactly here. Field by field, because the
+ * measurement builds a fresh object every time and identity would always
+ * differ — which is the loop this guard exists to stop.
+ */
+function sameRect(a: Rect | null, b: Rect): boolean {
+  return a !== null && a.left === b.left && a.top === b.top && a.width === b.width && a.height === b.height;
 }
