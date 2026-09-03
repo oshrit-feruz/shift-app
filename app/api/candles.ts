@@ -72,7 +72,7 @@ export interface CandlesBody {
 export function buildBody(ticker: string, bars: CandleRow[]): CandlesBody {
   return {
     ticker,
-    as_of: bars.length > 0 ? bars[bars.length - 1].d : null,
+    as_of: bars.at(-1)?.d ?? null,
     source: 'eodhd:eod',
     bars,
   };

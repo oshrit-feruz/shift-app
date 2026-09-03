@@ -544,20 +544,54 @@ function SourceStrip({
           The aggregate keeps "manage": it is a rollup of several accounts
           rather than one, so there is nothing here for a single revoke to
           mean. */}
-      {revocable(pf, live) ? (
-        <Button variant="ghost" fontSize={15.5} onClick={() => onDisconnect()}>
-          {t('link.disconnect')}
-        </Button>
-      ) : isManual && !isSandbox(pf.id) ? (
-        <Button variant="ghost" fontSize={15.5} onClick={() => onDelete()}>
-          {t('pf.delete')}
-        </Button>
-      ) : (
-        <Button variant="ghost" fontSize={15.5} onClick={() => onManage()}>
-          {isAgg || pf.kind === 'linked' ? t('pf.manage') : t('pf.link')}
-        </Button>
-      )}
+      <SourceAction pf={pf} live={live} onDelete={onDelete} onManage={onManage} onDisconnect={onDisconnect} />
     </Card>
+  );
+}
+
+/**
+ * The one action the strip offers, chosen from what the portfolio is.
+ *
+ * Three returns rather than a ternary chain, because they are three different
+ * acts and not three labels for one. Deleting a manual portfolio removes the
+ * user's own rows; disconnecting a linked one revokes access at the
+ * brokerage; managing the aggregate opens the screen that lists what it rolls
+ * up.
+ */
+function SourceAction({
+  pf,
+  live,
+  onDelete,
+  onManage,
+  onDisconnect,
+}: Readonly<{
+  pf: PortfolioSummary;
+  live: boolean;
+  onDelete: () => void;
+  onManage: () => void;
+  onDisconnect: () => void;
+}>) {
+  const t = useT();
+
+  if (revocable(pf, live)) {
+    return (
+      <Button variant="ghost" fontSize={15.5} onClick={onDisconnect}>
+        {t('link.disconnect')}
+      </Button>
+    );
+  }
+  if (pf.kind === 'manual' && !isSandbox(pf.id)) {
+    return (
+      <Button variant="ghost" fontSize={15.5} onClick={onDelete}>
+        {t('pf.delete')}
+      </Button>
+    );
+  }
+  const manageable = pf.kind === 'aggregate' || pf.kind === 'linked';
+  return (
+    <Button variant="ghost" fontSize={15.5} onClick={onManage}>
+      {manageable ? t('pf.manage') : t('pf.link')}
+    </Button>
   );
 }
 
