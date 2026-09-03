@@ -18,6 +18,7 @@ import { fetchTickerEarnings } from '../data/earnings';
 import { fetchStockStats } from '../data/stats';
 import { useDemoMode } from '../lib/DemoModeProvider';
 import { ReportsTab, EarningsHistory } from './stock/ReportsTab';
+import { FinancialStatements } from './stock/FinancialStatements';
 import { NewsTab } from './stock/NewsTab';
 import { TabPanel } from '../components/TabPanel';
 import { EngineCard } from './stock/EngineCard';
@@ -235,6 +236,7 @@ export function StockScreen({ openAlert }: ScreenProps) {
 
           <TabPanel key={`re-${s.ticker}`} active={tab === 'reports'}>
             <ReportsTab ticker={s.ticker} />
+            <FinancialStatements ticker={s.ticker} />
             <EarningsHistory ticker={s.ticker} />
           </TabPanel>
           <TabPanel key={`ne-${s.ticker}`} active={tab === 'news'}>
@@ -431,6 +433,7 @@ function LiveOnlyStock({ ticker, openAlert }: Readonly<{ ticker: string; openAle
       <TabPanel key={`re-${ticker}`} active={tab === 'reports'}>
         <NextEarnings ticker={ticker} />
         <ReportsTab ticker={ticker} />
+        <FinancialStatements ticker={ticker} />
         <EarningsHistory ticker={ticker} />
       </TabPanel>
       <TabPanel key={`ne-${ticker}`} active={tab === 'news'}>

@@ -393,6 +393,35 @@ export const STRINGS = {
     'Figures as filed with the SEC. Shown for reference — this is the newest filing on record, not a point-in-time view.',
     'נתונים כפי שהוגשו ל-SEC. מוצגים לעיון — זהו הדוח העדכני ביותר הרשום, ולא תמונת מצב לתאריך מסוים.',
   ),
+  // ── Financial statements (SEC EDGAR, via /api/financials) ─────────────
+  'stock.statements': p('Financial statements', 'דוחות כספיים'),
+  'stock.statementsNote': p(
+    'As filed with the SEC (10-K, 10-Q), in US dollars. Nothing is derived: a line the filing lacks shows "—".',
+    'כפי שהוגש ל-SEC (10-K, 10-Q), בדולרים. שום נתון אינו מחושב: שורה שחסרה בדוח מוצגת כ-"—".',
+  ),
+  'stock.annual': p('Annual', 'שנתי'),
+  'stock.quarterly': p('Quarterly', 'רבעוני'),
+  'stock.notSecListed': p(
+    'No SEC filings for this ticker — it is not a US-listed filer, or it reports under IFRS.',
+    'אין דוחות SEC לסימבול הזה — הוא אינו מדווח בארה"ב, או מדווח לפי IFRS.',
+  ),
+  'stock.statementsEmpty': p('No filed periods on record for this view.', 'אין תקופות מדווחות לתצוגה הזו.'),
+  // Why the quarterly view skips every fourth quarter: it is not filed as one.
+  'stock.q4Note': p(
+    'Fourth quarters are reported inside the annual report, not filed as a separate quarter.',
+    'הרבעון הרביעי מדווח בתוך הדוח השנתי, ולא מוגש כרבעון נפרד.',
+  ),
+  'stock.filedAs': p('filed {date} · {form}', 'הוגש {date} · {form}'),
+  'fin.revenue': p('Revenue', 'הכנסות'),
+  'fin.grossProfit': p('Gross profit', 'רווח גולמי'),
+  'fin.operatingIncome': p('Operating income', 'רווח תפעולי'),
+  'fin.netIncome': p('Net income', 'רווח נקי'),
+  'fin.eps': p('EPS (diluted)', 'רווח למניה (מדולל)'),
+  'fin.operatingCashFlow': p('Operating cash flow', 'תזרים מפעילות שוטפת'),
+  'fin.assets': p('Total assets', 'סך הנכסים'),
+  'fin.liabilities': p('Total liabilities', 'סך ההתחייבויות'),
+  'fin.equity': p('Shareholders’ equity', 'הון עצמי'),
+  'fin.cash': p('Cash', 'מזומנים'),
   'stock.newsEmpty': p('No recent articles for this stock.', 'אין כתבות אחרונות על מניה זו.'),
   'stock.newsRead': p('Read the full article', 'לכתבה המלאה'),
   'stock.newsExcerptNote': p(
