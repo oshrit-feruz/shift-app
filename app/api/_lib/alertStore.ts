@@ -268,34 +268,15 @@ export async function deliverPush(db: SupabaseClient, outcomes: Outcome[]): Prom
     console.error(`alerts: push_subscriptions query failed: ${subs.error.message}`);
     return { push: 'sent', pushed: 0, pushFailed: outcomes.length, pushDropped: 0 };
   }
-  const byUser = new Map<string, PushRow[]>();
-  for (const row of (subs.data ?? []) as PushRow[]) {
-    byUser.set(row.user_id, [...(byUser.get(row.user_id) ?? []), row]);
-  }
-
-  const jobs: Array<{ sub: PushRow; payload: string }> = [];
-  for (const o of outcomes) {
-    for (const sub of byUser.get(o.userId) ?? []) {
-      const lang = sub.lang === 'en' ? 'en' : 'he';
-      jobs.push({ sub, payload: JSON.stringify(pushPayload(o.firing, lang)) });
-    }
-  }
+  const jobs = pushJobs(outcomes, (subs.data ?? []) as PushRow[]);
+  const results = await inBatches(jobs, sendOne);
+  const dead = new Set<string>();
   let pushed = 0;
   let pushFailed = 0;
-  const dead = new Set<string>();
-  await inBatches(jobs, async ({ sub, payload }) => {
-    try {
-      await webpush.sendNotification(
-        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-        payload,
-        { TTL: PUSH_TTL_SECONDS },
-      );
-      pushed += 1;
-    } catch (err) {
-      const status = (err as { statusCode?: unknown }).statusCode;
-      if (status === 404 || status === 410) dead.add(sub.id);
-      else pushFailed += 1;
-    }
+  results.forEach((r, i) => {
+    if (r === 'sent') pushed += 1;
+    else if (r === 'dead') dead.add(jobs[i].sub.id);
+    else pushFailed += 1;
   });
   if (dead.size > 0) {
     const del = await db
@@ -305,6 +286,41 @@ export async function deliverPush(db: SupabaseClient, outcomes: Outcome[]): Prom
     if (del.error) console.error(`alerts: could not drop dead subscriptions: ${del.error.message}`);
   }
   return { push: 'sent', pushed, pushFailed, pushDropped: dead.size };
+}
+
+/** One push per (firing, device) pair, in the device's language. */
+function pushJobs(outcomes: Outcome[], rows: PushRow[]): Array<{ sub: PushRow; payload: string }> {
+  const byUser = new Map<string, PushRow[]>();
+  for (const row of rows) byUser.set(row.user_id, [...(byUser.get(row.user_id) ?? []), row]);
+  const jobs: Array<{ sub: PushRow; payload: string }> = [];
+  for (const o of outcomes) {
+    for (const sub of byUser.get(o.userId) ?? []) {
+      const lang = sub.lang === 'en' ? 'en' : 'he';
+      jobs.push({ sub, payload: JSON.stringify(pushPayload(o.firing, lang)) });
+    }
+  }
+  return jobs;
+}
+
+/** Send one push. 'dead' is the push service saying the subscription no longer exists. */
+async function sendOne({
+  sub,
+  payload,
+}: {
+  sub: PushRow;
+  payload: string;
+}): Promise<'sent' | 'dead' | 'failed'> {
+  try {
+    await webpush.sendNotification(
+      { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+      payload,
+      { TTL: PUSH_TTL_SECONDS },
+    );
+    return 'sent';
+  } catch (err) {
+    const status = (err as { statusCode?: unknown }).statusCode;
+    return status === 404 || status === 410 ? 'dead' : 'failed';
+  }
 }
 
 // ── The worker's heartbeat ───────────────────────────────────────────────
