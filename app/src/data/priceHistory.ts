@@ -1,5 +1,5 @@
 /**
- * LIVE data source — daily price history, from /api/candles (Finnhub).
+ * LIVE data source — daily price history, from /api/candles (EODHD).
  *
  * Everything the stock page's chart and the movers' sparklines draw comes
  * from here: actual sessions with actual open/high/low/close/volume, fetched
@@ -15,11 +15,15 @@
  * all, which no screen could tell from a quiet market. A route serves any
  * symbol the reader opens and cannot silently stop.
  *
- * ONE THING TO KNOW ABOUT THE PLAN: the provider serves live quotes on a free
- * key but keeps daily candles for its paid tiers, where a free key gets a 403.
- * That reaches the reader as "this subscription may not include this data" —
- * see providerReason.ts — rather than as an empty chart or a generic outage.
- * The charts light up the moment the key's plan covers candles.
+ * TWO PROVIDERS, ON PURPOSE: the bars come from EODHD and the live price
+ * above them from Finnhub. The charts were dark for exactly this reason —
+ * Finnhub keeps daily candles for its paid tiers and answered 403 — while
+ * EODHD's paid plan covers daily OHLCV for US and non-US listings alike. The
+ * quotes did not move with them: EODHD's REST quote is the delayed one its
+ * plan advertises, so consolidating would trade a live price for a stale one.
+ * A consequence worth knowing when reading a chart: its newest session and
+ * the price in the header are different moments, and the prices are raw —
+ * a split inside the window draws as the cliff the raw price actually made.
  *
  * WHAT THIS DELIBERATELY DOES NOT COVER:
  * Anything shorter than a day. A daily series can honestly draw a week, a
@@ -47,6 +51,7 @@
  * data on is not taking it for anything.
  */
 
+import { isCalendarDay, mapBarRow } from './barRow';
 import { cachedLoadable } from './loadableCache';
 import { DEMO_FLAGS } from './demoFlags';
 import { demoBars } from './demoBars';
@@ -105,27 +110,6 @@ const MAX_FUTURE_SKEW_DAYS = 1;
  */
 const SERIES_CACHE_MS = 5 * 60_000;
 
-const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
-
-/**
- * Map one row of the route's response into a Bar, or null when it is not one.
- *
- * The route already enforces this shape, so a row failing here means the
- * response came from something other than this app's route or was corrupted
- * in transit. Either way the honest response is to refuse it, not to draw
- * whatever survived: a chart is read as a whole, and a series with silently
- * dropped sessions is a picture of price action that never happened.
- */
-function mapBar(raw: unknown): Bar | null {
-  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return null;
-  const row = raw as Record<string, unknown>;
-  const { d, o, h, l, c, v } = row;
-  if (typeof d !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return null;
-  if (!isNum(o) || !isNum(h) || !isNum(l) || !isNum(c) || !isNum(v)) return null;
-  if (h < l) return null;
-  return { date: d, open: o, high: h, low: l, close: c, volume: v };
-}
-
 /**
  * Pull the bars out of the route's response, or null when the body is not one.
  *
@@ -142,8 +126,8 @@ export function extractBars(body: unknown): Bar[] | null {
 
   const bars: Bar[] = [];
   for (const row of raw) {
-    const bar = mapBar(row);
-    // One unreadable row invalidates the file — see mapBar.
+    const bar = mapBarRow(row, isCalendarDay);
+    // One unreadable row invalidates the file — see data/barRow.ts.
     if (!bar) return null;
     bars.push(bar);
   }
@@ -194,6 +178,29 @@ export async function fetchDailySeries(
   // path: an injected fetchImpl means a test, which asserts the route's own
   // behaviour and must not be handed a generated series instead.
   if (fetchImpl === fetch && DEMO_FLAGS.demoData) return ok(demoBars(ticker, now));
+  return fetchRealDailySeries(ticker, fetchImpl, now);
+}
+
+/**
+ * One ticker's daily history from the provider, with the sample-data switch
+ * deliberately ignored. Never throws.
+ *
+ * The switch is ignored because of what the one caller does with these bars.
+ * A manual portfolio's value through time is its own real ledger priced at
+ * real closes; handing that ledger a seeded walk instead would draw invented
+ * history under share counts the user actually typed — a plausible-looking
+ * curve of a portfolio that never existed, which is the single thing this
+ * app's data contract rules out. Every other reader wants the switch honoured
+ * and should call `fetchDailySeries`.
+ *
+ * Both paths share one cache key, so a stock page and the portfolio curve pay
+ * for a symbol's history once between them.
+ */
+export async function fetchRealDailySeries(
+  ticker: string,
+  fetchImpl: typeof fetch = fetch,
+  now: Date = new Date(),
+): Promise<Loadable<Bar[] | null>> {
   // Only the default fetch is cached; an injected test fetchImpl goes straight
   // through, so tests keep their isolation without touching cache state. The
   // key carries the ticker because each one is its own request.

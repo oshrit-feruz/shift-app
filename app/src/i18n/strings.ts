@@ -229,9 +229,11 @@ export const STRINGS = {
   'disc.cta': p('Show the recommendation', 'להצגת ההמלצה'),
 
   // ── Recommendation dashboard ──────────────────────────────────────────
+  /* Says what the two parts are and nothing about how the second is chosen:
+   * the engine's rules are not explained to the client anywhere in the app. */
   'rec.coreSatIntro': p(
-    'Two parts: a broad index core, and — where the profile allows it — a small share in individual stocks picked by fixed rules that are rechecked every trading day.',
-    'שני חלקים: ליבה של מדדים רחבים, ובמקום שהפרופיל מתיר — חלק קטן במניות בודדות שנבחרות לפי כללים קבועים, שנבדקים מחדש בכל יום מסחר.',
+    'Two parts: a broad index core, and — where the profile allows it — a small share in individual stocks.',
+    'שני חלקים: ליבה של מדדים רחבים, ובמקום שהפרופיל מתיר — חלק קטן במניות בודדות.',
   ),
   'rec.core': p('Core', 'ליבה (Core)'),
   'rec.coreHelp': p(
@@ -265,29 +267,10 @@ export const STRINGS = {
   'rec.radarLineEnd': p("'s daily radar", ''),
   'rec.ofPortfolio': p('of the portfolio', 'מהתיק'),
   'rec.dailyTag': p('Checked daily', 'בדיקה יומית'),
-  'rec.satHelp': p(
-    'Fixed rules, the same for every client — no personal tuning and no one deciding case by case.',
-    'כללים קבועים, זהים לכל לקוח — בלי התאמה אישית ובלי החלטה נקודתית של מישהו.',
-  ),
-  'rec.satRule1': p('Only large, well-known S&P 500 companies', 'רק חברות גדולות ומוכרות ממדד S&P 500'),
-  'rec.satRule2': p(
-    'Bought only after a deep, prolonged fall in the share price',
-    'קנייה רק אחרי ירידה עמוקה וממושכת במחיר המניה',
-  ),
-  'rec.satRule3': p(
-    'Held for a fixed period and then closed — by rule, not by feel',
-    'החזקה לתקופה קבועה ואז סגירה — לפי הכלל, לא לפי תחושה',
-  ),
-  'rec.satRule4': p(
-    'The list is rechecked every trading day and capped at 15% of the portfolio',
-    'הרשימה נבדקת מחדש בכל יום מסחר ומוגבלת ל-15% מהתיק',
-  ),
   'rec.satPositions': p("Passed today's checks", 'עברו את הבדיקות של היום'),
   'rec.livePrices': p('Live prices', 'מחירים חיים'),
-  'rec.updatedDaily': p(
-    'Every trading day, 100 large S&P 500 companies are put through the same checks — how deep and how long the fall in the share price has been, where the price is heading, and how heavily the stock is traded. These are the few names that passed every check today.',
-    'בכל יום מסחר עוברות 100 חברות גדולות ממדד S&P 500 את אותן בדיקות — כמה עמוקה וממושכת הייתה הירידה במחיר המניה, לאן המחיר מתקדם, ובאיזה היקף נסחרת המניה. אלה השמות הבודדים שעברו היום את כל הבדיקות.',
-  ),
+  /* When the list changes, not what it is checked against. */
+  'rec.updatedDaily': p('The list is refreshed every trading day.', 'הרשימה מתעדכנת בכל יום מסחר.'),
   'rec.notAnOrder': p(
     'A shortlist to look into yourself — not an instruction to buy. After the next trading day it can look different.',
     'זו רשימה קצרה להתעמק בה בעצמך — לא הוראת קנייה. ביום המסחר הבא היא יכולה להיראות אחרת.',
@@ -297,6 +280,10 @@ export const STRINGS = {
     'מוצג למידע בלבד: הפרופיל שלך לא מחזיק מניות בודדות, ולכן שום דבר מכאן אינו חלק מההמלצה שלך.',
   ),
   'rec.noPositions': p('No stock passed every check today', 'אף מניה לא עברה היום את כל הבדיקות'),
+  /* The part of the Stock Radar budget that today's names do not take. Said
+   * as a fact about where the money sits, with no reason attached — the
+   * engine's rules are not explained to the client anywhere in the app. */
+  'rec.radarParked': p('{amount} stays in {fund}', '{amount} נשאר ב-{fund}'),
   /* Gender-neutral, like the rest of the Hebrew since #39: the screen states
    * a sum rather than addressing the reader as one gender. */
   'rec.ifInvested': p('If you invested', 'בהשקעה של'),
@@ -490,10 +477,6 @@ export const STRINGS = {
   // Reached by opening a company from the earnings calendar: the sample
   // price table only covers a handful of tickers, but filings and news are
   // live for any symbol, so the page is worth showing rather than blanking.
-  'stock.noQuote': p(
-    'No sample price data for this symbol — the reports and news below are live.',
-    'אין נתוני מחיר לדוגמה לסמל הזה — הדוחות והחדשות למטה הם נתונים חיים.',
-  ),
   'stock.nov': p('Nov', 'נוב׳'),
   // Was "Up about 18% over three months" with both the direction and the
   // figure hard-coded — which, once the line became real, could contradict the
@@ -556,15 +539,6 @@ export const STRINGS = {
   'pf.totalReturn': p('Total return', 'רווח כולל'),
   /** Says what the percentage is a percentage OF, so it cannot be read as a day change. */
   'pf.returnBasis': p('of {invested} invested', 'מתוך {invested} שהושקעו'),
-  /**
-   * Why the profit is a number but the CHART above it is not. Two different
-   * facts: today's return is arithmetic over prices we have, while a line
-   * needs a price for every day behind it, and the quote feed carries none.
-   */
-  'pf.noReturnHistory': p(
-    'Return over time needs daily price history, which this data plan does not include.',
-    'רווח לאורך זמן דורש היסטוריית מחירים יומית, שאינה כלולה בתוכנית הנתונים הנוכחית.',
-  ),
   'pf.closed': p('Closed positions', 'פוזיציות שנסגרו'),
   'pf.soldOut': p('sold out', 'נמכרה במלואה'),
   // Used for any manual portfolio, not only Sandbox.
@@ -597,6 +571,47 @@ export const STRINGS = {
   'pf.namePlaceholder': p('e.g. Dividend income', 'למשל: הכנסה מדיבידנדים'),
   'pf.syncedAgo': p('synced 12 min ago', 'סונכרן לפני 12 דק׳'),
   'pf.benchmark': p('- - S&P 500', '- - S&P 500'),
+
+  // ── A manual portfolio's value through time ───────────────────────────
+  // Two lines, and the legend has to say which is a claim about the market
+  // and which is arithmetic over the user's own rows.
+  'pf.valueLine': p('Value', 'שווי'),
+  'pf.costLine': p('- - Invested', '- - הושקע'),
+  // Deliberately not "return": this is the gap between the two lines on the
+  // last priced day — what the open positions have made on paper. Money paid
+  // in lifts both lines together and cannot inflate it.
+  'pf.openGain': p('On paper', 'על הנייר'),
+  'pf.valueBasis': p(
+    'Each day values the positions held that day at that day’s close.',
+    'כל יום מציג את הפוזיציות שהוחזקו בו, לפי מחיר הסגירה של אותו יום.',
+  ),
+  // The gap in the line, named. Plural and singular are separate strings
+  // because Hebrew inflects the verb, not only the noun.
+  'pf.valueGapOne': p(
+    'The line breaks on days {tickers} had no price — a total missing a holding would be wrong, not smaller.',
+    'הקו נקטע בימים שבהם לא היה מחיר ל־{tickers} — סכום שחסרה בו החזקה הוא שגוי, לא קטן יותר.',
+  ),
+  'pf.valueGapMany': p(
+    'The line breaks on days {tickers} had no price — a total missing a holding would be wrong, not smaller.',
+    'הקו נקטע בימים שבהם לא היו מחירים ל־{tickers} — סכום שחסרות בו החזקות הוא שגוי, לא קטן יותר.',
+  ),
+  // Shown when the ledger reaches further back than the price window does.
+  'pf.valueClipped': p(
+    'Your first trade was on {date}; the chart starts where the daily price history reaches.',
+    'העסקה הראשונה שלך היא מ־{date}; הגרף מתחיל היכן שהיסטוריית המחירים היומית מגיעה.',
+  ),
+  'pf.valueNoneYet': p('The chart appears once a trade is recorded.', 'הגרף יופיע אחרי שתירשם עסקה.'),
+  // The ledger is newer than the last published close — which is the ordinary
+  // state during a trading day, not a problem, so it must not be worded as one.
+  'pf.valueAheadOfClose': p(
+    'Your trades are more recent than the latest published close. The chart appears after the next one.',
+    'העסקאות שלך מאוחרות ממחיר הסגירה האחרון שפורסם. הגרף יופיע אחרי הסגירה הבאה.',
+  ),
+  // Distinct from unavailable: the provider answered, and had nothing.
+  'pf.valueNoHistory': p(
+    'No daily price history is published for the holdings in this portfolio, so its value over time cannot be drawn.',
+    'לא מתפרסמת היסטוריית מחירים יומית להחזקות בתיק הזה, ולכן אי אפשר לשרטט את השווי לאורך זמן.',
+  ),
 
   // ── Watchlist / alerts ────────────────────────────────────────────────
   // The subtitle counts what the user actually has, so it is built from two
@@ -728,6 +743,11 @@ export const STRINGS = {
   'sector.financials': p('Financials', 'פיננסים'),
   'sector.energy': p('Energy', 'אנרגיה'),
   'sector.healthcare': p('Healthcare', 'בריאות'),
+  // Every figure on this board is the last completed session's — the screener
+  // behind it cannot be asked for the running day — so the screen says so
+  // rather than letting a reader take a close for a live price.
+  'movers.lastClose': p('Figures from the last market close', 'הנתונים מסגירת המסחר האחרונה'),
+  'movers.empty': p('No stocks match this board right now.', 'אין מניות שעונות ללוח הזה כרגע.'),
   'movers.colSym': p('Sym', 'סימבול'),
   'movers.colLast': p('Last', 'אחרון'),
   'movers.colChg': p('Chg%', 'שינוי%'),

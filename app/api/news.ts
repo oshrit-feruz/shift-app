@@ -1,4 +1,5 @@
-import { isValidTicker, mapArticle, resolveSymbol, type NewsArticle } from './_lib/news.js';
+import { isValidTicker, mapArticle, type NewsArticle } from './_lib/news.js';
+import { resolveSymbol } from './_lib/eodhd.js';
 import { translateToHebrew } from './_lib/translate.js';
 import { failureBody, fetchUpstreamJson } from './_lib/upstream.js';
 import { type ApiRequest, type ApiResponse } from './_lib/http.js';
@@ -164,7 +165,7 @@ export function createHandler(timeoutMs: number) {
     // fanning out over a list of large caps.
     const wanted = ticker === null ? MAX_FEED_ARTICLES : MAX_ARTICLES;
     const upstreamUrl = new URL(EODHD_NEWS_URL);
-    if (ticker !== null) upstreamUrl.searchParams.set('s', resolveSymbol(ticker.toUpperCase()));
+    if (ticker !== null) upstreamUrl.searchParams.set('s', resolveSymbol(ticker));
     upstreamUrl.searchParams.set('api_token', apiKey);
     upstreamUrl.searchParams.set('fmt', 'json');
     upstreamUrl.searchParams.set('limit', String(wanted));

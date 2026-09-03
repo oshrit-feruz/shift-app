@@ -21,10 +21,12 @@ import { appService } from '../data/appService';
 import { useLinked } from '../data/useLinked';
 import { useLoadable } from '../data/useLoadable';
 import { PRICE_REFRESH_MS } from '../data/quotes';
+import { fetchMovers, type MoverRow } from '../data/movers';
 import { fetchWeekEarnings } from '../data/earnings';
 import { useDemoMode } from '../lib/DemoModeProvider';
-import { money, moneyOrDash, pct, pctOrDash, signalColor } from '../lib/format';
+import { compactCount, money, moneyOrDash, pct, pctOrDash, signalColor } from '../lib/format';
 import { ROW_BUTTON_STYLE } from '../lib/rowButton';
+import { ok, type Loadable } from '../data/types';
 import type { ScreenProps } from '../App';
 
 export function HomeScreen({ openSearch }: ScreenProps) {
@@ -162,7 +164,10 @@ export function HomeScreen({ openSearch }: ScreenProps) {
         </Card>
       )}
 
-      {demo ? <MoversPreview beg={beg} /> : <DemoOnly feature="title.movers" />}
+      {/* Not gated on the sample-data switch any more: this card ranks the
+          actual US market through /api/movers, so there is nothing left
+          behind the gate to hide. See screens/Movers.tsx. */}
+      <MoversPreview beg={beg} />
 
       {/* Earnings ahead — the same live source as the calendar tab.
           This card used to render a hard-coded list of three companies with
@@ -479,16 +484,61 @@ function MetricStripDemo() {
 }
 
 /**
- * The movers preview: the biggest movers by the day's ACTUAL change, from the
- * live quote, same as the Movers screen. The volume printed beside the price
- * is still a demo figure — the provider's quote carries no volume — and is
- * the only fabricated number left on this card.
+ * The movers preview: the biggest movers in the market, in either direction.
+ *
+ * Reads the same two boards the movers screen does (data/movers.ts), merges
+ * them and ranks by the size of the move, so a card headed "what's moving
+ * today" is not quietly a gainers-only list. Both reads are shared with that
+ * screen through the client cache, so opening the tab from here costs nothing.
+ *
+ * Every figure is the last completed session's, which is what the screener can
+ * answer and what the line under the title says. That is also why the price
+ * beside each ticker is the session's close rather than the live quote: the
+ * change is that session's, and the two have to be the same moment.
+ *
+ * What this replaced: a ranking of `demoService.symbols()`, the app's ten-row
+ * sample table, sorted by the live day change — real percentages over a
+ * universe somebody picked during design.
  */
+
+/** The merged board, with the freshness claim its two halves agree on. */
+interface BiggestMovers {
+  rows: MoverRow[];
+  lastClose: boolean;
+}
+
+/** The session's volume for the preview line, or a dash when there is none. */
+function volumeLabel(volume: number | null | undefined): string {
+  return volume === null || volume === undefined ? '—' : compactCount(volume);
+}
+
+/**
+ * Both boards, merged and ranked by the size of the move.
+ *
+ * Either read failing makes the whole card unavailable rather than silently a
+ * half board: "the five biggest movers" drawn from gainers alone would be a
+ * claim about the market that the card could not support.
+ */
+async function fetchBiggestMovers(): Promise<Loadable<BiggestMovers>> {
+  const [up, down] = await Promise.all([fetchMovers('gainers'), fetchMovers('losers')]);
+  if (up.status !== 'ok') return up;
+  if (down.status !== 'ok') return down;
+  const rows = [...up.data.rows, ...down.data.rows].sort(
+    (a, b) => Math.abs(b.changePct) - Math.abs(a.changePct),
+  );
+  // The claim comes from the boards, not from this card. Both are the last
+  // close's today, but a card that printed "from the last market close" over
+  // rows that were not would be making the exact wrong promise, so the line
+  // appears only when both boards say so.
+  return ok({ rows, lastClose: up.data.lastClose && down.data.lastClose });
+}
+
 function MoversPreview({ beg }: Readonly<{ beg: boolean }>) {
   const dispatch = useDispatch();
-  const { language } = useTheme();
   const t = useT();
-  const symbols = useLoadable(() => demoService.symbols(), [], PRICE_REFRESH_MS);
+  // No refresh interval: the source recomputes once a day, so a poll would
+  // re-read the same session while implying it was live.
+  const movers = useLoadable(() => fetchBiggestMovers(), []);
 
   return (
     <>
@@ -500,9 +550,14 @@ function MoversPreview({ beg }: Readonly<{ beg: boolean }>) {
             {t('home.moversHelp')}
           </p>
         )}
+        {movers.state.status === 'ok' && movers.state.data.lastClose && (
+          <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0 }}>
+            {t('movers.lastClose')}
+          </p>
+        )}
         <DataState
-          state={symbols.state}
-          onRetry={symbols.retry}
+          state={movers.state}
+          onRetry={movers.retry}
           skeleton={
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {Array.from({ length: beg ? 3 : 5 }, (_, i) => (
@@ -511,23 +566,12 @@ function MoversPreview({ beg }: Readonly<{ beg: boolean }>) {
             </div>
           }
         >
-          {(syms) => (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {syms
-                .slice()
-                // Biggest absolute move first. A symbol the provider could
-                // not price has no move to rank and sorts last, rather than
-                // counting as a 0% day it never had.
-                .sort((a, b) => {
-                  const x = a.quote?.changePct ?? null;
-                  const y = b.quote?.changePct ?? null;
-                  if (x === null && y === null) return 0;
-                  if (x === null) return 1;
-                  if (y === null) return -1;
-                  return Math.abs(y) - Math.abs(x);
-                })
-                .slice(0, beg ? 3 : 5)
-                .map((x) => (
+          {({ rows }) =>
+            rows.length === 0 ? (
+              <EmptyState>{t('movers.empty')}</EmptyState>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {rows.slice(0, beg ? 3 : 5).map((x) => (
                   <button
                     key={x.ticker}
                     type="button"
@@ -560,15 +604,22 @@ function MoversPreview({ beg }: Readonly<{ beg: boolean }>) {
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {beg ? x.why[language] : `${moneyOrDash(x.quote?.price)} · vol ${x.demo.volume}`}
+                      {/* Beginner mode used to carry a hand-written sentence
+                          explaining each of the ten sample stocks' moves.
+                          There is none for a universe the market picked, and
+                          writing one would be the invention this screen
+                          stopped making — so both modes show the company and
+                          what it traded at. */}
+                      {beg ? (x.name ?? x.ticker) : `${moneyOrDash(x.close)} · vol ${volumeLabel(x.volume)}`}
                     </span>
-                    <Num size={18} style={{ color: signalColor(x.quote?.changePct) }}>
-                      {pctOrDash(x.quote?.changePct)}
+                    <Num size={18} style={{ color: signalColor(x.changePct) }}>
+                      {pctOrDash(x.changePct)}
                     </Num>
                   </button>
                 ))}
-            </div>
-          )}
+              </div>
+            )
+          }
         </DataState>
         <Button
           variant="ghost"

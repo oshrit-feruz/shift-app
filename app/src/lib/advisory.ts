@@ -89,6 +89,43 @@ export const PROFILES: Record<ProfileKey, Profile> = {
   },
 };
 
+/**
+ * How a Stock Radar budget is split on a given day, per the engine's policy.
+ *
+ * Each actionable name gets a fixed slice of the budget (the policy's
+ * percent), up to the policy's cap on names; whatever the names do not take
+ * stays in the S&P 500 core fund. With a $10,000 budget, a 10% slice and two
+ * names, $2,000 goes into stocks and $8,000 stays in the core. The share in
+ * stocks moves with how many names are actionable; the slice per name never
+ * does. This replaces dividing the whole budget by whatever passed today,
+ * which made concentration depend on the day's count.
+ */
+export interface RadarSizing {
+  /** Dollars per actionable name. */
+  perName: number;
+  /** Names that receive a slice: the actionable count, capped by the policy. */
+  names: number;
+  /** Actionable names beyond the cap, which receive nothing. */
+  overflow: number;
+  /** Dollars in individual stocks in total. */
+  inStocks: number;
+  /** Dollars that stay in the core fund. */
+  parked: number;
+}
+
+export function sizeRadar(
+  budget: number,
+  actionableCount: number,
+  policy: { sleevePctOfBudget: number; maxSleeves: number } | null,
+): RadarSizing | null {
+  if (policy === null || !Number.isFinite(budget) || budget <= 0) return null;
+  const count = Math.max(0, Math.floor(actionableCount));
+  const names = Math.min(count, policy.maxSleeves);
+  const perName = (budget * policy.sleevePctOfBudget) / 100;
+  const inStocks = Math.min(budget, perName * names);
+  return { perName, names, overflow: count - names, inStocks, parked: budget - inStocks };
+}
+
 /** True when the hard Conservative override applies. */
 export function hardRule(answers: Answer[]): boolean {
   return answers.length >= 4 && (answers[0] === 1 || answers[3] === 1);

@@ -44,7 +44,14 @@
  */
 
 import { cachedLoadable } from './loadableCache';
-import { ok, unavailable, type Loadable, type SatelliteSignal } from './types';
+import {
+  ok,
+  unavailable,
+  type Loadable,
+  type SatellitePolicy,
+  type SatelliteSignal,
+  type StockRadar,
+} from './types';
 
 /**
  * The mirrored snapshot, served as a static file from the same origin as the
@@ -145,7 +152,64 @@ export function mapSignal(raw: unknown): SatelliteSignal | null {
     drawdownPct: pickNumber(row, ['drawdown_pct', 'drawdown']),
     compositeScore: pickNumber(row, ['composite_score', 'score']),
     signal,
+    // Strictly a boolean or nothing: a string "true", a 1, or an absent key
+    // all read as "the engine did not say", never as actionable.
+    active: typeof row.active === 'boolean' ? row.active : null,
   };
+}
+
+/**
+ * The names a client can act on today: the engine said BUY *and* did not say
+ * "not now". A BUY the engine marks inactive is a real verdict and stays in
+ * the ranking, but it is not shown as something to buy.
+ *
+ * `active === null` — a snapshot that predates the field — passes through, so
+ * an older mirror renders exactly as it did before the field existed: the
+ * engine has not said "not now", it has said nothing.
+ */
+export function actionableSignals(signals: SatelliteSignal[]): SatelliteSignal[] {
+  return signals.filter((s) => s.active !== false);
+}
+
+/**
+ * The engine's sizing policy from a parsed screener body, or null when the
+ * body carries none (older snapshots) or carries one we cannot use. Both
+ * figures must be finite and positive: a policy of "0% per name" or "at most
+ * 0 names" is not a rule, it is a broken payload, and nothing may be sized
+ * from it.
+ */
+export function extractPolicy(body: unknown): SatellitePolicy | null {
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) return null;
+  const raw = (body as Record<string, unknown>).satellite_policy;
+  if (raw === null || raw === undefined || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const policy = raw as Record<string, unknown>;
+  const sleevePctOfBudget = pickNumber(policy, ['sleeve_pct_of_budget']);
+  const maxSleeves = pickNumber(policy, ['max_sleeves']);
+  if (sleevePctOfBudget === null || maxSleeves === null) return null;
+  // The cap is a count of names, so it is floored before it is judged: a cap
+  // of 0.5 is a cap of 0. And the slices must fit the budget they are cut
+  // from — a 60% slice with a cap of 2 would put 120% of the sleeve to work.
+  const cappedSleeves = Math.floor(maxSleeves);
+  if (
+    sleevePctOfBudget <= 0 ||
+    sleevePctOfBudget > 100 ||
+    cappedSleeves < 1 ||
+    sleevePctOfBudget * cappedSleeves > 100
+  ) {
+    return null;
+  }
+  return { sleevePctOfBudget, maxSleeves: cappedSleeves };
+}
+
+/**
+ * Candidates plus policy from one body. Null (→ 'unavailable') exactly when
+ * the candidates are unrecognisable; a missing policy is a real, expected
+ * answer from an older snapshot and comes back as `policy: null`.
+ */
+export function extractStockRadar(body: unknown): StockRadar | null {
+  const signals = extractBuySignals(body);
+  if (signals === null) return null;
+  return { signals, policy: extractPolicy(body) };
 }
 
 /**
@@ -361,6 +425,18 @@ export async function fetchSatelliteSignals(
   now: Date = new Date(),
 ): Promise<Loadable<SatelliteSignal[]>> {
   return readMirror(extractBuySignals, fetchImpl, now);
+}
+
+/**
+ * The Stock Radar screens' read: the day's candidates and the engine's sizing
+ * policy from the same snapshot, under the same freshness and honesty rules
+ * as fetchSatelliteSignals. Never throws.
+ */
+export async function fetchStockRadar(
+  fetchImpl: typeof fetch = fetch,
+  now: Date = new Date(),
+): Promise<Loadable<StockRadar>> {
+  return readMirror(extractStockRadar, fetchImpl, now);
 }
 
 /**

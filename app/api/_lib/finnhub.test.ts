@@ -1,17 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { candleUrl, mapCandles, mapQuote, quoteUrl } from './finnhub.js';
+import { mapQuote, quoteUrl } from './finnhub.js';
 
-describe('quoteUrl / candleUrl', () => {
+describe('quoteUrl', () => {
   it('normalises the symbol so one casing is not a second upstream call', () => {
     expect(quoteUrl(' nvda ', 'k').searchParams.get('symbol')).toBe('NVDA');
-    expect(candleUrl(' nvda ', 0, 1, 'k').searchParams.get('symbol')).toBe('NVDA');
   });
 
-  it('asks for daily bars over a whole-second window', () => {
-    const url = candleUrl('NVDA', 1_700_000_000.9, 1_700_086_400.2, 'k');
-    expect(url.searchParams.get('resolution')).toBe('D');
-    expect(url.searchParams.get('from')).toBe('1700000000');
-    expect(url.searchParams.get('to')).toBe('1700086400');
+  it('carries the key as the query parameter the provider documents', () => {
+    expect(quoteUrl('NVDA', 'k').searchParams.get('token')).toBe('k');
   });
 });
 
@@ -90,80 +86,5 @@ describe('mapQuote', () => {
     expect(mapQuote(null)).toBeNull();
     expect(mapQuote([body])).toBeNull();
     expect(mapQuote({ c: '150', pc: 145, t: 1 })).toBeNull();
-  });
-});
-
-describe('mapCandles', () => {
-  const ok = {
-    s: 'ok',
-    t: [1_756_600_000, 1_756_513_600],
-    o: [10, 9],
-    h: [12, 11],
-    l: [9, 8],
-    c: [11, 10],
-    v: [100, 90],
-  };
-
-  it('maps parallel arrays into dated bars, oldest first', () => {
-    const bars = mapCandles(ok)!;
-    const dates = bars.map((b) => b.d);
-    expect(dates).toEqual([...dates].sort((a, b) => a.localeCompare(b)));
-    expect(bars[1]).toEqual({
-      d: new Date(1_756_600_000 * 1000).toISOString().slice(0, 10),
-      o: 10,
-      h: 12,
-      l: 9,
-      c: 11,
-      v: 100,
-    });
-  });
-
-  it('reads no_data as an empty series — a real answer about the symbol', () => {
-    // Distinct from null: "this provider has no history for MDA" is a fact
-    // about the ticker, not a response we failed to understand.
-    expect(mapCandles({ s: 'no_data' })).toEqual([]);
-  });
-
-  it('refuses arrays of differing lengths rather than pairing them anyway', () => {
-    // Parallel arrays are only meaningful together; zipping a short one would
-    // invent bars out of two different sessions.
-    expect(mapCandles({ ...ok, v: [100] })).toBeNull();
-  });
-
-  it('refuses the whole series for one unreadable row', () => {
-    // A chart is read as a whole. A series with a silently dropped session is
-    // a picture of price action that never happened.
-    expect(mapCandles({ ...ok, c: [11, null] })).toBeNull();
-    expect(mapCandles({ ...ok, h: [12, 1] })).toBeNull(); // high below low
-    expect(mapCandles({ ...ok, t: [1_756_600_000, 0] })).toBeNull();
-  });
-
-  it('refuses a bar whose open or close sits outside its own range', () => {
-    // A high is the highest the session traded, so an open above it is a
-    // candle that cannot exist — and it draws as a wick pointing the wrong
-    // way, which a reader cannot see through. Checking only high-below-low
-    // let this through.
-    expect(mapCandles({ ...ok, o: [100, 9] })).toBeNull();
-    expect(mapCandles({ ...ok, c: [1, 10] })).toBeNull();
-  });
-
-  it('refuses non-positive prices and negative volume', () => {
-    // A traded price is positive by definition, and a negative volume is not
-    // a smaller volume. Refused rather than clamped: the honest answer to a
-    // nonsense bar is not a guess about which field was wrong.
-    expect(mapCandles({ ...ok, l: [0, 8] })).toBeNull();
-    expect(mapCandles({ ...ok, c: [-11, 10] })).toBeNull();
-    expect(mapCandles({ ...ok, v: [-1, 90] })).toBeNull();
-  });
-
-  it('refuses a series carrying a timestamp outside the Date range', () => {
-    // Same trap as the quote's, on the path that formats a session date.
-    expect(mapCandles({ ...ok, t: [1_756_600_000, 8_640_000_000_001] })).toBeNull();
-  });
-
-  it('refuses a body that is not a candle response', () => {
-    expect(mapCandles(null)).toBeNull();
-    expect(mapCandles({ s: 'error' })).toBeNull();
-    expect(mapCandles({ s: 'ok', t: [] })).toBeNull();
   });
 });
