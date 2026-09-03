@@ -1020,10 +1020,13 @@ export function allocationSlices(
     colorVar: palette[i],
   }));
   if (rest.length > 0) {
+    // The palette is non-empty wherever this runs — `rest` is only non-empty
+    // when there were more holdings than colours — but `.at()` is typed as
+    // possibly-undefined, and a fallback beats an assertion.
     slices.push({
       label: otherLabel,
       pct: pctOf(rest.reduce((sum, r) => sum + (r.value ?? 0), 0)),
-      colorVar: palette[palette.length - 1],
+      colorVar: palette.at(-1) ?? 'var(--muted)',
     });
   }
   return { slices, grouped: rest.length };
