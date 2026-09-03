@@ -52,9 +52,13 @@ export function ConnectionsScreen(_: ScreenProps) {
   // treating it as "not linked" would offer a connect button to someone who
   // has just connected an account.
   const status = useLinkStatus();
-  const live = status === 'linked';
-  const [newPfOpen, setNewPfOpen] = useState(false);
   const demo = useDemoMode();
+  // The connection's own figures are read only while the sample-data switch
+  // is off (data/useLinked.ts, useLiveData). With it on this list shows the
+  // sample rows instead — and says they are samples rather than claiming
+  // anything about what is or is not connected.
+  const live = status === 'linked' && !demo;
+  const [newPfOpen, setNewPfOpen] = useState(false);
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>

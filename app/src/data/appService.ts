@@ -12,11 +12,18 @@
  * Everything else — symbols, satellite signals, news, earnings, chart series
  * — is untouched and keeps its existing source.
  *
- * WHAT DECIDES WHICH SOURCE. `isLinked()` (data/linkState.ts), which is the
- * remembered answer to "has this user connected a brokerage", written only by
- * a real response from the server. It used to be a demo switch in Settings;
- * it is now a fact about the account, so nobody has to turn anything on to
- * see their own money.
+ * WHAT DECIDES WHICH SOURCE. Two things, in order — see liveDataActive()
+ * below. First the sample-data switch: while it is on these methods answer
+ * from the demo adapter no matter what is connected, because that switch is
+ * what makes the app safe to put on a screen in front of other people, and a
+ * mode that still drew the presenter's own positions would not be. Then
+ * `isLinked()` (data/linkState.ts), the remembered answer to "has this user
+ * connected a brokerage", written only by a real response from the server.
+ *
+ * Nothing is disconnected by the switch. The account is simply not read until
+ * it goes off, and the screen that manages the connection
+ * (screens/ConnectedAccount.tsx) shows the truth either way — that is where
+ * someone goes to look at or revoke it rather than to present the app.
  *
  * DATA HONESTY: when a user IS linked and the SnapTrade call fails, these
  * methods return 'unavailable'. They never silently fall back to the demo
@@ -27,6 +34,7 @@
  */
 
 import { demoService } from './demoAdapter';
+import { DEMO_FLAGS } from './demoFlags';
 import { isLinked } from './linkState';
 import { fetchConnectedAccounts } from './snaptradeAccount';
 import { positionReturnPct } from '../lib/format';
@@ -226,13 +234,29 @@ async function liveHoldings(portfolioId: string): Promise<Loadable<Holding[]>> {
 }
 
 /**
+ * Whether to read the connected account rather than the sample data.
+ *
+ * Both conditions, and in this order. A connection is necessary but not
+ * sufficient: while the sample-data switch is on it wins, because that switch
+ * is what makes the app safe to show to a room, and a mode that still drew
+ * the presenter's own positions would not be. Nothing is disconnected by it —
+ * the account is simply not read until the switch goes off.
+ *
+ * The data layer's copy of the rule; the React side is useLiveData()
+ * (data/useLinked.ts), and the two must say the same thing.
+ */
+export function liveDataActive(): boolean {
+  return !DEMO_FLAGS.demoData && isLinked();
+}
+
+/**
  * Spread first, then override: every method the flag does not touch stays
  * bound to the demo adapter, so adding a method to DataService cannot
  * accidentally leave it unimplemented here.
  */
 export const appService: DataService = {
   ...demoService,
-  portfolios: () => (isLinked() ? livePortfolios() : demoService.portfolios()),
+  portfolios: () => (liveDataActive() ? livePortfolios() : demoService.portfolios()),
   holdings: (portfolioId: string) =>
-    isLinked() ? liveHoldings(portfolioId) : demoService.holdings(portfolioId),
+    liveDataActive() ? liveHoldings(portfolioId) : demoService.holdings(portfolioId),
 };

@@ -138,12 +138,13 @@ export async function fetchYourPositions(
   manualTransactions: Record<string, ManualTransaction[]>,
   manualPortfolios: ManualPortfolio[] = [],
 ): Promise<Loadable<TickerPosition[]>> {
-  // A connected brokerage account outranks both demo paths: it is the one
-  // source here that is neither sample data nor absent.
-  const pfs = isLinked()
-    ? await appService.portfolios()
-    : DEMO_FLAGS.demoData
-      ? await demoService.portfolios()
+  // Sample data first, then a connected account, then nothing. The switch
+  // wins over a real connection on purpose (data/appService.ts,
+  // liveDataActive) — it is what keeps the app safe to show to a room.
+  const pfs = DEMO_FLAGS.demoData
+    ? await demoService.portfolios()
+    : isLinked()
+      ? await appService.portfolios()
       : ok<PortfolioSummary[]>([]);
   if (pfs.status !== 'ok') return pfs;
 
@@ -153,10 +154,10 @@ export async function fetchYourPositions(
   const eligible = all.filter((pf) => pf.kind !== 'aggregate');
   const settled = await Promise.all(
     eligible.map((pf) =>
-      isLinked()
-        ? appService.holdings(pf.id)
-        : DEMO_FLAGS.demoData
-          ? demoService.holdings(pf.id)
+      DEMO_FLAGS.demoData
+        ? demoService.holdings(pf.id)
+        : isLinked()
+          ? appService.holdings(pf.id)
           : Promise.resolve(ok<Holding[]>([])),
     ),
   );
@@ -211,9 +212,8 @@ export async function fetchPortfolioHoldings(
   portfolioId: string,
   transactions: ManualTransaction[],
 ): Promise<Loadable<PortfolioHoldings>> {
-  // The same precedence fetchYourPositions() uses above, and for the same
-  // reason: a connected brokerage account outranks both demo paths, because
-  // it is the one source here that is neither sample data nor absent.
+  // The same precedence fetchYourPositions() uses above: sample data while
+  // its switch is on, then the connected account, then nothing.
   //
   // Reading only the demo adapter was the bug this replaces, and it failed in
   // both directions. With sample data OFF, a linked account's holdings came
@@ -222,10 +222,10 @@ export async function fetchPortfolioHoldings(
   // account both held things and held nothing. With sample data ON it was
   // worse: invented rows sat under a real account's real total, which is
   // exactly what this app's data contract exists to prevent.
-  const service = isLinked()
-    ? await appService.holdings(portfolioId)
-    : DEMO_FLAGS.demoData
-      ? await demoService.holdings(portfolioId)
+  const service = DEMO_FLAGS.demoData
+    ? await demoService.holdings(portfolioId)
+    : isLinked()
+      ? await appService.holdings(portfolioId)
       : ok<Holding[]>([]);
   if (service.status !== 'ok') return service;
 

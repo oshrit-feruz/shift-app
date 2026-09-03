@@ -18,7 +18,7 @@ import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { demoService } from '../data/demoAdapter';
 import { appService } from '../data/appService';
-import { useLinked } from '../data/useLinked';
+import { useLiveData } from '../data/useLinked';
 import { useLoadable } from '../data/useLoadable';
 import { PRICE_REFRESH_MS } from '../data/quotes';
 import { fetchMovers, type MoverRow } from '../data/movers';
@@ -45,7 +45,7 @@ export function HomeScreen({ openSearch }: ScreenProps) {
   );
   const setup = setupProgress(s);
   const demo = useDemoMode();
-  const live = useLinked();
+  const live = useLiveData();
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -80,13 +80,12 @@ export function HomeScreen({ openSearch }: ScreenProps) {
         </Card>
       )}
 
-      {/* A connected account outranks the sample-data switch here too. Without
-          this branch the home screen showed a linked user either invented
-          metrics or a "only in demo" placeholder, while their real portfolio
-          sat one tab away — the one card on this screen about their money,
-          and it was the only screen that did not know they had connected
-          anything. */}
-      {!beg && (live ? <HeroPortfolio /> : demo ? <MetricStripDemo /> : <DemoOnly feature="home.pfToday" />)}
+      {/* Sample data, then the real portfolio, then neither. Without the
+          middle branch the home screen showed a linked user a "only in demo"
+          placeholder while their actual portfolio sat one tab away — the one
+          card here about their money, on the only screen that did not know
+          they had connected anything. */}
+      {!beg && (demo ? <MetricStripDemo /> : live ? <HeroPortfolio /> : <DemoOnly feature="home.pfToday" />)}
 
       {/* Watchlist preview */}
       <Card padding="13px 13px 4px" gap={6}>
@@ -333,7 +332,7 @@ function HeroPortfolio() {
   const t = useT();
   // Re-fetched when a brokerage is connected or disconnected, so the headline
   // follows the same source as the Portfolio tab.
-  const live = useLinked();
+  const live = useLiveData();
   const portfolios = useLoadable(() => appService.portfolios(), [live]);
   // Deterministic for a given key, so compute the walk once, not per render.
   const pfSeries = useMemo(() => demoService.series('home-pf', 60, 0.42, 2.2), []);

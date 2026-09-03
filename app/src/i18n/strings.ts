@@ -856,9 +856,13 @@ export const STRINGS = {
   // whole fix: an illustration that says it is one is honest; one wearing the
   // real label is not.
   'connScreen.sample': p('Sample', 'לדוגמה'),
+  // Says what the rows are and stops there. It deliberately does NOT report
+  // whether anything is connected: with sample data on, a real connection is
+  // not read, and announcing one on a screen being shown to other people
+  // would give away exactly what that switch was flipped to keep private.
   'connScreen.sampleHelp': p(
-    'These three are an illustration of what this list looks like with accounts in it. Nothing is connected yet.',
-    'שלושת אלה הם המחשה של איך הרשימה נראית כשיש בה חשבונות. עדיין לא מחובר שום דבר.',
+    'These three are an illustration of what this list looks like with accounts in it.',
+    'שלושת אלה הם המחשה של איך הרשימה נראית כשיש בה חשבונות.',
   ),
   'connScreen.theo': p('Theoretical portfolios', 'תיקים תיאורטיים'),
   // Names no portfolio: Sandbox is a demo account, so with sample data off it

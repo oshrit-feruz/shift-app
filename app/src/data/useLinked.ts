@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { useDemoMode } from '../lib/DemoModeProvider';
 import { isLinkResolved, isLinked, subscribeLinked } from './linkState';
 
 /**
@@ -33,4 +34,26 @@ export function useLinkStatus(): 'unknown' | 'linked' | 'unlinked' {
   const resolved = useSyncExternalStore(subscribeLinked, isLinkResolved, () => false);
   if (!resolved) return 'unknown';
   return linked ? 'linked' : 'unlinked';
+}
+
+/**
+ * Whether the screens should be drawing the connected account's real figures.
+ *
+ * A connection alone is not enough: sample data wins while its switch is on.
+ * The switch is what makes the app safe to put on a screen — a demo to an
+ * investor, a walkthrough for a client, a screenshot — and a mode that could
+ * still put the presenter's own positions in front of the room would not be.
+ * So it hides them, and there is deliberately no "an account is connected but
+ * hidden" line anywhere: saying so on a screen being shown to other people
+ * gives away the very thing the switch was flipped to keep private.
+ *
+ * The connection is not touched, only unread. The screen that manages it
+ * (screens/ConnectedAccount.tsx) still shows the truth, because that is where
+ * someone goes to look at or revoke the connection rather than to present the
+ * app, and hiding it there would leave no way to disconnect while the switch
+ * is on.
+ */
+export function useLiveData(): boolean {
+  const demo = useDemoMode();
+  return useLinked() && !demo;
 }

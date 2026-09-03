@@ -22,7 +22,7 @@ import { useToast } from '../components/Toast';
 import { useLedger } from '../state/useLedgerSync';
 import { demoService } from '../data/demoAdapter';
 import { appService } from '../data/appService';
-import { useLinked } from '../data/useLinked';
+import { useLiveData } from '../data/useLinked';
 import { loading, ok, unavailable, type Holding, type Loadable, type PortfolioSummary } from '../data/types';
 import { useLoadable } from '../data/useLoadable';
 import { isoDate, money, moneyOrDash, pctOrDash, signalColor, signedCurrency } from '../lib/format';
@@ -52,11 +52,10 @@ export function PortfolioScreen(_: ScreenProps) {
   // In the deps so flipping the switch re-reads, and gating the fetch itself:
   // every account this screen used to list was a demo account.
   const demo = useDemoMode();
-  // A connected brokerage account outranks the sample-data switch — it is
-  // not sample data. appService routes to SnapTrade for a user who has
-  // connected one and to the demo adapter for everyone else; both sit in the
-  // deps so connecting, disconnecting or flipping sample data re-reads.
-  const live = useLinked();
+  // A connected account is read only while the sample-data switch is off —
+  // see data/useLinked.ts, useLiveData. Both sit in the deps so connecting,
+  // disconnecting or flipping the switch re-reads.
+  const live = useLiveData();
   const portfolios = useLoadable(() => appService.portfolios(), [demo, live]);
   const [txOpen, setTxOpen] = useState(false);
   // The row being corrected, or null for a new one. Held here rather than in
@@ -128,7 +127,7 @@ export function PortfolioScreen(_: ScreenProps) {
           // real total is the one thing this app's data contract forbids.
           // A manual portfolio is that same case — its total is its own
           // positions at live prices — so it is excluded here too.
-          const invented = demo && !live && !isManual;
+          const invented = demo && !isManual;
           const drift = (pf.dayPct ?? 0) >= 0 ? 0.5 : 0.16;
           const series = invented ? demoService.series(`pf-${pf.id}`, 70, drift, 2.4) : [];
           const bench = invented ? demoService.series('bench-spy', 70, 0.22, 1.4) : [];
@@ -193,6 +192,7 @@ export function PortfolioScreen(_: ScreenProps) {
               <SourceStrip
                 pf={pf}
                 linked={linked}
+                live={live}
                 onDelete={() => removePortfolio(pf)}
                 onManage={() => dispatch({ type: 'go', screen: 'connections' })}
                 onDisconnect={() => setDisconnectOpen(true)}
@@ -297,8 +297,11 @@ export function PortfolioScreen(_: ScreenProps) {
  * here. A per-connection revoke would need a different upstream call than the
  * one this app makes.
  */
-function revocable(pf: PortfolioSummary): boolean {
-  return pf.kind === 'linked';
+function revocable(pf: PortfolioSummary, live: boolean): boolean {
+  // `live` is not redundant with the kind. The demo adapter's own rows are
+  // 'linked' too — Blink, IBKR — and offering to revoke a connection that was
+  // never made would open a confirmation sheet over nothing.
+  return live && pf.kind === 'linked';
 }
 
 /**
@@ -473,12 +476,14 @@ function PerformanceSlot({
 function SourceStrip({
   pf,
   linked,
+  live,
   onDelete,
   onManage,
   onDisconnect,
 }: Readonly<{
   pf: PortfolioSummary;
   linked: PortfolioSummary[];
+  live: boolean;
   onDelete: () => void;
   onManage: () => void;
   onDisconnect: () => void;
@@ -539,7 +544,7 @@ function SourceStrip({
           The aggregate keeps "manage": it is a rollup of several accounts
           rather than one, so there is nothing here for a single revoke to
           mean. */}
-      {revocable(pf) ? (
+      {revocable(pf, live) ? (
         <Button variant="ghost" fontSize={15.5} onClick={() => onDisconnect()}>
           {t('link.disconnect')}
         </Button>
@@ -914,7 +919,7 @@ function usePortfolioHoldings(pfId: string) {
   // now reads the connected account when one is linked: without it, connecting
   // or disconnecting left the previous source's rows on screen until something
   // else happened to re-render.
-  const live = useLinked();
+  const live = useLiveData();
   const transactions = s.manualTransactions[pfId] ?? [];
   // Keyed on the log's identity, so a transaction added or removed re-values
   // at once rather than after the next visit.
