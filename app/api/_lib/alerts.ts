@@ -82,29 +82,32 @@ export function readRules(bag: unknown): AlertRule[] {
   if (bag === null || typeof bag !== 'object') return [];
   const raw = (bag as { savedAlerts?: unknown }).savedAlerts;
   if (!Array.isArray(raw)) return [];
-  const out: AlertRule[] = [];
-  for (const v of raw) {
-    if (v === null || typeof v !== 'object') continue;
-    const a = v as Partial<AlertRule>;
-    if (typeof a.id !== 'string' || typeof a.ticker !== 'string' || typeof a.value !== 'string') continue;
-    if (a.kind !== 'price' && a.kind !== 'news' && a.kind !== 'earn') continue;
-    const ticker = a.ticker.trim().toUpperCase();
-    if (!ticker || !isValidTicker(ticker)) continue;
-    const notify = a.notifyBy;
-    out.push({
-      id: a.id,
-      ticker,
-      kind: a.kind,
-      condition: a.condition === 'fall' ? 'fall' : 'rise',
-      value: a.value,
-      remind: a.remind === 'morning' || a.remind === 'lands' ? a.remind : 'day',
-      notifyBy: {
-        push: typeof notify === 'object' && notify !== null && notify.push === true,
-        email: typeof notify === 'object' && notify !== null && notify.email === true,
-      },
-    });
-  }
-  return out;
+  return raw.map(readRule).filter((r): r is AlertRule => r !== null);
+}
+
+/** One stored row as a rule, or null for a row the client would drop too. */
+function readRule(v: unknown): AlertRule | null {
+  if (v === null || typeof v !== 'object') return null;
+  const a = v as Partial<AlertRule>;
+  if (typeof a.id !== 'string' || typeof a.ticker !== 'string' || typeof a.value !== 'string') return null;
+  if (a.kind !== 'price' && a.kind !== 'news' && a.kind !== 'earn') return null;
+  const ticker = a.ticker.trim().toUpperCase();
+  if (!ticker || !isValidTicker(ticker)) return null;
+  return {
+    id: a.id,
+    ticker,
+    kind: a.kind,
+    condition: a.condition === 'fall' ? 'fall' : 'rise',
+    value: a.value,
+    remind: a.remind === 'morning' || a.remind === 'lands' ? a.remind : 'day',
+    notifyBy: readNotifyBy(a.notifyBy),
+  };
+}
+
+function readNotifyBy(v: unknown): { push: boolean; email: boolean } {
+  if (v === null || typeof v !== 'object') return { push: false, email: false };
+  const n = v as { push?: unknown; email?: unknown };
+  return { push: n.push === true, email: n.email === true };
 }
 
 /**
@@ -129,7 +132,7 @@ function readPercent(v: unknown): number | null {
 
 /** The level a price rule watches, or null when the field is not a price. */
 export function readLevel(rule: AlertRule): number | null {
-  const s = rule.value.trim().replace(/^\$/, '').replace(/,/g, '');
+  const s = rule.value.trim().replace(/^\$/, '').replaceAll(',', '');
   if (s === '') return null;
   const n = Number(s);
   return Number.isFinite(n) && n > 0 ? n : null;
@@ -165,7 +168,7 @@ export function evaluatePriceRule(
   today: string,
 ): Evaluation {
   const level = readLevel(rule);
-  if (level === null || !(price > 0)) return NOTHING;
+  if (level === null || !isPositive(price)) return NOTHING;
   const side: Side = price >= level ? 'above' : 'below';
   const key = priceRuleKey(rule.ticker, rule.condition, level);
   const states: StateWrite[] = prev === side ? [] : [{ key, state: side }];
@@ -225,35 +228,59 @@ export function evaluateThresholds(
   const out: Evaluation = { firings: [], states: [] };
   if (thresholds.up === null && thresholds.down === null) return out;
   for (const pos of positions) {
-    const price = quotes[pos.ticker];
-    if (pos.shares <= 0 || !(pos.avgCost > 0) || !(price > 0)) continue;
-    const nowPct = ((price - pos.avgCost) / pos.avgCost) * 100;
+    const nowPct = returnFromEntry(pos, quotes[pos.ticker]);
+    if (nowPct === null) continue;
     for (const which of ['up', 'down'] as const) {
       const pct = thresholds[which];
       if (pct === null) continue;
       const key = thresholdKey(pos.ticker, which, pct);
-      // 'above' means "past the line" for both directions, so the firing
-      // condition reads the same way for each: the side flipped to 'above'.
-      const side: Side = (which === 'up' ? nowPct >= pct : nowPct <= -pct) ? 'above' : 'below';
-      const prev = prevStates[key];
-      if (prev !== side) out.states.push({ key, state: side });
-      if (prev === undefined || prev === side || side !== 'above') continue;
-      const thresh = `${which === 'up' ? '+' : '−'}${trimPct(pct)}%`;
-      out.firings.push({
-        kind: 'threshold',
-        ticker: pos.ticker,
-        // The same words as the client's `thresh.fired` string, which was
-        // written for this notification and never had a firer.
-        title: {
-          en: `${pos.ticker} crossed your ${thresh} alert (currently ${signedPct(nowPct)} from entry)`,
-          he: `${pos.ticker} חצתה את ההתראה שלך של ${thresh} (כרגע ${signedPct(nowPct)} מנקודת הכניסה)`,
-        },
-        detail: { en: 'Personal threshold alert', he: 'התראת סף אישית' },
-        dedupeKey: `${key}|${today}`,
-      });
+      const one = evaluateThreshold(pos.ticker, which, pct, nowPct, prevStates[key], today);
+      if (one.state) out.states.push({ key, state: one.state });
+      if (one.firing) out.firings.push(one.firing);
     }
   }
   return out;
+}
+
+/** A held, priced position's return from its average cost, in percent — or null when there is nothing to measure. */
+function returnFromEntry(pos: HeldPosition, price: number | undefined): number | null {
+  if (pos.shares <= 0 || !isPositive(pos.avgCost) || !isPositive(price)) return null;
+  return ((price - pos.avgCost) / pos.avgCost) * 100;
+}
+
+/**
+ * One threshold on one position. 'above' means "past the line" for both
+ * directions, so the firing condition reads the same way for each: the
+ * side flipped to 'above' since the last check.
+ */
+function evaluateThreshold(
+  ticker: string,
+  which: 'up' | 'down',
+  pct: number,
+  nowPct: number,
+  prev: string | undefined,
+  today: string,
+): { state: Side | null; firing: Firing | null } {
+  const past = which === 'up' ? nowPct >= pct : nowPct <= -pct;
+  const side: Side = past ? 'above' : 'below';
+  const state = prev === side ? null : side;
+  if (prev === undefined || prev === side || side !== 'above') return { state, firing: null };
+  const thresh = `${which === 'up' ? '+' : '−'}${pct}%`;
+  return {
+    state,
+    firing: {
+      kind: 'threshold',
+      ticker,
+      // The same words as the client's `thresh.fired` string, which was
+      // written for this notification and never had a firer.
+      title: {
+        en: `${ticker} crossed your ${thresh} alert (currently ${signedPct(nowPct)} from entry)`,
+        he: `${ticker} חצתה את ההתראה שלך של ${thresh} (כרגע ${signedPct(nowPct)} מנקודת הכניסה)`,
+      },
+      detail: { en: 'Personal threshold alert', he: 'התראת סף אישית' },
+      dedupeKey: `${thresholdKey(ticker, which, pct)}|${today}`,
+    },
+  };
 }
 
 // ── News rules: a keyword in fresh coverage ─────────────────────────────
@@ -359,10 +386,17 @@ export function evaluateEarningsRule(
     const row = on(today);
     return row ? { firings: [reminder(rule, row, 'today')], states: [] } : NOTHING;
   }
+  return evaluateLands(rule, on(today) !== undefined, prev, today);
+}
 
-  // 'lands'
+/** The 'lands' reminder: remember the report date on the day, fire from the memory the morning after. */
+function evaluateLands(
+  rule: AlertRule,
+  dueToday: boolean,
+  prev: string | undefined,
+  today: string,
+): Evaluation {
   const key = `earn|${rule.ticker}|lands`;
-  const dueToday = on(today);
   if (dueToday) return { firings: [], states: prev === today ? [] : [{ key, state: today }] };
   if (prev === undefined || !/^\d{4}-\d{2}-\d{2}$/.test(prev) || prev >= today) return NOTHING;
   return {
@@ -378,18 +412,24 @@ function reminder(
   row: Pick<EarningsRow, 'reportDate' | 'timing'>,
   when: 'tomorrow' | 'today' | 'yesterday',
 ): Firing {
-  const timingEn =
-    row.timing === 'BMO' ? ' (before the open)' : row.timing === 'AMC' ? ' (after the close)' : '';
-  const timingHe = row.timing === 'BMO' ? ' (לפני הפתיחה)' : row.timing === 'AMC' ? ' (אחרי הנעילה)' : '';
-  const title: Bilingual =
-    when === 'yesterday'
-      ? { en: `${rule.ticker} was due to report yesterday`, he: `${rule.ticker} הייתה אמורה לפרסם דוח אתמול` }
-      : when === 'today'
-        ? { en: `${rule.ticker} reports today${timingEn}`, he: `${rule.ticker} מפרסמת דוח היום${timingHe}` }
-        : {
-            en: `${rule.ticker} reports tomorrow${timingEn}`,
-            he: `${rule.ticker} מפרסמת דוח מחר${timingHe}`,
-          };
+  const timing = TIMING[row.timing ?? 'unknown'];
+  let title: Bilingual;
+  if (when === 'yesterday') {
+    title = {
+      en: `${rule.ticker} was due to report yesterday`,
+      he: `${rule.ticker} הייתה אמורה לפרסם דוח אתמול`,
+    };
+  } else if (when === 'today') {
+    title = {
+      en: `${rule.ticker} reports today${timing.en}`,
+      he: `${rule.ticker} מפרסמת דוח היום${timing.he}`,
+    };
+  } else {
+    title = {
+      en: `${rule.ticker} reports tomorrow${timing.en}`,
+      he: `${rule.ticker} מפרסמת דוח מחר${timing.he}`,
+    };
+  }
   return {
     kind: 'earn',
     ticker: rule.ticker,
@@ -398,6 +438,13 @@ function reminder(
     dedupeKey: `earn|${rule.ticker}|${rule.remind}|${row.reportDate}`,
   };
 }
+
+/** The session a report lands in, as the calendar states it, or nothing when it does not. */
+const TIMING: Record<'BMO' | 'AMC' | 'unknown', Bilingual> = {
+  BMO: { en: ' (before the open)', he: ' (לפני הפתיחה)' },
+  AMC: { en: ' (after the close)', he: ' (אחרי הנעילה)' },
+  unknown: { en: '', he: '' },
+};
 
 // ── Delivery text ───────────────────────────────────────────────────────
 
@@ -422,9 +469,9 @@ export function signedPct(v: number): string {
   return v < 0 ? `−${s}` : `+${s}`;
 }
 
-/** A threshold as typed: `25` → `25`, `12.5` → `12.5`. */
-function trimPct(v: number): string {
-  return String(v);
+/** A finite number above zero — the only kind a price or a cost basis can be. */
+function isPositive(v: unknown): v is number {
+  return typeof v === 'number' && Number.isFinite(v) && v > 0;
 }
 
 /** The UTC calendar day of an instant, YYYY-MM-DD. */

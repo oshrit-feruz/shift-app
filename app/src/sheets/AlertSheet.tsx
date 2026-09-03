@@ -306,8 +306,8 @@ export function AlertSheet({
  * "9.6%" whatever was typed and whatever the price).
  */
 export function priceHint(level: string, price: number | null): { above: boolean; pct: string } | null {
-  if (price === null || !(price > 0)) return null;
-  const n = Number(level.trim().replace(/^\$/, '').replace(/,/g, ''));
+  if (price === null || price <= 0) return null;
+  const n = parseLevel(level);
   if (!Number.isFinite(n) || n <= 0) return null;
   const pct = ((n - price) / price) * 100;
   return { above: pct >= 0, pct: Math.abs(pct).toFixed(1) };
@@ -320,6 +320,11 @@ export function defaultLevel(price: number | null): string {
 
 /** Whether the typed level is a price the engine will read (see api/_lib/alerts.ts readLevel). */
 export function readableLevel(level: string): boolean {
-  const n = Number(level.trim().replace(/^\$/, '').replace(/,/g, ''));
+  const n = parseLevel(level);
   return Number.isFinite(n) && n > 0;
+}
+
+/** The typed level as a number: a leading dollar sign and thousands separators are allowed. */
+function parseLevel(level: string): number {
+  return Number(level.trim().replace(/^\$/, '').replaceAll(',', ''));
 }

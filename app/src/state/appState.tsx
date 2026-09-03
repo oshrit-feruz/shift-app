@@ -1,11 +1,11 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, useRef, type ReactNode } from 'react';
 import type { Answer } from '../lib/advisory';
-import type { ManualTransaction, TransactionSide } from '../lib/transaction';
+import type { ManualTransaction } from '../lib/transaction';
 
 // Re-exported from lib/transaction, where they moved so that the server-side
 // alert engine (api/alerts-run.ts) can share lib/positions.ts without pulling
 // this React module into a Node typecheck. Every existing import keeps working.
-export type { ManualTransaction, TransactionSide };
+export type { ManualTransaction, TransactionSide } from '../lib/transaction';
 
 export type Screen =
   | 'home'
@@ -251,6 +251,22 @@ export function trailTo(s: AppState, screen: Screen, ticker: string): NavEntry[]
   return trail.length > MAX_TRAIL ? trail.slice(trail.length - MAX_TRAIL) : trail;
 }
 
+/**
+ * Add a symbol to the watchlist, or remove it if it is there.
+ *
+ * Symbols reach this from search, the earnings calendar and news chips as
+ * well as the stock page, so they are normalised here rather than at each
+ * call site — 'nvda' and 'NVDA' must never become two rows.
+ */
+function toggleWatch(s: AppState, raw: string): AppState {
+  const ticker = raw.trim().toUpperCase();
+  if (!ticker) return s;
+  const watchlist = s.watchlist.includes(ticker)
+    ? s.watchlist.filter((t) => t !== ticker)
+    : [...s.watchlist, ticker];
+  return { ...s, watchlist };
+}
+
 /** Exported for tests — the app itself only ever reaches this via dispatch. */
 export function reducer(s: AppState, a: Action): AppState {
   switch (a.type) {
@@ -269,7 +285,7 @@ export function reducer(s: AppState, a: Action): AppState {
         navStack: trailTo(s, 'stock', a.ticker),
       };
     case 'back': {
-      const previous = s.navStack[s.navStack.length - 1];
+      const previous = s.navStack.at(-1);
       if (previous == null) return s;
       // Spread whole: an entry is every field that makes the view what it was,
       // so nothing can be added to NavEntry and then quietly not restored.
@@ -304,19 +320,8 @@ export function reducer(s: AppState, a: Action): AppState {
       else next[a.inst] = a.provider;
       return { ...s, advConnections: next };
     }
-    case 'toggleWatch': {
-      // Symbols reach this from search, the earnings calendar and news chips
-      // as well as the stock page, so they are normalised here rather than at
-      // each call site — 'nvda' and 'NVDA' must never become two rows.
-      const ticker = a.ticker.trim().toUpperCase();
-      if (!ticker) return s;
-      return {
-        ...s,
-        watchlist: s.watchlist.includes(ticker)
-          ? s.watchlist.filter((t) => t !== ticker)
-          : [...s.watchlist, ticker],
-      };
-    }
+    case 'toggleWatch':
+      return toggleWatch(s, a.ticker);
     case 'removeWatch': {
       const ticker = a.ticker.trim().toUpperCase();
       if (!s.watchlist.includes(ticker)) return s;

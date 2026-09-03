@@ -141,11 +141,12 @@ export async function disablePush(): Promise<boolean> {
 /** The VAPID public key in the form `pushManager.subscribe` wants. */
 function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
   const padding = '='.repeat((4 - (base64.length % 4)) % 4);
-  const b64 = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const b64 = (base64 + padding).replaceAll('-', '+').replaceAll('_', '/');
   const raw = atob(b64);
   // Backed by a plain ArrayBuffer explicitly: `subscribe` wants a BufferSource
   // over an ArrayBuffer, and the bare constructor's type allows a shared one.
   const out = new Uint8Array(new ArrayBuffer(raw.length));
-  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  // atob yields one Latin-1 character per byte, so each code point IS the byte.
+  for (let i = 0; i < raw.length; i++) out[i] = raw.codePointAt(i) ?? 0;
   return out;
 }

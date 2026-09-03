@@ -59,8 +59,7 @@ export function SettingsScreen(_: ScreenProps) {
       alive = false;
     };
   }, [userId]);
-  const pushNote: StringKey | null =
-    userId === null ? 'set.pushSignIn' : support === 'ready' ? push.note : PUSH_NOTE[support];
+  const pushNote = pushNoteFor(userId, support, push.note);
   const togglePush = (on: boolean) => {
     if (!userId || push.busy) return;
     setPush((p) => ({ ...p, busy: true }));
@@ -449,6 +448,13 @@ function DemoFlagRow({
       <Toggle label={label} on={on} onChange={onChange} />
     </div>
   );
+}
+
+/** Why the push row cannot be toggled right now, or the last attempt's note, or nothing to say. */
+function pushNoteFor(userId: string | null, support: PushSupport, note: StringKey | null): StringKey | null {
+  if (userId === null) return 'set.pushSignIn';
+  if (support !== 'ready') return PUSH_NOTE[support];
+  return note;
 }
 
 /** What the push row says instead of a toggle, per reason it cannot be turned on. */

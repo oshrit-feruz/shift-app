@@ -25,16 +25,20 @@ export function NotificationsSheet({
   open,
   onClose,
   centre,
-}: {
+}: Readonly<{
   open: boolean;
   onClose: () => void;
   centre: NotificationCentre;
-}) {
+}>) {
   const dispatch = useDispatch();
   const { language } = useTheme();
   const t = useT();
   const { list, unread, markOne, markAll, retry, signedIn } = centre;
   const now = new Date();
+  // Signed out there is no count to claim; signed in, the meta line is the
+  // count or the all-clear.
+  let meta: string | undefined;
+  if (signedIn) meta = unread ? t('notif.new', { n: unread }) : t('notif.caughtUp');
 
   const openStock = (n: AppNotification) => {
     markOne(n.id);
@@ -43,13 +47,7 @@ export function NotificationsSheet({
   };
 
   return (
-    <Sheet
-      open={open}
-      onClose={onClose}
-      title={t('notif.title')}
-      meta={signedIn ? (unread ? t('notif.new', { n: unread }) : t('notif.caughtUp')) : undefined}
-      maxHeight="80%"
-    >
+    <Sheet open={open} onClose={onClose} title={t('notif.title')} meta={meta} maxHeight="80%">
       {!signedIn ? (
         <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0, lineHeight: 1.45 }}>
           {t('notif.signIn')}
