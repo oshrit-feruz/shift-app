@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  fetchPortfolioHoldings,
   fetchYourPositions,
   manualPortfolioSummaries,
   mergeManualTransactions,
@@ -9,6 +10,8 @@ import {
 import type { PortfolioSummary, Quote } from '../data/types';
 import { withDemoData } from '../data/demoFlagsStub';
 import { demoService } from '../data/demoAdapter';
+import { appService } from '../data/appService';
+import { clearLinked, setLinked } from '../data/linkState';
 import type { ManualPortfolio, ManualTransaction } from '../state/appState';
 
 afterEach(() => {
@@ -140,6 +143,68 @@ describe('fetchYourPositions respects the sample-data switch', () => {
 // same invented six-position table as the brokers, so a user who had never
 // recorded a trade still opened it on $9,840 of holdings that were not theirs.
 // Manual portfolios are the user's own ledger and take nothing from that table.
+describe('fetchPortfolioHoldings reads the connected account, not the demo one', () => {
+  // The bug: this function read demoService (or nothing at all) while the
+  // allocation ring beside it read appService. One card, one account, two
+  // sources — so a linked user saw a populated ring above an empty list, and
+  // with sample data on, invented rows under a real total.
+  afterEach(() => {
+    clearLinked();
+    vi.restoreAllMocks();
+  });
+
+  const live = [
+    {
+      ticker: 'ORCL',
+      name: 'Oracle',
+      shares: 12,
+      avgCost: 140,
+      price: 150,
+      value: 1800,
+      plPct: 7.1,
+      costBasis: 1680,
+    },
+  ];
+
+  it('returns the linked account’s own positions', async () => {
+    setLinked(true, 'user-1');
+    const spy = vi.spyOn(appService, 'holdings').mockResolvedValue({ status: 'ok', data: live });
+
+    const res = await fetchPortfolioHoldings('acc-1', []);
+
+    expect(spy).toHaveBeenCalledWith('acc-1');
+    expect(res.status).toBe('ok');
+    if (res.status !== 'ok') return;
+    expect(res.data.rows.map((r) => r.ticker)).toEqual(['ORCL']);
+  });
+
+  it('does not mix demo rows into a real account when sample data is on', async () => {
+    // The worse half of the bug: sample data on plus a real connection put
+    // fabricated holdings under a real account's real total.
+    withDemoData(true);
+    setLinked(true, 'user-1');
+    const demoSpy = vi.spyOn(demoService, 'holdings');
+    vi.spyOn(appService, 'holdings').mockResolvedValue({ status: 'ok', data: live });
+
+    const res = await fetchPortfolioHoldings('acc-1', []);
+
+    expect(demoSpy).not.toHaveBeenCalled();
+    expect(res.status).toBe('ok');
+    if (res.status !== 'ok') return;
+    expect(res.data.rows.map((r) => r.ticker)).toEqual(['ORCL']);
+  });
+
+  it('still reads the demo adapter for a user with nothing connected', async () => {
+    withDemoData(true);
+    clearLinked();
+    const demoSpy = vi.spyOn(demoService, 'holdings').mockResolvedValue({ status: 'ok', data: [] });
+
+    await fetchPortfolioHoldings('blink', []);
+
+    expect(demoSpy).toHaveBeenCalledWith('blink');
+  });
+});
+
 describe('the fabricated holdings table is the demo brokers’ alone', () => {
   it('reports no demo Sandbox portfolio, even with sample data on', async () => {
     withDemoData(true);

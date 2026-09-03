@@ -107,12 +107,20 @@ export function ConnectedAccountScreen(_: ScreenProps) {
                 ))}
                 {accounts.length === 0 ? (
                   quiet.length === 0 && dead.length === 0 ? (
-                    <Card padding={16} gap={6}>
-                      <span style={{ fontSize: 14 }}>{t('live.none')}</span>
-                      <span className="text-muted" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
-                        {t('live.noneHelp')}
-                      </span>
-                    </Card>
+                    // Nothing connected and nothing pending. The link state
+                    // says `linked` — a SnapTrade user exists — so the connect
+                    // card above, which waits for `unlinked`, does not show.
+                    // This is the same dead end from the other side, and it
+                    // gets the same way out.
+                    <>
+                      <Card padding={16} gap={6}>
+                        <span style={{ fontSize: 14 }}>{t('live.none')}</span>
+                        <span className="text-muted" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
+                          {t('live.noneHelp')}
+                        </span>
+                      </Card>
+                      <ConnectBrokerage />
+                    </>
                   ) : (
                     quiet.map((connection) => <ConnectionCard key={connection.id} connection={connection} />)
                   )

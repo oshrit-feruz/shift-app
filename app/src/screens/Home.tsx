@@ -80,7 +80,13 @@ export function HomeScreen({ openSearch }: ScreenProps) {
         </Card>
       )}
 
-      {!beg && (demo ? <MetricStripDemo /> : <DemoOnly feature="home.pfToday" />)}
+      {/* A connected account outranks the sample-data switch here too. Without
+          this branch the home screen showed a linked user either invented
+          metrics or a "only in demo" placeholder, while their real portfolio
+          sat one tab away — the one card on this screen about their money,
+          and it was the only screen that did not know they had connected
+          anything. */}
+      {!beg && (live ? <HeroPortfolio /> : demo ? <MetricStripDemo /> : <DemoOnly feature="home.pfToday" />)}
 
       {/* Watchlist preview */}
       <Card padding="13px 13px 4px" gap={6}>

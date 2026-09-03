@@ -211,7 +211,22 @@ export async function fetchPortfolioHoldings(
   portfolioId: string,
   transactions: ManualTransaction[],
 ): Promise<Loadable<PortfolioHoldings>> {
-  const service = DEMO_FLAGS.demoData ? await demoService.holdings(portfolioId) : ok<Holding[]>([]);
+  // The same precedence fetchYourPositions() uses above, and for the same
+  // reason: a connected brokerage account outranks both demo paths, because
+  // it is the one source here that is neither sample data nor absent.
+  //
+  // Reading only the demo adapter was the bug this replaces, and it failed in
+  // both directions. With sample data OFF, a linked account's holdings came
+  // back empty while the allocation ring beside them — which already went
+  // through appService — drew the real positions, so the same card said the
+  // account both held things and held nothing. With sample data ON it was
+  // worse: invented rows sat under a real account's real total, which is
+  // exactly what this app's data contract exists to prevent.
+  const service = isLinked()
+    ? await appService.holdings(portfolioId)
+    : DEMO_FLAGS.demoData
+      ? await demoService.holdings(portfolioId)
+      : ok<Holding[]>([]);
   if (service.status !== 'ok') return service;
 
   // Every ticker this portfolio touches, from both halves of it: the service

@@ -849,6 +849,17 @@ export const STRINGS = {
   ),
   'connScreen.add': p('Connect an institution', 'לחבר מוסד'),
   'connScreen.live': p('Live', 'מחובר'),
+  // The sample rows' own tag. They used to carry connScreen.live — the same
+  // word a real connected account uses — so with sample data on and nothing
+  // actually connected, the screen showed three brokers marked "Live" and
+  // there was no way to tell them from the real thing. Naming them is the
+  // whole fix: an illustration that says it is one is honest; one wearing the
+  // real label is not.
+  'connScreen.sample': p('Sample', 'לדוגמה'),
+  'connScreen.sampleHelp': p(
+    'These three are an illustration of what this list looks like with accounts in it. Nothing is connected yet.',
+    'שלושת אלה הם המחשה של איך הרשימה נראית כשיש בה חשבונות. עדיין לא מחובר שום דבר.',
+  ),
   'connScreen.theo': p('Theoretical portfolios', 'תיקים תיאורטיים'),
   // Names no portfolio: Sandbox is a demo account, so with sample data off it
   // is not there to be described.

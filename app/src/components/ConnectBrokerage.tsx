@@ -24,7 +24,7 @@ import { useT } from '../i18n/useT';
  * button stays. It never navigates on a failure, which would leave someone on
  * a broken page with no way back.
  */
-export function ConnectBrokerage() {
+export function ConnectBrokerage({ card = true }: { card?: boolean } = {}) {
   const t = useT();
   const { session } = useAuth();
   const [busy, setBusy] = useState(false);
@@ -52,8 +52,8 @@ export function ConnectBrokerage() {
     setBusy(false);
   };
 
-  return (
-    <Card padding={13} gap={8}>
+  const body = (
+    <>
       <CardTitle>{t('link.title')}</CardTitle>
       <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.55 }}>
         {t('link.help')}
@@ -79,6 +79,18 @@ export function ConnectBrokerage() {
           {t('link.signedOut')}
         </span>
       )}
+    </>
+  );
+
+  // `card={false}` for the callers that already sit inside a Card — the empty
+  // state of a linked account's own list, where a second card border around
+  // this would read as a separate section rather than the way out of the one
+  // above it.
+  return card ? (
+    <Card padding={13} gap={8}>
+      {body}
     </Card>
+  ) : (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 0 11px' }}>{body}</div>
   );
 }

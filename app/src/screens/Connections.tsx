@@ -77,6 +77,20 @@ export function ConnectionsScreen(_: ScreenProps) {
             <LiveLinkedAccounts />
           ) : (
             <Card padding="4px 0" gap={0}>
+              {/* Said once, above the rows, rather than left to the tag on
+                  each of them: a reader scanning for "is my account here"
+                  reads the block, not the badges. */}
+              <p
+                className="text-muted"
+                style={{
+                  fontSize: 'var(--text-caption)',
+                  margin: 0,
+                  padding: '9px 13px 3px',
+                  lineHeight: 1.5,
+                }}
+              >
+                {t('connScreen.sampleHelp')}
+              </p>
               {LINKED.map((c, i) => (
                 <div
                   key={i}
@@ -120,9 +134,9 @@ export function ConnectionsScreen(_: ScreenProps) {
                     }}
                   >
                     <Num size={17}>{c.value}</Num>
-                    <Tag variant="accent" fontSize={14}>
-                      {t('connScreen.live')}
-                    </Tag>
+                    {/* Not connScreen.live. These are invented rows, and the
+                        live tag is what a real connected account wears. */}
+                    <Tag fontSize={14}>{t('connScreen.sample')}</Tag>
                   </span>
                 </div>
               ))}
@@ -212,7 +226,15 @@ function LiveLinkedAccounts() {
         >
           {({ accounts }) =>
             accounts.length === 0 ? (
-              <EmptyState>{t('live.none')}</EmptyState>
+              // Registered upstream but holding no brokerage connection —
+              // a real state, reached by starting the portal and not
+              // finishing it. The connect card is gated on `unlinked`, which
+              // this is not, so without offering it here the one person who
+              // most needs the way in is the one who cannot see it.
+              <>
+                <EmptyState>{t('live.none')}</EmptyState>
+                <ConnectBrokerage card={false} />
+              </>
             ) : (
               <>
                 {accounts.map((account) => (

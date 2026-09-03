@@ -29,6 +29,7 @@ import { isoDate, money, moneyOrDash, pctOrDash, signalColor, signedCurrency } f
 import { newestFirst } from '../lib/transactionOrder';
 import { TxSheet } from '../sheets/TxSheet';
 import { NewPortfolioSheet } from '../sheets/NewPortfolioSheet';
+import { DisconnectBrokerageSheet } from '../sheets/DisconnectBrokerageSheet';
 import { fetchPortfolioHoldings, portfolioList, sumTotals } from '../lib/holdings';
 import { fetchPortfolioSeries } from '../data/portfolioHistory';
 import { openGain, type PortfolioSeries } from '../lib/portfolioSeries';
@@ -69,6 +70,7 @@ export function PortfolioScreen(_: ScreenProps) {
     toast(t('pf.deleted', { name: pf.name }));
   };
   const [newPfOpen, setNewPfOpen] = useState(false);
+  const [disconnectOpen, setDisconnectOpen] = useState(false);
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -193,6 +195,7 @@ export function PortfolioScreen(_: ScreenProps) {
                 linked={linked}
                 onDelete={() => removePortfolio(pf)}
                 onManage={() => dispatch({ type: 'go', screen: 'connections' })}
+                onDisconnect={() => setDisconnectOpen(true)}
               />
 
               {isAgg && (
@@ -271,12 +274,31 @@ export function PortfolioScreen(_: ScreenProps) {
                 editing={editingTx}
               />
               <NewPortfolioSheet open={newPfOpen} onClose={() => setNewPfOpen(false)} />
+              <DisconnectBrokerageSheet open={disconnectOpen} onClose={() => setDisconnectOpen(false)} />
             </>
           );
         }}
       </DataState>
     </div>
   );
+}
+
+/**
+ * Whether this row is a brokerage connection the user can revoke from here.
+ *
+ * Only a single linked account. The aggregate is a rollup of several, so a
+ * revoke on it has no one thing to be about, and a manual portfolio has no
+ * connection to revoke in the first place.
+ *
+ * Worth knowing what the revoke does: it removes the SnapTrade user, which
+ * takes every connection under it — so with two accounts linked, disconnecting
+ * from one row disconnects both. That is what the confirmation sheet is for,
+ * and its copy says the connection is revoked at the brokerage as well as
+ * here. A per-connection revoke would need a different upstream call than the
+ * one this app makes.
+ */
+function revocable(pf: PortfolioSummary): boolean {
+  return pf.kind === 'linked';
 }
 
 /**
@@ -453,11 +475,13 @@ function SourceStrip({
   linked,
   onDelete,
   onManage,
+  onDisconnect,
 }: Readonly<{
   pf: PortfolioSummary;
   linked: PortfolioSummary[];
   onDelete: () => void;
   onManage: () => void;
+  onDisconnect: () => void;
 }>) {
   const t = useT();
   const { language } = useTheme();
@@ -506,7 +530,20 @@ function SourceStrip({
           user can see is exactly the one the database will allow.
           Sandbox is where a trade can always be recorded, so it
           cannot be deleted out from under that. */}
-      {isManual && !isSandbox(pf.id) ? (
+      {/* Whatever this portfolio is, the way to be rid of it is on the
+          portfolio itself. A manual one is deleted; a linked one is
+          disconnected, which is a different act on a different thing — it
+          revokes the connection at the brokerage — so it says so rather than
+          borrowing the word "delete".
+
+          The aggregate keeps "manage": it is a rollup of several accounts
+          rather than one, so there is nothing here for a single revoke to
+          mean. */}
+      {revocable(pf) ? (
+        <Button variant="ghost" fontSize={15.5} onClick={() => onDisconnect()}>
+          {t('link.disconnect')}
+        </Button>
+      ) : isManual && !isSandbox(pf.id) ? (
         <Button variant="ghost" fontSize={15.5} onClick={() => onDelete()}>
           {t('pf.delete')}
         </Button>
@@ -873,11 +910,16 @@ function ManualValue({ pfId }: Readonly<{ pfId: string }>) {
 function usePortfolioHoldings(pfId: string) {
   const s = useAppState();
   const demo = useDemoMode();
+  // In the deps beside the sample-data switch, because fetchPortfolioHoldings
+  // now reads the connected account when one is linked: without it, connecting
+  // or disconnecting left the previous source's rows on screen until something
+  // else happened to re-render.
+  const live = useLinked();
   const transactions = s.manualTransactions[pfId] ?? [];
   // Keyed on the log's identity, so a transaction added or removed re-values
   // at once rather than after the next visit.
   const key = transactions.map((tx) => tx.id).join(',');
-  return useLoadable(() => fetchPortfolioHoldings(pfId, transactions), [pfId, demo, key]);
+  return useLoadable(() => fetchPortfolioHoldings(pfId, transactions), [pfId, demo, live, key]);
 }
 
 /**
