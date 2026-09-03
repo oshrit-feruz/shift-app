@@ -732,6 +732,22 @@ function SourceStrip({
  * brokerage; managing the aggregate opens the screen that lists what it rolls
  * up.
  */
+/**
+ * Whether this row offers a delete.
+ *
+ * Every manual portfolio, the Sandbox included. It used to exclude the
+ * Sandbox, mirroring an RLS predicate that 0010_portfolio_delete.sql has
+ * since lifted — and merging main's version of this component brought that
+ * exclusion back once already, which is why the rule is named and asserted
+ * rather than left inline.
+ *
+ * A linked account is not deleted but disconnected, which revocable() covers
+ * above; the aggregate is neither.
+ */
+export function deletable(pf: PortfolioSummary): boolean {
+  return pf.kind === 'manual';
+}
+
 function SourceAction({
   pf,
   live,
@@ -754,7 +770,7 @@ function SourceAction({
       </Button>
     );
   }
-  if (pf.kind === 'manual' && !isSandbox(pf.id)) {
+  if (deletable(pf)) {
     return (
       <Button variant="ghost" fontSize={15.5} onClick={onDelete}>
         {t('pf.delete')}
@@ -1058,9 +1074,12 @@ function usePortfolioHoldings(pfId: string) {
   // else happened to re-render.
   const live = useLiveData();
   const transactions = s.manualTransactions[pfId] ?? [];
-  // Keyed on the log's identity, so a transaction added or removed re-values
-  // at once rather than after the next visit.
-  const key = transactions.map((tx) => tx.id).join(',');
+  // Keyed on the rows themselves, not their ids: correcting a trade's price,
+  // share count, side or date changes what the portfolio holds without
+  // changing which rows are in the log, and an id-only key could not see it.
+  const key = transactions
+    .map((tx) => `${tx.id}:${tx.side}:${tx.ticker}:${tx.shares}:${tx.price}:${tx.date}`)
+    .join('|');
   return useLoadable<PortfolioHoldings>(
     () => fetchPortfolioHoldings(pfId, transactions),
     [pfId, demo, live, key],

@@ -158,7 +158,10 @@ function toHolding(position: ConnectedAccount['positions'][number]): Holding {
   const avgCost = position.avgCost ?? 0;
   // Shared with the connected-account screen so the two can never disagree
   // about the same position — and so the short-position sign fix lives once.
-  const plPct = positionReturnPct(position.openPnl, position.units, position.avgCost) ?? 0;
+  // Null, not 0. `pl` beside it is already null when the brokerage reported
+  // nothing to compute from, and a row that says "— (0%)" states a return it
+  // does not have. Holding.plPct is nullable so the two describe one fact.
+  const plPct = positionReturnPct(position.openPnl, position.units, position.avgCost);
   return {
     ticker: position.ticker,
     shares: units,
