@@ -11,7 +11,9 @@ import { DeleteAccountSheet } from '../sheets/DeleteAccountSheet';
 import { useTheme, type Signal, type Theme, type Language } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { DEMO_FLAGS } from '../data/demoFlags';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { disablePush, enablePush, isPushOn, pushSupport, type PushSupport } from '../lib/push';
+import type { StringKey } from '../i18n/strings';
 import type { ScreenProps } from '../App';
 
 export function SettingsScreen(_: ScreenProps) {
@@ -32,16 +34,49 @@ export function SettingsScreen(_: ScreenProps) {
   const [flags, setFlags] = useState({
     unavailable: DEMO_FLAGS.unavailable,
   });
-  const [notif, setNotif] = useState({ push: true, email: true, sms: false, digest: true, movers: false });
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  // The address alerts would actually go to, rather than the prototype's
-  // invented one. Built inline as a bilingual pair to match the other rows in
-  // this list; the no-email branch is reachable only for a provider that
-  // returns none, and says so instead of naming a stand-in address.
-  const emailHelp = profile.email
-    ? { en: `Same alerts to ${profile.email}`, he: `אותן התראות ל-${profile.email}` }
-    : { en: 'Same alerts to your sign-in email', he: 'אותן התראות לאימייל שאיתו נכנסת' };
+
+  // Push is the one channel that is real, and the toggle shows the real
+  // state: permission granted, a subscription held, and its row stored where
+  // the engine can find it (lib/push.ts). Read on arrival, never assumed.
+  const userId = user?.id ?? null;
+  const support = pushSupport();
+  const [push, setPush] = useState<{ on: boolean; note: StringKey | null; busy: boolean }>({
+    on: false,
+    note: null,
+    busy: false,
+  });
+  // The arrival read and a toggle race each other: `isPushOn` asks the
+  // browser and the database, and can answer after an enable has already
+  // stored a subscription — putting the switch back to off while push is on.
+  // A toggle bumps the generation, and a status read applies only if it is
+  // still the one this generation asked for.
+  const pushGen = useRef(0);
+  useEffect(() => {
+    if (!userId) return;
+    const gen = pushGen.current;
+    let alive = true;
+    void isPushOn(userId).then((on) => {
+      if (alive && pushGen.current === gen) setPush((p) => ({ ...p, on }));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [userId]);
+  const pushNote = pushNoteFor(userId, support, push.note);
+  const togglePush = (on: boolean) => {
+    if (!userId || push.busy) return;
+    pushGen.current += 1;
+    setPush((p) => ({ ...p, busy: true }));
+    if (on) {
+      void enablePush(language).then((err) =>
+        setPush({ on: err === null, note: err === null ? null : PUSH_NOTE[err], busy: false }),
+      );
+    } else {
+      void disablePush().then((ok) => setPush({ on: !ok, note: ok ? null : 'set.pushFailed', busy: false }));
+    }
+  };
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
@@ -230,52 +265,32 @@ export function SettingsScreen(_: ScreenProps) {
         </div>
       </Card>
 
-      {/* Notifications */}
+      {/* Notifications. Push is real (see above). Email is listed so nobody
+          looks for it, and says it is not available rather than offering a
+          toggle that would store nothing. */}
       <Card padding="4px 0" gap={0}>
         <CardTitle size={18}>
           <span style={{ display: 'block', padding: '6px 12px 1px' }}>{t('set.notifSection')}</span>
         </CardTitle>
-        {(
-          [
-            [
-              'push',
-              { en: 'Push notifications', he: 'התראות פוש' },
-              { en: 'Price, news and earnings alerts', he: 'מחיר, חדשות ודוחות' },
-            ],
-            ['email', { en: 'Email', he: 'אימייל' }, emailHelp],
-            ['sms', { en: 'SMS', he: 'מסרון' }, { en: 'Price thresholds only', he: 'רק רף מחיר' }],
-            [
-              'digest',
-              { en: 'Morning digest', he: 'תקציר בוקר' },
-              { en: 'One message at 08:00', he: 'הודעה אחת ב-08:00' },
-            ],
-            [
-              'movers',
-              { en: 'Unusual movers', he: 'תנועות חריגות' },
-              { en: 'Watchlist moves over 5%', he: 'תנועה מעל 5% בווטצ׳ליסט' },
-            ],
-          ] as const
-        ).map(([k, label, help]) => (
-          <div
-            key={k}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              minHeight: 44,
-              padding: '8px 12px',
-              borderTop: '1px solid var(--color-divider)',
-            }}
-          >
-            <span style={{ flex: 1 }}>
-              <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>{label[language]}</span>
-              <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-caption)' }}>
-                {help[language]}
-              </span>
+        <div style={CHANNEL_ROW}>
+          <span style={{ flex: 1 }}>
+            <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>{t('set.push')}</span>
+            <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-caption)' }}>
+              {t(pushNote ?? 'set.pushHelp')}
             </span>
-            <Toggle label={label[language]} on={notif[k]} onChange={(v) => setNotif({ ...notif, [k]: v })} />
-          </div>
-        ))}
+          </span>
+          {userId !== null && support === 'ready' && (
+            <Toggle label={t('set.push')} on={push.on} onChange={togglePush} />
+          )}
+        </div>
+        <div style={CHANNEL_ROW}>
+          <span style={{ flex: 1 }}>
+            <span style={{ display: 'block', fontSize: 'var(--text-row)' }}>{t('set.email')}</span>
+            <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-caption)' }}>
+              {t('set.emailSoon')}
+            </span>
+          </span>
+        </div>
       </Card>
 
       {/* Data & display — demo-state switch for the demo-backed surfaces.
@@ -418,3 +433,28 @@ function DemoFlagRow({
     </div>
   );
 }
+
+/** Why the push row cannot be toggled right now, or the last attempt's note, or nothing to say. */
+function pushNoteFor(userId: string | null, support: PushSupport, note: StringKey | null): StringKey | null {
+  if (userId === null) return 'set.pushSignIn';
+  if (support !== 'ready') return PUSH_NOTE[support];
+  return note;
+}
+
+/** What the push row says instead of a toggle, per reason it cannot be turned on. */
+const PUSH_NOTE: Record<Exclude<PushSupport, 'ready'> | 'failed' | 'ready', StringKey> = {
+  unsupported: 'set.pushUnsupported',
+  denied: 'set.pushDenied',
+  not_configured: 'set.pushNotConfigured',
+  failed: 'set.pushFailed',
+  ready: 'set.pushFailed',
+};
+
+const CHANNEL_ROW = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  minHeight: 44,
+  padding: '8px 12px',
+  borderTop: '1px solid var(--color-divider)',
+} as const;

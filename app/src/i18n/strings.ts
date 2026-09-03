@@ -667,11 +667,23 @@ export const STRINGS = {
     'Add a stock to your watchlist first — an alert has to be about something.',
     'קודם להוסיף מניה לווטצ׳ליסט — התראה חייבת להיות על משהו.',
   ),
-  'alert.condition': p('Condition', 'תנאי'),
-  'alert.rises': p('Rises above', 'עולה מעל'),
-  'alert.falls': p('Falls below', 'יורד מתחת'),
+  'alert.crosses': p('Crosses', 'נחצה'),
   'alert.price': p('Price', 'מחיר'),
-  'alert.priceHint': p("That's about 9.6% above today's price.", 'זה בערך 9.6% מעל המחיר של היום.'),
+  'alert.hintAbove': p("That's about {pct}% above today's price.", 'זה בערך {pct}% מעל המחיר של היום.'),
+  'alert.hintBelow': p("That's about {pct}% below today's price.", 'זה בערך {pct}% מתחת למחיר של היום.'),
+  'alert.priceNote': p(
+    'Fires when the price crosses this level, in either direction, after the alert is saved. Saving only notes which side the price is on now.',
+    'תופעל כשהמחיר יחצה את הרמה הזו, לכל כיוון, אחרי שההתראה נשמרה. השמירה רק רושמת באיזה צד המחיר נמצא עכשיו.',
+  ),
+  'alert.newsNote': p(
+    "Checks the stock's news every half hour. Any new article mentioning a keyword fires; leave blank for any article.",
+    'בודקת את חדשות המניה כל חצי שעה. כל כתבה חדשה שמזכירה מילת מפתח תפעיל התראה; אפשר להשאיר ריק לכל כתבה.',
+  ),
+  'alert.earnNote': p(
+    'Checked once each morning against the earnings calendar.',
+    'נבדקת פעם ביום בבוקר מול לוח הדוחות.',
+  ),
+  'alert.emailSoon': p('Email (not yet available)', 'אימייל (עדיין לא זמין)'),
   'alert.mentions': p('Mentions of', 'אזכורים של'),
   'alert.keywords': p('data centre, guidance', 'מרכזי נתונים, תחזית'),
   'alert.sources': p('Sources', 'מקורות'),
@@ -710,6 +722,28 @@ export const STRINGS = {
   'notif.caughtUp': p('all caught up', 'הכול מעודכן'),
   'notif.markAll': p('Mark all read', 'לסמן הכול כנקרא'),
   'notif.manageRules': p('Manage alert rules', 'לנהל כללי התראה'),
+  'notif.empty': p(
+    'No notifications yet. Alerts you set will show up here.',
+    'אין עדיין התראות. התראות שתגדירי יופיעו כאן.',
+  ),
+  'notif.signIn': p('Sign in to receive alerts.', 'כדי לקבל התראות צריך להתחבר.'),
+
+  // ── Notification channels (Settings) ──────────────────────────────────
+  'set.push': p('Push notifications', 'התראות פוש'),
+  'set.pushHelp': p('Price, news and earnings alerts on this device', 'מחיר, חדשות ודוחות במכשיר הזה'),
+  'set.pushSignIn': p('Sign in to turn on push.', 'כדי להפעיל פוש צריך להתחבר.'),
+  'set.pushUnsupported': p(
+    'Not available in this browser. On iPhone, add Shift to the home screen first.',
+    'לא זמין בדפדפן הזה. באייפון קודם מוסיפים את Shift למסך הבית.',
+  ),
+  'set.pushDenied': p('Blocked in the browser settings for this site.', 'חסום בהגדרות הדפדפן לאתר הזה.'),
+  'set.pushNotConfigured': p('Push is not configured on this deployment.', 'פוש לא מוגדר בפריסה הזו.'),
+  'set.pushFailed': p('Could not turn on push. Try again.', 'לא הצלחנו להפעיל פוש. נסי שוב.'),
+  'set.email': p('Email', 'אימייל'),
+  'set.emailSoon': p(
+    'Not available yet — alerts arrive in the app and by push.',
+    'עדיין לא זמין — התראות מגיעות באפליקציה ובפוש.',
+  ),
 
   // ── Search ────────────────────────────────────────────────────────────
   'search.placeholder': p('Search ticker or company', 'חיפוש סימבול או חברה'),

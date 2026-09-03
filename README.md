@@ -75,7 +75,10 @@ row into a dozen lines and lose the shape of the data.
   broker's own site; account connections are read-only; alerts (including the
   opt-in percent thresholds in Settings) are informational only — a fired
   threshold notification carries the fixed equal-prominence disclaimer and a
-  mark-as-read affordance, never a confirm/execute button.
+  mark-as-read affordance, never a confirm/execute button. Alerts are
+  evaluated on a schedule by `app/api/alerts-run.ts` and delivered to the
+  in-app notification centre and, where a device subscribed, by push — see
+  "Alerts" under Data.
 - **Data honesty** (`app/src/data/`): every data-service method returns
   `loading | unavailable | ok`, and screens render all three honestly — an API
   failure shows an explicit "unavailable" state, never a fabricated number, and
@@ -660,6 +663,106 @@ replaced carried a full article body; real articles deliberately carry only a
 out. Keeping the in-app reader would have meant either an empty sheet or
 re-introducing the full text the proxy exists to avoid.
 
+### Alerts (`app/api/alerts-run.ts`)
+
+An alert used to be a row in the watchlist's "Active alerts" card and nothing
+else: nothing read it against a price, and the notification centre was four
+literal rows shown only with sample data on. Now it is a rule the engine
+evaluates on a schedule, a row in `notifications` when it fires, and a banner
+on the phone that subscribed.
+
+**Where the pieces live.**
+
+| Piece | Where |
+| --- | --- |
+| The rules | Unchanged: `savedAlerts`, `alertUpThreshold`, `alertDownThreshold` in `user_state.state` (the persisted slice), written by the alert sheet and Settings. |
+| The deciding | `app/api/_lib/alerts.ts` — pure functions, unit-tested per rule kind. |
+| The run | `POST /api/alerts-run?scope=prices\|news\|daily`, guarded by `ALERTS_CRON_SECRET`, reading and writing every user's rows with the service-role key. |
+| The clock | `.github/workflows/alerts.yml` — prices every 5 minutes across the US session on weekdays, news every half hour, the earnings calendar once a morning. |
+| The price worker | `app/worker/` — one always-on process on EODHD's US trades socket, checking price rules on every trade, 04:00–20:00 New York time. `app/worker/README.md` has the deploy. While its heartbeat (`worker_heartbeat`, migration 0007) is fresh the route's `prices` scope stands down for the symbols the worker covers — the socket takes 50, and any past that are named in the heartbeat and checked by the route instead. When the heartbeat goes stale the route takes over everything at its slower cadence. |
+| What fired | `notifications` (`supabase/migrations/0007_alerts.sql`), read by `src/data/notifications.ts` under RLS; the header badge and the sheet share one read (`useNotifications`). |
+| The engine's memory | `alert_states` — which side of its level each rule was on at the last check. Engine-only. |
+| Push | `push_subscriptions` + `VAPID_*`; `src/lib/push.ts` subscribes from the Settings toggle, `public/sw.js` shows the banner. |
+
+**An alert fires on a crossing, not on a state.** "Rise above 200" fires the
+first time a check sees the price at or above 200 after having seen it below —
+not every five minutes while it stays there, and not the moment the rule is
+saved while the price already sits at 210. The first check after a rule is
+created only records which side it is on; the alert sheet says so under the
+field. The cost is that a crossing between saving the rule and the first check
+is not seen, and a price that crosses back and forth all afternoon is one row
+for the day, not thirty (the row's `dedupe_key`).
+
+**What each kind reads, honestly:**
+
+- *Price levels* watch a level, not a direction: a rule is "NVDA at 200", and
+  it fires when the price crosses that level either way — the notification is
+  what says "rose above" or "fell below", because that is the observation.
+  Saving a rule only records which side the price is on now, so nothing fires
+  for a level the price is already past. A crossing up and a later crossing
+  down on the same day are two notifications; repeated crossings the same way
+  that day are one. They are checked by the worker on every trade from EODHD's
+  US feed (the real-time one on this plan — `docs/eodhd-plan-decision.md`
+  measured it seconds behind the tape, against 15–21 minutes for EODHD's
+  REST quote), so a crossing fires within about a second, pre-market and
+  after-hours included. The feed carries US stocks only and 50 symbols per
+  connection; a rule beyond that, or on a Toronto or London symbol, waits for
+  the route. The route's own `prices` scope reads Finnhub's `/quote` — the
+  same provider every screen prints — every few minutes as the fallback,
+  and stands down while the worker's heartbeat is fresh so that two
+  providers never argue over the cents around a level. The price in a
+  notification is whichever source saw the crossing.
+- *Settings thresholds* ("alert me if I rise above +25%") apply to every held
+  position, measured from the position's average cost — the same fold the
+  portfolio screen uses (`src/lib/positions.ts`, shared with the server via
+  `src/lib/transaction.ts`) folded across every portfolio. Unpriced or
+  fully-sold positions are skipped. The wording is the client's own
+  `thresh.fired` string, which was written for this notification and never
+  had a firer. Editing a threshold re-arms it.
+- *News* reads EODHD's per-ticker feed (10 credits a ticker, at most 30
+  tickers a run) and fires for a new article that mentions one of the rule's
+  comma-separated keywords, or any new article when the field is blank. The
+  first check records the newest article and fires nothing — otherwise every
+  new rule would open with last week's coverage. There is no source filter:
+  the sheet no longer offers "wires / filings", because the feed does not
+  distinguish them and a filter that filtered nothing would be a lie.
+- *Earnings reminders* read Alpha Vantage's forward calendar once a day
+  (04:00 UTC, 07:00 Israel, because a free key allows a couple of dozen calls
+  a day). "Day before" and "morning of" fire from the calendar; "when results
+  land" cannot, because the feed drops a row once the report has happened —
+  so the engine remembers the date on the day and fires the next morning with
+  the words "was due to report yesterday", which is what it knows.
+
+**Delivery.** Every firing is a row in the notification centre. A device that
+turned push on in Settings also gets a banner, in the language it subscribed
+in. The sheet opens its level field at the stock's live price rather than a literal 200.00, and refuses to save a price rule whose level the engine could not read. Email is listed in Settings and on the sheet as *not yet available*
+rather than as a toggle that stores nothing — there is no mail provider
+configured, and the checkbox that used to be there promised one. The old
+SMS / morning digest / unusual movers toggles, which were local component
+state and nothing more, are gone.
+
+**GitHub's schedule is not a metronome.** A scheduled workflow runs when a
+runner is free, some minutes after its slot at busy hours and occasionally not
+at all. The engine is built for that — a late run still sees a crossing,
+because it compares against the last recorded side — but it means a price
+alert lands "within a few minutes", and the README does not claim tighter.
+
+**To turn it on for a deployment** (each step is one-time):
+
+1. Run `supabase/migrations/0007_alerts.sql`, `0008_worker_heartbeat.sql` and `0009_alert_hardening.sql` in the SQL editor.
+2. Set `ALERTS_CRON_SECRET` (any long random string) in Vercel, and the same
+   value as the `ALERTS_CRON_SECRET` repository secret on GitHub beside
+   `ALERTS_RUN_URL` (`https://<deployment>/api/alerts-run`).
+3. For push: `npx web-push generate-vapid-keys` once; set `VAPID_PUBLIC_KEY`,
+   `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` and `VITE_VAPID_PUBLIC_KEY` (the same
+   public key) in Vercel; redeploy. Without them the engine still records every
+   alert in the app and its response says `push: not_configured`.
+4. Trigger the workflow by hand once (Actions → Run the alert engine →
+   scope `prices`) and read the JSON it prints: `users`, `fired`, `recorded`,
+   `pushed` and any upstream failure counts.
+5. For trade-by-trade price alerts, deploy the worker: `app/worker/README.md`.
+   Once it is up, the same manual run answers `skipped: worker_alive`.
+
 ### Earnings calendar (`app/api/earnings.ts`)
 
 Proxies **Alpha Vantage** so the key stays server-side. One route answers two
@@ -723,12 +826,17 @@ news:
 | `EODHD_API_KEY` | `/api/news` (the news feed), `/api/candles` (daily bars — every chart and sparkline), `/api/intraday` (the chart's 1D tab), `/api/movers` (the market-movers boards) and `/api/stats` (market cap, P/E, volume, the 52-week range). **Required for every chart and for the movers screen.** A plan refusal comes back as 402/403 and is reported as a plan problem rather than as an outage. |
 | `GOOGLE_TRANSLATE_API_KEY` | `/api/news?lang=he` — Hebrew headlines, via the Cloud Translation API. **Optional**: without it the news is served in the provider's English rather than failing. The key travels as the API's `key=` query parameter, so restrict it **to the Cloud Translation API** in the Google Cloud console — an HTTP-referrer restriction would break it, since the call is server-side. The first 500k characters a month are free, but the project still needs billing enabled. |
 | `ALPHAVANTAGE_API_KEY` | `/api/earnings` — the calendar and per-stock history. |
-| `FINNHUB_API_KEY` | `/api/quote` — the last price and day change on every screen, and nothing else. **Required for prices.** A free key covers quotes; its historical candles are a paid tier, which is why the charts moved to EODHD. |
+| `FINNHUB_API_KEY` | `/api/quote` — the last price and day change on every screen, and nothing else — and `/api/alerts-run?scope=prices`, so a price alert fires on the same number. **Required for prices.** A free key covers quotes; its historical candles are a paid tier, which is why the charts moved to EODHD. |
+| `ALERTS_CRON_SECRET` | `/api/alerts-run` — the bearer token the scheduled workflow must present. **Required for alerts to fire at all.** |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | `/api/alerts-run` — Web Push delivery. **Optional**: without them alerts still reach the in-app notification centre and the run reports `push: not_configured`. |
 
-All four are read **only on the server** — every one of them is used inside a
-function under `api/`, and no client code ever reads them. That is why none may
-be given a `VITE_` prefix: Vite inlines any `VITE_`-prefixed variable into the
-client bundle, which would publish the key to every visitor.
+All of the above are read **only on the server** — every one of them is used
+inside a function under `api/`, and no client code ever reads them. That is why
+none may be given a `VITE_` prefix: Vite inlines any `VITE_`-prefixed variable
+into the client bundle, which would publish the key to every visitor. The one
+deliberate exception is `VITE_VAPID_PUBLIC_KEY`: the same value as
+`VAPID_PUBLIC_KEY`, which the browser needs to subscribe and which is public by
+design — it identifies the sender and cannot send.
 
 Pure request/response mapping lives in `app/api/_lib/news.ts` (unit-tested in
 `news.test.ts`) so it doesn't require mocking global `fetch` or a Vercel

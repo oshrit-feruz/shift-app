@@ -1,5 +1,11 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, useRef, type ReactNode } from 'react';
 import type { Answer } from '../lib/advisory';
+import type { ManualTransaction } from '../lib/transaction';
+
+// Re-exported from lib/transaction, where they moved so that the server-side
+// alert engine (api/alerts-run.ts) can share lib/positions.ts without pulling
+// this React module into a Node typecheck. Every existing import keeps working.
+export type { ManualTransaction, TransactionSide } from '../lib/transaction';
 
 export type Screen =
   | 'home'
@@ -29,13 +35,19 @@ export const ADV_ORDER: Screen[] = ['advChat', 'advDisc', 'advDash', 'advConnect
 export type InstitutionKey = 'broker' | 'bank' | 'pension' | 'hisht';
 
 export type AlertKind = 'price' | 'news' | 'earn';
-export type TransactionSide = 'buy' | 'sell' | 'div';
 
 export interface SavedAlert {
   id: string;
   ticker: string;
   kind: AlertKind;
-  condition: 'rise' | 'fall';
+  /**
+   * A price alert watches a LEVEL. It fires when the price crosses it,
+   * whichever way it was going: "tell me when NVDA is at 200" is one
+   * question, and which direction it arrived from is part of the answer the
+   * notification gives, not part of what you asked. Rules saved before this
+   * carry 'rise' or 'fall' and are read as the same rule.
+   */
+  condition: 'cross';
   value: string;
   remind: 'day' | 'morning' | 'lands';
   sources: { wires: boolean; filings: boolean };
@@ -46,7 +58,7 @@ export interface SavedAlert {
  * What makes two alerts the same alert.
  *
  * Everything the alert *watches for* is in the key; the delivery channels are
- * not. Asking twice for "tell me when MSFT falls below $200" is one alert the
+ * not. Asking twice for "tell me when MSFT is at $200" is one alert the
  * second time as much as the first — the user wants that notification, not two
  * of it — while asking for it by email as well is a change to how the same
  * alert reaches them, so it edits the one that exists rather than filing a
@@ -61,7 +73,8 @@ export function alertKey(a: Omit<SavedAlert, 'id'>): string {
 function alertDetailKey(a: Omit<SavedAlert, 'id'>): string {
   switch (a.kind) {
     case 'price':
-      return `${a.condition}|${a.value.trim()}`;
+      // The level alone: a price rule has no direction to tell two apart.
+      return a.value.trim();
     case 'news':
       return `${a.value.trim().toLowerCase()}|${a.sources.wires}|${a.sources.filings}`;
     default:
@@ -84,20 +97,6 @@ export function addAlert(alerts: SavedAlert[], alert: SavedAlert): SavedAlert[] 
 export interface ManualPortfolio {
   id: string;
   name: string;
-}
-
-export interface ManualTransaction {
-  id: string;
-  side: TransactionSide;
-  ticker: string;
-  shares: number;
-  price: number;
-  date: string;
-  /** When the row was entered, as opposed to the trade date it records.
-   *  Optional because valuation never needs it and older locally-held rows
-   *  predate it; the transaction log uses it to order same-day entries by
-   *  the order they were actually logged. */
-  createdAt?: string;
 }
 
 /** A view the user can be returned to: the screen and, for a stock page, which
@@ -141,7 +140,6 @@ export interface AppState {
   /** price-alert thresholds — opt-in, blank by default, informational only */
   alertUpThreshold: string;
   alertDownThreshold: string;
-  notificationsRead: boolean;
   /** portfolio tab index */
   pfIndex: number;
   aggExcluded: Record<string, boolean>;
@@ -165,7 +163,6 @@ export const initial: AppState = {
   fromSteps: false,
   alertUpThreshold: '',
   alertDownThreshold: '',
-  notificationsRead: false,
   pfIndex: 0,
   aggExcluded: {},
   savedAlerts: [],
@@ -191,7 +188,6 @@ export type Action =
   | { type: 'firstRunSeen' }
   | { type: 'stepDone'; key: string; done: boolean }
   | { type: 'setThreshold'; which: 'up' | 'down'; value: string }
-  | { type: 'markNotificationsRead' }
   | { type: 'pfIndex'; index: number }
   | { type: 'toggleAggAccount'; id: string }
   | { type: 'addAlert'; alert: SavedAlert }
@@ -356,8 +352,6 @@ export function reducer(s: AppState, a: Action): AppState {
       return { ...s, stepsDone: { ...s.stepsDone, [a.key]: a.done } };
     case 'setThreshold':
       return a.which === 'up' ? { ...s, alertUpThreshold: a.value } : { ...s, alertDownThreshold: a.value };
-    case 'markNotificationsRead':
-      return { ...s, notificationsRead: true };
     case 'pfIndex':
       return { ...s, pfIndex: a.index };
     case 'toggleAggAccount':
@@ -518,6 +512,13 @@ export function readPersisted(saved: Record<string, unknown>): Partial<AppState>
     // heals that list once, on the next boot.
     picked.savedAlerts = picked.savedAlerts
       .filter(isSavedAlert)
+      // A price rule stored before the direction was dropped carries 'rise'
+      // or 'fall'. It is the same rule — a level — so it is read as one here
+      // rather than left sitting in a field whose type says 'cross', where
+      // every later reader would have to remember that it might not be. Only
+      // those two reach this point: isSavedAlert has already dropped a row
+      // carrying anything else.
+      .map((alert) => (alert.condition === 'cross' ? alert : { ...alert, condition: 'cross' as const }))
       // Wrapped rather than passed straight to reduce: the callback is handed
       // an index and the source array too, and addAlert must not be reading a
       // third and fourth argument it never declared.
@@ -526,15 +527,25 @@ export function readPersisted(saved: Record<string, unknown>): Partial<AppState>
   return picked;
 }
 
+/**
+ * Every condition any version of this app has written: the current one and
+ * the two directions it replaced. A row carrying anything else — or nothing
+ * — was not written by the app, and is dropped rather than healed: reading
+ * it as 'cross' would turn a corrupted row into an armed alert.
+ */
+const STORED_CONDITIONS = new Set(['cross', 'rise', 'fall']);
+
 /** A stored row shaped like an alert; anything else is dropped on read. */
 function isSavedAlert(value: unknown): value is SavedAlert {
   if (value === null || typeof value !== 'object') return false;
-  const a = value as Partial<SavedAlert>;
+  const a = value as Partial<SavedAlert> & { condition?: unknown };
   return (
     typeof a.id === 'string' &&
     typeof a.ticker === 'string' &&
     typeof a.value === 'string' &&
     (a.kind === 'price' || a.kind === 'news' || a.kind === 'earn') &&
+    typeof a.condition === 'string' &&
+    STORED_CONDITIONS.has(a.condition) &&
     typeof a.sources === 'object' &&
     a.sources !== null &&
     typeof a.notifyBy === 'object' &&

@@ -197,7 +197,7 @@ describe('adoptRemote — what the foreground re-read applies', () => {
         id: 'a1',
         ticker: 'NVDA',
         kind: 'price' as const,
-        condition: 'rise' as const,
+        condition: 'cross' as const,
         value: '200',
         remind: 'day' as const,
         sources: { wires: true, filings: true },
@@ -214,5 +214,53 @@ describe('adoptRemote — what the foreground re-read applies', () => {
     const current = pickPersisted(initial);
     expect(adoptRemote(current, { watchlist: [...LEGACY_SEED_WATCHLIST] })).toBeNull();
     expect(adoptRemote(current, { watchlist: [' orcl ', 'ORCL'] })?.watchlist).toEqual(['ORCL']);
+  });
+
+  it('reads a row written before price alerts dropped their direction', () => {
+    // A server row from an older client carries 'rise' or 'fall' in a field
+    // the type now says holds 'cross'. Both mean the same rule — a level —
+    // so hydration says so once, rather than leaving every later reader to
+    // wonder. The two on the same level collapse, as one alert should.
+    const stored = (condition: string, id: string) => ({
+      id,
+      ticker: 'NVDA',
+      kind: 'price',
+      condition,
+      value: '200',
+      remind: 'day',
+      sources: { wires: true, filings: true },
+      notifyBy: { push: true, email: false },
+    });
+    const next = adoptRemote(pickPersisted(initial), {
+      savedAlerts: [stored('rise', 'a1'), stored('fall', 'a2')],
+    });
+    expect(next?.savedAlerts).toHaveLength(1);
+    expect(next?.savedAlerts?.[0]).toMatchObject({ id: 'a1', condition: 'cross', value: '200' });
+  });
+
+  it('drops a row whose condition no version of the app ever wrote', () => {
+    // Normalising to 'cross' must not heal a corrupted row into an armed
+    // alert: only the three conditions the app has actually written are read.
+    const stored = (over: Record<string, unknown>) => ({
+      id: 'a1',
+      ticker: 'NVDA',
+      kind: 'price',
+      condition: 'cross',
+      value: '200',
+      remind: 'day',
+      sources: { wires: true, filings: true },
+      notifyBy: { push: true, email: false },
+      ...over,
+    });
+    // Dropped, so the row leaves nothing to adopt and adoptRemote says the
+    // server's slice matches this device's empty list.
+    expect(
+      adoptRemote(pickPersisted(initial), { savedAlerts: [stored({ condition: 'invalid' })] }),
+    ).toBeNull();
+    expect(
+      adoptRemote(pickPersisted(initial), { savedAlerts: [stored({ condition: undefined })] }),
+    ).toBeNull();
+    const good = adoptRemote(pickPersisted(initial), { savedAlerts: [stored({})] });
+    expect(good?.savedAlerts).toHaveLength(1);
   });
 });
