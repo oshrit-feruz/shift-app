@@ -728,33 +728,82 @@ request/response pair to test. The `api/` directory has its own
 `tsconfig.json` (`npm run typecheck:api`) since it's excluded from the main
 app's `src`-scoped one and isn't bundled into the client build.
 
-## Connected account — founder demo only (SnapTrade Personal)
+## Connected accounts (SnapTrade Commercial, read-only)
 
-**A third live surface, and the only one that is deliberately not a product
-feature.** `app/api/snaptrade.ts` reads **one real brokerage account**,
-read-only, through [SnapTrade's](https://docs.snaptrade.com) free **Personal**
-tier, so the "connect your real portfolio" concept can be shown with actual
-data instead of a mockup.
+**A third live surface: each reader links their own brokerage.**
+`app/api/snaptrade.ts` reads a reader's real accounts — balances and
+positions, read-only — through [SnapTrade's](https://docs.snaptrade.com)
+**Commercial** tier, and issues the Connection Portal link they use to link
+one in the first place.
 
-**This is not the architecture for real end users, and must not be mistaken
-for one.** SnapTrade Personal issues a single free `clientId`/`consumerKey`
-pair for one person's own account. It has no notion of multiple users: the
-Personal key *is* the identity, which is exactly why requests omit `userId`
-and `userSecret` (a Personal user has no `userSecret` to send — see
-[Personal vs Commercial](https://docs.snaptrade.com/docs/personal-vs-commercial)).
-Letting real users link their own accounts would require SnapTrade's
-**Commercial** tier — per-user registration, `userSecret` storage, connection
-lifecycle and reconnection handling, webhooks, KYC and billing. That is a
-separate product and compliance decision that **has not been made**. Nothing
-in this integration scales to it, and nothing here should be read as a
-prototype of it.
+**It began as a single-account founder demo on the Personal tier**, where the
+key *was* the identity: one fixed account, visible to everyone who opened the
+app, with no `userId` or `userSecret` in any request. That is gone. Commercial
+identifies the user in the query, which is what makes per-reader linking
+possible at all (see
+[Personal vs Commercial](https://docs.snaptrade.com/docs/personal-vs-commercial)
+and [Authentication methods](https://docs.snaptrade.com/docs/authentication-methods)).
 
-**Read-only, structurally.** The function can reach exactly five upstream
-paths, all `GET`, listed in one `READ_ONLY_PATHS` constant: `/accounts`,
+**The secret is the whole design.** SnapTrade generates a `userSecret` when a
+reader is registered and never returns it again — `resetUserSecret` needs the
+current one to rotate it. So it lives in `public.snaptrade_users`
+(`supabase/migrations/0007_snaptrade_users.sql`), a table with RLS enabled and
+**no policies at all**, plus the grants revoked: closed to the browser's
+`anon` and `authenticated` roles by two independent mechanisms, readable only
+by the service role the API route holds. Two consequences are in the code
+rather than left to care:
+
+- **A registration whose secret cannot be stored is undone.** The route
+  registers, writes, and on a failed write deletes the SnapTrade user it just
+  created — otherwise the secret exists nowhere and the user is unreachable
+  forever. A test asserts the undo.
+- **Account deletion removes the SnapTrade user first.** The `on delete
+  cascade` on that table destroys the only credential that reaches the
+  connection, so `api/delete-account.ts` unlinks before it deletes, and
+  **refuses to delete the account** if the unlink fails. A retry is
+  recoverable; a live brokerage connection nobody can ever remove is not.
+
+**Who is asking comes from a verified token, never from the request.** Every
+method authenticates the caller through `/auth/v1/user` (a local JWT decode
+would happily read the claims out of a forged token) and looks their SnapTrade
+credentials up by that verified id. The only value taken from the request at
+all is the connection id to remove, and that is checked against the caller's
+own connections first. Tests pin it: a request naming someone else's `userId`
+and `userSecret` in the query still reads only the caller's account.
+
+**Three methods, one route.** Vercel turns every file under `api/` into its own
+Serverless Function and the plan allows twelve (see `api/_tests/README.md`),
+so these live on one route split by method — which is the right axis anyway,
+since all three are the same resource:
+
+| | |
+| --- | --- |
+| `GET /api/snaptrade` | the caller's accounts, balances and positions |
+| `POST /api/snaptrade` | a Connection Portal URL, registering the caller if this is their first link |
+| `DELETE /api/snaptrade?connectionId=…` | remove one of their connections |
+
+**Responses are `private, no-store`.** This is one person's money; the shared
+edge cache the single-account demo used would now be a cross-user leak.
+
+**The portal asks for `read`.** `connectionType: 'read'` is set explicitly in
+`connectBody()` rather than relying on SnapTrade's default, because a default
+is a thing that changes and this is the one point where a *trading* connection
+could be requested by accident. A test asserts the body carries it. The portal
+renders in English — SnapTrade ships `en` and `pt-BR` only — and the UI says so
+before sending anyone there rather than letting a Hebrew-first reader discover
+it on arrival. Its URL expires five minutes after it is issued, so it is
+fetched when the button is pressed, never prepared in advance.
+
+**Read-only, structurally.** The function can reach exactly eight upstream
+paths, listed in one `PATHS` constant. Five are `GET` reads: `/accounts`,
 `/accounts/{id}/balances`, `/accounts/{id}/positions/all`, `/authorizations`
-and `/authorizations/{id}/accounts`. Ids come from SnapTrade's own responses,
-never from the caller, so no request to `/api/snaptrade` can steer it at
-another path.
+and `/authorizations/{id}/accounts`. Three are not reads, because linking an
+account is not one: `POST /snapTrade/registerUser`, `POST /snapTrade/login`
+and `DELETE /connection/{id}`. Ids come from SnapTrade's own responses or from
+the app's own database, never from the caller, so no request to
+`/api/snaptrade` can steer it at another path. SnapTrade's trading endpoints
+appear nowhere in the codebase, and a unit test asserts that no upstream path
+ever matches a trading route.
 
 **Why two account routes.** `/accounts` is documented as *daily* data —
 "cached and refreshed once a day" — so a brokerage connected today
@@ -774,8 +823,8 @@ property of the *connection*, not the plan, and is `delayed` when the
 brokerage forces it. The real IBKR connection here reports **`delayed`**: its
 data comes from a cache, and manual refresh does apply to it.
 
-The route still never issues that `POST` — `/api/snaptrade` is public and
-unauthenticated and stays GET-only. Refresh lives in
+The route still never issues that `POST`: a refresh is billed per call, so it
+is not something a screen should be able to trigger. Refresh lives in
 `app/scripts/snaptrade-refresh.mjs`, an operator script run by hand with the
 credentials in the environment. It lists connections and stops unless given
 `--refresh`, because SnapTrade bills per refresh call. It imports the signing
@@ -833,24 +882,21 @@ resolve it — the app's job is to say precisely which state it is in. SnapTrade
 appear nowhere in the codebase, and a unit test asserts that no upstream path
 ever matches a trading route.
 
-**Off by default.** Settings → Data & display carries the
-`הדגמה: חשבון מקושר אמיתי` switch (`DEMO_FLAGS.liveAccount`). With it **off**,
-the app is exactly what it was before this integration existed — the demo
-adapter backs every account, and the connected-account screen is not listed
-anywhere. With it **on**, `app/src/data/appService.ts` swaps the demo
-adapter's `portfolios()` and `holdings()` for the real account, so the Home
-hero, the Portfolio tab and the Connections list all show it, and the
-dedicated `חשבון מקושר (הדגמה)` screen appears under "עוד". The switch exists
-so the before/after can be shown side by side in one session; it is read
-through `useDemoFlag()` so flipping it re-renders immediately rather than on
-the next mount. Nothing else — Core-Satellite, Satellite recommendations,
-news, fundamentals — changes in either position.
+**One switch decides whether the money is real.** Sample data (More → נתוני
+דמו) is it. **On**, every account in the app is the demo adapter's — three
+invented brokers, the fabricated holdings table, the seeded performance walk.
+**Off**, `app/src/data/appService.ts` reads the reader's own connected
+accounts instead, and the Connections screen offers the link. There used to be
+a second switch (`DEMO_FLAGS.liveAccount`) that pointed the app at the founder's
+one real account while sample data stayed on; it is gone, because it made
+"is this money real" depend on two switches and left a reader who turned sample
+data off still looking at demo brokers.
 
 **Where invented numbers were removed rather than shown over real ones.** Two
 demo-derived visuals cannot honestly sit above a real account, so with the
 switch on they are replaced by a statement of what is known, not redrawn:
 
-| Surface | With the switch on |
+| Surface | With sample data off |
 | --- | --- |
 | Home hero + Portfolio day change and performance chart | Replaced by an explicit "no performance history" note — SnapTrade reports no day change or priced history for a linked account. A *manual* portfolio is the exception and draws a real value curve from its own ledger (see above) |
 | Portfolio allocation donut | Computed from the account's **real** position values; positions the brokerage did not price are excluded, and if none are priced the card says so |
@@ -886,11 +932,13 @@ taxonomy (`upstream_unauthorized`, `upstream_forbidden`,
 `upstream_rate_limited`, `upstream_timeout`, `bad_response`) are the ones
 `/api/news` and `/api/earnings` already answer with, rather than a third
 hand-rolled copy that could drift. SnapTrade authenticates with a `Signature`
-header instead of a query parameter, which is the one thing that helper
-gained (an optional `headers` argument) to serve this route. Any failure —
+header instead of a query parameter, and two of its paths are not `GET`, which
+is what that helper gained to serve this route: an optional `headers`
+argument and an optional `{ method, body }` — so the timeout-through-body-read
+and the failure classification stay in one place rather than being copied. Any failure —
 network, timeout, non-2xx, unparseable or unexpected-shape body — surfaces as
-the honest "unavailable" state **with a specific reason** ("SnapTrade rejected
-the demo credentials", "SnapTrade did not answer in time"), and never falls
+the honest "unavailable" state **with a specific reason** ("Sign in to see your connected
+brokerage accounts", "SnapTrade did not answer in time"), and never falls
 back to the demo adapter's numbers. **Zero connected accounts is a success,
 not an error**: before a brokerage is linked the call legitimately returns
 `ok([])` and the screen says "עדיין לא מקושר חשבון ברוקר" — it never invents a
@@ -898,35 +946,29 @@ holding to fill the space.
 
 ### One-time setup
 
-**Required environment variables** — `SNAPTRADE_PERSONAL_CLIENT_ID` and
-`SNAPTRADE_PERSONAL_CONSUMER_KEY`, added in the Vercel dashboard under
-**Project → Settings → Environment Variables**, scoped to Production, Preview
-and Development so PR previews and local `vercel dev` work too. Both are read
-only server-side (`process.env.…`) and neither may ever be given a `VITE_`
-prefix, which would bundle the secret into the client build. The consumer key
-is used only as an HMAC key and never appears in a URL or a response body.
+**Required environment variables** — `SNAPTRADE_CLIENT_ID` and
+`SNAPTRADE_CONSUMER_KEY` (the Commercial pair; the old
+`SNAPTRADE_PERSONAL_*` names are retired), plus `SUPABASE_SERVICE_ROLE_KEY`,
+which the route needs to read the per-user secret. All three go in the Vercel
+dashboard under **Project → Settings → Environment Variables**, scoped to
+Production, Preview and Development so PR previews and local `vercel dev` work
+too. All are read only server-side (`process.env.…`) and none may ever be given
+a `VITE_` prefix, which would bundle the secret into the client build. The
+consumer key is used only as an HMAC key and never appears in a URL or a
+response body.
 
-Then, once deployed:
+**Run `supabase/migrations/0007_snaptrade_users.sql`** before deploying: with
+no table, every connect attempt answers an honest configuration error.
 
-1. Create the free Personal account at [snaptrade.com](https://snaptrade.com)
-   and copy the `clientId` and `consumerKey` from its dashboard.
-2. Add both to Vercel as above and redeploy (environment variables are read at
-   invocation, but a redeploy is the reliable way to pick them up everywhere).
-3. In **SnapTrade's own dashboard**, open the hosted **Connection Portal** and
-   link the brokerage account. The app deliberately cannot do this: it issues
-   no non-`GET` SnapTrade call, so it can read connections but never create
-   one.
-4. In the app: Settings → Data & display → turn on `הדגמה: חשבון מקושר אמיתי`,
-   then open **עוד → חשבון מקושר (הדגמה)**.
+Then, in the app: More → turn **off** נתוני דמו, then **עוד → חיבורי ברוקר →
+לחבר חשבון ברוקר**. That opens SnapTrade's portal, the reader signs in to
+their broker there, and the portal returns them to the app. Shift never sees
+the broker password.
 
-**The endpoint is public and unauthenticated**, exactly like `/api/news`.
-Anyone who knows the deployment URL can `GET /api/snaptrade` and see this
-account's holdings and balances. The account number is masked to its last four
-digits server-side before it is ever sent, and no other identifying field is
-returned, but the positions and totals themselves are real. That is an
-accepted, deliberate trade-off for a founder demo on a demo deployment — it is
-**not** acceptable for anything carrying real users, and is a second reason
-this integration cannot simply be promoted to production.
+**A brokerage may take a day or two to report.** See the Interactive Brokers
+note above — a connection can be genuinely active while no data has arrived
+yet, and the screen says which state it is in rather than implying nothing was
+linked.
 
 Request signing lives in `app/api/_lib/snaptrade.ts` (unit-tested in
 `snaptrade.test.ts`, handler behaviour in `snaptradeHandler.test.ts`), split

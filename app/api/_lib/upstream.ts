@@ -140,11 +140,24 @@ export async function fetchUpstreamJson(
    * routes are unaffected.
    */
   headers?: Record<string, string>,
+  /**
+   * Method and body, for a provider that needs more than a GET. SnapTrade's
+   * connection portal is a POST and removing a connection is a DELETE, and
+   * both belong on this transport rather than on a second copy of it: what
+   * must never drift between routes is the timeout-through-body-read and the
+   * failure classification, which are exactly what this function holds.
+   * Omitted, the call is the plain GET every other route makes.
+   */
+  init?: { method?: string; body?: string },
 ): Promise<UpstreamResult> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetchImpl(url, { signal: controller.signal, ...(headers ? { headers } : {}) });
+    const res = await fetchImpl(url, {
+      signal: controller.signal,
+      ...(headers ? { headers } : {}),
+      ...(init ?? {}),
+    });
     if (!res.ok) {
       console.error(`${route}: upstream returned ${res.status}`);
       return { ok: false, failure: classifyUpstreamStatus(res.status, provider) };

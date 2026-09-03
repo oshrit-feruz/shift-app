@@ -584,9 +584,9 @@ export interface ConnectedBalance {
 }
 
 /**
- * One real, read-only brokerage account pulled through the founder-demo
- * SnapTrade Personal integration. The account number arrives already masked —
- * the full number never leaves the server.
+ * One of the reader's own brokerage accounts, read read-only through
+ * SnapTrade. The account number arrives already masked — the full number
+ * never leaves the server.
  */
 export interface ConnectedAccount {
   id: string;

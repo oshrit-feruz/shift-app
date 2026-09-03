@@ -31,6 +31,14 @@ that has not been pasted into the SQL editor is not live, however green CI is.
   file). Must be run *before* deploying the client release that reads them;
   until it is, the client falls back to the legacy `user_state` jsonb copy of
   the ledger rather than showing an empty portfolio.
+- `0007_snaptrade_users.sql` — **the per-user SnapTrade secret.** Creates
+  `snaptrade_users`, which maps each user to their SnapTrade user id and the
+  secret SnapTrade issues once and never returns again. RLS is enabled with
+  **no policies** and the grants are revoked, so the table is closed to the
+  browser's roles twice over; only the service role in `api/snaptrade.ts`
+  reads it. Must be run *before* deploying the client release that offers
+  brokerage linking — without the table every connect attempt answers an
+  honest configuration error.
 - `0006_portfolio_delete.sql` — lets the owner delete the Sandbox too. Must
   be run *before* deploying the client release that offers that delete: under
   the 0005 policy the delete affects no rows and reports no error, so the

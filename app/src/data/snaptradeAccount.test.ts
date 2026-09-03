@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { fetchConnectedAccounts } from './snaptradeAccount';
+import {
+  disconnectBrokerage,
+  fetchConnectedAccounts,
+  fetchConnectionPortalUrl,
+  reasonOf,
+} from './snaptradeAccount';
 
 function res(body: unknown, status = 200): Response {
   return {
@@ -102,7 +107,17 @@ describe('fetchConnectedAccounts', () => {
     const r = await fetchConnectedAccounts(async () => res({ error: 'not_configured' }, 500));
     expect(r.status).toBe('unavailable');
     if (r.status !== 'unavailable') return;
-    expect(r.reason?.he).toContain('אינם מוגדרים');
+    expect(r.reason?.he).toContain('אינו מוגדר');
+  });
+
+  // A signed-out reader is not an outage, and telling them to "try again
+  // later" would send them retrying something that cannot work until they
+  // sign in.
+  it('reports being signed out as its own reason, not as a failure', async () => {
+    const r = await fetchConnectedAccounts(async () => res({ error: 'unauthorized' }, 401));
+    expect(r.status).toBe('unavailable');
+    if (r.status !== 'unavailable') return;
+    expect(r.reason?.en).toContain('Sign in');
   });
 
   it('reports rejected credentials distinctly from an unreachable service', async () => {
@@ -169,5 +184,73 @@ describe('fetchConnectedAccounts', () => {
   it('drops an account with no id — it could not be addressed or trusted', async () => {
     const r = await fetchConnectedAccounts(async () => res({ accounts: [{ name: 'ghost' }] }));
     expect(r).toEqual({ status: 'ok', data: { accounts: [], connections: [] } });
+  });
+});
+
+describe('fetchConnectionPortalUrl', () => {
+  it('returns the portal link SnapTrade issued', async () => {
+    const r = await fetchConnectionPortalUrl(async () =>
+      res({ redirectUri: 'https://app.snaptrade.com/snapTrade/redeemToken?token=x' }),
+    );
+    expect(r.status).toBe('ok');
+    if (r.status !== 'ok') return;
+    expect(r.data).toContain('https://app.snaptrade.com/');
+  });
+
+  it('asks the route to POST, and carries the theme so the portal matches the app', async () => {
+    const seen: Array<{ url: string; method: string | undefined }> = [];
+    await fetchConnectionPortalUrl(async (input, init) => {
+      seen.push({ url: String(input), method: init?.method });
+      return res({ redirectUri: 'https://app.snaptrade.com/x' });
+    }, 'light');
+    expect(seen[0].method).toBe('POST');
+    expect(seen[0].url).toContain('theme=light');
+  });
+
+  // This is where a person is about to type their brokerage password, so
+  // "whatever the response contained" is not good enough.
+  it.each([
+    ['a non-https link', 'http://evil.example'],
+    ['a script url', 'javascript:alert(1)'],
+    ['nothing', ''],
+  ])('refuses to hand back %s', async (_label, redirectUri) => {
+    const r = await fetchConnectionPortalUrl(async () => res({ redirectUri }));
+    expect(r.status).toBe('unavailable');
+  });
+
+  it('carries the route’s reason when the portal cannot be opened', async () => {
+    const r = await fetchConnectionPortalUrl(async () => res({ error: 'unauthorized' }, 401));
+    expect(r.status).toBe('unavailable');
+    if (r.status !== 'unavailable') return;
+    expect(r.reason?.en).toContain('Sign in');
+  });
+});
+
+describe('disconnectBrokerage', () => {
+  it('asks the route to DELETE that connection, and nothing else', async () => {
+    const seen: Array<{ url: string; method: string | undefined }> = [];
+    const r = await disconnectBrokerage('8b5f262d-4bb9-365d-888a-202bd3b15fa1', async (input, init) => {
+      seen.push({ url: String(input), method: init?.method });
+      return res({ queued: true });
+    });
+    expect(r.status).toBe('ok');
+    expect(seen[0].method).toBe('DELETE');
+    expect(seen[0].url).toContain('connectionId=8b5f262d-4bb9-365d-888a-202bd3b15fa1');
+  });
+
+  it('reports a refusal rather than claiming the connection is gone', async () => {
+    const r = await disconnectBrokerage('nope', async () => res({ error: 'not_connected' }, 404));
+    expect(r.status).toBe('unavailable');
+  });
+});
+
+describe('reasonOf', () => {
+  it('is the reason of an unavailable read, and null for anything else', () => {
+    expect(reasonOf({ status: 'unavailable', reason: { en: 'a', he: 'b' } })).toEqual({ en: 'a', he: 'b' });
+    expect(reasonOf({ status: 'unavailable' })).toBeNull();
+    // 'loading' is in the type and never returned by these readers; asked
+    // once here so no call site has to narrow it itself.
+    expect(reasonOf({ status: 'loading' })).toBeNull();
+    expect(reasonOf({ status: 'ok', data: 1 })).toBeNull();
   });
 });

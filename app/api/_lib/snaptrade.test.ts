@@ -2,6 +2,11 @@ import { createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
   buildQuery,
+  buildUserQuery,
+  connectBody,
+  readRedirectUri,
+  readRegistration,
+  snapTradeUserId,
   canonicalJson,
   computeSignature,
   mapAccount,
@@ -75,6 +80,82 @@ describe('buildQuery', () => {
 
   it('percent-encodes a clientId that needs it, so the signed string matches the sent one', () => {
     expect(buildQuery('a b&c', 1)).toBe('clientId=a%20b%26c&timestamp=1');
+  });
+});
+
+describe('buildUserQuery', () => {
+  it('carries the person’s credentials, percent-encoded so the signed string matches the sent one', () => {
+    const q = buildUserQuery('cid', 1700000000, 'shift-a b', 'se/cret');
+    expect(q).toBe('clientId=cid&timestamp=1700000000&userId=shift-a%20b&userSecret=se%2Fcret');
+  });
+
+  it('omits the secret for the one path that does not take it', () => {
+    // Deleting a SnapTrade user is authorised by the partner key and the id;
+    // sending a secret the path does not declare would change the signed
+    // string for nothing.
+    expect(buildUserQuery('cid', 1, 'shift-x')).toBe('clientId=cid&timestamp=1&userId=shift-x');
+  });
+});
+
+describe('connectBody', () => {
+  it('asks for a READ connection — this app can never place an order', () => {
+    expect(connectBody('https://shift.app', true)).toMatchObject({ connectionType: 'read' });
+  });
+
+  it('returns the person to the app when there is somewhere to return them to', () => {
+    expect(connectBody('https://shift.app', false)).toMatchObject({
+      immediateRedirect: true,
+      customRedirect: 'https://shift.app',
+      darkMode: false,
+    });
+  });
+
+  it('omits the redirect entirely when there is not', () => {
+    // An immediate redirect to an empty string is not a weaker version of
+    // returning someone to the app; it is a request to send them nowhere.
+    const body = connectBody('', true);
+    expect(body).not.toHaveProperty('immediateRedirect');
+    expect(body).not.toHaveProperty('customRedirect');
+  });
+});
+
+describe('snapTradeUserId', () => {
+  it('prefixes the app’s own name, so a row in SnapTrade’s dashboard is identifiable', () => {
+    expect(snapTradeUserId('abc-123')).toBe('shift-abc-123');
+  });
+});
+
+describe('readRedirectUri', () => {
+  it('reads the portal link', () => {
+    expect(readRedirectUri({ redirectURI: 'https://app.snaptrade.com/x' })).toBe(
+      'https://app.snaptrade.com/x',
+    );
+  });
+
+  it('refuses anything that is not an https URL', () => {
+    // This is where a person is about to type brokerage credentials.
+    for (const redirectURI of ['http://evil.example', 'javascript:alert(1)', '', 42, null]) {
+      expect(readRedirectUri({ redirectURI })).toBeNull();
+    }
+    expect(readRedirectUri(null)).toBeNull();
+    // The encrypted-response variant the schema also allows: not a URL, and
+    // reported as unreadable rather than sending someone to "undefined".
+    expect(readRedirectUri({ encryptedMessageData: {} })).toBeNull();
+  });
+});
+
+describe('readRegistration', () => {
+  it('reads the id and the secret together', () => {
+    expect(readRegistration({ userId: 'shift-1', userSecret: 's' })).toEqual({
+      userId: 'shift-1',
+      userSecret: 's',
+    });
+  });
+
+  it('is null when either half is missing — the secret is never sent twice', () => {
+    expect(readRegistration({ userId: 'shift-1' })).toBeNull();
+    expect(readRegistration({ userSecret: 's' })).toBeNull();
+    expect(readRegistration(null)).toBeNull();
   });
 });
 
