@@ -6,6 +6,7 @@ import {
   readTickerMap,
   secTicker,
   TICKER_FILE_URL,
+  type CompanyFacts,
   type StatementRow,
 } from './_lib/edgar.js';
 import { failureBody, fetchUpstreamJson } from './_lib/upstream.js';
@@ -94,6 +95,32 @@ export interface FinancialsBody {
 
 function notListed(ticker: string): FinancialsBody {
   return { ticker, listed: false, cik: null, entity: null, annual: [], quarterly: [], source: SOURCE };
+}
+
+/**
+ * The answer for a filer whose company-facts read succeeded.
+ *
+ * A CIK in the SEC's ticker file is not the same fact as US-GAAP data to
+ * read. An IFRS filer or a fund answers 200 with no `us-gaap` key at all,
+ * which readCompanyFacts reports as an empty facts map — and `listed: true`
+ * for one of those told the reader "listed, no statements" where the truth
+ * is "no US-GAAP statements to read". The route's own contract says as much;
+ * only the 404 path was honouring it.
+ *
+ * Either way the identity is reported: the CIK and name were read
+ * successfully, and withholding them would claim less than is known.
+ */
+function answerFor(ticker: string, company: CompanyFacts, title: string | null): FinancialsBody {
+  const identity = { cik: company.cik, entity: company.entityName ?? title };
+  if (company.facts.size === 0) return { ...notListed(ticker), ...identity };
+  return {
+    ticker,
+    listed: true,
+    ...identity,
+    annual: buildStatements(company, 'annual', ANNUAL_PERIODS),
+    quarterly: buildStatements(company, 'quarterly', QUARTERLY_PERIODS),
+    source: SOURCE,
+  };
 }
 
 /** Builds the handler with an injectable budget and fetch, as the other routes do. */
@@ -194,26 +221,8 @@ export function createHandler(timeoutMs: number, fetchImpl: typeof fetch = fetch
         .json({ error: 'bad_response', message: `The ${PROVIDER} provider returned an unexpected shape.` });
     }
 
-    // A CIK in the SEC's ticker file is not the same fact as US-GAAP data
-    // to read. An IFRS filer or a fund answers 200 here with no `us-gaap`
-    // key at all, which readCompanyFacts reports as an empty facts map —
-    // and `listed: true` for one of those told the reader "listed, no
-    // statements" where the truth is "no US-GAAP statements to read". The
-    // route's own contract says so; only the 404 path was honouring it.
-    const body: FinancialsBody =
-      company.facts.size === 0
-        ? { ...notListed(ticker), cik: company.cik, entity: company.entityName ?? entry.title }
-        : {
-            ticker,
-            listed: true,
-            cik: company.cik,
-            entity: company.entityName ?? entry.title,
-            annual: buildStatements(company, 'annual', ANNUAL_PERIODS),
-            quarterly: buildStatements(company, 'quarterly', QUARTERLY_PERIODS),
-            source: SOURCE,
-          };
     res.setHeader('Cache-Control', CACHE_CONTROL);
-    return res.status(200).json(body);
+    return res.status(200).json(answerFor(ticker, company, entry.title));
   };
 }
 

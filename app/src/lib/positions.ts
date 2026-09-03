@@ -193,6 +193,11 @@ export function buildPositions(transactions: ManualTransaction[]): Position[] {
   return [...byTicker.values()];
 }
 
+/** What an open position is worth at `price`, or null when there is none. */
+function openWorth(pos: Position, price: number | null): number | null {
+  return price === null ? null : pos.shares * price;
+}
+
 /**
  * Price a set of positions against a quote map, and total what can be totalled.
  *
@@ -212,7 +217,7 @@ export function valuePositions(
     // so a position sold out months ago showed "—" whenever its ticker
     // happened to be unpriced today, though realised, dividends and soldCost
     // already determine the whole answer.
-    const value = pos.shares === 0 ? 0 : price === null ? null : pos.shares * price;
+    const value = pos.shares === 0 ? 0 : openWorth(pos, price);
     return { ...pos, price, value, pl: totalReturn(pos, value), plPct: totalReturnPct(pos, value) };
   });
 
