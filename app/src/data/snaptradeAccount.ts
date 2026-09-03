@@ -225,6 +225,21 @@ async function currentUser(): Promise<{ token: string; userId: string } | null> 
   return token && userId ? { token, userId } : null;
 }
 
+/**
+ * Whether the session still belongs to the user a request was made for.
+ *
+ * Every read here captures its user before awaiting the network, and the
+ * network is where a sign-out or an account switch happens. Without this
+ * check, user A's answer landing after user B signed in would be written down
+ * as the current one — the auth layer clears on the switch, but it cannot
+ * cancel a request already in flight. So the write, not the read, is where
+ * the check belongs: results are still returned to whoever asked, and only
+ * *recording* them is refused once they are about somebody who has left.
+ */
+async function stillSignedInAs(userId: string): Promise<boolean> {
+  return (await currentUser())?.userId === userId;
+}
+
 /** The answer for someone with no connection: true, complete, and not an error. */
 const NOT_LINKED: ConnectedAccountsResult = { linked: false, accounts: [], connections: [] };
 
@@ -272,7 +287,7 @@ export async function fetchConnectedAccounts(
     // — and recorded against the user it is about, so a response that lands
     // after a sign-out or an account switch cannot be read as the new user's.
     const linked = (body as { linked?: unknown })?.linked === true;
-    setLinked(linked, userId);
+    if (await stillSignedInAs(userId)) setLinked(linked, userId);
 
     const accounts = rawAccounts.map(parseAccount).filter((a): a is ConnectedAccount => a !== null);
     const rawConnections = (body as { connections?: unknown })?.connections;
@@ -376,6 +391,8 @@ export async function disconnectBrokerage(
   if ((result.data.body as { disconnected?: unknown })?.disconnected !== true) {
     return unavailable(REASONS.badShape);
   }
-  setLinked(false, result.data.userId);
+  // Same rule as the account read: a disconnect that completes after someone
+  // else has signed in must not tell the app THEY have nothing connected.
+  if (await stillSignedInAs(result.data.userId)) setLinked(false, result.data.userId);
   return ok({ disconnected: true });
 }

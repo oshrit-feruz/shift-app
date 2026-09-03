@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  * enough, and it keeps each test about the response it is describing.
  */
 let token: string | null = 'access-token';
-const USER_ID = 'user-1';
+let USER_ID = 'user-1';
 vi.mock('../lib/supabase', () => ({
   supabase: {
     auth: {
@@ -22,6 +22,7 @@ import { isLinked, linkedUserId } from './linkState';
 
 beforeEach(() => {
   token = 'access-token';
+  USER_ID = 'user-1';
 });
 
 function res(body: unknown, status = 200): Response {
@@ -276,5 +277,44 @@ describe('connecting and disconnecting', () => {
     const done = await disconnectBrokerage(async () => res({ disconnected: true }));
     expect(done.status).toBe('ok');
     expect(isLinked()).toBe(false);
+  });
+
+  it('ignores an account read that lands after a different user has signed in', async () => {
+    // The auth layer clears state on a switch, but it cannot cancel a request
+    // already in flight. Without this check, user A's answer would be written
+    // down as user B's the moment it arrived.
+    await fetchConnectedAccounts(async () => res({ linked: false, accounts: [] }));
+    expect(isLinked()).toBe(false);
+    expect(linkedUserId()).toBe('user-1');
+
+    const late = fetchConnectedAccounts(async () => {
+      // Somebody else signs in while this request is on the wire.
+      USER_ID = 'user-2';
+      return res({ linked: true, accounts: [ACCOUNT] });
+    });
+    const r = await late;
+
+    // The caller still gets the answer it asked for...
+    expect(r.status).toBe('ok');
+    if (r.status === 'ok') expect(r.data.linked).toBe(true);
+    // ...but nothing about user-1 was recorded against the session now in
+    // place. The state is still the last thing known for its own user.
+    expect(linkedUserId()).toBe('user-1');
+    expect(isLinked()).toBe(false);
+  });
+
+  it('ignores a disconnect that completes after a different user has signed in', async () => {
+    await fetchConnectedAccounts(async () => res({ linked: true, accounts: [ACCOUNT] }));
+    expect(isLinked()).toBe(true);
+
+    const done = await disconnectBrokerage(async () => {
+      USER_ID = 'user-2';
+      return res({ disconnected: true });
+    });
+
+    expect(done.status).toBe('ok');
+    // user-2 is not told they have nothing connected on user-1's behalf.
+    expect(isLinked()).toBe(true);
+    expect(linkedUserId()).toBe('user-1');
   });
 });
