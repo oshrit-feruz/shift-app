@@ -18,6 +18,7 @@ import { fetchTickerEarnings } from '../data/earnings';
 import { fetchStockStats } from '../data/stats';
 import { useDemoMode } from '../lib/DemoModeProvider';
 import { ReportsTab, EarningsHistory } from './stock/ReportsTab';
+import { FinancialStatements } from './stock/FinancialStatements';
 import { NewsTab } from './stock/NewsTab';
 import { TabPanel } from '../components/TabPanel';
 import { EngineCard } from './stock/EngineCard';
@@ -235,7 +236,11 @@ export function StockScreen({ openAlert }: ScreenProps) {
 
           <TabPanel key={`re-${s.ticker}`} active={tab === 'reports'}>
             <ReportsTab ticker={s.ticker} />
+            {/* Reported quarters before the filed statements: the quarter-by
+                -quarter beat-and-miss line is what a reader came to the tab
+                for, and the full statements are the detail underneath it. */}
             <EarningsHistory ticker={s.ticker} />
+            <FinancialStatements ticker={s.ticker} />
           </TabPanel>
           <TabPanel key={`ne-${s.ticker}`} active={tab === 'news'}>
             <NewsTab ticker={s.ticker} />
@@ -432,6 +437,7 @@ function LiveOnlyStock({ ticker, openAlert }: Readonly<{ ticker: string; openAle
         <NextEarnings ticker={ticker} />
         <ReportsTab ticker={ticker} />
         <EarningsHistory ticker={ticker} />
+        <FinancialStatements ticker={ticker} />
       </TabPanel>
       <TabPanel key={`ne-${ticker}`} active={tab === 'news'}>
         <NewsTab ticker={ticker} />

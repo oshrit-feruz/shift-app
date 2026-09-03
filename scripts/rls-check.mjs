@@ -189,19 +189,22 @@ async function main() {
       "shares changed",
     );
 
-    // The invariant the UI also honours by hiding the delete button.
+    // Since 0010 the Sandbox is ordinary user content too: its owner can
+    // delete it (the app confirms first), and the policy must let them, or
+    // the delete would affect no rows, report no error, and the Sandbox
+    // would come back on the next read.
     await a.client.from("portfolios").delete().eq("id", sandboxA.id);
     const sandboxStill = await a.client
       .from("portfolios")
       .select("id")
       .eq("id", sandboxA.id);
     check(
-      "Sandbox cannot be deleted, even by its owner",
-      (sandboxStill.data ?? []).length === 1,
+      "Sandbox can be deleted by its owner (0010)",
+      (sandboxStill.data ?? []).length === 0,
     );
 
-    // A portfolio that is not the default is ordinary user content and must be
-    // removable, or the "delete" button is a lie.
+    // Any other portfolio is ordinary user content and must be removable, or
+    // the "delete" button is a lie.
     const ownId = `manual-rls-${stamp}`;
     await a.client
       .from("portfolios")

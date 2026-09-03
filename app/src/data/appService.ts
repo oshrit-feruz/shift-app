@@ -158,7 +158,10 @@ function toHolding(position: ConnectedAccount['positions'][number]): Holding {
   const avgCost = position.avgCost ?? 0;
   // Shared with the connected-account screen so the two can never disagree
   // about the same position — and so the short-position sign fix lives once.
-  const plPct = positionReturnPct(position.openPnl, position.units, position.avgCost) ?? 0;
+  // Null, not 0. `pl` beside it is already null when the brokerage reported
+  // nothing to compute from, and a row that says "— (0%)" states a return it
+  // does not have. Holding.plPct is nullable so the two describe one fact.
+  const plPct = positionReturnPct(position.openPnl, position.units, position.avgCost);
   return {
     ticker: position.ticker,
     shares: units,
@@ -166,7 +169,17 @@ function toHolding(position: ConnectedAccount['positions'][number]): Holding {
     // null, not 0: Holding.value is nullable now, and a position the
     // brokerage did not price renders as "—" rather than as worthless.
     value: position.marketValue,
+    // The brokerage's own price and open P/L. Both nullable: a position it
+    // did not price has no price and no knowable return, and "—" is the only
+    // honest rendering of either.
+    price: position.price,
+    pl: position.openPnl,
     plPct,
+    // Today's move comes from the live quote, attached where these rows are
+    // merged with the user's own (lib/holdings.ts). The brokerage's snapshot
+    // has no day to speak of.
+    dayChange: null,
+    dayChangePct: null,
     // The brokerage's own cost basis where it reported one, and units × avg
     // cost where it did not — both fall back to 0 above, so this is 0 exactly
     // when there is nothing to state, matching the rest of this mapping.

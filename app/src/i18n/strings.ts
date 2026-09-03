@@ -393,6 +393,38 @@ export const STRINGS = {
     'Figures as filed with the SEC. Shown for reference — this is the newest filing on record, not a point-in-time view.',
     'נתונים כפי שהוגשו ל-SEC. מוצגים לעיון — זהו הדוח העדכני ביותר הרשום, ולא תמונת מצב לתאריך מסוים.',
   ),
+  // ── Financial statements (SEC EDGAR, via /api/financials) ─────────────
+  'stock.statements': p('Financial statements', 'דוחות כספיים'),
+  'stock.statementsNote': p(
+    'As filed with the SEC (10-K, 10-Q), in US dollars. Nothing is derived: a line the filing lacks shows "—".',
+    'כפי שהוגש ל-SEC (10-K, 10-Q), בדולרים. שום נתון אינו מחושב: שורה שחסרה בדוח מוצגת כ-"—".',
+  ),
+  'stock.annual': p('Annual', 'שנתי'),
+  'stock.quarterly': p('Quarterly', 'רבעוני'),
+  // Says what is missing — US-GAAP data — rather than "no SEC filings",
+  // which is false for a foreign private issuer: it files a 20-F, under
+  // IFRS, and EDGAR's company-facts simply carries no us-gaap block for it.
+  'stock.notSecListed': p(
+    'No US-GAAP statement data for this ticker. It may file under IFRS, or not file with the SEC at all.',
+    'אין נתוני דוחות לפי US-GAAP לסימבול הזה. ייתכן שהוא מדווח לפי IFRS, או שאינו מדווח ל-SEC כלל.',
+  ),
+  'stock.statementsEmpty': p('No filed periods on record for this view.', 'אין תקופות מדווחות לתצוגה הזו.'),
+  // Why the quarterly view skips every fourth quarter: it is not filed as one.
+  'stock.q4Note': p(
+    'Fourth quarters are reported inside the annual report, not filed as a separate quarter.',
+    'הרבעון הרביעי מדווח בתוך הדוח השנתי, ולא מוגש כרבעון נפרד.',
+  ),
+  'stock.filedAs': p('filed {date} · {form}', 'הוגש {date} · {form}'),
+  'fin.revenue': p('Revenue', 'הכנסות'),
+  'fin.grossProfit': p('Gross profit', 'רווח גולמי'),
+  'fin.operatingIncome': p('Operating income', 'רווח תפעולי'),
+  'fin.netIncome': p('Net income', 'רווח נקי'),
+  'fin.eps': p('EPS (diluted)', 'רווח למניה (מדולל)'),
+  'fin.operatingCashFlow': p('Operating cash flow', 'תזרים מפעילות שוטפת'),
+  'fin.assets': p('Total assets', 'סך הנכסים'),
+  'fin.liabilities': p('Total liabilities', 'סך ההתחייבויות'),
+  'fin.equity': p('Shareholders’ equity', 'הון עצמי'),
+  'fin.cash': p('Cash', 'מזומנים'),
   'stock.newsEmpty': p('No recent articles for this stock.', 'אין כתבות אחרונות על מניה זו.'),
   'stock.newsRead': p('Read the full article', 'לכתבה המלאה'),
   'stock.newsExcerptNote': p(
@@ -437,14 +469,14 @@ export const STRINGS = {
   'news.sentimentNegative': p('Negative', 'שלילי'),
   'news.sentimentNeutral': p('Neutral', 'ניטרלי'),
   'earn.truncated': p(
-    'Showing {shown} of {total} reports in the week ahead.',
-    'מוצגים {shown} מתוך {total} דוחות בשבוע הקרוב.',
+    'Showing {shown} of {total} reports in these two weeks.',
+    'מוצגים {shown} מתוך {total} דוחות בשבועיים האלה.',
   ),
   'earn.noneInShown': p(
-    'None of the reports shown match — but the week ahead is only partly loaded, so there may be others.',
-    'אף אחד מהדוחות המוצגים לא תואם — אבל השבוע הקרוב נטען רק חלקית, ייתכן שיש נוספים.',
+    'None of the reports shown match — but these two weeks are only partly loaded, so there may be others.',
+    'אף אחד מהדוחות המוצגים לא תואם — אבל השבועיים האלה נטענו רק חלקית, ייתכן שיש נוספים.',
   ),
-  'earn.weekEmpty': p('No companies report in the week ahead.', 'אין חברות שמדווחות בשבוע הקרוב.'),
+  'earn.weekEmpty': p('No companies report in these two weeks.', 'אין חברות שמדווחות בשבועיים האלה.'),
   // The market-wide feed lists only reports that have not happened yet, so a
   // reader who sees a company they know reported on Monday must not conclude
   // the app thinks it is still pending. Said plainly, once, above the week.
@@ -470,8 +502,8 @@ export const STRINGS = {
   // about agreement across the feature names.
   'demo.only': p('{feature} is only available in demo', '{feature} — רק בדמו'),
   'earn.scheduledOnly': p(
-    'The week ahead: reports still to come. Results already published appear on each stock’s own page.',
-    'השבוע הקרוב: דוחות שעוד צפויים. תוצאות שכבר פורסמו מופיעות בדף של כל מניה.',
+    'This week and the next: reports still to come. Days already past are empty here because the feed carries only what has not happened yet — published results appear on each stock’s own page.',
+    'השבוע הזה והבא: דוחות שעוד צפויים. ימים שכבר עברו ריקים כאן, כי הפיד מכיל רק את מה שטרם קרה — תוצאות שכבר פורסמו מופיעות בדף של כל מניה.',
   ),
   'stock.nextEarn': p('Next earnings', 'הדוח הבא'),
   // Reached by opening a company from the earnings calendar: the sample
@@ -540,17 +572,35 @@ export const STRINGS = {
   /** Says what the percentage is a percentage OF, so it cannot be read as a day change. */
   'pf.returnBasis': p('of {invested} invested', 'מתוך {invested} שהושקעו'),
   'pf.closed': p('Closed positions', 'פוזיציות שנסגרו'),
+  // On a holding row with negative shares: the position is a short, and the
+  // count shown is the size of it.
+  'pf.short': p('short', 'שורט'),
+  'pf.cover': p('Cover', 'לכסות'),
+  'pf.coverAria': p('Buy back the {ticker} short', 'לקנות חזרה את השורט ב-{ticker}'),
   'pf.soldOut': p('sold out', 'נמכרה במלואה'),
   // Used for any manual portfolio, not only Sandbox.
   'pf.manualDetail': p('No broker — you record the transactions', 'בלי ברוקר — העסקאות נרשמות ידנית'),
   'pf.manage': p('Manage', 'לנהל'),
   'pf.delete': p('Delete', 'למחוק'),
   'pf.deleted': p('{name} deleted', '{name} נמחק'),
-  'pf.link': p('Link', 'לחבר'),
-  'pf.concentration': p(
-    'Two thirds of this portfolio sits in semiconductors. Concentration amplifies good days and bad ones alike.',
-    'שני שלישים מהתיק הזה יושבים בשבבים. ריכוז מגדיל גם את הימים הטובים וגם את הרעים.',
+  // The confirmation before a portfolio goes. Says what goes with it — the
+  // recorded trades, counted — rather than a bare "are you sure". Two
+  // sentences because Hebrew inflects the noun.
+  'pf.deleteTitle': p('Delete {name}?', 'למחוק את {name}?'),
+  'pf.deleteWarnOne': p(
+    'This removes the portfolio and the 1 transaction recorded in it. It cannot be undone.',
+    'התיק יימחק יחד עם העסקה האחת שנרשמה בו. אי אפשר לבטל את זה.',
   ),
+  'pf.deleteWarnMany': p(
+    'This removes the portfolio and the {n} transactions recorded in it. It cannot be undone.',
+    'התיק יימחק יחד עם {n} העסקאות שנרשמו בו. אי אפשר לבטל את זה.',
+  ),
+  'pf.deleteSandboxNote': p(
+    'Sandbox is created once per account. You can always create a new portfolio, but not another Sandbox.',
+    'Sandbox נוצר פעם אחת לחשבון. תמיד אפשר ליצור תיק חדש, אבל לא Sandbox נוסף.',
+  ),
+  'pf.deleteConfirm': p('Delete portfolio', 'למחוק את התיק'),
+  'pf.link': p('Link', 'לחבר'),
   'pf.longTerm': p('Long-term savings', 'חיסכון ארוך טווח'),
   'pf.readOnly': p('Read-only', 'קריאה בלבד'),
   'pf.longTermEmpty': p(
@@ -571,6 +621,28 @@ export const STRINGS = {
   'pf.namePlaceholder': p('e.g. Dividend income', 'למשל: הכנסה מדיבידנדים'),
   'pf.syncedAgo': p('synced 12 min ago', 'סונכרן לפני 12 דק׳'),
   'pf.benchmark': p('- - S&P 500', '- - S&P 500'),
+  // The two readings of a holding's change, and of the whole portfolio's:
+  // today's move, or the return since purchase. One switch drives both the
+  // header line and every row, so the figures on screen always share a basis.
+  'pf.viewDay': p('Today', 'יומי'),
+  'pf.viewOpen': p('Since purchase', 'פתוח'),
+  'pf.sincePurchase': p('since purchase', 'מהקנייה'),
+  // Opens the transaction sheet pre-filled with a sell of every share held
+  // (or, on a short, a buy of every share owed). Nothing is recorded until
+  // the reader confirms it.
+  'pf.closePosition': p('Close', 'לסגור'),
+  'pf.closeAria': p('Close the {ticker} position', 'לסגור את הפוזיציה ב-{ticker}'),
+  'pf.holdingsEmpty': p('No positions yet', 'עדיין אין פוזיציות'),
+  // Which held legs the allocation ring leaves out, and why.
+  'pf.unpricedExcluded': p('Not in the ring (no price): {tickers}.', 'לא בטבעת (אין מחיר): {tickers}.'),
+  // The ring has one colour per holding and then runs out. The rest are
+  // gathered rather than dropped: a slice missing from a ring is invisible,
+  // and the percentages would quietly stop adding up to a hundred.
+  'pf.allocOther': p('Other', 'אחר'),
+  'pf.allocOtherNote': p(
+    'The smallest {n} holdings are grouped as "Other".',
+    '{n} ההחזקות הקטנות ביותר מקובצות כ"אחר".',
+  ),
 
   // ── A manual portfolio's value through time ───────────────────────────
   // Two lines, and the legend has to say which is a claim about the market
@@ -601,6 +673,14 @@ export const STRINGS = {
     'העסקה הראשונה שלך היא מ־{date}; הגרף מתחיל היכן שהיסטוריית המחירים היומית מגיעה.',
   ),
   'pf.valueNoneYet': p('The chart appears once a trade is recorded.', 'הגרף יופיע אחרי שתירשם עסקה.'),
+  // One session is a dot, not a line. Said out loud because the alternative
+  // was an SVG containing a single moveto — a chart area that renders
+  // completely blank while the figures beside it render fine, which reads as
+  // a broken screen rather than as a portfolio that is one day old.
+  'pf.valueOneSession': p(
+    'One closing price so far. The line starts once there is a second session to draw it to.',
+    'יש עד כה מחיר סגירה אחד. הקו יתחיל להיווצר כשתהיה סגירה שנייה.',
+  ),
   // The ledger is newer than the last published close — which is the ordinary
   // state during a trading day, not a problem, so it must not be worded as one.
   'pf.valueAheadOfClose': p(
@@ -795,6 +875,13 @@ export const STRINGS = {
   'news.analyst': p('Analyst', 'אנליסטים'),
   'news.viewTicker': p('View {ticker}', 'לצפייה ב-{ticker}'),
   'earn.allCompanies': p('All companies', 'כל החברות'),
+  // Shown on the calendar whenever showcase mode is filling it. Without it
+  // the illustrative rows are indistinguishable from reported results, which
+  // is the one thing this app's data contract does not allow.
+  'earn.showcase': p(
+    'Illustrative figures — showcase mode is on. Turn sample data off in More to read the live calendar.',
+    'נתונים להמחשה — מצב הדגמה דלוק. כדי לראות את היומן האמיתי, כבי נתוני דוגמה בלשונית עוד.',
+  ),
   'earn.highMove': p('High implied move', 'תנועה צפויה גבוהה'),
   'earn.epsEst': p('EPS est', 'צפי EPS'),
   'earn.implied': p('implied', 'תנועה משתמעת'),
@@ -804,7 +891,7 @@ export const STRINGS = {
   'earn.revEst': p('Rev est', 'צפי הכנסות'),
   'earn.mktCap': p('Mkt cap', 'שווי שוק'),
   'earn.lastSurprise': p('Last surprise', 'הפתעה אחרונה'),
-  'earn.weekOf': p('{n} companies report in the week ahead', '{n} חברות מדווחות בשבוע הקרוב'),
+  'earn.weekOf': p('{n} companies report in these two weeks', '{n} חברות מדווחות בשבועיים האלה'),
   'earn.noneMatch': p('No reports match this filter', 'אין דוחות שתואמים לסינון הזה'),
 
   // ── Compare ───────────────────────────────────────────────────────────
@@ -943,11 +1030,17 @@ export const STRINGS = {
     'Pick a date — a trade cannot be in the future.',
     'צריך לבחור תאריך — עסקה לא יכולה להיות בעתיד.',
   ),
-  // The number matters: "you cannot sell that many" leaves the reader
-  // guessing how many they can.
-  'tx.oversell': p(
-    'You hold {held} {ticker} in this portfolio — you cannot sell more than that.',
-    'יש לך {held} {ticker} בתיק הזה — אי אפשר למכור יותר מזה.',
+  // Not warnings: a sell beyond the holding is a short, and a buy against a
+  // short covers it. Said beside the button so the reader knows which kind
+  // of position they are about to record. Singular and plural separately —
+  // Hebrew inflects the noun.
+  'tx.opensShort': p(
+    'This sell opens a short of {n} {ticker} — shares sold that you do not hold, to be bought back later.',
+    'המכירה הזו פותחת שורט של {n} {ticker} — מניות שנמכרות בלי להחזיק בהן, לקנייה חזרה בהמשך.',
+  ),
+  'tx.coversShort': p(
+    'This buy covers {n} of your {ticker} short.',
+    'הקנייה הזו מכסה {n} מהשורט שלך ב-{ticker}.',
   ),
   'tx.none': p('No transactions yet', 'עדיין אין עסקאות'),
   'tx.transactions': p('Transactions', 'עסקאות'),
@@ -1114,16 +1207,16 @@ export const STRINGS = {
     'מקף פירושו שהברוקר לא דיווח על השדה הזה. שום נתון כאן אינו משוער או מושלם מעצמנו.',
   ),
   'live.noHistory': p(
-    "No performance history: this is a live read of the account's current state, and the brokerage reports no day change or priced history through this integration.",
-    'אין היסטוריית ביצועים: זו קריאה חיה של מצב החשבון כרגע, והברוקר אינו מדווח שינוי יומי או היסטוריה מתומחרת דרך החיבור הזה.',
+    "No performance history: this is a live read of the account's current state. Today's move comes from live quotes; the brokerage publishes no priced history through this connection.",
+    'אין היסטוריית ביצועים: זו קריאה חיה של מצב החשבון כרגע. השינוי היומי מגיע מציטוטים חיים; הברוקר אינו מפרסם היסטוריה מתומחרת דרך החיבור הזה.',
   ),
   'live.shortExcluded': p(
     'Short positions are left out of the ring: a negative holding has no share of a total. Not shown here: {tickers}.',
     'פוזיציות שורט אינן נכללות בטבעת: להחזקה שלילית אין נתח מתוך סך הכול. לא מוצגות כאן: {tickers}.',
   ),
   'live.noAllocation': p(
-    'The brokerage did not price these positions, so no allocation can be shown.',
-    'הברוקר לא תמחר את הפוזיציות, ולכן לא ניתן להציג פילוח.',
+    'None of the open positions has a price, so no allocation can be shown.',
+    'לאף פוזיציה פתוחה אין מחיר, ולכן לא ניתן להציג פילוח.',
   ),
   'live.freshRealtime': p('Read from the brokerage just now', 'נקרא מהברוקר ממש עכשיו'),
   'live.freshDaily': p("SnapTrade's daily snapshot", 'תמונת המצב היומית של SnapTrade'),

@@ -7,7 +7,7 @@ import { SegmentedControl } from '../components/SegmentedControl';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { useToast } from '../components/Toast';
-import { buildPositions, oversellsAtAnyPoint } from '../lib/positions';
+import { buildPositions } from '../lib/positions';
 import { useAppState, type ManualTransaction, type TransactionSide } from '../state/appState';
 import { ledgerWithout, validateTx, type TxProblem } from '../state/ledger';
 import { useLedger } from '../state/useLedgerSync';
@@ -26,13 +26,27 @@ import { useLedger } from '../state/useLedgerSync';
  * The alternative — delete the row and type it again — is what the app used
  * to require, and it loses everything about the trade to fix one digit of its
  * price.
+ *
+ * `preset` opens the form already filled for a NEW row — the "close this
+ * position" action on a holding hands over a sell of every share held, at the
+ * price the row was just valued at. Nothing is recorded until the reader
+ * confirms; a preset is a suggestion in editable fields, not a trade.
  */
+export interface TxPreset {
+  side: TransactionSide;
+  ticker: string;
+  shares: number;
+  /** Null when the position could not be priced; the field then opens empty. */
+  price: number | null;
+}
+
 export function TxSheet({
   open,
   onClose,
   pfId,
   pfName,
   editing = null,
+  preset = null,
 }: {
   open: boolean;
   onClose: () => void;
@@ -40,6 +54,8 @@ export function TxSheet({
   pfName: string;
   /** The transaction being corrected, or null to record a new one. */
   editing?: ManualTransaction | null;
+  /** Fields to open a new row with. Ignored while `editing` is set. */
+  preset?: TxPreset | null;
 }) {
   const { mode, language } = useTheme();
   const t = useT();
@@ -58,48 +74,40 @@ export function TxSheet({
   // still see them.
   useEffect(() => {
     if (!open) return;
-    setSide(editing?.side ?? 'buy');
-    setTicker(editing?.ticker ?? '');
-    setShares(editing ? String(editing.shares) : '');
-    setPrice(editing ? String(editing.price) : '');
+    const fill = editing ?? preset;
+    setSide(fill?.side ?? 'buy');
+    setTicker(fill?.ticker ?? '');
+    setShares(fill ? String(fill.shares) : '');
+    // A preset price is rounded to cents: a live quote can carry more
+    // decimals than anyone paid, and the field is what will be recorded.
+    setPrice(editing ? String(editing.price) : preset?.price != null ? preset.price.toFixed(2) : '');
     setDate(editing?.date ?? todayLocal());
     setTouched(false);
-    // `editing` belongs in the deps beside `open`: the sheet stays mounted, so
-    // opening it on a different row without this would show the previous
-    // row's numbers under the new row's title.
-  }, [open, editing]);
+    // `editing` and `preset` belong in the deps beside `open`: the sheet
+    // stays mounted, so opening it on a different row without this would
+    // show the previous row's numbers under the new row's title.
+  }, [open, editing, preset]);
 
   const today = todayLocal();
   const symbol = ticker.trim().toUpperCase();
-  // What this portfolio holds of this ticker right now, which is what makes
-  // the oversell refusal possible at entry rather than after the fact.
-  // The row being edited is excluded from the fold. Counting it would measure
-  // the holding against a version of itself that is being replaced — someone
-  // who sold their whole position and wants to fix its price would be told
-  // they cannot sell shares they no longer hold, by the very row that sold
-  // them.
+  // What this portfolio holds of this ticker right now — positive for a
+  // long, negative for a short — so the sheet can say what this trade does
+  // to it. The row being edited is excluded from the fold: counting it would
+  // measure the holding against a version of itself that is being replaced.
   const ledgerRows = ledgerWithout(s.manualTransactions[pfId] ?? [], editing?.id);
   const held = buildPositions(ledgerRows).find((p) => p.ticker === symbol)?.shares ?? 0;
 
   const draft = { side, ticker: symbol, shares, price, date };
-  const fieldProblems = validateTx(draft, held, today);
+  const problems = validateTx(draft, today);
   const sh = Number(shares) || 0;
   const px = Number(price.replace(/[^0-9.]/g, '')) || 0;
 
-  // The held-share total is the fold's LAST line, and a correction can leave
-  // that line right while breaking the history above it — moving a sale before
-  // the buy that covers it, or cutting an earlier buy from 55 shares to 10.
-  // So the draft is folded into the ledger it would actually produce and the
-  // whole history is asked, not just its end.
-  //
-  // Only once the fields themselves are sound: folding a draft with an empty
-  // ticker or a blank quantity would be measuring a row the user has not
-  // finished typing.
-  const candidate = [...ledgerRows, { id: 'draft', side, ticker: symbol, shares: sh, price: px, date }];
-  const problems =
-    fieldProblems.length === 0 && oversellsAtAnyPoint(candidate)
-      ? (['oversell'] as TxProblem[])
-      : fieldProblems;
+  // Not a refusal — a description. A sell of more than is held opens a
+  // short for the excess, and a buy against a short covers it; both are
+  // ordinary positions to the fold, and the reader is told which they are
+  // recording before they confirm it.
+  const opensShort = side === 'sell' && sh > Math.max(held, 0) ? sh - Math.max(held, 0) : 0;
+  const covers = side === 'buy' && held < 0 ? Math.min(sh, -held) : 0;
 
   const submit = () => {
     setTouched(true);
@@ -174,7 +182,17 @@ export function TxSheet({
           typed yet. */}
       {touched && problems.length > 0 && (
         <p style={{ fontSize: 'var(--text-body)', color: 'var(--down)', margin: 0, lineHeight: 1.45 }}>
-          {t(problemKey(problems[0]), { held: String(held), ticker: symbol })}
+          {t(problemKey(problems[0]))}
+        </p>
+      )}
+      {opensShort > 0 && (
+        <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0, lineHeight: 1.45 }}>
+          {t('tx.opensShort', { n: opensShort, ticker: symbol })}
+        </p>
+      )}
+      {covers > 0 && (
+        <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0, lineHeight: 1.45 }}>
+          {t('tx.coversShort', { n: covers, ticker: symbol })}
         </p>
       )}
 
@@ -222,9 +240,7 @@ export function todayLocal(now: Date = new Date()): string {
 }
 
 /** Which complaint to show. One at a time, in the order the fields appear. */
-function problemKey(
-  problem: TxProblem,
-): 'tx.badTicker' | 'tx.badShares' | 'tx.badPrice' | 'tx.badDate' | 'tx.oversell' {
+function problemKey(problem: TxProblem): 'tx.badTicker' | 'tx.badShares' | 'tx.badPrice' | 'tx.badDate' {
   switch (problem) {
     case 'ticker':
       return 'tx.badTicker';
@@ -232,10 +248,8 @@ function problemKey(
       return 'tx.badShares';
     case 'price':
       return 'tx.badPrice';
-    case 'date':
-      return 'tx.badDate';
     default:
-      return 'tx.oversell';
+      return 'tx.badDate';
   }
 }
 

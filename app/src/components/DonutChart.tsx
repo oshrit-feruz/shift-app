@@ -1,6 +1,19 @@
 import { Num } from './Num';
 import type { AllocationSlice } from '../data/types';
 
+/**
+ * A slice's share, to at most three decimals.
+ *
+ * The share is a ratio of two live figures, so it arrives with fifteen
+ * digits after the point ("73.1838235441772%") — none of which a reader can
+ * use. Formatted through Intl rather than `toFixed` so a whole number stays
+ * a whole number ("28%", not "28.000%") and only a fraction shows its
+ * fraction.
+ */
+export function slicePct(pct: number): string {
+  return `${pct.toLocaleString('en-US', { maximumFractionDigits: 3 })}%`;
+}
+
 /** Portfolio allocation donut + legend. */
 export function DonutChart({ slices }: { slices: AllocationSlice[] }) {
   const C = 2 * Math.PI * 52;
@@ -37,7 +50,7 @@ export function DonutChart({ slices }: { slices: AllocationSlice[] }) {
           >
             <span style={{ width: 8, height: 8, borderRadius: 2, background: a.colorVar, flex: 'none' }} />
             <span style={{ flex: 1 }}>{a.label}</span>
-            <Num style={{ color: 'var(--muted)' }}>{a.pct}%</Num>
+            <Num style={{ color: 'var(--muted)' }}>{slicePct(a.pct)}</Num>
           </div>
         ))}
       </div>

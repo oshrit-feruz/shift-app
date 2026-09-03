@@ -13,6 +13,7 @@ import { useDispatch } from '../../state/appState';
 import { fetchWeekEarnings } from '../../data/earnings';
 import { isoDate, pct, signalColor } from '../../lib/format';
 import { ROW_BUTTON_STYLE } from '../../lib/rowButton';
+import { surpriseLabel } from '../stock/ReportsTab';
 import type { EarningsRow } from '../../data/types';
 
 /**
@@ -167,7 +168,19 @@ export function CalendarTab({ watchlist }: { watchlist: string[] }) {
                 reported results, so this sentence would be false — and a
                 caveat that does not match what is on screen teaches a reader
                 to stop reading the caveats. */}
-            {!demo && (
+            {demo ? (
+              /* The illustrative rows carry reported results, which look
+                 exactly like real ones. Saying so here is not optional: an
+                 invented figure the reader cannot identify is precisely what
+                 this app's data contract forbids, and this screen used to
+                 render one caveat for the live path and none at all for the
+                 demo. */
+              <Card padding={11} gap={0}>
+                <span className="text-muted" style={{ fontSize: 'var(--text-caption)', lineHeight: 1.5 }}>
+                  {t('earn.showcase')}
+                </span>
+              </Card>
+            ) : (
               <span className="text-muted" style={{ fontSize: 'var(--text-caption)', padding: '0 2px' }}>
                 {t('earn.scheduledOnly')}
               </span>
@@ -262,7 +275,7 @@ function EarningsRowView({
   onOpen,
 }: {
   row: EarningsRow;
-  t: (k: 'stock.epsEst' | 'stock.upcoming') => string;
+  t: (k: 'stock.epsEst' | 'stock.upcoming' | 'stock.beat' | 'stock.miss' | 'stock.inline') => string;
   onOpen: () => void;
 }) {
   // No `actual` means the quarter has not been reported yet — the normal
@@ -300,9 +313,29 @@ function EarningsRowView({
           published. Missing surprise renders as the actual EPS, or an em dash
           when even that is absent. */}
       {reported ? (
-        <Num size={16} style={{ color: row.surprisePct === null ? undefined : signalColor(row.surprisePct) }}>
-          {row.surprisePct === null ? row.actual!.toFixed(2) : pct(row.surprisePct, 1)}
-        </Num>
+        <span
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-end',
+            gap: 1,
+            textAlign: 'end',
+          }}
+        >
+          <Num
+            size={16}
+            style={{ color: row.surprisePct === null ? undefined : signalColor(row.surprisePct) }}
+          >
+            {row.surprisePct === null ? row.actual!.toFixed(2) : pct(row.surprisePct, 1)}
+          </Num>
+          {/* Only when there is a surprise to name. A bare actual EPS is not
+              above or below anything the app has read. */}
+          {row.surprisePct !== null && (
+            <span className="text-muted" style={{ fontSize: 'var(--text-micro)' }}>
+              {surpriseLabel(row.surprisePct, t)}
+            </span>
+          )}
+        </span>
       ) : (
         <Tag variant="outline" fontSize={14.5}>
           {t('stock.upcoming')}

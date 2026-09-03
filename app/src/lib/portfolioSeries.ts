@@ -188,7 +188,9 @@ export function buildValueSeries(
 
   const unpriced = new Set<string>();
   const points: ValuePoint[] = dates.map((date) => {
-    const held = buildPositions(transactions.filter((tx) => tx.date <= date)).filter((p) => p.shares > 0);
+    // Open in either direction: a short is valued at its (negative) worth,
+    // and its negative cost basis keeps value − cost the open P/L.
+    const held = buildPositions(transactions.filter((tx) => tx.date <= date)).filter((p) => p.shares !== 0);
 
     // Nothing held is worth nothing — a real figure, not a missing one. The
     // stretch between selling out and buying back in is genuinely a flat zero,

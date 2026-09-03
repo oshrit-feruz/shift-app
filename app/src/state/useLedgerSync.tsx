@@ -278,8 +278,19 @@ function useLedgerSync(): LedgerApi {
   const importLegacy = useCallback(() => {
     if (!userId || importedFor.current === userId) return;
     importedFor.current = userId;
-    const sandbox = serverRef.current.portfolios.find((p) => p.isDefault);
-    if (!sandbox) return; // nothing to re-home orphans onto yet; next read.
+    // Orphans are re-homed onto the Sandbox, or — now that a Sandbox can be
+    // deleted — onto whichever portfolio the user still has. With none at
+    // all there is nowhere to put them; the next read tries again.
+    const portfolios = serverRef.current.portfolios;
+    const sandbox = portfolios.find((p) => p.isDefault) ?? portfolios[0];
+    if (!sandbox) {
+      // Release the marker set above, or "the next read tries again" is not
+      // true: the guard at the top would refuse every later attempt in this
+      // session, and a reader who deleted their Sandbox and then made a new
+      // portfolio would never get their legacy ledger back.
+      importedFor.current = null;
+      return;
+    }
     let legacy;
     try {
       legacy = readLegacyLedger(JSON.parse(localStorage.getItem('shift.state') ?? '{}'));
@@ -298,34 +309,6 @@ function useLedgerSync(): LedgerApi {
     publish();
     void flush();
   }, [userId, saveOutbox, publish, flush]);
-
-  /**
-   * Make sure the user has a Sandbox.
-   *
-   * The signup trigger in 0005_ledger.sql covers new accounts and the
-   * migration backfills existing ones, but that file is applied by hand in the
-   * SQL editor while the client ships on the Vercel build — so there is a
-   * window in which this code is live and the trigger is not. Losing the race
-   * gives 23505, which classifyError reads as success, so this and the trigger
-   * can both run without coordinating.
-   */
-  const ensureSandbox = useCallback(() => {
-    if (!userId) return;
-    if (serverRef.current.portfolios.some((p) => p.isDefault)) return;
-    if (outboxRef.current.some((op) => op.kind === 'insertPortfolio' && op.row.isDefault)) return;
-    enqueue({
-      kind: 'insertPortfolio',
-      userId,
-      // Matches the id the SQL trigger generates, so the two cannot produce
-      // two Sandboxes that merely look alike — one loses on the primary key.
-      row: {
-        id: `pf-sandbox-${userId}`,
-        name: 'Sandbox',
-        isDefault: true,
-        createdAt: new Date().toISOString(),
-      },
-    });
-  }, [userId, enqueue]);
 
   // Load the queue for this identity, then read. Both keyed on userId, so a
   // sign-out or an account switch drops the previous user's rows from view
@@ -349,11 +332,6 @@ function useLedgerSync(): LedgerApi {
     publish();
     void read();
   }, [userId, dispatch, publish, read]);
-
-  // Once the read has landed, make sure there is somewhere to record a trade.
-  useEffect(() => {
-    if (state.status === 'ok') ensureSandbox();
-  }, [state.status, ensureSandbox]);
 
   // Foreground and reconnection, same two triggers as useRemoteSync — a device
   // left open all morning is looking at a stale ledger until one of these

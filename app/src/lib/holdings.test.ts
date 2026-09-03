@@ -1,13 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  dayMove,
   fetchPortfolioHoldings,
   fetchYourPositions,
   manualPortfolioSummaries,
   mergeManualTransactions,
   portfolioList,
+  summarizeHoldings,
   sumTotals,
 } from './holdings';
-import type { PortfolioSummary, Quote } from '../data/types';
+import type { Holding, PortfolioSummary, Quote } from '../data/types';
 import { withDemoData } from '../data/demoFlagsStub';
 import { demoService } from '../data/demoAdapter';
 import { appService } from '../data/appService';
@@ -19,6 +21,26 @@ afterEach(() => {
 });
 
 const manualPf: ManualPortfolio = { id: 'mine', name: 'My ideas' };
+
+/**
+ * With sample data off the accounts come from /api/snaptrade, so a test in
+ * that state has to say what SnapTrade answers. This is the honest empty
+ * answer: nothing linked. The quote route is answered empty too, so a logged
+ * position is unpriced rather than the read failing.
+ */
+function withNoConnectedAccount(): void {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const body = url.startsWith('/api/snaptrade') ? { accounts: [], connections: [] } : { quotes: {} };
+      return new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }),
+  );
+}
 const buy = (ticker: string, shares: number, price: number): ManualTransaction => ({
   id: `tx-${ticker}`,
   side: 'buy',
@@ -70,14 +92,16 @@ describe('fetchYourPositions respects the sample-data switch', () => {
     expect(res.data.length).toBeGreaterThan(0);
   });
 
-  it('reports none when sample data is off', async () => {
+  it('reports none when sample data is off and no account is connected', async () => {
     withDemoData(false);
+    withNoConnectedAccount();
     const res = await fetchYourPositions('NVDA', {}, []);
     expect(res).toEqual({ status: 'ok', data: [] });
   });
 
   it('still reports the user’s own logged position with sample data off', async () => {
     withDemoData(false);
+    withNoConnectedAccount();
     const res = await fetchYourPositions('NVDA', { mine: [buy('NVDA', 3, 100)] }, [manualPf]);
     expect(res.status).toBe('ok');
     if (res.status !== 'ok') return;
@@ -90,6 +114,7 @@ describe('fetchYourPositions respects the sample-data switch', () => {
 
   it('does not invent a position in a ticker the user never logged', async () => {
     withDemoData(false);
+    withNoConnectedAccount();
     const res = await fetchYourPositions('AMD', { mine: [buy('NVDA', 3, 100)] }, [manualPf]);
     expect(res).toEqual({ status: 'ok', data: [] });
   });
@@ -118,7 +143,18 @@ describe('fetchYourPositions respects the sample-data switch', () => {
     const holdingsSpy = vi.spyOn(demoService, 'holdings').mockResolvedValue({
       status: 'ok',
       data: [
-        { ticker: 'ALB', shares: -77, avgCost: 129.53, value: -10454.29, plPct: -4.82, costBasis: -9973.81 },
+        {
+          ticker: 'ALB',
+          shares: -77,
+          avgCost: 129.53,
+          price: 135.77,
+          value: -10454.29,
+          pl: -480.67,
+          plPct: -4.82,
+          dayChange: null,
+          dayChangePct: null,
+          costBasis: -9973.81,
+        },
       ],
     });
     withDemoData(true);
@@ -163,7 +199,12 @@ describe('fetchPortfolioHoldings picks its source by switch, then by connection'
       avgCost: 140,
       price: 150,
       value: 1800,
+      pl: 120,
       plPct: 7.1,
+      // The brokerage snapshot has no day of its own; the live quote supplies
+      // it where these rows are merged.
+      dayChange: null,
+      dayChangePct: null,
       costBasis: 1680,
     },
   ];
@@ -301,10 +342,41 @@ describe('mergeManualTransactions', () => {
     expect(row.plPct).toBeNull();
   });
 
+  const service: Holding = {
+    ticker: 'AAPL',
+    shares: 5,
+    avgCost: 100,
+    price: 180,
+    value: 900,
+    pl: 400,
+    plPct: 80,
+    dayChange: null,
+    dayChangePct: null,
+    costBasis: 500,
+  };
+
   it('leaves a service-reported holding the user never logged untouched', () => {
-    const service = { ticker: 'AAPL', shares: 5, avgCost: 100, value: 900, plPct: -10, costBasis: 500 };
     const rows = mergeManualTransactions([service], [buy('NVDA', 1, 10)], { NVDA: quote(10) });
     expect(rows.find((r) => r.ticker === 'AAPL')).toEqual(service);
+  });
+
+  it('attaches today’s move to a service-reported holding from the live quote', () => {
+    // The brokerage values the row; the quote says what it did today. The
+    // valuation is left alone — only the one figure neither source carried.
+    const rows = mergeManualTransactions([service], [], {
+      AAPL: { ...quote(182), change: 2, changePct: 1.1 },
+    });
+    const aapl = rows.find((r) => r.ticker === 'AAPL')!;
+    expect(aapl.value).toBe(900);
+    expect(aapl.dayChange).toBe(10);
+    // Against the previous close (5 × 182), not the brokerage value.
+    expect(aapl.dayChangePct).toBeCloseTo((10 / 910) * 100, 6);
+  });
+
+  it('carries the return in currency beside the percentage, on the same terms', () => {
+    const [row] = mergeManualTransactions([], [buy('NVDA', 10, 100)], { NVDA: quote(150) });
+    expect(row.pl).toBe(500);
+    expect(row.price).toBe(150);
   });
 
   it('keeps a sold-out position, with no shares left', () => {
@@ -315,5 +387,121 @@ describe('mergeManualTransactions', () => {
     );
     expect(rows).toHaveLength(1);
     expect(rows[0].shares).toBe(0);
+  });
+});
+
+describe('dayMove', () => {
+  const q: Quote = {
+    price: 102,
+    change: 2,
+    changePct: 2,
+    prevClose: 100,
+    dayHigh: 103,
+    dayLow: 99,
+    open: 100,
+    asOf: '2026-09-03T14:00:00.000Z',
+  };
+
+  it('is shares × change, as a percent of the previous close’s worth', () => {
+    expect(dayMove(10, q)).toEqual({ dayChange: 20, dayChangePct: 2 });
+  });
+
+  it('keeps the sign right for a short: a rising price is a loss', () => {
+    // −10 × +2 = −20 on a base of |−10 × 100| = 1000. Dividing by the signed
+    // base would flip it back to a gain.
+    expect(dayMove(-10, q)).toEqual({ dayChange: -20, dayChangePct: -2 });
+  });
+
+  it('is unknown, not flat, without a quote or without shares', () => {
+    expect(dayMove(10, undefined)).toEqual({ dayChange: null, dayChangePct: null });
+    expect(dayMove(0, q)).toEqual({ dayChange: null, dayChangePct: null });
+  });
+});
+
+describe('summarizeHoldings', () => {
+  const row = (over: Partial<Holding>): Holding => ({
+    ticker: 'X',
+    shares: 10,
+    avgCost: 100,
+    price: 110,
+    value: 1100,
+    pl: 100,
+    plPct: 10,
+    dayChange: 10,
+    dayChangePct: 1,
+    costBasis: 1000,
+    ...over,
+  });
+
+  it('adds up the open positions', () => {
+    const s = summarizeHoldings([
+      row({ ticker: 'A' }),
+      row({ ticker: 'B', value: 2200, pl: 200, plPct: 20, dayChange: 22, dayChangePct: 1 }),
+    ]);
+    expect(s.value).toBe(3300);
+    expect(s.cost).toBe(2000);
+    expect(s.pl).toBe(300);
+    expect(s.plPct).toBeCloseTo(15, 6);
+    expect(s.dayChange).toBe(32);
+    // Yesterday's worth leg by leg: 10/0.01 + 22/0.01 = 3200.
+    expect(s.dayChangePct).toBeCloseTo(1, 6);
+  });
+
+  it('is unknown the moment one open leg is unpriced — never a smaller total', () => {
+    const s = summarizeHoldings([
+      row({ ticker: 'A' }),
+      row({ ticker: 'B', value: null, pl: null, plPct: null, dayChange: null, dayChangePct: null }),
+    ]);
+    expect(s.value).toBeNull();
+    expect(s.pl).toBeNull();
+    expect(s.dayChange).toBeNull();
+    expect(s.dayChangePct).toBeNull();
+    // What was paid is never unknown.
+    expect(s.cost).toBe(2000);
+  });
+
+  it('counts what a closed position booked, and nothing else from it', () => {
+    const closed = row({
+      ticker: 'C',
+      shares: 0,
+      value: 0,
+      pl: 50,
+      plPct: 5,
+      dayChange: null,
+      dayChangePct: null,
+      costBasis: 0,
+    });
+    const s = summarizeHoldings([row({ ticker: 'A' }), closed]);
+    expect(s.pl).toBe(150);
+    expect(s.value).toBe(1100);
+    expect(s.dayChange).toBe(10);
+  });
+
+  // A short's cost basis is negative — money received — so a signed sum nets
+  // it against the longs. That left a short-only portfolio with a negative
+  // denominator (plPct null, though the return is known) and a mixed one with
+  // a base smaller than what was committed, overstating the percentage.
+  it('measures the return against an absolute cost base, so a short-only portfolio has one', () => {
+    const s = summarizeHoldings([
+      row({ ticker: 'ALB', shares: -10, avgCost: 100, price: 90, value: -900, costBasis: -1000, pl: 100 }),
+    ]);
+    expect(s.cost).toBe(1000);
+    expect(s.plPct).toBeCloseTo(10, 6);
+  });
+
+  it('does not let a short cancel a long out of the denominator', () => {
+    const s = summarizeHoldings([
+      row({ ticker: 'A', costBasis: 1000, pl: 100 }),
+      row({ ticker: 'B', shares: -10, avgCost: 100, price: 90, value: -900, costBasis: -1000, pl: 100 }),
+    ]);
+    // Signed, the base would have been 0 and the percentage unreportable on
+    // 2,000 of committed money.
+    expect(s.cost).toBe(2000);
+    expect(s.plPct).toBeCloseTo(10, 6);
+  });
+
+  it('has no percentages over nothing', () => {
+    const s = summarizeHoldings([]);
+    expect(s).toEqual({ value: 0, cost: 0, pl: 0, plPct: null, dayChange: 0, dayChangePct: null });
   });
 });

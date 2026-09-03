@@ -81,24 +81,31 @@ export function isoDay(d: Date): string {
 }
 
 /**
- * The window the calendar asks for: today plus the next six days, in UTC.
+ * The window the calendar asks for: this week's Monday plus the next
+ * thirteen days, in UTC — the current week and the one after it.
  *
- * This replaced a Monday-to-Sunday anchor, and the provider is the reason.
- * The market-wide feed lists only reports that have NOT happened yet, so a
- * calendar week spent most of itself in the past: by Friday, Monday through
- * Thursday were structurally empty and the screen showed two usable days.
- * A window that starts today is every day the feed can actually fill.
+ * Anchoring on Monday rather than on today is what makes the strip a
+ * calendar rather than a rolling list: the same report sits under the same
+ * date all week, instead of sliding a day leftwards every morning.
  *
- * Seven days keeps "the week ahead" as the unit — long enough to plan
- * around, short enough that the day strip stays readable on a phone.
+ * KNOWN CONSEQUENCE, and it is the provider's, not a bug here. The
+ * market-wide feed lists only reports that have NOT happened yet, so the
+ * days between Monday and today come back empty on the live path: by Friday
+ * the first four days of the window have nothing in them. The day strip is
+ * built from the days that actually carry rows, so those days simply do not
+ * appear — the screen is shorter, never wrong. Showcase mode fills them,
+ * because filled days are exactly the difference a paid plan buys.
  */
-export const WINDOW_DAYS = 7;
+export const WINDOW_DAYS = 14;
 
 export function weekAheadWindow(now: Date = new Date()): { from: string; to: string } {
   const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  // getUTCDay() is 0 on Sunday, so shift by 6 to make Monday the week's first
+  // day rather than its last.
+  const monday = new Date(today.getTime() - ((today.getUTCDay() + 6) % 7) * 86_400_000);
   return {
-    from: isoDay(today),
-    to: isoDay(new Date(today.getTime() + (WINDOW_DAYS - 1) * 86_400_000)),
+    from: isoDay(monday),
+    to: isoDay(new Date(monday.getTime() + (WINDOW_DAYS - 1) * 86_400_000)),
   };
 }
 

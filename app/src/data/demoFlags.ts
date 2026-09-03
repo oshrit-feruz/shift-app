@@ -39,6 +39,11 @@ const memory = new Map<DemoFlag, boolean>();
  *
  * `unavailable` starts off: it is a QA switch for rendering failure states on
  * purpose, which is not a state to put a reader in without them asking.
+ *
+ * There used to be a third flag, `liveAccount`, that pointed the app at the
+ * one real brokerage account while sample data stayed on. It is gone: with
+ * sample data OFF the accounts are the real ones (data/appService.ts), so one
+ * switch answers "is this money real" instead of two.
  */
 const DEFAULTS: Record<DemoFlag, boolean> = {
   unavailable: false,

@@ -244,6 +244,53 @@ export interface Fundamentals {
 }
 
 /**
+ * One filed period of a company's statements, from data/financials.ts (SEC
+ * EDGAR, via /api/financials).
+ *
+ * Every figure is one the company filed in the 10-K or 10-Q named by `form`
+ * and `filed`, and every null is a line that filing lacks — a bank has no
+ * gross profit, a company with a loss may tag no diluted EPS. Nothing is
+ * derived: a fourth quarter is not the year less three quarters, and gross
+ * profit is not revenue less cost. Money is in whole US dollars; `eps` is
+ * per share.
+ */
+export interface FinancialStatementRow {
+  /** Period start, raw YYYY-MM-DD; null for the balance-sheet-only case. */
+  periodStart: string | null;
+  periodEnd: string;
+  /** The filer's own fiscal year and period labels ("2026", "Q3"), when tagged. */
+  fy: number | null;
+  fp: string | null;
+  form: string;
+  filed: string;
+  revenue: number | null;
+  grossProfit: number | null;
+  operatingIncome: number | null;
+  netIncome: number | null;
+  eps: number | null;
+  operatingCashFlow: number | null;
+  assets: number | null;
+  liabilities: number | null;
+  equity: number | null;
+  cash: number | null;
+}
+
+/**
+ * A company's filed statements. `listed` is false for a ticker the SEC has
+ * no US-GAAP filer for — a non-US listing, an IFRS filer, a fund — which is
+ * an answer about the symbol and renders as one, never as a failure.
+ */
+export interface Financials {
+  ticker: string;
+  listed: boolean;
+  entity: string | null;
+  /** Newest first. */
+  annual: FinancialStatementRow[];
+  /** Newest first. Fourth quarters are not filed as quarters; see the note in the UI. */
+  quarterly: FinancialStatementRow[];
+}
+
+/**
  * One real headline from the /api/news Vercel function.
  *
  * `summary` is a 1-2 sentence excerpt, never the full article body — the
@@ -303,14 +350,37 @@ export interface Holding {
   shares: number;
   avgCost: number;
   /**
+   * The price the position is valued at, or `null` when there is none. For a
+   * connected account it is the brokerage's own price; for the user's own
+   * ledger it is the live quote. Carried so a "close this position" action
+   * can offer the price the row was just valued at rather than a blank.
+   */
+  price: number | null;
+  /**
    * What the position is worth now, or `null` when it cannot be priced — the
    * quote snapshot was unavailable, the ticker is outside the ranking, or it
    * is ranked with no price. Never 0 for any of those: a reader believes a
    * number and reads an em dash as the unknown it is.
    */
   value: number | null;
-  /** Total return, or `null` on the same three unpriced cases. */
+  /**
+   * Return since purchase in currency, and the same as a percentage. Both are
+   * `null` on the same unpriced cases as `value`. They are one fact in two
+   * units, never computed from different bases: a manual position's pair
+   * carries what selling already booked and what dividends paid, and a
+   * brokerage position's pair is its open P&L — but within one row, the
+   * money and the percent always describe the same thing.
+   */
+  pl: number | null;
   plPct: number | null;
+  /**
+   * Today's move on this position, in currency and as a percent of what it
+   * was worth at the previous close — `shares × quote.change`, from the live
+   * quote. `null` when there is no quote for the ticker. Never taken from a
+   * brokerage snapshot, which carries no day change at all.
+   */
+  dayChange: number | null;
+  dayChangePct: number | null;
   /**
    * What the shares still held cost: `shares * avgCost`.
    *

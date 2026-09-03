@@ -19,35 +19,38 @@ import type { ManualTransaction } from './transaction';
  */
 export interface Position {
   ticker: string;
-  /** Shares still held. Zero for a position that has been fully sold. */
+  /**
+   * Shares held. Positive for a long, NEGATIVE for a short, zero for a
+   * position that has been closed. A short is a real position — shares sold
+   * that were not held, to be bought back later — and it reads the same way
+   * a brokerage reports one.
+   */
   shares: number;
   /**
-   * Average cost of the shares still held. A sale does not move it — that is
-   * what "average cost" means — so this stays the price the remaining shares
-   * were actually bought at.
+   * Average cost of the shares still held. For a long, what they were bought
+   * at; for a short, what they were sold at. A trade that reduces the
+   * position does not move it — that is what "average" means — so this stays
+   * the price the remaining shares were actually opened at.
    */
   avgCost: number;
-  /** What the shares still held cost: `shares * avgCost`. */
+  /**
+   * What the open position cost: `shares * avgCost`. Negative for a short,
+   * which is money received rather than paid, and which is what makes
+   * `value - costBasis` the open P/L in both directions.
+   */
   costBasis: number;
   /**
-   * What the shares that have since been sold originally cost. Kept because
-   * total return is a percentage of everything ever invested, not only of what
-   * is still open — a position half sold at a profit would otherwise report a
-   * return against half its true cost.
+   * The cost of everything that has since been closed — shares sold out of a
+   * long, or bought back into a short — at the price it was opened at. Kept
+   * because total return is a percentage of everything ever put at risk, not
+   * only of what is still open: a position half closed at a profit would
+   * otherwise report a return against half its true basis.
    */
   soldCost: number;
-  /** Profit or loss already booked by selling, in currency. */
+  /** Profit or loss already booked by closing, in currency. */
   realised: number;
   /** Dividends received on this ticker, in currency. */
   dividends: number;
-  /**
-   * Shares a sell asked for beyond what was held. TxSheet refuses an oversell
-   * at entry, so this only ever comes from rows logged before that check
-   * existed. Recorded rather than clamped away: a log that says 10 sold from a
-   * holding of 4 is a fact about the log, and silently rounding it to 4 hides
-   * the very error the reader needs to see to fix it.
-   */
-  oversold: number;
 }
 
 /**
@@ -62,10 +65,16 @@ export interface ValuedPosition extends Position {
   price: number | null;
   value: number | null;
   /**
-   * Total return on this position as a percentage of what was invested —
-   * unrealised, realised and dividends together. `null` when unpriced, and
-   * also when nothing was ever invested (a dividend logged against no
-   * purchase has no denominator to be a percentage of).
+   * Total return on this position in currency — what the held shares are
+   * worth now, plus what selling already booked, plus dividends, less what
+   * the held shares cost. `null` when unpriced.
+   */
+  pl: number | null;
+  /**
+   * The same return as a percentage of what was invested — unrealised,
+   * realised and dividends together. `null` when unpriced, and also when
+   * nothing was ever invested (a dividend logged against no purchase has no
+   * denominator to be a percentage of).
    */
   plPct: number | null;
 }
@@ -74,7 +83,7 @@ export interface ValuedPosition extends Position {
 export interface PortfolioValuation {
   positions: ValuedPosition[];
   /**
-   * The portfolio's market value, or `null` if any held position could not be
+   * The portfolio's net market value — shorts count negative — or `null` if any open position could not be
    * priced. A total that quietly omits a leg is not a smaller total, it is a
    * wrong one — and wrong in the flattering direction whenever the missing leg
    * is the one that is up.
@@ -82,7 +91,7 @@ export interface PortfolioValuation {
   total: number | null;
   /** How many held positions carry a price. */
   priced: number;
-  /** How many positions are held at all (shares > 0). */
+  /** How many positions are open at all (shares ≠ 0, long or short). */
   held: number;
   /** Held tickers with no price, in list order, so the UI can name them. */
   unpriced: string[];
@@ -119,8 +128,14 @@ export interface PortfolioValuation {
  * relative order (`Array.prototype.sort` is stable), which is the closest
  * thing to an entry order that a bare date gives us.
  *
- * Fully-sold positions are kept, with `shares === 0` and their realised P/L.
- * A position disappearing the moment it is sold looks like data loss, and
+ * A sell of more than is held opens a SHORT for the excess, at the sale
+ * price; a buy against a short covers it first, booking the difference, and
+ * any excess opens a long. That is how a brokerage records the same trades,
+ * and it is what lets the Sandbox hold a position "in minus" — the old fold
+ * clamped such a sell to the shares held and recorded the rest as an error.
+ *
+ * Closed positions are kept, with `shares === 0` and their realised P/L. A
+ * position disappearing the moment it is closed looks like data loss, and
  * takes the record of what the trade actually earned with it.
  */
 export function buildPositions(transactions: ManualTransaction[]): Position[] {
@@ -131,27 +146,8 @@ export function buildPositions(transactions: ManualTransaction[]): Position[] {
     const ticker = tx.ticker;
     let pos = byTicker.get(ticker);
     if (!pos) {
-      pos = {
-        ticker,
-        shares: 0,
-        avgCost: 0,
-        costBasis: 0,
-        soldCost: 0,
-        realised: 0,
-        dividends: 0,
-        oversold: 0,
-      };
+      pos = { ticker, shares: 0, avgCost: 0, costBasis: 0, soldCost: 0, realised: 0, dividends: 0 };
       byTicker.set(ticker, pos);
-    }
-
-    if (tx.side === 'buy') {
-      const shares = pos.shares + tx.shares;
-      pos.costBasis += tx.shares * tx.price;
-      pos.shares = shares;
-      // Guard the divide: a zero-share buy is a nonsense row, and must not
-      // turn the whole position's average cost into NaN.
-      pos.avgCost = shares > 0 ? pos.costBasis / shares : 0;
-      continue;
     }
 
     if (tx.side === 'div') {
@@ -161,18 +157,37 @@ export function buildPositions(transactions: ManualTransaction[]): Position[] {
       continue;
     }
 
-    // sell
-    const sold = Math.min(tx.shares, pos.shares);
-    pos.oversold += tx.shares - sold;
-    // Realised P/L is booked against what those shares cost, not against
-    // whatever the average happens to be afterwards.
-    pos.realised += sold * (tx.price - pos.avgCost);
-    // Cost basis comes down at cost, and that cost moves to `soldCost`
-    // rather than being forgotten. avgCost is deliberately left alone.
-    pos.soldCost += sold * pos.avgCost;
-    pos.costBasis -= sold * pos.avgCost;
-    pos.shares -= sold;
-    if (pos.shares === 0) pos.costBasis = 0;
+    // Both sides are the same two steps: close whatever of the OPPOSITE
+    // position is there, then open or add to a position on this side with
+    // what is left. `direction` is +1 for a buy and −1 for a sell, so the
+    // arithmetic below is written once for longs and shorts alike.
+    const direction = tx.side === 'buy' ? 1 : -1;
+    let remaining = tx.shares;
+
+    // Step one: close. Runs when the position is on the other side of this
+    // trade — a sell against a long, or a buy against a short.
+    if (pos.shares !== 0 && Math.sign(pos.shares) !== direction) {
+      const closed = Math.min(remaining, Math.abs(pos.shares));
+      // Booked against what those shares were opened at, not against
+      // whatever the average happens to be afterwards. A long gains when
+      // sold above its cost; a short gains when bought back below it.
+      pos.realised += closed * (tx.price - pos.avgCost) * -direction;
+      pos.soldCost += closed * pos.avgCost;
+      pos.shares += closed * direction;
+      pos.costBasis = pos.shares * pos.avgCost;
+      remaining -= closed;
+    }
+
+    // Step two: open, or add to, a position on this side. Averaged in with
+    // whatever is already open on the same side; a fresh position after a
+    // full close starts from nothing.
+    if (remaining > 0) {
+      const open = Math.abs(pos.shares);
+      const total = open + remaining;
+      pos.avgCost = (open * pos.avgCost + remaining * tx.price) / total;
+      pos.shares = total * direction;
+      pos.costBasis = pos.shares * pos.avgCost;
+    }
   }
 
   return [...byTicker.values()];
@@ -185,19 +200,9 @@ function byTradeDate(a: ManualTransaction, b: ManualTransaction): number {
   return 0;
 }
 
-/**
- * Whether a ledger sells shares it does not hold AT ANY POINT, rather than at
- * the end of it.
- *
- * The difference is the whole reason this exists. A held-share total is the
- * fold's last line, and a correction can leave that line right while breaking
- * the history above it: move a sale before the buy that covers it, or cut an
- * earlier buy from 55 shares to 10, and the end state can still balance while
- * the fold records an oversell on the day it happened. `buildPositions` sorts
- * by trade date and already keeps that count in `oversold`; this reads it.
- */
-export function oversellsAtAnyPoint(transactions: ManualTransaction[]): boolean {
-  return buildPositions(transactions).some((pos) => pos.oversold > 0);
+/** What an open position is worth at `price`, or null when there is none. */
+function openWorth(pos: Position, price: number | null): number | null {
+  return price === null ? null : pos.shares * price;
 }
 
 /**
@@ -214,15 +219,25 @@ export function valuePositions(
 ): PortfolioValuation {
   const valued: ValuedPosition[] = positions.map((pos) => {
     const price = quotes?.[pos.ticker]?.price ?? null;
-    const value = price === null ? null : pos.shares * price;
-    return { ...pos, price, value, plPct: totalReturnPct(pos, value) };
+    // A closed position is worth zero — known, not unknown, and known
+    // without a quote. Passing null here made its booked result null too,
+    // so a position sold out months ago showed "—" whenever its ticker
+    // happened to be unpriced today, though realised, dividends and soldCost
+    // already determine the whole answer.
+    const value = pos.shares === 0 ? 0 : openWorth(pos, price);
+    return { ...pos, price, value, pl: totalReturn(pos, value), plPct: totalReturnPct(pos, value) };
   });
 
-  const held = valued.filter((x) => x.shares > 0);
+  // Open in either direction: a short is a held position with negative
+  // shares, and its (negative) value is part of what the portfolio is worth.
+  const held = valued.filter((x) => x.shares !== 0);
   const unpriced = held.filter((x) => x.value === null).map((x) => x.ticker);
   const total = unpriced.length > 0 ? null : held.reduce((sum, x) => sum + (x.value ?? 0), 0);
 
-  const invested = valued.reduce((sum, x) => sum + x.costBasis + x.soldCost, 0);
+  // The basis is the money put at risk, so a short's negative cost basis
+  // counts by its size — the same reason positionReturnPct() takes an
+  // absolute basis.
+  const invested = valued.reduce((sum, x) => sum + Math.abs(x.costBasis) + x.soldCost, 0);
   // A closed position contributes what it booked and paid out, and needs no
   // price to do it: its `costBasis` is zero and it holds no shares to value.
   // Only a HELD leg needs a price, which is why one unpriced held ticker —
@@ -231,7 +246,7 @@ export function valuePositions(
     total === null
       ? null
       : valued.reduce(
-          (sum, x) => sum + (x.shares > 0 ? (x.value ?? 0) : 0) + x.realised + x.dividends - x.costBasis,
+          (sum, x) => sum + (x.shares !== 0 ? (x.value ?? 0) : 0) + x.realised + x.dividends - x.costBasis,
           0,
         );
 
@@ -258,10 +273,20 @@ export function valuePositions(
  * both be inventions.
  */
 function totalReturnPct(pos: Position, value: number | null): number | null {
-  if (value === null) return null;
-  // Everything ever paid for this ticker: what the remaining shares cost
-  // plus what the sold ones cost.
-  const invested = pos.costBasis + pos.soldCost;
+  const pl = totalReturn(pos, value);
+  if (pl === null) return null;
+  // Everything ever put at risk on this ticker: what the open position cost
+  // (by its size — a short's basis is negative) plus what the closed part did.
+  const invested = Math.abs(pos.costBasis) + pos.soldCost;
   if (invested <= 0) return null;
-  return ((value + pos.realised + pos.dividends - pos.costBasis) / invested) * 100;
+  return (pl / invested) * 100;
+}
+
+/**
+ * Total return on a position in currency: the money form of the percentage
+ * above, over exactly the same terms, so the two can never disagree.
+ */
+function totalReturn(pos: Position, value: number | null): number | null {
+  if (value === null) return null;
+  return value + pos.realised + pos.dividends - pos.costBasis;
 }

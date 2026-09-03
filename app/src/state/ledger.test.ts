@@ -175,48 +175,45 @@ describe('validateTx', () => {
   const TODAY = '2026-08-29';
 
   it('accepts a sound buy', () => {
-    expect(validateTx(draft, 0, TODAY)).toEqual([]);
+    expect(validateTx(draft, TODAY)).toEqual([]);
   });
 
   it('accepts the ticker shapes the SQL check accepts', () => {
     for (const ticker of ['BRK.B', 'RY-PT', 'A', 'TEVA']) {
-      expect(validateTx({ ...draft, ticker }, 0, TODAY)).toEqual([]);
+      expect(validateTx({ ...draft, ticker }, TODAY)).toEqual([]);
     }
   });
 
   it('refuses tickers the SQL check would refuse', () => {
     for (const ticker of ['', '.BRK', 'TOOLONGTICKER', 'NV DA']) {
-      expect(validateTx({ ...draft, ticker }, 0, TODAY)).toContain('ticker');
+      expect(validateTx({ ...draft, ticker }, TODAY)).toContain('ticker');
     }
   });
 
   it('refuses zero and negative quantities on a buy', () => {
-    expect(validateTx({ ...draft, shares: '0' }, 0, TODAY)).toContain('shares');
-    expect(validateTx({ ...draft, shares: '-4' }, 0, TODAY)).toContain('shares');
-    expect(validateTx({ ...draft, price: '0' }, 0, TODAY)).toContain('price');
+    expect(validateTx({ ...draft, shares: '0' }, TODAY)).toContain('shares');
+    expect(validateTx({ ...draft, shares: '-4' }, TODAY)).toContain('shares');
+    expect(validateTx({ ...draft, price: '0' }, TODAY)).toContain('price');
   });
 
   it('lets a dividend carry no share count, because it is a cash amount', () => {
-    expect(validateTx({ ...draft, side: 'div', shares: '0', price: '42' }, 0, TODAY)).toEqual([]);
+    expect(validateTx({ ...draft, side: 'div', shares: '0', price: '42' }, TODAY)).toEqual([]);
   });
 
   it('refuses a trade dated in the future', () => {
-    expect(validateTx({ ...draft, date: '2026-09-01' }, 0, TODAY)).toContain('date');
-    expect(validateTx({ ...draft, date: TODAY }, 0, TODAY)).toEqual([]);
-    expect(validateTx({ ...draft, date: 'yesterday' }, 0, TODAY)).toContain('date');
+    expect(validateTx({ ...draft, date: '2026-09-01' }, TODAY)).toContain('date');
+    expect(validateTx({ ...draft, date: TODAY }, TODAY)).toEqual([]);
+    expect(validateTx({ ...draft, date: 'yesterday' }, TODAY)).toContain('date');
   });
 
-  // Refusing this at entry is what keeps the fold in lib/positions.ts from
-  // ever having to invent an answer for a sale of shares nobody held.
-  it('refuses selling more than is held', () => {
-    expect(validateTx({ ...draft, side: 'sell', shares: '10' }, 4, TODAY)).toContain('oversell');
-    expect(validateTx({ ...draft, side: 'sell', shares: '4' }, 4, TODAY)).toEqual([]);
+  // A sell beyond the holding is a short, not a mistake: the fold in
+  // lib/positions.ts opens one for the excess, and the sheet says so.
+  it('accepts selling more than is held — that opens a short', () => {
+    expect(validateTx({ ...draft, side: 'sell', shares: '10' }, TODAY)).toEqual([]);
   });
 
   it('does not complain twice about one bad field', () => {
-    // "shares must be a number" and "you cannot sell 10 of 4" at once is two
-    // complaints about the same box.
-    const problems = validateTx({ ...draft, side: 'sell', shares: 'abc' }, 4, TODAY);
+    const problems = validateTx({ ...draft, side: 'sell', shares: 'abc' }, TODAY);
     expect(problems).toEqual(['shares']);
   });
 });
@@ -462,32 +459,12 @@ describe('ledgerWithout — what a correction is measured against', () => {
   });
 
   // The case the plain fold gets wrong: this position was sold out in full, so
-  // measured against the whole ledger it holds nothing — and correcting the
-  // sell's own price would be refused as selling shares that are not there.
-  it('excludes the row being corrected, so its own effect cannot refuse it', () => {
+  // measured against the whole ledger it holds nothing — and the sheet would
+  // describe correcting the sell's own price as opening a short.
+  it('excludes the row being corrected, so its own effect is not counted', () => {
     const withoutTheSell = ledgerWithout(rows, 'b');
     expect(buildPositions(rows).find((p) => p.ticker === 'QCOM')?.shares).toBe(0);
     expect(buildPositions(withoutTheSell).find((p) => p.ticker === 'QCOM')?.shares).toBe(55);
-    expect(
-      validateTx(
-        { side: 'sell', ticker: 'QCOM', shares: '55', price: '171.02', date: '2026-09-03' },
-        buildPositions(withoutTheSell).find((p) => p.ticker === 'QCOM')?.shares ?? 0,
-        '2026-09-04',
-      ),
-    ).toEqual([]);
-  });
-
-  // Excluding the edited row must not excuse a genuine oversell in its
-  // replacement: 55 held, 60 sold is still 60 sold.
-  it('still refuses a correction that sells more than is held without it', () => {
-    const held = buildPositions(ledgerWithout(rows, 'b')).find((p) => p.ticker === 'QCOM')?.shares ?? 0;
-    expect(
-      validateTx(
-        { side: 'sell', ticker: 'QCOM', shares: '60', price: '171.02', date: '2026-09-03' },
-        held,
-        '2026-09-04',
-      ),
-    ).toContain('oversell');
   });
 
   it('leaves the ledger alone when the id is not in it', () => {

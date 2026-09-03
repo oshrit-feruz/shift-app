@@ -33,14 +33,27 @@ afterEach(() => {
 });
 
 describe('weekAheadWindow', () => {
-  // The provider's market-wide feed carries only reports that have not
-  // happened yet, so a Monday-anchored week spends most of itself in the
-  // past: by Friday it could only ever fill two of its seven days.
-  it('starts today rather than on Monday', () => {
+  // Anchored on Monday so a report keeps the same date all week instead of
+  // sliding leftwards every morning. 2026-08-28 is a Friday; its Monday is
+  // the 24th, and two weeks from there ends on 2026-09-06.
+  it('starts on the Monday of the current week, not today', () => {
     expect(weekAheadWindow(new Date('2026-08-28T09:00:00Z'))).toEqual({
-      from: '2026-08-28',
-      to: '2026-09-03',
+      from: '2026-08-24',
+      to: '2026-09-06',
     });
+  });
+
+  // Sunday is the week's last day, not its first: getUTCDay() calls it 0, and
+  // an unshifted anchor would jump the window a week forward every Sunday.
+  it('treats Sunday as the end of its week', () => {
+    expect(weekAheadWindow(new Date('2026-08-30T09:00:00Z'))).toEqual({
+      from: '2026-08-24',
+      to: '2026-09-06',
+    });
+  });
+
+  it('starts on Monday itself when today is Monday', () => {
+    expect(weekAheadWindow(new Date('2026-08-24T09:00:00Z')).from).toBe('2026-08-24');
   });
 
   it('covers exactly WINDOW_DAYS days, both ends inclusive', () => {
@@ -50,15 +63,17 @@ describe('weekAheadWindow', () => {
   });
 
   it('crosses a month and a year boundary correctly', () => {
+    // 2026-12-29 is a Tuesday, so the window opens on the 28th and runs into
+    // the next year.
     expect(weekAheadWindow(new Date('2026-12-29T12:00:00Z'))).toEqual({
-      from: '2026-12-29',
-      to: '2027-01-04',
+      from: '2026-12-28',
+      to: '2027-01-10',
     });
   });
 
   it('ignores the time of day, in UTC', () => {
     for (const time of ['00:00:01', '12:00:00', '23:59:59']) {
-      expect(weekAheadWindow(new Date(`2026-08-28T${time}Z`)).from, time).toBe('2026-08-28');
+      expect(weekAheadWindow(new Date(`2026-08-28T${time}Z`)).from, time).toBe('2026-08-24');
     }
   });
 });
@@ -150,7 +165,7 @@ describe('fetchWeekEarnings', () => {
       seen = String(url);
       return res({ earnings: [ROW] });
     }, NOW);
-    expect(seen).toBe(`${EARNINGS_URL}?from=2026-08-27&to=2026-09-02`);
+    expect(seen).toBe(`${EARNINGS_URL}?from=2026-08-24&to=2026-09-06`);
     expect(r.status).toBe('ok');
     expect(r.status === 'ok' && r.data.rows).toHaveLength(1);
   });
