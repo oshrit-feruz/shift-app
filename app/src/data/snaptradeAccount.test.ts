@@ -303,6 +303,31 @@ describe('connecting and disconnecting', () => {
     expect(isLinked()).toBe(false);
   });
 
+  it('does not let an older account read undo a disconnect for the same user', async () => {
+    // The session check cannot see this one: the same person is signed in
+    // throughout. The read simply describes a moment that has passed.
+    await fetchConnectedAccounts(async () => res({ linked: true, accounts: [ACCOUNT] }));
+    expect(isLinked()).toBe(true);
+
+    let release: (r: Response) => void = () => {};
+    const late = fetchConnectedAccounts(() => new Promise<Response>((resolve) => (release = resolve)));
+
+    const done = await disconnectBrokerage(async () => res({ disconnected: true }));
+    expect(done.status).toBe('ok');
+    expect(isLinked()).toBe(false);
+
+    // Now the earlier read answers, still saying the account is connected.
+    release(res({ linked: true, accounts: [ACCOUNT] }));
+    const r = await late;
+
+    // Its caller is told what the server said...
+    expect(r.status).toBe('ok');
+    if (r.status === 'ok') expect(r.data.linked).toBe(true);
+    // ...and the state stays as the disconnect left it. Otherwise the app
+    // would offer live data for a connection the user has just revoked.
+    expect(isLinked()).toBe(false);
+  });
+
   it('ignores a disconnect that completes after a different user has signed in', async () => {
     await fetchConnectedAccounts(async () => res({ linked: true, accounts: [ACCOUNT] }));
     expect(isLinked()).toBe(true);

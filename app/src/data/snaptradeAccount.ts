@@ -242,6 +242,31 @@ async function stillSignedInAs(userId: string): Promise<boolean> {
   return (await currentUser())?.userId === userId;
 }
 
+/**
+ * Counts the times the link state has been changed by an act of the user
+ * rather than by an observation of it — which today means one thing: a
+ * completed disconnect.
+ *
+ * This is the same-user ordering the session check cannot cover. An account
+ * read started before a disconnect can land after it, and its answer is a
+ * true description of a moment that has since passed. Recording it would put
+ * `linked` back to true for a connection the user has just revoked.
+ */
+let linkStateRevision = 0;
+
+/**
+ * Whether an observation made at `revision`, about `userId`, is still worth
+ * writing down — the same person is signed in, and nothing has deliberately
+ * changed the link state since the read began.
+ *
+ * The revision is compared *after* the session lookup, because that lookup is
+ * itself an await and a disconnect can complete during it.
+ */
+async function mayRecord(userId: string, revision: number): Promise<boolean> {
+  const sameUser = await stillSignedInAs(userId);
+  return sameUser && revision === linkStateRevision;
+}
+
 /** The answer for someone with no connection: true, complete, and not an error. */
 const NOT_LINKED: ConnectedAccountsResult = { linked: false, accounts: [], connections: [] };
 
@@ -252,6 +277,10 @@ const NOT_LINKED: ConnectedAccountsResult = { linked: false, accounts: [], conne
 export async function fetchConnectedAccounts(
   fetchImpl: typeof fetch = fetch,
 ): Promise<Loadable<ConnectedAccountsResult>> {
+  // Captured before anything is awaited, so a disconnect that happens while
+  // this read is on the wire can be told apart from one that happened before
+  // it started.
+  const revision = linkStateRevision;
   const caller = await currentUser();
   // Signed out. Not a failure and not worth a request: there is no user for
   // the route to resolve, and the app's own data is what a signed-out reader
@@ -289,7 +318,7 @@ export async function fetchConnectedAccounts(
     // — and recorded against the user it is about, so a response that lands
     // after a sign-out or an account switch cannot be read as the new user's.
     const linked = (body as { linked?: unknown })?.linked === true;
-    if (await stillSignedInAs(userId)) setLinked(linked, userId);
+    if (await mayRecord(userId, revision)) setLinked(linked, userId);
 
     const accounts = rawAccounts.map(parseAccount).filter((a): a is ConnectedAccount => a !== null);
     const rawConnections = (body as { connections?: unknown })?.connections;
@@ -393,6 +422,9 @@ export async function disconnectBrokerage(
   if ((result.data.body as { disconnected?: unknown })?.disconnected !== true) {
     return unavailable(REASONS.badShape);
   }
+  // Any account read already in flight described a connection that no longer
+  // exists, so its answer is out of date whoever it turns out to be about.
+  linkStateRevision += 1;
   // Same rule as the account read: a disconnect that completes after someone
   // else has signed in must not tell the app THEY have nothing connected.
   if (await stillSignedInAs(result.data.userId)) setLinked(false, result.data.userId);
