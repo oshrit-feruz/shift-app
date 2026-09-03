@@ -1,7 +1,5 @@
-import { demoService } from '../data/demoAdapter';
 import { appService } from '../data/appService';
 import { fetchQuotes } from '../data/quotes';
-import { DEMO_FLAGS } from '../data/demoFlags';
 import { ok, unavailable, type Loadable } from '../data/types';
 import type { Holding, PortfolioSummary, Quote } from '../data/types';
 import { buildPositions, valuePositions, type PortfolioValuation } from './positions';
@@ -37,6 +35,27 @@ export function manualPortfolioSummaries(manualPortfolios: ManualPortfolio[]): P
 }
 
 /**
+ * Today's move on a position, from the live quote: `shares × change`, and
+ * that as a percent of what the position was worth at the previous close.
+ *
+ * The base is the ABSOLUTE previous worth, for the same reason
+ * positionReturnPct() takes an absolute cost basis: a short holds negative
+ * shares, so its move is already signed correctly by the multiplication and
+ * must not be flipped again by a negative denominator.
+ *
+ * Both null without a quote — never a zero, which would read as "flat".
+ */
+export function dayMove(
+  shares: number,
+  quote: Quote | undefined,
+): { dayChange: number | null; dayChangePct: number | null } {
+  if (!quote || shares === 0) return { dayChange: null, dayChangePct: null };
+  const dayChange = shares * quote.change;
+  const base = Math.abs(shares * quote.prevClose);
+  return { dayChange, dayChangePct: base > 0 ? (dayChange / base) * 100 : null };
+}
+
+/**
  * Applies a portfolio's manual buy/sell log on top of its service-reported
  * holdings. Shared by Portfolio.tsx's own holdings list and the Stock page's
  * per-ticker "your holdings" card, so the two screens can never compute a
@@ -49,8 +68,9 @@ export function manualPortfolioSummaries(manualPortfolios: ManualPortfolio[]): P
  *  - a ticker the user has logged is theirs, valued from `quotes`. Held
  *    positions and closed ones both come back — a position that vanishes the
  *    moment it is sold looks like data loss;
- *  - a ticker only the service reported (the demo brokers) passes through
- *    untouched, since it is already valued at the demo prices it belongs to.
+ *  - a ticker only the service reported (the demo brokers, or the connected
+ *    account) passes through with its own valuation untouched, and gains only
+ *    today's move from the quote — the one figure neither source carries.
  *
  * `quotes` is fetchQuotes()'s map, or null when that read was unavailable, in
  * which case the logged positions render "—" rather than 0.
@@ -62,13 +82,18 @@ export function mergeManualTransactions(
 ): Holding[] {
   const logged = valuePositions(buildPositions(transactions), quotes).positions;
   const own = new Set(logged.map((x) => x.ticker));
-  const service = rows.filter((row) => !own.has(row.ticker));
+  const service = rows
+    .filter((row) => !own.has(row.ticker))
+    .map((row) => ({ ...row, ...dayMove(row.shares, quotes?.[row.ticker]) }));
   const mine: Holding[] = logged.map((x) => ({
     ticker: x.ticker,
     shares: x.shares,
     avgCost: x.avgCost,
+    price: x.price,
     value: x.value,
+    pl: x.pl,
     plPct: x.plPct,
+    ...dayMove(x.shares, quotes?.[x.ticker]),
     costBasis: x.costBasis,
   }));
   return [...service, ...mine];
@@ -125,40 +150,24 @@ export interface TickerPosition {
  * demo failure flag every call fails together, and reporting "no position"
  * from a failure would misrepresent "we don't know" as "you hold none".
  *
- * The demo portfolios and their holdings are read only while sample data is
- * on. Without that check, gating the Portfolio tab would still leave the same
- * invented positions ("Blink · 14 sh · avg $131.36") on every stock page —
- * the same fabrication, one screen over. The flag is read here rather than
- * passed in because this is the data layer, the same way priceHistory.ts and
- * earnings.ts read it.
+ * Which accounts exist is appService's call: the demo brokers with sample
+ * data on, the connected account with it off. Reading through it here rather
+ * than choosing a source in this file is what keeps the stock page and the
+ * Portfolio tab on the same accounts.
  */
 export async function fetchYourPositions(
   ticker: string,
   manualTransactions: Record<string, ManualTransaction[]>,
   manualPortfolios: ManualPortfolio[] = [],
 ): Promise<Loadable<TickerPosition[]>> {
-  // A real connected account outranks both demo paths: it is the one source
-  // here that is neither sample data nor absent.
-  const pfs = DEMO_FLAGS.liveAccount
-    ? await appService.portfolios()
-    : DEMO_FLAGS.demoData
-      ? await demoService.portfolios()
-      : ok<PortfolioSummary[]>([]);
+  const pfs = await appService.portfolios();
   if (pfs.status !== 'ok') return pfs;
 
   // Built from the same list the Portfolio tab renders, so the index recorded
   // below addresses the same row the tab would select.
   const all = portfolioList(pfs.data, manualPortfolios);
   const eligible = all.filter((pf) => pf.kind !== 'aggregate');
-  const settled = await Promise.all(
-    eligible.map((pf) =>
-      DEMO_FLAGS.liveAccount
-        ? appService.holdings(pf.id)
-        : DEMO_FLAGS.demoData
-          ? demoService.holdings(pf.id)
-          : Promise.resolve(ok<Holding[]>([])),
-    ),
-  );
+  const settled = await Promise.all(eligible.map((pf) => appService.holdings(pf.id)));
   if (settled.some((r) => r.status !== 'ok')) return unavailable();
 
   // Live prices for the user's own positions. Only the ticker this page is
@@ -210,7 +219,12 @@ export async function fetchPortfolioHoldings(
   portfolioId: string,
   transactions: ManualTransaction[],
 ): Promise<Loadable<PortfolioHoldings>> {
-  const service = DEMO_FLAGS.demoData ? await demoService.holdings(portfolioId) : ok<Holding[]>([]);
+  // Through appService, which is the demo brokers with sample data on and the
+  // connected account with it off. This used to read the demo adapter
+  // directly, which is why a connected account's positions never reached the
+  // Portfolio tab: the tab listed the account and then asked the wrong source
+  // for what was in it.
+  const service = await appService.holdings(portfolioId);
   if (service.status !== 'ok') return service;
 
   // Every ticker this portfolio touches, from both halves of it: the service
@@ -223,6 +237,72 @@ export async function fetchPortfolioHoldings(
   const map = quotes.status === 'ok' ? quotes.data : null;
   const valuation = valuePositions(buildPositions(transactions), map);
   return ok({ rows: mergeManualTransactions(service.data, transactions, map), valuation });
+}
+
+/**
+ * A portfolio's holdings added up: what the open positions are worth, what
+ * they cost, what they have returned, and what they did today.
+ *
+ * Every sum is `null` the moment one held leg lacks the figure. A total that
+ * quietly drops what it could not read is not a smaller number, it is a
+ * wrong one — and wrong in the flattering direction whenever the missing leg
+ * is the one that is down. `cost` is the exception: what someone paid is
+ * their own arithmetic, and no provider can make it unknown.
+ *
+ * Closed positions contribute to `pl` — what they booked is part of the
+ * return — and to nothing else: they hold no shares to value or to move.
+ */
+export interface HoldingsSummary {
+  /** Market value of the open positions. */
+  value: number | null;
+  /** What the open positions cost. */
+  cost: number;
+  /** Return in currency, and as a percent of `cost`. */
+  pl: number | null;
+  plPct: number | null;
+  /** Today's move in currency, and as a percent of the previous close's worth. */
+  dayChange: number | null;
+  dayChangePct: number | null;
+}
+
+export function summarizeHoldings(rows: readonly Holding[]): HoldingsSummary {
+  const held = rows.filter((row) => row.shares !== 0);
+  const cost = held.reduce((sum, row) => sum + row.costBasis, 0);
+
+  const value = held.some((row) => row.value === null)
+    ? null
+    : held.reduce((sum, row) => sum + (row.value ?? 0), 0);
+
+  const pl = rows.some((row) => row.pl === null && row.shares !== 0)
+    ? null
+    : rows.reduce((sum, row) => sum + (row.pl ?? 0), 0);
+
+  const dayChange = held.some((row) => row.dayChange === null)
+    ? null
+    : held.reduce((sum, row) => sum + (row.dayChange ?? 0), 0);
+  // Worth at the previous close, leg by leg: each row's move divided by its
+  // own percent. Rebuilt this way rather than from `value` because a
+  // brokerage values a position at its own snapshot price, and the move
+  // comes from the live quote — the two bases are not the same number.
+  let prevWorth = 0;
+  for (const row of held) {
+    if (row.dayChange === null || row.dayChangePct === null) continue;
+    if (row.dayChangePct === 0) {
+      // A zero move says nothing about the base; use the row's own value.
+      prevWorth += Math.abs(row.value ?? 0);
+      continue;
+    }
+    prevWorth += Math.abs(row.dayChange / (row.dayChangePct / 100));
+  }
+
+  return {
+    value,
+    cost,
+    pl,
+    plPct: pl === null || cost <= 0 ? null : (pl / cost) * 100,
+    dayChange,
+    dayChangePct: dayChange === null || prevWorth <= 0 ? null : (dayChange / prevWorth) * 100,
+  };
 }
 
 /**

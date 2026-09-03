@@ -11,56 +11,75 @@ import { Chip, ChipRail } from '../components/Chip';
 import { ListRow, RowValues } from '../components/ListRow';
 import { LogoTile } from '../components/TickerTile';
 import { DataState, EmptyState } from '../components/DataState';
-import { DemoOnly } from '../components/DemoOnly';
+import { SegmentedControl } from '../components/SegmentedControl';
 import { Skeleton, SkeletonCard, SkeletonList } from '../components/Skeleton';
 import { ALLOC_COLORS } from '../components/AllocationBar';
 import { useDemoMode } from '../lib/DemoModeProvider';
-import { useAppState, useDispatch, type ManualTransaction, type TransactionSide } from '../state/appState';
+import {
+  useAppState,
+  useDispatch,
+  type InstitutionKey,
+  type ManualTransaction,
+  type TransactionSide,
+} from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { useToast } from '../components/Toast';
 import { useLedger } from '../state/useLedgerSync';
 import { demoService } from '../data/demoAdapter';
 import { appService } from '../data/appService';
-import { useDemoFlag } from '../data/useDemoFlag';
 import { loading, ok, unavailable, type Holding, type Loadable, type PortfolioSummary } from '../data/types';
 import { useLoadable } from '../data/useLoadable';
 import { isoDate, money, moneyOrDash, pctOrDash, signalColor, signedCurrency } from '../lib/format';
-import { TxSheet } from '../sheets/TxSheet';
+import { TxSheet, type TxPreset } from '../sheets/TxSheet';
 import { NewPortfolioSheet } from '../sheets/NewPortfolioSheet';
-import { fetchPortfolioHoldings, portfolioList, sumTotals } from '../lib/holdings';
+import {
+  fetchPortfolioHoldings,
+  portfolioList,
+  summarizeHoldings,
+  sumTotals,
+  type HoldingsSummary,
+  type PortfolioHoldings,
+} from '../lib/holdings';
 import { fetchPortfolioSeries } from '../data/portfolioHistory';
 import { openGain, type PortfolioSeries } from '../lib/portfolioSeries';
+import type { PortfolioValuation } from '../lib/positions';
 import type { ScreenProps } from '../App';
+
+/**
+ * Which change the screen is reading out: today's move, or the return since
+ * purchase. One value drives the line under the total AND every holding
+ * row, so the two can never show different bases at the same time.
+ */
+type ChangeView = 'day' | 'open';
 
 /**
  * The portfolio tab: one chip per account, then the selected account's value,
  * performance, allocation and holdings.
  *
- * The list is the service-reported portfolios plus the user's own manual ones,
- * built through the shared manualPortfolioSummaries() so this screen and the
- * stock page can never describe the same portfolio differently.
+ * The list is the service-reported portfolios plus the user's own manual
+ * ones, built through the shared manualPortfolioSummaries() so this screen and
+ * the stock page can never describe the same portfolio differently.
  */
 export function PortfolioScreen(_: ScreenProps) {
   const s = useAppState();
   const dispatch = useDispatch();
-  const { mode } = useTheme();
   const t = useT();
-  const beg = mode === 'beginner';
-  // In the deps so flipping the switch re-reads, and gating the fetch itself:
-  // every account this screen used to list was a demo account.
+  // In the deps so flipping the switch re-reads. The switch is also what
+  // decides the source: sample data on is the demo brokers, off is the real
+  // account connected through SnapTrade (data/appService.ts).
   const demo = useDemoMode();
-  // A real connected account outranks the sample-data switch — it is not
-  // sample data. appService routes to SnapTrade when the flag is on and to
-  // the demo adapter when it is off; both flags sit in the deps so either
-  // flip re-reads.
-  const live = useDemoFlag('liveAccount');
-  const portfolios = useLoadable(() => appService.portfolios(), [demo, live]);
+  const live = !demo;
+  const portfolios = useLoadable(() => appService.portfolios(), [demo]);
   const [txOpen, setTxOpen] = useState(false);
   // The row being corrected, or null for a new one. Held here rather than in
   // <Transactions/> because the sheet is mounted at this level; the list only
   // says which row was tapped.
   const [editingTx, setEditingTx] = useState<ManualTransaction | null>(null);
+  // What a new row opens pre-filled with — the "close position" action's
+  // sell — or null for a blank sheet.
+  const [txPreset, setTxPreset] = useState<TxPreset | null>(null);
+  const [view, setView] = useState<ChangeView>('day');
   const ledger = useLedger();
   const toast = useToast();
   const removePortfolio = (pf: { id: string; name: string }) => {
@@ -95,12 +114,12 @@ export function PortfolioScreen(_: ScreenProps) {
         }
       >
         {(pfs) => {
-          const list = portfolioList(demo ? pfs : [], s.manualPortfolios);
+          const list = portfolioList(pfs, s.manualPortfolios);
 
-          // Real, not hypothetical: with sample data off, a reader who has not
-          // created a portfolio of their own has none at all. Guarded before
-          // the index below, which would otherwise read list[-1] and throw on
-          // the first property access.
+          // A reader who has not created a portfolio of their own and has no
+          // account connected has none at all. Guarded before the index
+          // below, which would otherwise read list[-1] and throw on the
+          // first property access.
           if (list.length === 0) {
             return (
               <NoPortfolios
@@ -117,15 +136,6 @@ export function PortfolioScreen(_: ScreenProps) {
           const linked = list.filter((x) => x.kind === 'linked');
           const inAgg = linked.filter((x) => !s.aggExcluded[x.id]);
           const aggTotal = sumTotals(inAgg);
-          // No seeded walk over a real account: invented performance under a
-          // real total is the one thing this app's data contract forbids.
-          // A manual portfolio is that same case — its total is its own
-          // positions at live prices — so it is excluded here too.
-          const invented = demo && !live && !isManual;
-          const drift = (pf.dayPct ?? 0) >= 0 ? 0.5 : 0.16;
-          const series = invented ? demoService.series(`pf-${pf.id}`, 70, drift, 2.4) : [];
-          const bench = invented ? demoService.series('bench-spy', 70, 0.22, 1.4) : [];
-          const holdings = <Holdings pfId={pf.id} />;
 
           return (
             <>
@@ -165,9 +175,10 @@ export function PortfolioScreen(_: ScreenProps) {
                     style={{ flex: 1, fontSize: 'var(--text-body)', minHeight: 36 }}
                     onClick={() => {
                       // Clearing is not optional: the sheet stays mounted, so
-                      // "add" after an edit would otherwise reopen on the row
-                      // that was last corrected.
+                      // "add" after an edit or a close would otherwise reopen
+                      // on the row that was last handled.
                       setEditingTx(null);
+                      setTxPreset(null);
                       setTxOpen(true);
                     }}
                   >
@@ -199,48 +210,23 @@ export function PortfolioScreen(_: ScreenProps) {
                 />
               )}
 
-              <Card padding={14} gap={8}>
-                <div className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
-                  {isAgg ? t('pf.allAccounts') : pf.name} {t('pf.totalValue')}
-                </div>
-                {/* A manual portfolio's worth is its own positions valued at
-                    live prices, so it is read here rather than taken from the
-                    summary row — which has no way to know it. */}
-                {isManual ? (
-                  <ManualValue pfId={pf.id} />
-                ) : (
-                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: 9 }}>
-                    <Num size={28} style={{ fontFamily: 'var(--font-heading)', lineHeight: 1.1 }}>
-                      {moneyOrDash(isAgg ? aggTotal : pf.total)}
-                    </Num>
-                    <span
-                      style={{
-                        fontSize: 'var(--text-body)',
-                        color: signalColor(pf.dayPct),
-                        paddingBottom: 3,
-                      }}
-                    >
-                      <Num>{pctOrDash(pf.dayPct)}</Num> {t('pf.today')}
-                    </span>
-                  </div>
-                )}
-                <PerformanceSlot
-                  live={live}
-                  isManual={isManual}
-                  demo={demo}
-                  series={series}
-                  bench={bench}
-                  ledger={s.manualTransactions[pf.id] ?? []}
-                  label={isAgg ? t('pf.allAccounts') : pf.name}
-                />
-              </Card>
-
-              <AllocationCard live={live} demo={demo} pfId={pf.id} beg={beg} />
-
-              <Card padding="13px 13px 4px" gap={4}>
-                <CardTitle>{t('pf.holdings')}</CardTitle>
-                {holdings}
-              </Card>
+              <PortfolioBody
+                pf={pf}
+                headline={isAgg ? aggTotal : pf.total}
+                live={live}
+                view={view}
+                onView={setView}
+                ledger={s.manualTransactions[pf.id] ?? []}
+                onClosePosition={(h) => {
+                  setEditingTx(null);
+                  // Every share held, at the price the row was just valued
+                  // at. A short cannot be closed here: the ledger has no
+                  // buy-to-cover, and offering a "sell" of negative shares
+                  // would be a row the validator rightly refuses.
+                  setTxPreset({ side: 'sell', ticker: h.ticker, shares: h.shares, price: h.price });
+                  setTxOpen(true);
+                }}
+              />
 
               {/* The log itself, because there is nowhere else to delete from:
                   the Holdings card lists POSITIONS, each derived from any
@@ -251,19 +237,21 @@ export function PortfolioScreen(_: ScreenProps) {
                 <Transactions
                   pfId={pf.id}
                   onEdit={(tx) => {
+                    setTxPreset(null);
                     setEditingTx(tx);
                     setTxOpen(true);
                   }}
                 />
               )}
 
-              {demo ? <LongTermSavings /> : <DemoOnly feature="pf.longTerm" />}
+              <LongTermSavings />
               <TxSheet
                 open={txOpen}
                 onClose={() => setTxOpen(false)}
                 pfId={pf.id}
                 pfName={pf.name}
                 editing={editingTx}
+                preset={txPreset}
               />
               <NewPortfolioSheet open={newPfOpen} onClose={() => setNewPfOpen(false)} />
             </>
@@ -275,69 +263,219 @@ export function PortfolioScreen(_: ScreenProps) {
 }
 
 /**
- * One portfolio's holdings list — the service-reported rows with that
- * portfolio's manual buy/sell log applied on top, so a position the user
- * entered by hand reads the same as a synced one.
+ * The selected portfolio's total, its change, its allocation and its
+ * holdings — from ONE read of its positions.
+ *
+ * They used to be three components each fetching for itself, which is how the
+ * allocation card could say "the broker priced nothing" above a holdings card
+ * that said "—" about the same account: each had asked a different source.
+ * One read, shared, means the header, the ring and the rows cannot disagree
+ * about what was priced.
  */
-function Holdings({ pfId }: Readonly<{ pfId: string }>) {
-  const dispatch = useDispatch();
+function PortfolioBody({
+  pf,
+  headline,
+  live,
+  view,
+  onView,
+  ledger,
+  onClosePosition,
+}: Readonly<{
+  pf: PortfolioSummary;
+  /** The account's own reported total, for a linked account or the aggregate. */
+  headline: number | null;
+  live: boolean;
+  view: ChangeView;
+  onView: (v: ChangeView) => void;
+  ledger: ManualTransaction[];
+  onClosePosition: (h: Holding) => void;
+}>) {
   const t = useT();
-  const { state, retry } = usePortfolioHoldings(pfId);
+  const isAgg = pf.kind === 'aggregate';
+  const isManual = pf.kind === 'manual';
+  const holdings = usePortfolioHoldings(pf.id);
+  const data = holdings.state.status === 'ok' ? holdings.state.data : null;
+  const summary = data ? summarizeHoldings(data.rows) : null;
 
   return (
-    <DataState
-      state={state}
-      onRetry={retry}
-      skeleton={<SkeletonList count={4} leading={false} minHeight={46} />}
-    >
-      {({ rows }) => {
-        // Held first, then anything sold out — a closed position is history,
-        // and history belongs under what is still open rather than mixed into
-        // it where it reads as a live holding of zero shares.
-        const held = rows.filter((h) => h.shares > 0);
-        const closed = rows.filter((h) => h.shares === 0);
-        if (rows.length === 0) return <EmptyState>—</EmptyState>;
-        return (
-          <>
-            {held.map((h) => (
-              <HoldingRow
-                key={h.ticker}
-                h={h}
-                onOpen={() => dispatch({ type: 'openStock', ticker: h.ticker })}
-              />
-            ))}
-            {closed.length > 0 && (
-              <>
-                <div
-                  className="text-muted"
-                  style={{ fontSize: 'var(--text-caption)', padding: '10px 0 2px' }}
-                >
-                  {t('pf.closed')}
-                </div>
-                {closed.map((h) => (
-                  <HoldingRow
-                    key={h.ticker}
-                    h={h}
-                    closed
-                    onOpen={() => dispatch({ type: 'openStock', ticker: h.ticker })}
-                  />
-                ))}
-              </>
-            )}
-          </>
-        );
-      }}
-    </DataState>
+    <>
+      <Card padding={14} gap={8}>
+        <div className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
+          {isAgg ? t('pf.allAccounts') : pf.name} {t('pf.totalValue')}
+        </div>
+        {/* A manual portfolio's worth is its own positions valued at live
+            prices, so it is read from the same valuation as the rows below
+            rather than from the summary row — which has no way to know it. */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 9 }}>
+          <Num size={28} style={{ fontFamily: 'var(--font-heading)', lineHeight: 1.1 }}>
+            {moneyOrDash(isManual ? (data?.valuation.total ?? null) : headline)}
+          </Num>
+        </div>
+        <ChangeLine view={view} summary={summary} valuation={isManual ? (data?.valuation ?? null) : null} />
+        <SegmentedControl<ChangeView>
+          options={[
+            { value: 'day', label: t('pf.viewDay') },
+            { value: 'open', label: t('pf.viewOpen') },
+          ]}
+          value={view}
+          onChange={onView}
+          fontSize={14.5}
+        />
+        {isManual && data && <ManualValueNotes valuation={data.valuation} />}
+        <PerformanceSlot
+          live={live}
+          isManual={isManual}
+          pf={pf}
+          ledger={ledger}
+          label={isAgg ? t('pf.allAccounts') : pf.name}
+        />
+      </Card>
+
+      <Card padding={14} gap={10}>
+        <CardTitle>{t('pf.allocation')}</CardTitle>
+        <DataState
+          state={holdings.state}
+          onRetry={holdings.retry}
+          skeleton={<Skeleton height={132} radius="var(--radius-md)" />}
+        >
+          {({ rows }) => <Allocation rows={rows} />}
+        </DataState>
+      </Card>
+
+      <Card padding="13px 13px 4px" gap={4}>
+        <CardTitle>{t('pf.holdings')}</CardTitle>
+        <DataState
+          state={holdings.state}
+          onRetry={holdings.retry}
+          skeleton={<SkeletonList count={4} leading={false} minHeight={46} />}
+        >
+          {({ rows }) => (
+            <Holdings rows={rows} view={view} onClose={isManual ? onClosePosition : undefined} />
+          )}
+        </DataState>
+      </Card>
+    </>
   );
 }
 
 /**
- * One holdings row. `value` and `plPct` are nullable and render as "—": a
- * position in a ticker the price mirror does not cover has no worth we can
- * state, and the old code's green "+0.00%" said it was flat instead.
+ * The line under the total: today's move or the return since purchase, in
+ * currency and as a percent, coloured by its sign.
+ *
+ * A manual portfolio's return comes from its valuation rather than from the
+ * rows added up, because its percentage is of everything ever invested —
+ * including the cost of what has since been sold — and the rows no longer
+ * carry that. Today's move has no such history and reads the same for every
+ * kind.
+ *
+ * "—" while the read is in flight or when any held leg is unpriced: a sum
+ * missing a leg is not a smaller number, it is a wrong one.
  */
-function HoldingRow({ h, closed, onOpen }: Readonly<{ h: Holding; closed?: boolean; onOpen: () => void }>) {
+function ChangeLine({
+  view,
+  summary,
+  valuation,
+}: Readonly<{ view: ChangeView; summary: HoldingsSummary | null; valuation: PortfolioValuation | null }>) {
   const t = useT();
+  let abs: number | null = null;
+  let pct: number | null = null;
+  if (summary) {
+    if (view === 'day') {
+      abs = summary.dayChange;
+      pct = summary.dayChangePct;
+    } else if (valuation) {
+      abs = valuation.pl;
+      pct = valuation.plPct;
+    } else {
+      abs = summary.pl;
+      pct = summary.plPct;
+    }
+  }
+  return (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+      <span style={{ fontSize: 'var(--text-row)', color: signalColor(abs) }}>
+        <Num>{abs === null ? '—' : signedCurrency(abs)}</Num>
+        {pct !== null && (
+          <>
+            {' '}
+            <Num>{`(${pctOrDash(pct)})`}</Num>
+          </>
+        )}
+      </span>
+      <span className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
+        {view === 'day' ? t('pf.today') : t('pf.sincePurchase')}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * One portfolio's holdings list: held first, then anything sold out — a
+ * closed position is history, and history belongs under what is still open
+ * rather than mixed into it where it reads as a live holding of zero shares.
+ */
+function Holdings({
+  rows,
+  view,
+  onClose,
+}: Readonly<{ rows: Holding[]; view: ChangeView; onClose?: (h: Holding) => void }>) {
+  const dispatch = useDispatch();
+  const t = useT();
+  const held = rows.filter((h) => h.shares !== 0);
+  const closed = rows.filter((h) => h.shares === 0);
+  if (rows.length === 0) return <EmptyState>{t('pf.holdingsEmpty')}</EmptyState>;
+  return (
+    <>
+      {held.map((h) => (
+        <HoldingRow
+          key={h.ticker}
+          h={h}
+          view={view}
+          onOpen={() => dispatch({ type: 'openStock', ticker: h.ticker })}
+          // Only a long can be closed by a sell; see onClosePosition above.
+          onClose={onClose && h.shares > 0 ? () => onClose(h) : undefined}
+        />
+      ))}
+      {closed.length > 0 && (
+        <>
+          <div className="text-muted" style={{ fontSize: 'var(--text-caption)', padding: '10px 0 2px' }}>
+            {t('pf.closed')}
+          </div>
+          {closed.map((h) => (
+            <HoldingRow
+              key={h.ticker}
+              h={h}
+              view={view}
+              closed
+              onOpen={() => dispatch({ type: 'openStock', ticker: h.ticker })}
+            />
+          ))}
+        </>
+      )}
+    </>
+  );
+}
+
+/**
+ * One holdings row. The right-hand pair is the position's worth over its
+ * change in the selected reading — today's move, or the return since
+ * purchase — as money and percent together. Every figure is nullable and
+ * renders as "—": a position in a ticker the price feed does not cover has
+ * no worth we can state, and the old code's green "+0.00%" said it was flat
+ * instead.
+ */
+function HoldingRow({
+  h,
+  view,
+  closed,
+  onOpen,
+  onClose,
+}: Readonly<{ h: Holding; view: ChangeView; closed?: boolean; onOpen: () => void; onClose?: () => void }>) {
+  const t = useT();
+  // A closed position has no day to speak of; what it has is what it booked.
+  const abs = view === 'day' ? (closed ? null : h.dayChange) : h.pl;
+  const pct = view === 'day' ? (closed ? null : h.dayChangePct) : h.plPct;
+  const change = abs === null ? '—' : `${signedCurrency(abs)}${pct === null ? '' : ` (${pctOrDash(pct)})`}`;
   return (
     <ListRow
       title={h.ticker}
@@ -355,11 +493,14 @@ function HoldingRow({ h, closed, onOpen }: Readonly<{ h: Holding; closed?: boole
         )
       }
       right={
-        <RowValues
-          main={closed ? '—' : moneyOrDash(h.value, 0)}
-          sub={pctOrDash(h.plPct)}
-          subColor={signalColor(h.plPct)}
-        />
+        <RowValues main={closed ? '—' : moneyOrDash(h.value, 0)} sub={change} subColor={signalColor(abs)} />
+      }
+      trailing={
+        onClose && (
+          <Button variant="ghost" fontSize={14} minHeight={32} onClick={onClose}>
+            <span aria-label={t('pf.closeAria', { ticker: h.ticker })}>{t('pf.closePosition')}</span>
+          </Button>
+        )
       }
       minHeight={46}
       onClick={onOpen}
@@ -371,7 +512,7 @@ function HoldingRow({ h, closed, onOpen }: Readonly<{ h: Holding; closed?: boole
  * What goes under a portfolio's total: a chart, or the sentence that says why
  * there isn't one.
  *
- * Four cases that are easy to collapse and must not be. A seeded random walk
+ * Three cases that are easy to collapse and must not be. A seeded random walk
  * is only ever allowed under a total that is itself demonstration data —
  * invented performance under a real figure is the one thing this app's data
  * contract forbids — so both a connected account and a manual portfolio are
@@ -385,17 +526,13 @@ function HoldingRow({ h, closed, onOpen }: Readonly<{ h: Holding; closed?: boole
 function PerformanceSlot({
   live,
   isManual,
-  demo,
-  series,
-  bench,
+  pf,
   ledger,
   label,
 }: Readonly<{
   live: boolean;
   isManual: boolean;
-  demo: boolean;
-  series: number[];
-  bench: number[];
+  pf: PortfolioSummary;
   ledger: ManualTransaction[];
   label: string;
 }>) {
@@ -410,16 +547,16 @@ function PerformanceSlot({
   //
   // A manual portfolio is the one case that CAN be drawn honestly: its shares
   // are the user's own rows and its prices are real closes, so the line is
-  // computed rather than invented. It is asked first for the same reason as
-  // before — `live` is a switch on the whole app, while being manual is a
-  // property of the row the user selected, and the two can be true at once.
+  // computed rather than invented.
   if (isManual) return <ManualValueChart ledger={ledger} label={label} />;
   // A live read of a connected account's current state: the brokerage reports
   // no priced history through the integration at all.
   if (live) return <Note>{t('live.noHistory')}</Note>;
-  // The line and its benchmark are both seeded walks, so with sample data off
-  // there is nothing honest left to draw.
-  if (!demo) return <DemoOnly feature="pf.performance" card={false} />;
+  // Sample data: the line and its benchmark are both seeded walks, allowed
+  // here because the total above them is a demo figure too.
+  const drift = (pf.dayPct ?? 0) >= 0 ? 0.5 : 0.16;
+  const series = demoService.series(`pf-${pf.id}`, 70, drift, 2.4);
+  const bench = demoService.series('bench-spy', 70, 0.22, 1.4);
   return (
     <>
       <AreaChart values={series} height={110} pad={8} compare={bench} />
@@ -467,7 +604,10 @@ function SourceStrip({
   let detail: string;
   if (isAgg) detail = t('pf.aggDetail');
   else if (isManual) detail = t('pf.manualDetail');
-  else detail = t('pf.synced', { when: pf.syncedAgo?.[language] ?? '' });
+  // A brokerage that gave no fetch time gets no "synced" claim — only the
+  // one thing that is true of it either way.
+  else if (pf.syncedAgo) detail = t('pf.synced', { when: pf.syncedAgo[language] });
+  else detail = t('pf.readOnly');
 
   return (
     <Card padding="11px 12px" gap={0} row>
@@ -629,67 +769,11 @@ function NoPortfolios({
 
   return (
     <>
-      <DemoOnly feature="connScreen.linked">
-        <Button variant="secondary" alignSelf="flex-start" fontSize={16} minHeight={36} onClick={onNew}>
-          ＋ {t('pf.portfolio')}
-        </Button>
-      </DemoOnly>
+      <Button variant="secondary" alignSelf="flex-start" fontSize={16} minHeight={36} onClick={onNew}>
+        ＋ {t('pf.portfolio')}
+      </Button>
       <NewPortfolioSheet open={newPfOpen} onClose={onCloseNew} />
     </>
-  );
-}
-
-/**
- * The allocation card, in the three versions the screen can honestly show.
- *
- * Early returns rather than a chain of conditionals inline in the screen's
- * JSX, because the three are not shades of one card: a live account's own
- * position values, a donut labelled as sample data, and nothing at all are
- * three different claims, and the one that applies should be readable without
- * unwinding the other two.
- */
-function AllocationCard({
-  live,
-  demo,
-  pfId,
-  beg,
-}: Readonly<{ live: boolean; demo: boolean; pfId: string; beg: boolean }>) {
-  const t = useT();
-  const { language } = useTheme();
-
-  if (live) {
-    return (
-      <Card padding={14} gap={10}>
-        <CardTitle>{t('pf.allocation')}</CardTitle>
-        {/* Computed from the account's actual position values — an invented
-            allocation over real holdings would misstate the concentration
-            this card exists to show. */}
-        <LiveAllocation pfId={pfId} />
-      </Card>
-    );
-  }
-
-  if (!demo) return <DemoOnly feature="pf.allocation" />;
-
-  return (
-    <Card padding={14} gap={10}>
-      <CardTitle>{t('pf.allocation')}</CardTitle>
-      <DonutChart
-        slices={[
-          { label: 'NVDA', pct: 28, colorVar: ALLOC_COLORS[0] },
-          { label: 'AMD', pct: 19, colorVar: ALLOC_COLORS[1] },
-          { label: 'MSFT', pct: 15, colorVar: ALLOC_COLORS[2] },
-          { label: 'AAPL', pct: 13, colorVar: 'var(--acc-pale)' },
-          { label: 'LLY', pct: 11, colorVar: 'var(--muted)' },
-          { label: language === 'he' ? 'מזומן' : 'Cash', pct: 14, colorVar: 'var(--line)' },
-        ]}
-      />
-      {beg && (
-        <p className="text-muted" style={{ fontSize: 'var(--text-body)', margin: 0 }}>
-          {t('pf.concentration')}
-        </p>
-      )}
-    </Card>
   );
 }
 
@@ -803,50 +887,23 @@ function ManualValueChart({ ledger, label }: Readonly<{ ledger: ManualTransactio
 }
 
 /**
- * A manual portfolio's total, and — when it cannot be stated — which holdings
- * are the reason.
+ * What a manual portfolio's figures are figures OF, and — when its total
+ * cannot be stated — which holdings are the reason.
  *
- * Reads through the same function the holdings card does, so the figure here
- * and the rows below it can never disagree about what was priced.
+ * A silent "—" over a list of real positions reads as a broken app; naming
+ * what could not be priced is the difference between "we don't know" and
+ * "something went wrong".
  */
-function ManualValue({ pfId }: Readonly<{ pfId: string }>) {
+function ManualValueNotes({ valuation }: Readonly<{ valuation: PortfolioValuation }>) {
   const t = useT();
-  const { state } = usePortfolioHoldings(pfId);
-  const valuation = state.status === 'ok' ? state.data.valuation : null;
-
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 9 }}>
-        <Num size={28} style={{ fontFamily: 'var(--font-heading)', lineHeight: 1.1 }}>
-          {moneyOrDash(valuation?.total ?? null)}
-        </Num>
-      </div>
-      {/* How much they made, in the currency they think in and as a share of
-          what they put in. Both come from the same valuation as the total
-          above, so the three figures can never disagree: an unpriced holding
-          makes all of them "—" together rather than leaving a confident
-          profit under an unknown worth. */}
-      {valuation && valuation.positions.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-          <span className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
-            {t('pf.totalReturn')}
-          </span>
-          <span style={{ fontSize: 'var(--text-row)', color: signalColor(valuation.pl) }}>
-            <Num>{valuation.pl === null ? '—' : signedCurrency(valuation.pl)}</Num>{' '}
-            <Num>{valuation.plPct === null ? '' : `(${pctOrDash(valuation.plPct)})`}</Num>
-          </span>
-          {valuation.invested > 0 && (
-            <span className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
-              {t('pf.returnBasis', { invested: money(valuation.invested) })}
-            </span>
-          )}
-        </div>
+      {valuation.positions.length > 0 && valuation.invested > 0 && (
+        <span className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
+          {t('pf.totalReturn')} · {t('pf.returnBasis', { invested: money(valuation.invested) })}
+        </span>
       )}
-      {/* Why the total is an em dash, said where the reader is looking when
-          they wonder. A silent "—" over a list of real positions reads as a
-          broken app; naming what could not be priced is the difference
-          between "we don't know" and "something went wrong". */}
-      {valuation && valuation.unpriced.length > 0 && (
+      {valuation.unpriced.length > 0 && (
         <div className="text-muted" style={{ fontSize: 'var(--text-caption)', lineHeight: 1.45 }}>
           {t('pf.partiallyPriced', {
             priced: valuation.priced,
@@ -860,10 +917,11 @@ function ManualValue({ pfId }: Readonly<{ pfId: string }>) {
 }
 
 /**
- * One portfolio's holdings and valuation. Both the total above the chart and
- * the holdings card read through this, which is the point: they used to be
- * computed separately, which is how a confident dollar total could sit above
- * a list of positions the app had just failed to price.
+ * One portfolio's holdings and valuation. The total above the chart, the
+ * allocation ring and the holdings card all read through this, which is the
+ * point: they used to be computed separately, which is how a confident
+ * dollar total could sit above a list of positions the app had just failed
+ * to price.
  */
 function usePortfolioHoldings(pfId: string) {
   const s = useAppState();
@@ -872,7 +930,7 @@ function usePortfolioHoldings(pfId: string) {
   // Keyed on the log's identity, so a transaction added or removed re-values
   // at once rather than after the next visit.
   const key = transactions.map((tx) => tx.id).join(',');
-  return useLoadable(() => fetchPortfolioHoldings(pfId, transactions), [pfId, demo, key]);
+  return useLoadable<PortfolioHoldings>(() => fetchPortfolioHoldings(pfId, transactions), [pfId, demo, key]);
 }
 
 /**
@@ -892,50 +950,40 @@ function ledgerState(
 }
 
 /**
- * Allocation computed from a real connected account's actual position values.
+ * Allocation computed from the portfolio's actual positions — the same rows
+ * the holdings card lists, for every kind of portfolio.
  *
- * Only positions the brokerage priced can be weighted. A SHORT is priced but
- * has a negative value, and a ring draws shares of a positive total — so it
- * is excluded and NAMED, because dropping it silently made a two-position
- * account read as "ORCL 100%".
+ * Only priced positions can be weighted, and a SHORT is priced but has a
+ * negative value: a ring draws shares of a positive total, so it is excluded
+ * and NAMED, because dropping it silently made a two-position account read
+ * as "ORCL 100%". An unpriced long is named for the same reason.
  */
-function LiveAllocation({ pfId }: Readonly<{ pfId: string }>) {
+function Allocation({ rows }: Readonly<{ rows: Holding[] }>) {
   const t = useT();
-  const holdings = useLoadable(() => appService.holdings(pfId), [pfId]);
-
+  const held = rows.filter((r) => r.shares !== 0);
+  // A null value is a position that could not be priced; it is not a zero,
+  // and it cannot be given a share of a total either.
+  const unpriced = held.filter((r) => r.value === null);
+  const shorts = held.filter((r) => r.value !== null && r.value < 0);
+  const priced = held.filter((r) => r.value !== null && r.value > 0);
+  const total = priced.reduce((sum, r) => sum + (r.value ?? 0), 0);
+  if (held.length === 0) return <EmptyState>{t('pf.holdingsEmpty')}</EmptyState>;
+  if (total === 0) return <EmptyState>{t('live.noAllocation')}</EmptyState>;
+  const palette = [...ALLOC_COLORS, 'var(--acc-pale)', 'var(--muted)', 'var(--line)'];
+  const slices = [...priced]
+    .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
+    .slice(0, palette.length)
+    .map((r, i) => ({ label: r.ticker, pct: ((r.value ?? 0) / total) * 100, colorVar: palette[i] }));
   return (
-    <DataState
-      state={holdings.state}
-      onRetry={holdings.retry}
-      skeleton={<Skeleton height={132} radius="var(--radius-md)" />}
-    >
-      {(rows) => {
-        // A null value is a position the brokerage did not price; it is not
-        // a zero, and it cannot be given a share of a total either.
-        const shorts = rows.filter((r) => r.value !== null && r.value < 0);
-        const priced = rows.filter((r) => r.value !== null && r.value > 0);
-        const total = priced.reduce((sum, r) => sum + (r.value ?? 0), 0);
-        if (total === 0) return <EmptyState>{t('live.noAllocation')}</EmptyState>;
-        const palette = [...ALLOC_COLORS, 'var(--acc-pale)', 'var(--muted)', 'var(--line)'];
-        const slices = [...priced]
-          .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
-          .slice(0, palette.length)
-          .map((r, i) => ({ label: r.ticker, pct: ((r.value ?? 0) / total) * 100, colorVar: palette[i] }));
-        return (
-          <>
-            <DonutChart slices={slices} />
-            {shorts.length > 0 && (
-              <p
-                className="text-muted"
-                style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}
-              >
-                {t('live.shortExcluded', { tickers: shorts.map((r) => r.ticker).join(', ') })}
-              </p>
-            )}
-          </>
-        );
-      }}
-    </DataState>
+    <>
+      <DonutChart slices={slices} />
+      {shorts.length > 0 && (
+        <Note>{t('live.shortExcluded', { tickers: shorts.map((r) => r.ticker).join(', ') })}</Note>
+      )}
+      {unpriced.length > 0 && (
+        <Note>{t('pf.unpricedExcluded', { tickers: unpriced.map((r) => r.ticker).join(', ') })}</Note>
+      )}
+    </>
   );
 }
 
@@ -1073,12 +1121,22 @@ function sharePct(total: number | null, aggTotal: number | null): string {
   return `${((total / aggTotal) * 100).toFixed(1)}%`;
 }
 
-/** Pension / hishtalmut / bank — totals by provider only, never merged into the
- *  portfolio number, never itemized (product rule). */
+/**
+ * Pension / hishtalmut / bank — totals by provider only, never merged into the
+ * portfolio number, never itemized (product rule).
+ *
+ * Each row can be disconnected from here, not only from the Connections
+ * screen: the row is where the reader sees the institution, so it is where
+ * they will look for the way to remove it. The figures are sample data —
+ * these institutions have no live source — so the card sits behind the
+ * sample-data switch and says so in place when it is off.
+ */
 export function LongTermSavings() {
   const s = useAppState();
   const dispatch = useDispatch();
   const t = useT();
+  const toast = useToast();
+  const demo = useDemoMode();
   const conn = s.advConnections;
   const rows = (
     [
@@ -1087,6 +1145,11 @@ export function LongTermSavings() {
       ['bank', 'conn.bank', '$7,860', ''],
     ] as const
   ).filter(([k]) => conn[k]);
+  const disconnect = (k: InstitutionKey) => {
+    const name = conn[k] ?? t(k === 'pension' ? 'conn.pension' : k === 'hisht' ? 'conn.hisht' : 'conn.bank');
+    dispatch({ type: 'advConnect', inst: k, provider: null });
+    toast(t('pf.disconnected', { name }));
+  };
 
   return (
     <Card padding="12px 13px 4px" gap={4}>
@@ -1135,7 +1198,21 @@ export function LongTermSavings() {
             }
             title={t(labelKey)}
             subtitle={`${conn[k] ?? ''} · ${t('pf.syncedAgo')}`}
-            right={<RowValues main={value} sub={ytd || undefined} subColor="var(--up)" />}
+            // The figures are invented, so with sample data off the row keeps
+            // its institution and drops the numbers rather than stating a
+            // balance nothing reported.
+            right={
+              demo ? (
+                <RowValues main={value} sub={ytd || undefined} subColor="var(--up)" />
+              ) : (
+                <RowValues main="—" />
+              )
+            }
+            trailing={
+              <Button variant="ghost" fontSize={14} minHeight={32} onClick={() => disconnect(k)}>
+                {t('pf.disconnect')}
+              </Button>
+            }
             minHeight={50}
           />
         ))

@@ -26,13 +26,27 @@ import { useLedger } from '../state/useLedgerSync';
  * The alternative — delete the row and type it again — is what the app used
  * to require, and it loses everything about the trade to fix one digit of its
  * price.
+ *
+ * `preset` opens the form already filled for a NEW row — the "close this
+ * position" action on a holding hands over a sell of every share held, at the
+ * price the row was just valued at. Nothing is recorded until the reader
+ * confirms; a preset is a suggestion in editable fields, not a trade.
  */
+export interface TxPreset {
+  side: TransactionSide;
+  ticker: string;
+  shares: number;
+  /** Null when the position could not be priced; the field then opens empty. */
+  price: number | null;
+}
+
 export function TxSheet({
   open,
   onClose,
   pfId,
   pfName,
   editing = null,
+  preset = null,
 }: {
   open: boolean;
   onClose: () => void;
@@ -40,6 +54,8 @@ export function TxSheet({
   pfName: string;
   /** The transaction being corrected, or null to record a new one. */
   editing?: ManualTransaction | null;
+  /** Fields to open a new row with. Ignored while `editing` is set. */
+  preset?: TxPreset | null;
 }) {
   const { mode, language } = useTheme();
   const t = useT();
@@ -58,16 +74,19 @@ export function TxSheet({
   // still see them.
   useEffect(() => {
     if (!open) return;
-    setSide(editing?.side ?? 'buy');
-    setTicker(editing?.ticker ?? '');
-    setShares(editing ? String(editing.shares) : '');
-    setPrice(editing ? String(editing.price) : '');
+    const fill = editing ?? preset;
+    setSide(fill?.side ?? 'buy');
+    setTicker(fill?.ticker ?? '');
+    setShares(fill ? String(fill.shares) : '');
+    // A preset price is rounded to cents: a live quote can carry more
+    // decimals than anyone paid, and the field is what will be recorded.
+    setPrice(editing ? String(editing.price) : preset?.price != null ? preset.price.toFixed(2) : '');
     setDate(editing?.date ?? todayLocal());
     setTouched(false);
-    // `editing` belongs in the deps beside `open`: the sheet stays mounted, so
-    // opening it on a different row without this would show the previous
-    // row's numbers under the new row's title.
-  }, [open, editing]);
+    // `editing` and `preset` belong in the deps beside `open`: the sheet
+    // stays mounted, so opening it on a different row without this would
+    // show the previous row's numbers under the new row's title.
+  }, [open, editing, preset]);
 
   const today = todayLocal();
   const symbol = ticker.trim().toUpperCase();

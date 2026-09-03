@@ -62,10 +62,16 @@ export interface ValuedPosition extends Position {
   price: number | null;
   value: number | null;
   /**
-   * Total return on this position as a percentage of what was invested —
-   * unrealised, realised and dividends together. `null` when unpriced, and
-   * also when nothing was ever invested (a dividend logged against no
-   * purchase has no denominator to be a percentage of).
+   * Total return on this position in currency — what the held shares are
+   * worth now, plus what selling already booked, plus dividends, less what
+   * the held shares cost. `null` when unpriced.
+   */
+  pl: number | null;
+  /**
+   * The same return as a percentage of what was invested — unrealised,
+   * realised and dividends together. `null` when unpriced, and also when
+   * nothing was ever invested (a dividend logged against no purchase has no
+   * denominator to be a percentage of).
    */
   plPct: number | null;
 }
@@ -208,7 +214,7 @@ export function valuePositions(
   const valued: ValuedPosition[] = positions.map((pos) => {
     const price = quotes?.[pos.ticker]?.price ?? null;
     const value = price === null ? null : pos.shares * price;
-    return { ...pos, price, value, plPct: totalReturnPct(pos, value) };
+    return { ...pos, price, value, pl: totalReturn(pos, value), plPct: totalReturnPct(pos, value) };
   });
 
   const held = valued.filter((x) => x.shares > 0);
@@ -251,10 +257,20 @@ export function valuePositions(
  * both be inventions.
  */
 function totalReturnPct(pos: Position, value: number | null): number | null {
-  if (value === null) return null;
+  const pl = totalReturn(pos, value);
+  if (pl === null) return null;
   // Everything ever paid for this ticker: what the remaining shares cost
   // plus what the sold ones cost.
   const invested = pos.costBasis + pos.soldCost;
   if (invested <= 0) return null;
-  return ((value + pos.realised + pos.dividends - pos.costBasis) / invested) * 100;
+  return (pl / invested) * 100;
+}
+
+/**
+ * Total return on a position in currency: the money form of the percentage
+ * above, over exactly the same terms, so the two can never disagree.
+ */
+function totalReturn(pos: Position, value: number | null): number | null {
+  if (value === null) return null;
+  return value + pos.realised + pos.dividends - pos.costBasis;
 }

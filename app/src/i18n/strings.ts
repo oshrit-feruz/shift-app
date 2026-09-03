@@ -462,8 +462,8 @@ export const STRINGS = {
   // the movers ranking by "most active" is still sample data.
   'more.demoData': p('Sample data', 'נתוני דמו'),
   'more.demoDataHelp': p(
-    'Fills the app with sample figures: generated price charts, an illustrative earnings week, and the demo portfolio, market movers, analyst ratings, connected accounts and notifications. With it off, each of those says so in place and everything else uses real market data.',
-    'ממלא את האפליקציה בנתוני הדגמה: גרפים מומצאים, שבוע דוחות לדוגמה, וגם תיק הדמו, מובילי השוק, דירוגי האנליסטים, החשבונות המחוברים וההתראות. כשהוא כבוי, כל אחד מהם אומר זאת במקומו, וכל השאר משתמש בנתוני שוק אמיתיים.',
+    'Fills the app with sample figures: generated price charts, an illustrative earnings week, and the demo brokers, market movers, analyst ratings and notifications. With it off, each of those says so in place, everything else uses real market data, and the portfolio shows the brokerage account connected through SnapTrade.',
+    'ממלא את האפליקציה בנתוני הדגמה: גרפים מומצאים, שבוע דוחות לדוגמה, וגם ברוקרים לדוגמה, מובילי השוק, דירוגי האנליסטים וההתראות. כשהוא כבוי, כל אחד מהם אומר זאת במקומו, כל השאר משתמש בנתוני שוק אמיתיים, והתיק מציג את חשבון הברוקר שמקושר דרך SnapTrade.',
   ),
   // The stand-in for a whole fabricated feature while sample data is off.
   // Verbless in Hebrew on purpose — see the note in components/DemoOnly.tsx
@@ -547,10 +547,6 @@ export const STRINGS = {
   'pf.delete': p('Delete', 'למחוק'),
   'pf.deleted': p('{name} deleted', '{name} נמחק'),
   'pf.link': p('Link', 'לחבר'),
-  'pf.concentration': p(
-    'Two thirds of this portfolio sits in semiconductors. Concentration amplifies good days and bad ones alike.',
-    'שני שלישים מהתיק הזה יושבים בשבבים. ריכוז מגדיל גם את הימים הטובים וגם את הרעים.',
-  ),
   'pf.longTerm': p('Long-term savings', 'חיסכון ארוך טווח'),
   'pf.readOnly': p('Read-only', 'קריאה בלבד'),
   'pf.longTermEmpty': p(
@@ -571,6 +567,21 @@ export const STRINGS = {
   'pf.namePlaceholder': p('e.g. Dividend income', 'למשל: הכנסה מדיבידנדים'),
   'pf.syncedAgo': p('synced 12 min ago', 'סונכרן לפני 12 דק׳'),
   'pf.benchmark': p('- - S&P 500', '- - S&P 500'),
+  // The two readings of a holding's change, and of the whole portfolio's:
+  // today's move, or the return since purchase. One switch drives both the
+  // header line and every row, so the figures on screen always share a basis.
+  'pf.viewDay': p('Today', 'יומי'),
+  'pf.viewOpen': p('Since purchase', 'פתוח'),
+  'pf.sincePurchase': p('since purchase', 'מהקנייה'),
+  // Opens the transaction sheet pre-filled with a sell of every share held.
+  // Nothing is recorded until the reader confirms it.
+  'pf.closePosition': p('Close', 'לסגור'),
+  'pf.closeAria': p('Close the {ticker} position', 'לסגור את הפוזיציה ב-{ticker}'),
+  'pf.disconnect': p('Disconnect', 'לנתק'),
+  'pf.disconnected': p('{name} disconnected', '{name} נותק'),
+  'pf.holdingsEmpty': p('No positions yet', 'עדיין אין פוזיציות'),
+  // Which held legs the allocation ring leaves out, and why.
+  'pf.unpricedExcluded': p('Not in the ring (no price): {tickers}.', 'לא בטבעת (אין מחיר): {tickers}.'),
 
   // ── A manual portfolio's value through time ───────────────────────────
   // Two lines, and the legend has to say which is a claim about the market
@@ -1000,66 +1011,32 @@ export const STRINGS = {
   'set.deleteCancel': p('Cancel', 'ביטול'),
   'set.deleting': p('Deleting…', 'מוחק…'),
   'set.deleteFailedTitle': p('The account was not deleted', 'החשבון לא נמחק'),
-  // ── Connected account (founder demo, SnapTrade Personal) ──────────────
-  // A demo-only, single-account, read-only integration. Every string here is
-  // written to make that scope unmistakable — nothing may read as a feature
-  // an end user can use today.
-  'title.snaptrade': p('Connected account', 'חשבון מקושר'),
-  'kicker.snaptrade': p('Demo · read-only', 'הדגמה · קריאה בלבד'),
-  'live.title': p('Connected account (demo)', 'חשבון מקושר (הדגמה)'),
+  // ── Connected account (SnapTrade Personal, read-only) ─────────────────
+  // The one real brokerage account, shown with sample data OFF. Everything
+  // here is read-only and single-account; nothing may read as trading.
+  'live.title': p('Connected account', 'חשבון מקושר'),
   'live.badge': p('Real data', 'נתונים אמיתיים'),
-  'live.intro': p(
-    "One real brokerage account, read live and read-only through SnapTrade. This is a founder demo on SnapTrade's free Personal tier — a single account, not account linking for users.",
-    'חשבון ברוקר אמיתי אחד, נקרא בזמן אמת ובקריאה בלבד דרך SnapTrade. זו הדגמה של המייסדת בשכבת Personal החינמית של SnapTrade — חשבון בודד, לא חיבור חשבונות למשתמשים.',
-  ),
-  'live.notForUsers': p(
-    "Not available to users. Multi-user account linking would need SnapTrade's Commercial tier with KYC and billing — a separate decision that has not been made.",
-    'לא זמין למשתמשים. חיבור חשבונות לריבוי משתמשים ידרוש את שכבת Commercial של SnapTrade עם KYC וחיוב — החלטה נפרדת שטרם התקבלה.',
-  ),
   'live.readOnly': p(
     'Read-only: balances and positions only. No trading endpoint is ever called.',
     'קריאה בלבד: יתרות ופוזיציות בלבד. לא מתבצעת שום קריאה לממשק מסחר.',
   ),
   'live.none': p('No brokerage account connected yet.', 'עדיין לא מקושר חשבון ברוקר.'),
   'live.noneHelp': p(
-    "Connect one in SnapTrade's own Connection Portal and it will appear here. Nothing is shown until a real account is linked.",
-    'אפשר לקשר חשבון בפורטל החיבורים של SnapTrade והוא יופיע כאן. עד שיקושר חשבון אמיתי לא יוצג דבר.',
-  ),
-  'live.balances': p('Balances', 'יתרות'),
-  'live.positions': p('Positions', 'פוזיציות'),
-  'live.noPositions': p('This account holds no positions.', 'בחשבון הזה אין פוזיציות.'),
-  'live.cash': p('Cash', 'מזומן'),
-  'live.buyingPower': p('Buying power', 'כוח קנייה'),
-  'live.total': p('Total value', 'שווי כולל'),
-  'live.units': p('Units', 'יחידות'),
-  'live.price': p('Price', 'מחיר'),
-  'live.value': p('Value', 'שווי'),
-  'live.avgCost': p('Avg cost', 'עלות ממוצעת'),
-  'live.openPnl': p('Open P&L', 'רווח/הפסד פתוח'),
-  'live.unknownFields': p(
-    'A dash means the brokerage did not report that field. Nothing here is estimated or filled in.',
-    'מקף פירושו שהברוקר לא דיווח על השדה הזה. שום נתון כאן אינו משוער או מושלם מעצמנו.',
+    "Connect a brokerage in SnapTrade's dashboard and it appears here after its next sync. Nothing is shown until a real account is linked.",
+    'מקשרים חשבון ברוקר בדשבורד של SnapTrade והוא יופיע כאן אחרי הסנכרון הבא. עד שיקושר חשבון אמיתי לא יוצג דבר.',
   ),
   'live.noHistory': p(
-    "No performance history: this is a live read of the account's current state, and the brokerage reports no day change or priced history through this integration.",
-    'אין היסטוריית ביצועים: זו קריאה חיה של מצב החשבון כרגע, והברוקר אינו מדווח שינוי יומי או היסטוריה מתומחרת דרך החיבור הזה.',
+    "No performance history: this is a live read of the account's current state. Today's move comes from live quotes; the brokerage publishes no priced history through this connection.",
+    'אין היסטוריית ביצועים: זו קריאה חיה של מצב החשבון כרגע. השינוי היומי מגיע מציטוטים חיים; הברוקר אינו מפרסם היסטוריה מתומחרת דרך החיבור הזה.',
   ),
   'live.shortExcluded': p(
     'Short positions are left out of the ring: a negative holding has no share of a total. Not shown here: {tickers}.',
     'פוזיציות שורט אינן נכללות בטבעת: להחזקה שלילית אין נתח מתוך סך הכול. לא מוצגות כאן: {tickers}.',
   ),
   'live.noAllocation': p(
-    'The brokerage did not price these positions, so no allocation can be shown.',
-    'הברוקר לא תמחר את הפוזיציות, ולכן לא ניתן להציג פילוח.',
+    'None of the open positions has a price, so no allocation can be shown.',
+    'לאף פוזיציה פתוחה אין מחיר, ולכן לא ניתן להציג פילוח.',
   ),
-  'live.setting': p('Demo: real connected account', 'הדגמה: חשבון מקושר אמיתי'),
-  'live.settingHelp': p(
-    'Off shows the app exactly as it is today, with demo accounts. On replaces them with the one real brokerage account read through SnapTrade. Founder demo only.',
-    'כבוי מציג את האפליקציה בדיוק כפי שהיא היום, עם חשבונות הדגמה. דלוק מחליף אותם בחשבון הברוקר האמיתי היחיד שנקרא דרך SnapTrade. להדגמת המייסדת בלבד.',
-  ),
-  'live.freshRealtime': p('Read from the brokerage just now', 'נקרא מהברוקר ממש עכשיו'),
-  'live.freshDaily': p("SnapTrade's daily snapshot", 'תמונת המצב היומית של SnapTrade'),
-  'live.asOf': p('Brokerage data fetched {when}', 'נתוני הברוקר נקראו {when}'),
   'live.connectedNoAccounts': p(
     'Connected to {broker}, but the brokerage is reporting no accounts.',
     'מקושר ל-{broker}, אך הברוקר אינו מדווח על אף חשבון.',
@@ -1127,8 +1104,6 @@ export const STRINGS = {
     'Opens in its own window, without browser chrome.',
     'נפתחת בחלון משלה, בלי סרגלי הדפדפן.',
   ),
-  'more.snaptrade': p('Connected account (demo)', 'חשבון מקושר (הדגמה)'),
-  'more.snaptradeHelp': p('One real account, read-only', 'חשבון אמיתי אחד, קריאה בלבד'),
 } as const;
 
 export type StringKey = keyof typeof STRINGS;

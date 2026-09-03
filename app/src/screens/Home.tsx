@@ -18,7 +18,6 @@ import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { demoService } from '../data/demoAdapter';
 import { appService } from '../data/appService';
-import { useDemoFlag } from '../data/useDemoFlag';
 import { useLoadable } from '../data/useLoadable';
 import { PRICE_REFRESH_MS } from '../data/quotes';
 import { fetchMovers, type MoverRow } from '../data/movers';
@@ -45,16 +44,16 @@ export function HomeScreen({ openSearch }: ScreenProps) {
   );
   const setup = setupProgress(s);
   const demo = useDemoMode();
-  const live = useDemoFlag('liveAccount');
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* The advisory track, first and full-bleed — see home/AdvisoryBand. */}
       <AdvisoryBand />
 
-      {/* A real connected account outranks the sample-data switch: it is
-          not sample data, so the hero shows even with that switch off. */}
-      {beg && (live || demo ? <HeroPortfolio /> : <DemoOnly feature="home.pfToday" />)}
+      {/* Always: with sample data on this is the demo Blink account, and
+          with it off it is the real connected account — or the honest
+          "no portfolio yet" card when none is linked. */}
+      {beg && <HeroPortfolio />}
 
       {setup.showBanner && (
         <Card
@@ -325,10 +324,12 @@ function monthLabel(iso: string, language: 'en' | 'he'): string {
 function HeroPortfolio() {
   const dispatch = useDispatch();
   const t = useT();
-  // Re-fetched when the founder-demo live-account switch flips, so the
-  // headline follows the same source as the Portfolio tab.
-  const live = useDemoFlag('liveAccount');
-  const portfolios = useLoadable(() => appService.portfolios(), [live]);
+  // Re-fetched when the sample-data switch flips, so the headline follows
+  // the same source as the Portfolio tab: demo brokers on, the real
+  // connected account off.
+  const demo = useDemoMode();
+  const live = !demo;
+  const portfolios = useLoadable(() => appService.portfolios(), [demo]);
   // Deterministic for a given key, so compute the walk once, not per render.
   const pfSeries = useMemo(() => demoService.series('home-pf', 60, 0.42, 2.2), []);
 

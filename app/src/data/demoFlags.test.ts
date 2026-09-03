@@ -47,14 +47,12 @@ describe('defaults', () => {
     expect((await freshFlags()).demoData).toBe(true);
   });
 
-  it('starts with the QA and live-account switches off', async () => {
+  it('starts with the QA switch off', async () => {
     withStorage();
     const flags = await freshFlags();
-    // Neither is a state to put a reader in without them asking for it: one
-    // renders failure states on purpose, the other points the app at a real
-    // brokerage account.
+    // Not a state to put a reader in without them asking for it: it renders
+    // failure states on purpose.
     expect(flags.unavailable).toBe(false);
-    expect(flags.liveAccount).toBe(false);
   });
 
   it('keeps the default when storage cannot be reached at all', async () => {
@@ -81,16 +79,16 @@ describe('a stored choice', () => {
   it('persists "on" for a flag whose default is off', async () => {
     const store = withStorage();
     const flags = await freshFlags();
-    flags.set('liveAccount', true);
-    expect(store.get(flags.key.liveAccount)).toBe('1');
-    expect(flags.liveAccount).toBe(true);
+    flags.set('unavailable', true);
+    expect(store.get(flags.key.unavailable)).toBe('1');
+    expect(flags.unavailable).toBe(true);
   });
 
   it('wins over the default in both directions', async () => {
     const flags = await freshFlags();
-    withStorage({ 'shift.demo.data': '0', 'shift.demo.liveAccount': '1' });
+    withStorage({ 'shift.demo.data': '0', 'shift.demo.unavailable': '1' });
     expect(flags.demoData).toBe(false);
-    expect(flags.liveAccount).toBe(true);
+    expect(flags.unavailable).toBe(true);
   });
 
   it('holds for the session when the write throws', async () => {

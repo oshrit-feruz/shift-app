@@ -303,14 +303,37 @@ export interface Holding {
   shares: number;
   avgCost: number;
   /**
+   * The price the position is valued at, or `null` when there is none. For a
+   * connected account it is the brokerage's own price; for the user's own
+   * ledger it is the live quote. Carried so a "close this position" action
+   * can offer the price the row was just valued at rather than a blank.
+   */
+  price: number | null;
+  /**
    * What the position is worth now, or `null` when it cannot be priced — the
    * quote snapshot was unavailable, the ticker is outside the ranking, or it
    * is ranked with no price. Never 0 for any of those: a reader believes a
    * number and reads an em dash as the unknown it is.
    */
   value: number | null;
-  /** Total return, or `null` on the same three unpriced cases. */
+  /**
+   * Return since purchase in currency, and the same as a percentage. Both are
+   * `null` on the same unpriced cases as `value`. They are one fact in two
+   * units, never computed from different bases: a manual position's pair
+   * carries what selling already booked and what dividends paid, and a
+   * brokerage position's pair is its open P&L — but within one row, the
+   * money and the percent always describe the same thing.
+   */
+  pl: number | null;
   plPct: number | null;
+  /**
+   * Today's move on this position, in currency and as a percent of what it
+   * was worth at the previous close — `shares × quote.change`, from the live
+   * quote. `null` when there is no quote for the ticker. Never taken from a
+   * brokerage snapshot, which carries no day change at all.
+   */
+  dayChange: number | null;
+  dayChangePct: number | null;
   /**
    * What the shares still held cost: `shares * avgCost`.
    *

@@ -409,13 +409,23 @@ export const demoService: DataService & { isDemo: true } = {
       // Demo prices on purpose: the share counts and accounts above are
       // demo too, so valuing them at real prices would produce a portfolio
       // that is neither. Holdings go real when transactions do.
+      const costBasis = shares * sym.demo.price * 0.72;
       return {
         ticker,
         shares,
         avgCost: sym.demo.price * 0.72,
+        price: sym.demo.price,
         value: shares * sym.demo.price,
+        // The money form of the same invented return, so the row's two
+        // figures describe one thing.
+        pl: costBasis * (plPct / 100),
         plPct,
-        costBasis: shares * sym.demo.price * 0.72,
+        // Today's move comes from the live quote, attached where the rows
+        // are merged with the user's own (lib/holdings.ts); this table has
+        // no day to speak of.
+        dayChange: null,
+        dayChangePct: null,
+        costBasis,
       };
     });
     // Institutions expose totals only, never holdings (product rule), and a

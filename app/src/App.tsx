@@ -75,9 +75,6 @@ const StepsScreen = lazy(() =>
 const OpenAccountScreen = lazy(() =>
   import('./screens/onboarding/OpenAccount').then((m) => ({ default: m.OpenAccountScreen })),
 );
-const ConnectedAccountScreen = lazy(() =>
-  import('./screens/ConnectedAccount').then((m) => ({ default: m.ConnectedAccountScreen })),
-);
 
 const SCREENS: Record<Screen, ComponentType<ScreenProps>> = {
   home: HomeScreen,
@@ -91,7 +88,6 @@ const SCREENS: Record<Screen, ComponentType<ScreenProps>> = {
   more: MoreScreen,
   settings: SettingsScreen,
   connections: ConnectionsScreen,
-  snaptrade: ConnectedAccountScreen,
   advChat: AdvisoryChat,
   advDisc: AdvisoryDisclosure,
   advDash: AdvisoryRecommendation,
