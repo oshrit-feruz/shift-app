@@ -416,23 +416,6 @@ export interface EarningsEvent {
   lastSurprise: string;
 }
 
-export interface ActiveAlert {
-  glyph: string;
-  title: { en: string; he: string };
-  detail: { en: string; he: string };
-}
-
-export interface AppNotification {
-  glyph: string;
-  title: { en: string; he: string };
-  detail: { en: string; he: string };
-  ago: { en: string; he: string };
-  ticker: string;
-  unread: boolean;
-  /** Threshold alerts are informational-only and render with the fixed disclaimer. */
-  isThresholdAlert?: boolean;
-}
-
 export interface InstitutionProvider {
   name: { en: string; he: string };
   logo: string | null;

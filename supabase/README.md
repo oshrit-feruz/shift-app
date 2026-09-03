@@ -31,6 +31,16 @@ that has not been pasted into the SQL editor is not live, however green CI is.
   file). Must be run *before* deploying the client release that reads them;
   until it is, the client falls back to the legacy `user_state` jsonb copy of
   the ledger rather than showing an empty portfolio.
+- `0006_alerts.sql` — **alerts that fire.** Creates `notifications` (what the
+  engine fired, read by the notification centre), `alert_states` (the engine's
+  memory between runs, no client access) and `push_subscriptions` (one row per
+  device that turned push on), with their RLS policies. The alert rules
+  themselves stay in `user_state.state`. Run it before deploying the client
+  release that reads `notifications`; until it is, the notification centre
+  reports "unavailable" and the push toggle cannot store a subscription. The
+  engine itself (`app/api/alerts-run.ts`) is called by
+  `.github/workflows/alerts.yml` — see "Alerts" in the root README for the
+  secrets it needs.
 
 ### Verifying the ledger's RLS
 

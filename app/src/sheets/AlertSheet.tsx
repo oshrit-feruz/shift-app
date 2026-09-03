@@ -4,7 +4,6 @@ import { Button } from '../components/Button';
 import { Field } from '../components/Field';
 import { Num } from '../components/Num';
 import { SegmentedControl } from '../components/SegmentedControl';
-import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { moneyOrDash } from '../lib/format';
 import { newId } from '../lib/ids';
@@ -33,7 +32,6 @@ export function AlertSheet({
   ticker: string;
   symbol: SymbolInfo | null;
 }) {
-  const { mode } = useTheme();
   const t = useT();
   const dispatch = useDispatch();
   const toast = useToast();
@@ -54,9 +52,14 @@ export function AlertSheet({
   const [remind, setRemind] = useState<'day' | 'morning' | 'lands'>('day');
   const [value, setValue] = useState('200.00');
   const [keywords, setKeywords] = useState(t('alert.keywords'));
-  const [sources, setSources] = useState({ wires: true, filings: true });
+  // Kept on the saved rule for compatibility with rules already stored; the
+  // engine reads every article the provider returns for the stock, so there
+  // is no source filter to offer.
+  const sources = { wires: true, filings: true };
+  // Email is not delivered by anything yet, so it cannot be chosen: a box
+  // that could be ticked would promise a channel that does not exist.
   const [notifyBy, setNotifyBy] = useState({ push: true, email: false });
-  const beg = mode === 'beginner';
+  const hint = priceHint(value, symbol?.quote?.price ?? null);
 
   const types: Array<{ k: AlertKind; glyph: string; title: string; help: string }> = [
     { k: 'price', glyph: '▲', title: t('alert.priceType'), help: t('alert.priceHelp') },
@@ -191,37 +194,22 @@ export function AlertSheet({
             />
           </div>
           <Field label={t('alert.price')} value={value} onChange={(e) => setValue(e.target.value)} />
-          {beg && (
+          {hint && (
             <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0 }}>
-              {t('alert.priceHint')}
+              {t(hint.above ? 'alert.hintAbove' : 'alert.hintBelow', { pct: hint.pct })}
             </p>
           )}
+          <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.45 }}>
+            {t('alert.priceNote')}
+          </p>
         </>
       )}
       {kind === 'news' && (
         <>
           <Field label={t('alert.mentions')} value={keywords} onChange={(e) => setKeywords(e.target.value)} />
-          <div className="field">
-            <label>{t('alert.sources')}</label>
-            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 'var(--text-body)' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <input
-                  type="checkbox"
-                  checked={sources.wires}
-                  onChange={(e) => setSources({ ...sources, wires: e.target.checked })}
-                />{' '}
-                {t('alert.wires')}
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <input
-                  type="checkbox"
-                  checked={sources.filings}
-                  onChange={(e) => setSources({ ...sources, filings: e.target.checked })}
-                />{' '}
-                {t('alert.filings')}
-              </label>
-            </div>
-          </div>
+          <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.45 }}>
+            {t('alert.newsNote')}
+          </p>
         </>
       )}
       {kind === 'earn' && (
@@ -237,6 +225,9 @@ export function AlertSheet({
             onChange={setRemind}
             fontSize={15.5}
           />
+          <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.45 }}>
+            {t('alert.earnNote')}
+          </p>
         </div>
       )}
 
@@ -251,13 +242,8 @@ export function AlertSheet({
             />{' '}
             {t('alert.push')}
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <input
-              type="checkbox"
-              checked={notifyBy.email}
-              onChange={(e) => setNotifyBy({ ...notifyBy, email: e.target.checked })}
-            />{' '}
-            {t('alert.email')}
+          <label className="text-muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <input type="checkbox" checked={false} disabled readOnly /> {t('alert.emailSoon')}
           </label>
         </div>
       </div>
@@ -271,4 +257,18 @@ export function AlertSheet({
       </Button>
     </Sheet>
   );
+}
+
+/**
+ * How far the typed level sits from today's price, for the line under the
+ * field — or null when either number is missing, in which case the sheet
+ * shows no figure rather than a made-up one (the line used to be a literal
+ * "9.6%" whatever was typed and whatever the price).
+ */
+export function priceHint(level: string, price: number | null): { above: boolean; pct: string } | null {
+  if (price === null || !(price > 0)) return null;
+  const n = Number(level.trim().replace(/^\$/, '').replace(/,/g, ''));
+  if (!Number.isFinite(n) || n <= 0) return null;
+  const pct = ((n - price) / price) * 100;
+  return { above: pct >= 0, pct: Math.abs(pct).toFixed(1) };
 }

@@ -1,5 +1,11 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, useRef, type ReactNode } from 'react';
 import type { Answer } from '../lib/advisory';
+import type { ManualTransaction, TransactionSide } from '../lib/transaction';
+
+// Re-exported from lib/transaction, where they moved so that the server-side
+// alert engine (api/alerts-run.ts) can share lib/positions.ts without pulling
+// this React module into a Node typecheck. Every existing import keeps working.
+export type { ManualTransaction, TransactionSide };
 
 export type Screen =
   | 'home'
@@ -29,7 +35,6 @@ export const ADV_ORDER: Screen[] = ['advChat', 'advDisc', 'advDash', 'advConnect
 export type InstitutionKey = 'broker' | 'bank' | 'pension' | 'hisht';
 
 export type AlertKind = 'price' | 'news' | 'earn';
-export type TransactionSide = 'buy' | 'sell' | 'div';
 
 export interface SavedAlert {
   id: string;
@@ -86,15 +91,6 @@ export interface ManualPortfolio {
   name: string;
 }
 
-export interface ManualTransaction {
-  id: string;
-  side: TransactionSide;
-  ticker: string;
-  shares: number;
-  price: number;
-  date: string;
-}
-
 /** A view the user can be returned to: the screen and, for a stock page, which
  *  stock — `openStock` can navigate stock -> stock, so the screen alone does
  *  not say where you were. */
@@ -136,7 +132,6 @@ export interface AppState {
   /** price-alert thresholds — opt-in, blank by default, informational only */
   alertUpThreshold: string;
   alertDownThreshold: string;
-  notificationsRead: boolean;
   /** portfolio tab index */
   pfIndex: number;
   aggExcluded: Record<string, boolean>;
@@ -160,7 +155,6 @@ export const initial: AppState = {
   fromSteps: false,
   alertUpThreshold: '',
   alertDownThreshold: '',
-  notificationsRead: false,
   pfIndex: 0,
   aggExcluded: {},
   savedAlerts: [],
@@ -186,7 +180,6 @@ export type Action =
   | { type: 'firstRunSeen' }
   | { type: 'stepDone'; key: string; done: boolean }
   | { type: 'setThreshold'; which: 'up' | 'down'; value: string }
-  | { type: 'markNotificationsRead' }
   | { type: 'pfIndex'; index: number }
   | { type: 'toggleAggAccount'; id: string }
   | { type: 'addAlert'; alert: SavedAlert }
@@ -335,8 +328,6 @@ export function reducer(s: AppState, a: Action): AppState {
       return { ...s, stepsDone: { ...s.stepsDone, [a.key]: a.done } };
     case 'setThreshold':
       return a.which === 'up' ? { ...s, alertUpThreshold: a.value } : { ...s, alertDownThreshold: a.value };
-    case 'markNotificationsRead':
-      return { ...s, notificationsRead: true };
     case 'pfIndex':
       return { ...s, pfIndex: a.index };
     case 'toggleAggAccount':

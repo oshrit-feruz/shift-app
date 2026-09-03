@@ -1,5 +1,5 @@
 import type { Quote } from '../data/types';
-import type { ManualTransaction } from '../state/appState';
+import type { ManualTransaction } from './transaction';
 
 /**
  * A position built from the user's own transaction log, and the valuation of

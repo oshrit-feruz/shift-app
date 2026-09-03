@@ -1,0 +1,103 @@
+name: Run the alert engine
+
+# This is the clock behind every alert in the app. The rules live in the
+# user's state and the engine lives in a Vercel function
+# (app/api/alerts-run.ts), but a function only runs when something calls it,
+# and nothing in the app is awake when a price crosses a line at 15:42 on a
+# Tuesday. Vercel's Hobby plan runs a cron at most once a day, which is fine
+# for the earnings reminder and useless for a price; so the schedule lives
+# here, next to the screener mirror, and each firing is one authenticated
+# POST.
+#
+# Three schedules, one scope each, because the three inputs have different
+# costs (see the route's header):
+#   prices — every five minutes across the US regular session (13:30–20:00
+#            UTC), Monday to Friday. The engine sees a crossing only while
+#            prices move; polling a closed market would spend Finnhub calls
+#            on a number that cannot change.
+#   news   — every half hour, all week. Coverage does not keep market hours.
+#   daily  — once a morning, 04:00 UTC (07:00 Israel), for earnings
+#            reminders. Alpha Vantage's free key allows a couple of dozen
+#            calls a day, so this is the only schedule that reads it.
+#
+# GitHub runs a schedule when it has capacity, not on the second: a firing
+# can land some minutes after its slot, and at busy hours a slot can be
+# skipped. That is why the engine fires on a change of state rather than
+# at an instant — a late run still sees the crossing — and why a price alert
+# is "within a few minutes", not "at once". The README says so.
+
+on:
+  schedule:
+    - cron: '*/5 13-20 * * 1-5'
+    # Off the hour and half hour on purpose: the top of the hour is when
+    # every other repository's schedule fires too, and the queue is longest.
+    - cron: '7,37 * * * *'
+    - cron: '0 4 * * *'
+  # A manual run, to test the wiring without waiting for a slot.
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: 'Which inputs to evaluate'
+        required: true
+        default: prices
+        type: choice
+        options: [prices, news, daily]
+
+# Nothing here touches the repository.
+permissions: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pick the scope from the schedule that fired
+        id: scope
+        env:
+          SCHEDULE: ${{ github.event.schedule }}
+          INPUT: ${{ github.event.inputs.scope }}
+        run: |
+          set -euo pipefail
+          # `github.event.schedule` is the cron line exactly as written above,
+          # so each case must match its line character for character.
+          case "$SCHEDULE" in
+            '*/5 13-20 * * 1-5') SCOPE=prices ;;
+            '7,37 * * * *')      SCOPE=news ;;
+            '0 4 * * *')         SCOPE=daily ;;
+            '')                  SCOPE="$INPUT" ;;
+            *)
+              echo "::error::Schedule '$SCHEDULE' has no scope — add it to the case above"
+              exit 1
+              ;;
+          esac
+          case "$SCOPE" in
+            prices|news|daily) ;;
+            *) echo "::error::Unknown scope '$SCOPE'"; exit 1 ;;
+          esac
+          echo "scope=$SCOPE" >> "$GITHUB_OUTPUT"
+
+      - name: Call the engine
+        env:
+          # The deployed route, e.g. https://shift-app.vercel.app/api/alerts-run,
+          # and the value of ALERTS_CRON_SECRET on that deployment. Both are
+          # repository secrets (Settings → Secrets and variables → Actions).
+          URL: ${{ secrets.ALERTS_RUN_URL }}
+          SECRET: ${{ secrets.ALERTS_CRON_SECRET }}
+          SCOPE: ${{ steps.scope.outputs.scope }}
+        run: |
+          set -euo pipefail
+          if [ -z "$URL" ] || [ -z "$SECRET" ]; then
+            echo "::error::ALERTS_RUN_URL and ALERTS_CRON_SECRET must be set as repository secrets"
+            exit 1
+          fi
+          # --fail-with-body: a non-2xx fails the job AND prints the route's
+          # own JSON, which names what went wrong (a missing key, a provider
+          # refusal) rather than a bare status. The retries cover a cold
+          # function; a run that fails for a real reason fails three times
+          # the same way, and the log says why.
+          curl --fail-with-body --silent --show-error \
+               --max-time 60 --retry 2 --retry-delay 10 --retry-all-errors \
+               -X POST \
+               -H "Authorization: Bearer $SECRET" \
+               -H 'Accept: application/json' \
+               "$URL?scope=$SCOPE"
+          echo
