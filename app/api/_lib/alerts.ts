@@ -230,16 +230,28 @@ export function evaluateThresholds(
   for (const pos of positions) {
     const nowPct = returnFromEntry(pos, quotes[pos.ticker]);
     if (nowPct === null) continue;
-    for (const which of ['up', 'down'] as const) {
-      const pct = thresholds[which];
-      if (pct === null) continue;
-      const key = thresholdKey(pos.ticker, which, pct);
-      const one = evaluateThreshold(pos.ticker, which, pct, nowPct, prevStates[key], today);
-      if (one.state) out.states.push({ key, state: one.state });
-      if (one.firing) out.firings.push(one.firing);
-    }
+    evaluatePositionThresholds(pos.ticker, nowPct, thresholds, prevStates, today, out);
   }
   return out;
+}
+
+/** Both thresholds against one priced position, appended to `out`. */
+function evaluatePositionThresholds(
+  ticker: string,
+  nowPct: number,
+  thresholds: { up: number | null; down: number | null },
+  prevStates: Record<string, string>,
+  today: string,
+  out: Evaluation,
+): void {
+  for (const which of ['up', 'down'] as const) {
+    const pct = thresholds[which];
+    if (pct === null) continue;
+    const key = thresholdKey(ticker, which, pct);
+    const one = evaluateThreshold(ticker, which, pct, nowPct, prevStates[key], today);
+    if (one.state) out.states.push({ key, state: one.state });
+    if (one.firing) out.firings.push(one.firing);
+  }
 }
 
 /** A held, priced position's return from its average cost, in percent — or null when there is nothing to measure. */
@@ -331,13 +343,22 @@ export function evaluateNewsRule(
   const since = Date.parse(prev);
   if (!Number.isFinite(since)) return { firings: [], states: [{ key, state: mark }] };
 
+  const firings = matchNewArticles(rule, dated, since);
+  return { firings, states: newest > since ? [{ key, state: mark }] : [] };
+}
+
+/** The articles newer than the mark that the rule's keywords match, newest first, capped. */
+function matchNewArticles(
+  rule: AlertRule,
+  dated: Array<{ a: NewsArticle; at: number }>,
+  since: number,
+): Firing[] {
   const keywords = readKeywords(rule);
   const firings: Firing[] = [];
   for (const { a, at } of dated) {
     if (at <= since) break;
-    const text = `${a.headline} ${a.summary}`.toLowerCase();
-    const hit = keywords.length === 0 ? null : keywords.find((k) => text.includes(k));
-    if (keywords.length > 0 && hit === undefined) continue;
+    const hit = matchKeyword(a, keywords);
+    if (hit === undefined) continue;
     firings.push({
       kind: 'news',
       ticker: rule.ticker,
@@ -349,7 +370,17 @@ export function evaluateNewsRule(
     });
     if (firings.length >= MAX_NEWS_FIRINGS_PER_RULE) break;
   }
-  return { firings, states: newest > since ? [{ key, state: mark }] : [] };
+  return firings;
+}
+
+/**
+ * The keyword an article mentions: a string when one matched, null when the
+ * rule has no keywords (every article counts), undefined when none matched.
+ */
+function matchKeyword(a: NewsArticle, keywords: string[]): string | null | undefined {
+  if (keywords.length === 0) return null;
+  const text = `${a.headline} ${a.summary}`.toLowerCase();
+  return keywords.find((k) => text.includes(k));
 }
 
 // ── Earnings rules: a date on the calendar ──────────────────────────────
