@@ -8,7 +8,7 @@ import { InstitutionRows } from './advisory/InstitutionRows';
 import { NewPortfolioSheet } from '../sheets/NewPortfolioSheet';
 import { DataState, EmptyState } from '../components/DataState';
 import { SkeletonList } from '../components/Skeleton';
-import { useLinked } from '../data/useLinked';
+import { useLinkStatus } from '../data/useLinked';
 import { useLoadable } from '../data/useLoadable';
 import { fetchConnectedAccounts } from '../data/snaptradeAccount';
 import { useDispatch } from '../state/appState';
@@ -47,7 +47,12 @@ const LINKED = [
 export function ConnectionsScreen(_: ScreenProps) {
   const { language } = useTheme();
   const t = useT();
-  const live = useLinked();
+  // Three states, not two. `unknown` is the moment before the first read
+  // lands — most visibly on the way back from the connection portal, where
+  // treating it as "not linked" would offer a connect button to someone who
+  // has just connected an account.
+  const status = useLinkStatus();
+  const live = status === 'linked';
   const [newPfOpen, setNewPfOpen] = useState(false);
   const demo = useDemoMode();
 
@@ -128,10 +133,11 @@ export function ConnectionsScreen(_: ScreenProps) {
         <DemoOnly feature="connScreen.linked" />
       )}
 
-      {/* The way in. Only where there is nothing connected yet — with an
+      {/* The way in. Only once we KNOW there is nothing connected — with an
           account linked, the connection is managed on its own screen, next to
-          the figures it produces. */}
-      {!live && <ConnectBrokerage />}
+          the figures it produces, and while the answer is still unknown this
+          waits rather than guessing. */}
+      {status === 'unlinked' && <ConnectBrokerage />}
 
       <Card padding="4px 0" gap={0}>
         <CardTitle>

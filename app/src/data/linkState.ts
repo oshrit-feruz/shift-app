@@ -108,6 +108,22 @@ export function clearLinked() {
   for (const listener of listeners) listener();
 }
 
+/**
+ * Whether the server has answered for the current user *in this session*.
+ *
+ * The remembered flag is a cache, and a cache cannot tell "no" apart from
+ * "not asked yet". Both read false. That difference is the whole of what a
+ * screen needs to avoid offering someone a connect button while their
+ * connection is still being discovered — most visibly on the way back from
+ * the connection portal, where they have just made one.
+ *
+ * Session-scoped on purpose: it is not persisted, so every load asks again
+ * rather than trusting a boolean written yesterday.
+ */
+export function isLinkResolved(): boolean {
+  return memory !== null;
+}
+
 export function subscribeLinked(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);

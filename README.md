@@ -586,12 +586,26 @@ that account actually holds. `app/api/snaptrade.ts` reads it;
 **Why this is a legitimate way to read someone's portfolio.** The brokerage
 credentials are entered in SnapTrade's own hosted Connection Portal, over
 SnapTrade's own connection to the brokerage. This app never sees a brokerage
-username or password, and the connection is opened with
-`connectionType: 'read'` — so what the user grants is permission to read
-balances and positions, and nothing else. The only credential stored on this
-side is the per-user `userSecret` SnapTrade issues, and it is stored
-encrypted (below). Disconnecting revokes the connection **at SnapTrade**, not
-just here, so afterwards nothing anywhere can read the account.
+username or password.
+
+**Two separate restrictions then apply, and they are worth keeping apart.**
+The portal is opened with `connectionType: 'read'`, which is SnapTrade's
+data-access-only permission: the connection they create cannot place a trade
+at all. Independently of that, this app's own account routes reach five `GET`
+paths and nothing else. The first is a property of what the user granted; the
+second is a property of this code. Conflating them would credit SnapTrade with
+a narrowness that is ours, and ours with a guarantee that is theirs.
+
+The only credential stored on this side is the per-user `userSecret` SnapTrade
+issues, and it is stored encrypted (below).
+
+**Disconnecting is queued upstream, and immediate here.** It calls SnapTrade's
+`deleteUser`, whose 200 confirms the request was *accepted* — the removal
+itself is asynchronous, and SnapTrade reports completion on its `USER_DELETED`
+webhook, which this app does not yet listen for (see what is deliberately
+missing, below). So there is a short window where revocation at SnapTrade is
+pending. What is not pending is this side: the row goes immediately, so from
+the moment the user presses the button nothing here can read the account.
 
 **One SnapTrade user per app user.** `POST /snapTrade/registerUser` is called
 with the Supabase user id — stable, unique, and not an email, which is the one

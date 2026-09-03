@@ -6,7 +6,7 @@ import { ListRow, RowValues } from '../components/ListRow';
 import { DataState, EmptyState } from '../components/DataState';
 import { SkeletonCard } from '../components/Skeleton';
 import { useLoadable } from '../data/useLoadable';
-import { useLinked } from '../data/useLinked';
+import { useLinkStatus } from '../data/useLinked';
 import { fetchConnectedAccounts } from '../data/snaptradeAccount';
 import { ConnectBrokerage } from '../components/ConnectBrokerage';
 import { DisconnectBrokerageSheet } from '../sheets/DisconnectBrokerageSheet';
@@ -35,11 +35,12 @@ import type { ScreenProps } from '../App';
  */
 export function ConnectedAccountScreen(_: ScreenProps) {
   const t = useT();
-  const linked = useLinked();
+  const status = useLinkStatus();
+  const linked = status === 'linked';
   const [disconnectOpen, setDisconnectOpen] = useState(false);
   // Re-read when the link is created or revoked, so the screen follows the
   // connection rather than the state it was mounted in.
-  const accounts = useLoadable(() => fetchConnectedAccounts(), [linked]);
+  const accounts = useLoadable(() => fetchConnectedAccounts(), [status]);
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
@@ -73,8 +74,9 @@ export function ConnectedAccountScreen(_: ScreenProps) {
 
       {/* Nothing connected: the one thing this screen can usefully offer is
           the way to connect something, so it is the whole screen rather than
-          a footnote under an empty state. */}
-      {!linked && <ConnectBrokerage />}
+          a footnote under an empty state. Only once that is known, though —
+          see useLinkStatus. */}
+      {status === 'unlinked' && <ConnectBrokerage />}
 
       <DataState
         state={accounts.state}
