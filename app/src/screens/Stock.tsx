@@ -236,8 +236,11 @@ export function StockScreen({ openAlert }: ScreenProps) {
 
           <TabPanel key={`re-${s.ticker}`} active={tab === 'reports'}>
             <ReportsTab ticker={s.ticker} />
-            <FinancialStatements ticker={s.ticker} />
+            {/* Reported quarters before the filed statements: the quarter-by
+                -quarter beat-and-miss line is what a reader came to the tab
+                for, and the full statements are the detail underneath it. */}
             <EarningsHistory ticker={s.ticker} />
+            <FinancialStatements ticker={s.ticker} />
           </TabPanel>
           <TabPanel key={`ne-${s.ticker}`} active={tab === 'news'}>
             <NewsTab ticker={s.ticker} />
@@ -433,8 +436,8 @@ function LiveOnlyStock({ ticker, openAlert }: Readonly<{ ticker: string; openAle
       <TabPanel key={`re-${ticker}`} active={tab === 'reports'}>
         <NextEarnings ticker={ticker} />
         <ReportsTab ticker={ticker} />
-        <FinancialStatements ticker={ticker} />
         <EarningsHistory ticker={ticker} />
+        <FinancialStatements ticker={ticker} />
       </TabPanel>
       <TabPanel key={`ne-${ticker}`} active={tab === 'news'}>
         <NewsTab ticker={ticker} />
