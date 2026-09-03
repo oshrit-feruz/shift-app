@@ -1,8 +1,5 @@
 import { timingSafeEqual } from 'node:crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import webpush from 'web-push';
-import { buildPositions } from '../src/lib/positions.js';
-import type { ManualTransaction } from '../src/lib/transaction.js';
 import {
   evaluateEarningsRule,
   evaluateNewsRule,
@@ -11,16 +8,28 @@ import {
   isoDayUtc,
   newsRuleKey,
   priceRuleKey,
-  pushPayload,
   readLevel,
-  readRules,
-  readThresholds,
-  type AlertRule,
   type Evaluation,
-  type Firing,
   type HeldPosition,
-  type StateWrite,
 } from './_lib/alerts.js';
+import {
+  deliverPush,
+  hasPriceRules,
+  inBatches,
+  loadPositions,
+  loadStates,
+  loadUsers,
+  outcomeKey,
+  persistOutcomes,
+  PRICE_WORKER,
+  readHeartbeat,
+  workerAlive,
+  type Outcome,
+  type StateMap,
+  type StoreFailure,
+  type UserRules,
+  type UserState,
+} from './_lib/alertStore.js';
 import { parseCalendarCsv, readApiError } from './_lib/alphavantage.js';
 import type { EarningsRow } from './_lib/earnings.js';
 import { resolveSymbol } from './_lib/eodhd.js';
@@ -37,8 +46,8 @@ import { fetchUpstreamJson } from './_lib/upstream.js';
  * user_state.state) are read against live data, what crossed is written to
  * `notifications` — the notification centre's contents — and pushed to the
  * devices that subscribed. The deciding is all in _lib/alerts.ts, as pure
- * functions with their own tests; this file only gathers inputs and writes
- * outputs.
+ * functions with their own tests; the reading and writing is _lib/alertStore.ts,
+ * shared with the price worker; this file gathers inputs per scope.
  *
  * WHO MAY CALL IT. Nobody in a browser. The caller proves it holds
  * ALERTS_CRON_SECRET (the scheduled workflow in .github/workflows/alerts.yml
@@ -48,10 +57,12 @@ import { fetchUpstreamJson } from './_lib/upstream.js';
  *
  * THREE SCOPES, because the three inputs have three prices:
  *   prices — Finnhub quotes, one call per symbol, every few minutes during
- *            the US session. The same provider every screen prints, so an
- *            alert fires on the number the reader can see, not on a delayed
- *            one from elsewhere (docs/eodhd-plan-decision.md measured EODHD's
- *            REST quote 15–21 minutes behind).
+ *            the US session. The same provider every screen prints. THIS IS
+ *            THE FALLBACK: while the price worker (worker/main.ts) reports a
+ *            fresh heartbeat it is checking the same rules on every trade,
+ *            and this scope stands down rather than let two providers argue
+ *            over the cents around a level. It takes over the moment the
+ *            heartbeat goes stale.
  *   news   — EODHD's per-ticker news, ten credits a ticker, every half hour.
  *   daily  — Alpha Vantage's calendar, whose free key allows a couple of
  *            dozen calls a day, once each morning.
@@ -78,28 +89,11 @@ export const MAX_QUOTE_SYMBOLS = 50;
 export const MAX_NEWS_SYMBOLS = 30;
 /** Articles fetched per news ticker. The rule fires for at most three of them. */
 const NEWS_ARTICLES = 10;
-/** Concurrent upstream calls. Two overlapping runs cannot burst the per-minute limit. */
-const CONCURRENCY = 4;
-/** How long a push may wait in the push service for a phone that is off. */
-const PUSH_TTL_SECONDS = 3_600;
 
 const EODHD_NEWS_URL = 'https://eodhd.com/api/news';
 const ALPHAVANTAGE_URL = 'https://www.alphavantage.co/query';
 
 const NOT_CONFIGURED = { error: 'not_configured', message: 'The alert engine is not configured.' };
-
-interface UserRules {
-  userId: string;
-  rules: AlertRule[];
-  thresholds: { up: number | null; down: number | null };
-}
-
-/** A firing with the delivery choice of the rule that produced it. */
-interface Outcome {
-  userId: string;
-  firing: Firing;
-  push: boolean;
-}
 
 /** An answer to send instead of continuing. */
 interface Failure {
@@ -117,39 +111,11 @@ interface Run {
   now: Date;
   today: string;
   users: UserRules[];
-  /** The engine's memory per user: state key → stored side or mark. */
-  prevFor: (userId: string) => Record<string, string>;
+  states: StateMap;
   outcomes: Outcome[];
-  states: Array<StateWrite & { userId: string }>;
+  writes: UserState[];
   /** Counts of what was asked upstream and what failed, for the response. */
   upstream: Record<string, number>;
-}
-
-/** Row shapes as PostgREST returns them. `numeric` columns arrive as strings. */
-interface StateRow {
-  user_id: string;
-  state: unknown;
-}
-interface AlertStateRow {
-  user_id: string;
-  key: string;
-  state: string;
-}
-interface TransactionRow {
-  user_id: string;
-  ticker: string;
-  side: 'buy' | 'sell' | 'div';
-  shares: string | number;
-  price: string | number;
-  trade_date: string;
-}
-interface PushRow {
-  id: string;
-  user_id: string;
-  endpoint: string;
-  p256dh: string;
-  auth: string;
-  lang: 'en' | 'he';
 }
 
 export function isScope(v: unknown): v is Scope {
@@ -170,37 +136,20 @@ function secretMatches(given: string, expected: string): boolean {
 }
 
 /** Which users a scope concerns. Everyone else's rows are not even read. */
-function concerns(scope: Scope, u: UserRules): boolean {
+function concerns(scope: Scope): (u: UserRules) => boolean {
   switch (scope) {
     case 'prices':
-      return (
-        u.rules.some((r) => r.kind === 'price') || u.thresholds.up !== null || u.thresholds.down !== null
-      );
+      return hasPriceRules;
     case 'news':
-      return u.rules.some((r) => r.kind === 'news');
+      return (u) => u.rules.some((r) => r.kind === 'news');
     default:
-      return u.rules.some((r) => r.kind === 'earn');
+      return (u) => u.rules.some((r) => r.kind === 'earn');
   }
 }
 
-/** Run `work` over `items` with a fixed number of workers in flight. */
-async function inBatches<T, R>(items: T[], work: (item: T) => Promise<R>): Promise<R[]> {
-  const out: R[] = [];
-  let next = 0;
-  const workers = Array.from({ length: Math.min(CONCURRENCY, items.length) }, async () => {
-    for (;;) {
-      const i = next++;
-      if (i >= items.length) return;
-      out[i] = await work(items[i]);
-    }
-  });
-  await Promise.all(workers);
-  return out;
-}
-
-function dbFailure(table: string, detail: string): Failure {
-  console.error(`/api/alerts-run: ${table} query failed: ${detail}`);
-  return { status: 502, body: { error: 'db_error', message: `Could not read or write ${table}.` } };
+function dbFailure(f: StoreFailure): Failure {
+  console.error(`/api/alerts-run: ${f.table} query failed: ${f.detail}`);
+  return { status: 502, body: { error: 'db_error', message: `Could not read or write ${f.table}.` } };
 }
 
 function send(res: ApiResponse, f: Failure) {
@@ -245,13 +194,26 @@ export function createHandler(
       now,
       today: isoDayUtc(now),
       users: [],
-      prevFor: () => ({}),
+      states: new Map(),
       outcomes: [],
-      states: [],
+      writes: [],
       upstream: {},
     };
 
-    const loaded = await loadUsers(run);
+    if (scope === 'prices') {
+      const beat = await readHeartbeat(run.db, PRICE_WORKER);
+      if (workerAlive(beat, now)) {
+        res.setHeader('Cache-Control', 'no-store');
+        return res.status(200).json({
+          scope,
+          today: run.today,
+          skipped: 'worker_alive',
+          workerHeartbeat: beat?.toISOString(),
+        });
+      }
+    }
+
+    const loaded = await load(run);
     if (loaded) return send(res, loaded);
     if (run.users.length === 0) {
       res.setHeader('Cache-Control', 'no-store');
@@ -261,12 +223,15 @@ export function createHandler(
     const gathered = await GATHER[scope](run);
     if (gathered) return send(res, gathered);
 
-    const persisted = await persist(run);
-    if ('status' in persisted) return send(res, persisted);
+    const persisted = await persistOutcomes(run.db, run.outcomes, run.writes, now);
+    if (!persisted.ok) return send(res, dbFailure(persisted.failure));
+    const inserted = persisted.value;
 
-    const toPush = run.outcomes.filter((o) => o.push && persisted.inserted.has(outcomeKey(o)));
+    const toPush = run.outcomes.filter((o) => o.push && inserted.has(outcomeKey(o)));
     const push = await deliverPush(run.db, toPush);
 
+    // Success only. A failure above must keep reaching this function so a
+    // real recovery shows up on the next run, not after a cached error.
     res.setHeader('Cache-Control', 'no-store');
     return res.status(200).json({
       scope,
@@ -275,8 +240,8 @@ export function createHandler(
       // Firings the engine produced this run, and how many of them were new
       // rows rather than repeats of an event already recorded.
       fired: run.outcomes.length,
-      recorded: persisted.inserted.size,
-      statesWritten: run.states.length,
+      recorded: inserted.size,
+      statesWritten: run.writes.length,
       ...push,
       upstream: run.upstream,
     });
@@ -325,31 +290,28 @@ function guard(
 // ── Load ─────────────────────────────────────────────────────────────────
 
 /** Whose rules this scope concerns, and what the engine remembered about them. */
-async function loadUsers(run: Run): Promise<Failure | null> {
-  const stateRows = await run.db.from('user_state').select('user_id,state');
-  if (stateRows.error) return dbFailure('user_state', stateRows.error.message);
-  run.users = ((stateRows.data ?? []) as StateRow[])
-    .map((r) => ({ userId: r.user_id, rules: readRules(r.state), thresholds: readThresholds(r.state) }))
-    .filter((u) => concerns(run.scope, u));
+async function load(run: Run): Promise<Failure | null> {
+  const users = await loadUsers(run.db, concerns(run.scope));
+  if (!users.ok) return dbFailure(users.failure);
+  run.users = users.value;
   if (run.users.length === 0) return null;
-
-  const userIds = run.users.map((u) => u.userId);
-  const stateReads = await run.db.from('alert_states').select('user_id,key,state').in('user_id', userIds);
-  if (stateReads.error) return dbFailure('alert_states', stateReads.error.message);
-  const remembered = new Map<string, Record<string, string>>();
-  for (const row of (stateReads.data ?? []) as AlertStateRow[]) {
-    const bag = remembered.get(row.user_id) ?? {};
-    bag[row.key] = row.state;
-    remembered.set(row.user_id, bag);
-  }
-  run.prevFor = (userId) => remembered.get(userId) ?? {};
+  const states = await loadStates(
+    run.db,
+    run.users.map((u) => u.userId),
+  );
+  if (!states.ok) return dbFailure(states.failure);
+  run.states = states.value;
   return null;
+}
+
+function prevFor(run: Run, userId: string): Record<string, string> {
+  return run.states.get(userId) ?? {};
 }
 
 /** Record one evaluation's firings and states against a user. */
 function collect(run: Run, userId: string, push: boolean, ev: Evaluation): void {
   for (const firing of ev.firings) run.outcomes.push({ userId, firing, push });
-  for (const s of ev.states) run.states.push({ userId, ...s });
+  for (const s of ev.states) run.writes.push({ userId, ...s });
 }
 
 /** The tickers a scope needs, bounded, with the overflow counted rather than silently dropped. */
@@ -370,18 +332,22 @@ const GATHER: Record<Scope, (run: Run) => Promise<Failure | null>> = {
 };
 
 async function gatherPrices(run: Run): Promise<Failure | null> {
-  const positions = await loadPositions(run);
-  if ('status' in positions) return positions;
+  const thresholdUsers = run.users.filter((u) => u.thresholds.up !== null || u.thresholds.down !== null);
+  const positions = await loadPositions(
+    run.db,
+    thresholdUsers.map((u) => u.userId),
+  );
+  if (!positions.ok) return dbFailure(positions.failure);
 
   const wanted = new Set<string>();
   for (const u of run.users) {
     for (const r of u.rules) if (r.kind === 'price' && readLevel(r) !== null) wanted.add(r.ticker);
-    for (const p of positions.get(u.userId) ?? []) wanted.add(p.ticker);
+    for (const p of positions.value.get(u.userId) ?? []) wanted.add(p.ticker);
   }
   const quotes = await fetchPrices(run, askedSymbols(run, wanted, MAX_QUOTE_SYMBOLS));
 
   for (const u of run.users) {
-    const prev = run.prevFor(u.userId);
+    const prev = prevFor(run, u.userId);
     for (const r of u.rules) {
       if (r.kind !== 'price') continue;
       const level = readLevel(r);
@@ -390,52 +356,10 @@ async function gatherPrices(run: Run): Promise<Failure | null> {
       const stored = prev[priceRuleKey(r.ticker, r.condition, level)];
       collect(run, u.userId, r.notifyBy.push, evaluatePriceRule(r, price, stored, run.today));
     }
-    const held = positions.get(u.userId) ?? [];
+    const held: HeldPosition[] = positions.value.get(u.userId) ?? [];
     collect(run, u.userId, true, evaluateThresholds(held, u.thresholds, quotes, prev, run.today));
   }
   return null;
-}
-
-/**
- * Positions for the threshold rules: one fold per user over every portfolio,
- * so "from entry" is the same average cost the portfolio screen prints.
- */
-async function loadPositions(run: Run): Promise<Map<string, HeldPosition[]> | Failure> {
-  const positions = new Map<string, HeldPosition[]>();
-  const thresholdUsers = run.users.filter((u) => u.thresholds.up !== null || u.thresholds.down !== null);
-  if (thresholdUsers.length === 0) return positions;
-
-  const txRows = await run.db
-    .from('transactions')
-    .select('user_id,ticker,side,shares,price,trade_date')
-    .in(
-      'user_id',
-      thresholdUsers.map((u) => u.userId),
-    );
-  if (txRows.error) return dbFailure('transactions', txRows.error.message);
-
-  const byUser = new Map<string, ManualTransaction[]>();
-  for (const row of (txRows.data ?? []) as TransactionRow[]) {
-    const list = byUser.get(row.user_id) ?? [];
-    list.push({
-      id: '',
-      side: row.side,
-      ticker: row.ticker,
-      shares: Number(row.shares),
-      price: Number(row.price),
-      date: row.trade_date,
-    });
-    byUser.set(row.user_id, list);
-  }
-  for (const [userId, txs] of byUser) {
-    positions.set(
-      userId,
-      buildPositions(txs)
-        .filter((p) => p.shares > 0)
-        .map((p) => ({ ticker: p.ticker, shares: p.shares, avgCost: p.avgCost })),
-    );
-  }
-  return positions;
 }
 
 /** Last prices from Finnhub, keyed by ticker; a failed or absent quote is simply not in the map. */
@@ -469,7 +393,7 @@ async function gatherNews(run: Run): Promise<Failure | null> {
   const articles = await fetchArticles(run, askedSymbols(run, wanted, MAX_NEWS_SYMBOLS));
 
   for (const u of run.users) {
-    const prev = run.prevFor(u.userId);
+    const prev = prevFor(run, u.userId);
     for (const r of u.rules) {
       if (r.kind !== 'news') continue;
       const list = articles.get(r.ticker);
@@ -522,7 +446,7 @@ async function gatherDaily(run: Run): Promise<Failure | null> {
   }
   run.upstream.calendarRows = calendar.length;
   for (const u of run.users) {
-    const prev = run.prevFor(u.userId);
+    const prev = prevFor(run, u.userId);
     for (const r of u.rules) {
       if (r.kind !== 'earn') continue;
       const stored = prev[`earn|${r.ticker}|lands`];
@@ -556,134 +480,6 @@ async function fetchCalendar(run: Run): Promise<EarningsRow[] | null> {
     return null;
   }
   return parseCalendarCsv(text);
-}
-
-// ── Persist ──────────────────────────────────────────────────────────────
-
-function outcomeKey(o: { userId: string; firing: { dedupeKey: string } }): string {
-  return `${o.userId}|${o.firing.dedupeKey}`;
-}
-
-/**
- * Write what fired, then what to remember. Notifications first: if that
- * write fails the states are left as they were, so the next run sees the
- * same crossing and tries again — and the dedupe key makes the retry a
- * no-op once a row exists. Returns the firings that became NEW rows, which
- * are the only ones worth a push.
- */
-async function persist(run: Run): Promise<{ inserted: Set<string> } | Failure> {
-  let inserted = new Set<string>();
-  if (run.outcomes.length > 0) {
-    const rows = run.outcomes.map((o) => ({
-      user_id: o.userId,
-      kind: o.firing.kind,
-      ticker: o.firing.ticker,
-      title_en: o.firing.title.en,
-      title_he: o.firing.title.he,
-      detail_en: o.firing.detail.en,
-      detail_he: o.firing.detail.he,
-      dedupe_key: o.firing.dedupeKey,
-    }));
-    const write = await run.db
-      .from('notifications')
-      .upsert(rows, { onConflict: 'user_id,dedupe_key', ignoreDuplicates: true })
-      .select('user_id,dedupe_key');
-    if (write.error) return dbFailure('notifications', write.error.message);
-    inserted = new Set(
-      ((write.data ?? []) as Array<{ user_id: string; dedupe_key: string }>).map(
-        (r) => `${r.user_id}|${r.dedupe_key}`,
-      ),
-    );
-  }
-  if (run.states.length > 0) {
-    const stamp = run.now.toISOString();
-    const write = await run.db.from('alert_states').upsert(
-      run.states.map((s) => ({ user_id: s.userId, key: s.key, state: s.state, updated_at: stamp })),
-      { onConflict: 'user_id,key' },
-    );
-    if (write.error) return dbFailure('alert_states', write.error.message);
-  }
-  return { inserted };
-}
-
-// ── Push ─────────────────────────────────────────────────────────────────
-
-/**
- * Send each firing to every device its user subscribed. Skipped, and said
- * so, when the VAPID keys are not configured — the notification centre
- * still has the rows, so nothing is lost, only the banner.
- *
- * A push service answering 404 or 410 means the subscription is gone (the
- * user revoked permission, or reinstalled); its row is deleted so the next
- * run does not try again. Any other failure is counted and left alone: a
- * transient error is not a reason to forget a device.
- */
-async function deliverPush(
-  db: SupabaseClient,
-  outcomes: Outcome[],
-): Promise<{
-  push: 'sent' | 'not_configured' | 'nothing_to_send';
-  pushed: number;
-  pushFailed: number;
-  pushDropped: number;
-}> {
-  const nothing = { pushed: 0, pushFailed: 0, pushDropped: 0 };
-  if (outcomes.length === 0) return { push: 'nothing_to_send', ...nothing };
-  const publicKey = process.env.VAPID_PUBLIC_KEY;
-  const privateKey = process.env.VAPID_PRIVATE_KEY;
-  const subject = process.env.VAPID_SUBJECT;
-  if (!publicKey || !privateKey || !subject) {
-    console.warn('/api/alerts-run: VAPID keys are not set — recorded without push');
-    return { push: 'not_configured', ...nothing };
-  }
-  webpush.setVapidDetails(subject, publicKey, privateKey);
-
-  const userIds = [...new Set(outcomes.map((o) => o.userId))];
-  const subs = await db
-    .from('push_subscriptions')
-    .select('id,user_id,endpoint,p256dh,auth,lang')
-    .in('user_id', userIds);
-  if (subs.error) {
-    console.error(`/api/alerts-run: push_subscriptions query failed: ${subs.error.message}`);
-    return { push: 'sent', pushed: 0, pushFailed: outcomes.length, pushDropped: 0 };
-  }
-  const byUser = new Map<string, PushRow[]>();
-  for (const row of (subs.data ?? []) as PushRow[]) {
-    byUser.set(row.user_id, [...(byUser.get(row.user_id) ?? []), row]);
-  }
-
-  const jobs: Array<{ sub: PushRow; payload: string }> = [];
-  for (const o of outcomes) {
-    for (const sub of byUser.get(o.userId) ?? []) {
-      const lang = sub.lang === 'en' ? 'en' : 'he';
-      jobs.push({ sub, payload: JSON.stringify(pushPayload(o.firing, lang)) });
-    }
-  }
-  let pushed = 0;
-  let failed = 0;
-  const dead = new Set<string>();
-  await inBatches(jobs, async ({ sub, payload }) => {
-    try {
-      await webpush.sendNotification(
-        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-        payload,
-        { TTL: PUSH_TTL_SECONDS },
-      );
-      pushed += 1;
-    } catch (err) {
-      const status = (err as { statusCode?: unknown }).statusCode;
-      if (status === 404 || status === 410) dead.add(sub.id);
-      else failed += 1;
-    }
-  });
-  if (dead.size > 0) {
-    const del = await db
-      .from('push_subscriptions')
-      .delete()
-      .in('id', [...dead]);
-    if (del.error) console.error(`/api/alerts-run: could not drop dead subscriptions: ${del.error.message}`);
-  }
-  return { push: 'sent', pushed, pushFailed: failed, pushDropped: dead.size };
 }
 
 export default createHandler(DEFAULT_UPSTREAM_TIMEOUT_MS);

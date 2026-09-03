@@ -1,5 +1,6 @@
 node_modules/
 app/dist/
+app/dist-worker/
 *.log
 .DS_Store
 .env

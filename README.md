@@ -671,6 +671,7 @@ on the phone that subscribed.
 | The deciding | `app/api/_lib/alerts.ts` — pure functions, unit-tested per rule kind. |
 | The run | `POST /api/alerts-run?scope=prices\|news\|daily`, guarded by `ALERTS_CRON_SECRET`, reading and writing every user's rows with the service-role key. |
 | The clock | `.github/workflows/alerts.yml` — prices every 5 minutes across the US session on weekdays, news every half hour, the earnings calendar once a morning. |
+| The price worker | `app/worker/` — one always-on process on EODHD's US trades socket, checking price rules on every trade, 04:00–20:00 New York time. `app/worker/README.md` has the deploy. While its heartbeat (`worker_heartbeat`, migration 0007) is fresh the route's `prices` scope stands down; when it goes stale the route takes over at its slower cadence. |
 | What fired | `notifications` (`supabase/migrations/0006_alerts.sql`), read by `src/data/notifications.ts` under RLS; the header badge and the sheet share one read (`useNotifications`). |
 | The engine's memory | `alert_states` — which side of its level each rule was on at the last check. Engine-only. |
 | Push | `push_subscriptions` + `VAPID_*`; `src/lib/push.ts` subscribes from the Settings toggle, `public/sw.js` shows the banner. |
@@ -686,11 +687,17 @@ for the day, not thirty (the row's `dedupe_key`).
 
 **What each kind reads, honestly:**
 
-- *Price levels* read Finnhub's `/quote` — the same provider every screen
-  prints — so an alert fires on the number the reader can see, not on EODHD's
-  REST quote, which `docs/eodhd-plan-decision.md` measured 15–21 minutes
-  behind. One run asks for at most 50 symbols (a free key's per-minute
-  allowance); a symbol whose quote failed is simply not evaluated that run.
+- *Price levels* are checked by the worker on every trade from EODHD's US
+  feed (the real-time one on this plan — `docs/eodhd-plan-decision.md`
+  measured it seconds behind the tape, against 15–21 minutes for EODHD's
+  REST quote), so a crossing fires within about a second, pre-market and
+  after-hours included. The feed carries US stocks only and 50 symbols per
+  connection; a rule beyond that, or on a Toronto or London symbol, waits for
+  the route. The route's own `prices` scope reads Finnhub's `/quote` — the
+  same provider every screen prints — every few minutes as the fallback,
+  and stands down while the worker's heartbeat is fresh so that two
+  providers never argue over the cents around a level. The price in a
+  notification is whichever source saw the crossing.
 - *Settings thresholds* ("alert me if I rise above +25%") apply to every held
   position, measured from the position's average cost — the same fold the
   portfolio screen uses (`src/lib/positions.ts`, shared with the server via
@@ -728,7 +735,7 @@ alert lands "within a few minutes", and the README does not claim tighter.
 
 **To turn it on for a deployment** (each step is one-time):
 
-1. Run `supabase/migrations/0006_alerts.sql` in the SQL editor.
+1. Run `supabase/migrations/0006_alerts.sql` and `0007_worker_heartbeat.sql` in the SQL editor.
 2. Set `ALERTS_CRON_SECRET` (any long random string) in Vercel, and the same
    value as the `ALERTS_CRON_SECRET` repository secret on GitHub beside
    `ALERTS_RUN_URL` (`https://<deployment>/api/alerts-run`).
@@ -739,6 +746,8 @@ alert lands "within a few minutes", and the README does not claim tighter.
 4. Trigger the workflow by hand once (Actions → Run the alert engine →
    scope `prices`) and read the JSON it prints: `users`, `fired`, `recorded`,
    `pushed` and any upstream failure counts.
+5. For trade-by-trade price alerts, deploy the worker: `app/worker/README.md`.
+   Once it is up, the same manual run answers `skipped: worker_alive`.
 
 ### Earnings calendar (`app/api/earnings.ts`)
 

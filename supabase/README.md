@@ -41,6 +41,10 @@ that has not been pasted into the SQL editor is not live, however green CI is.
   engine itself (`app/api/alerts-run.ts`) is called by
   `.github/workflows/alerts.yml` — see "Alerts" in the root README for the
   secrets it needs.
+- `0007_worker_heartbeat.sql` — one engine-only row the price worker
+  (`app/worker/`) keeps fresh while its socket is up, which is how the
+  scheduled route knows to stand down. Needed before the worker is deployed;
+  harmless before then (the route reads "no heartbeat" as "no worker").
 
 ### Verifying the ledger's RLS
 

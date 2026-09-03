@@ -14,7 +14,10 @@ name: Run the alert engine
 #   prices — every five minutes across the US regular session (13:30–20:00
 #            UTC), Monday to Friday. The engine sees a crossing only while
 #            prices move; polling a closed market would spend Finnhub calls
-#            on a number that cannot change.
+#            on a number that cannot change. This is the FALLBACK: while the
+#            price worker (app/worker/) reports a fresh heartbeat the route
+#            answers `skipped: worker_alive` and does nothing, and the run
+#            here is a health check that costs one request.
 #   news   — every half hour, all week. Coverage does not keep market hours.
 #   daily  — once a morning, 04:00 UTC (07:00 Israel), for earnings
 #            reminders. Alpha Vantage's free key allows a couple of dozen
