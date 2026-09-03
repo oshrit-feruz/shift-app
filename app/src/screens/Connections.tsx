@@ -10,7 +10,6 @@ import { DataState } from '../components/DataState';
 import { SkeletonList } from '../components/Skeleton';
 import { useLoadable } from '../data/useLoadable';
 import { fetchConnectedAccounts } from '../data/snaptradeAccount';
-import { liveAccountIndex } from '../data/appService';
 import type { ConnectedAccount, ConnectedConnection } from '../data/types';
 import { useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
@@ -217,14 +216,7 @@ function LiveLinkedAccounts() {
               <Card padding="4px 0" gap={0}>
                 <div style={{ padding: '4px 13px 2px' }}>
                   {accounts.map((account) => (
-                    <AccountRow
-                      key={account.id}
-                      account={account}
-                      index={liveAccountIndex(
-                        accounts.map((a) => a.id),
-                        account.id,
-                      )}
-                    />
+                    <AccountRow key={account.id} account={account} />
                   ))}
                 </div>
                 <p
@@ -267,19 +259,20 @@ function LiveLinkedAccounts() {
  * here is the brokerage's own; a total it did not report is "—", never a
  * sum of the parts it did.
  */
-function AccountRow({ account, index }: Readonly<{ account: ConnectedAccount; index: number }>) {
+function AccountRow({ account }: Readonly<{ account: ConnectedAccount }>) {
   const t = useT();
   const dispatch = useDispatch();
   return (
     <button
       type="button"
       onClick={() => {
-        // Select this account BEFORE navigating. Going to 'pf' alone left
-        // the tab on whichever portfolio pfIndex already held, so tapping
-        // the second account opened the first one — or the aggregate.
-        // A -1 means the ordering rule did not recognise the account, and
-        // leaving the selection alone beats moving it to the wrong one.
-        if (index >= 0) dispatch({ type: 'pfIndex', index });
+        // Name the account, do not place it. Going to 'pf' alone left the tab
+        // on whichever portfolio pfIndex already held, so tapping the second
+        // account opened the first — but computing an index here would be
+        // worse: this screen and the Portfolio tab read the accounts through
+        // separate fetches, and a position from one list does not identify an
+        // account in the other. The tab resolves the id against its own list.
+        dispatch({ type: 'pfWanted', id: account.id });
         dispatch({ type: 'go', screen: 'pf' });
       }}
       style={{

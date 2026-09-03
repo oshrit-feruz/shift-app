@@ -121,7 +121,14 @@ export function PortfolioScreen(_: ScreenProps) {
             );
           }
 
-          const pf = list[Math.min(s.pfIndex, list.length - 1)];
+          // An account asked for by id wins over the stored index, and only
+          // while this list actually contains it — resolved here rather than
+          // where it was requested, because this is the first place the list
+          // exists. Falls through to the index when it does not, so a stale
+          // id can never select the wrong account, only no account.
+          const wantedAt = s.pfWanted ? list.findIndex((x) => x.id === s.pfWanted) : -1;
+          const at = wantedAt >= 0 ? wantedAt : Math.min(s.pfIndex, list.length - 1);
+          const pf = list[at];
           const isAgg = pf.kind === 'aggregate';
           const isManual = pf.kind === 'manual';
           const linked = list.filter((x) => x.kind === 'linked');
@@ -135,7 +142,7 @@ export function PortfolioScreen(_: ScreenProps) {
                   <Chip
                     key={x.id}
                     big
-                    active={i === Math.min(s.pfIndex, list.length - 1)}
+                    active={i === at}
                     onClick={() => dispatch({ type: 'pfIndex', index: i })}
                   >
                     <span

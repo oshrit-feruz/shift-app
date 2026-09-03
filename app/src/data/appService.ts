@@ -165,23 +165,6 @@ function toHolding(position: ConnectedAccount['positions'][number]): Holding {
   };
 }
 
-/**
- * Where an account sits in the list the Portfolio tab's `pfIndex` selects on.
- *
- * The ordering rule lives here, beside livePortfolios(), because that is the
- * function that applies it — a second copy of "aggregate first, but only
- * above one account" in a screen would be free to drift out of agreement
- * with this one and send the reader to the wrong account.
- *
- * -1 when the id is not among the accounts, which the caller reads as "leave
- * the selection alone" rather than as index 0.
- */
-export function liveAccountIndex(accountIds: readonly string[], accountId: string): number {
-  const at = accountIds.indexOf(accountId);
-  if (at === -1) return -1;
-  return accountIds.length === 1 ? 0 : at + 1;
-}
-
 async function livePortfolios(): Promise<Loadable<PortfolioSummary[]>> {
   const result = await connectedAccounts();
   if (result.status !== 'ok') return result;

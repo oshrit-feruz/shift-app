@@ -138,6 +138,18 @@ export interface AppState {
   notificationsRead: boolean;
   /** portfolio tab index */
   pfIndex: number;
+  /**
+   * A portfolio the reader asked for BY ID, not by position — set when they
+   * tap a specific account somewhere other than the Portfolio tab's own
+   * chips. Resolved to an index there, once the list has actually loaded,
+   * and cleared the moment any index is chosen.
+   *
+   * By id rather than by index because the two screens read the accounts
+   * through separate fetches: the same account can sit at a different
+   * position in each, and an index computed against one list would then
+   * select the wrong account in the other.
+   */
+  pfWanted: string | null;
   aggExcluded: Record<string, boolean>;
   savedAlerts: SavedAlert[];
   manualPortfolios: ManualPortfolio[];
@@ -161,6 +173,7 @@ export const initial: AppState = {
   alertDownThreshold: '',
   notificationsRead: false,
   pfIndex: 0,
+  pfWanted: null,
   aggExcluded: {},
   savedAlerts: [],
   manualPortfolios: [],
@@ -187,6 +200,7 @@ export type Action =
   | { type: 'setThreshold'; which: 'up' | 'down'; value: string }
   | { type: 'markNotificationsRead' }
   | { type: 'pfIndex'; index: number }
+  | { type: 'pfWanted'; id: string | null }
   | { type: 'toggleAggAccount'; id: string }
   | { type: 'addAlert'; alert: SavedAlert }
   | { type: 'removeAlert'; id: string }
@@ -337,7 +351,11 @@ export function reducer(s: AppState, a: Action): AppState {
     case 'markNotificationsRead':
       return { ...s, notificationsRead: true };
     case 'pfIndex':
-      return { ...s, pfIndex: a.index };
+      // Clears the wanted id: an index the reader picked outranks one this
+      // state was still holding on their behalf.
+      return { ...s, pfIndex: a.index, pfWanted: null };
+    case 'pfWanted':
+      return { ...s, pfWanted: a.id };
     case 'toggleAggAccount':
       return { ...s, aggExcluded: { ...s.aggExcluded, [a.id]: !s.aggExcluded[a.id] } };
     case 'addAlert':
