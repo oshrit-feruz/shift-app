@@ -17,7 +17,10 @@ import { useT } from '../i18n/useT';
  * that has already updated. On a failure the connection is left exactly as it
  * was and the shared sheet keeps it open with the reason.
  */
-export function DisconnectBrokerageSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function DisconnectBrokerageSheet({
+  open,
+  onClose,
+}: Readonly<{ open: boolean; onClose: () => void }>) {
   const t = useT();
 
   return (

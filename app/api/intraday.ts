@@ -135,7 +135,7 @@ export function createHandler(timeoutMs: number, fetchImpl: typeof fetch = fetch
       timeoutMs,
       'intraday history',
       '/api/intraday',
-      fetchImpl,
+      { fetchImpl },
     );
     // The same three outcomes /api/candles handles, through the same step: a
     // 404 here is the provider saying it carries no intraday series for this

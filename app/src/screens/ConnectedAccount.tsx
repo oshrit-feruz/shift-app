@@ -33,7 +33,10 @@ import type { ScreenProps } from '../App';
  * brokerage did not report renders as "—" and the card says so; nothing is
  * estimated, derived or padded.
  */
-export function ConnectedAccountScreen(_: ScreenProps) {
+// `Readonly` here and not on ScreenProps itself: the interface is shared by
+// every screen, and reshaping it for one rule would put a dozen files this
+// change has no business touching into the diff.
+export function ConnectedAccountScreen(_: Readonly<ScreenProps>) {
   const t = useT();
   const status = useLinkStatus();
   const linked = status === 'linked';
@@ -105,38 +108,7 @@ export function ConnectedAccountScreen(_: ScreenProps) {
                 {dead.map((connection) => (
                   <DisabledConnectionCard key={connection.id} connection={connection} />
                 ))}
-                {accounts.length === 0 ? (
-                  quiet.length === 0 && dead.length === 0 ? (
-                    // Nothing connected and nothing pending. The link state
-                    // says `linked` — a SnapTrade user exists — so the connect
-                    // card above, which waits for `unlinked`, does not show.
-                    // This is the same dead end from the other side, and it
-                    // gets the same way out.
-                    <>
-                      <Card padding={16} gap={6}>
-                        <span style={{ fontSize: 14 }}>{t('live.none')}</span>
-                        <span className="text-muted" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
-                          {t('live.noneHelp')}
-                        </span>
-                      </Card>
-                      <ConnectBrokerage />
-                    </>
-                  ) : (
-                    quiet.map((connection) => <ConnectionCard key={connection.id} connection={connection} />)
-                  )
-                ) : (
-                  <>
-                    {accounts.map((account) => (
-                      <AccountCard key={account.id} account={account} />
-                    ))}
-                    <p
-                      className="text-muted"
-                      style={{ fontSize: 12, margin: 0, lineHeight: 1.5, padding: '0 2px' }}
-                    >
-                      {t('live.unknownFields')}
-                    </p>
-                  </>
-                )}
+                <AccountsOrEmpty accounts={accounts} quiet={quiet} anyDead={dead.length > 0} />
               </>
             );
           })()
@@ -156,13 +128,74 @@ export function ConnectedAccountScreen(_: ScreenProps) {
 }
 
 /**
+ * The three things this list can be, told apart before they are drawn.
+ *
+ * They were a ternary inside a ternary inside the screen's JSX, which read as
+ * one card with two exceptions rather than as what they are: accounts, or a
+ * connection that has not produced any yet, or nothing at all.
+ */
+function AccountsOrEmpty({
+  accounts,
+  quiet,
+  anyDead,
+}: Readonly<{
+  accounts: readonly ConnectedAccount[];
+  quiet: readonly ConnectedConnection[];
+  anyDead: boolean;
+}>) {
+  const t = useT();
+
+  if (accounts.length > 0) {
+    return (
+      <>
+        {accounts.map((account) => (
+          <AccountCard key={account.id} account={account} />
+        ))}
+        <p className="text-muted" style={{ fontSize: 12, margin: 0, lineHeight: 1.5, padding: '0 2px' }}>
+          {t('live.unknownFields')}
+        </p>
+      </>
+    );
+  }
+
+  // A connection exists but has reported no accounts yet — some brokerages
+  // take a day or two. That is not the same as nothing being connected, so it
+  // does not offer to connect again.
+  if (quiet.length > 0 || anyDead) {
+    return (
+      <>
+        {quiet.map((connection) => (
+          <ConnectionCard key={connection.id} connection={connection} />
+        ))}
+      </>
+    );
+  }
+
+  // Nothing connected and nothing pending. The link state says `linked` — a
+  // SnapTrade user exists — so the connect card above, which waits for
+  // `unlinked`, does not show. This is the same dead end from the other side,
+  // and it gets the same way out.
+  return (
+    <>
+      <Card padding={16} gap={6}>
+        <span style={{ fontSize: 14 }}>{t('live.none')}</span>
+        <span className="text-muted" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
+          {t('live.noneHelp')}
+        </span>
+      </Card>
+      <ConnectBrokerage />
+    </>
+  );
+}
+
+/**
  * A connection SnapTrade has marked disabled.
  *
  * Its accounts are never fetched (see the handler), because a disabled
  * connection keeps serving its last cached state and nothing says how old it
  * is. This card exists so that withholding is visible rather than silent.
  */
-function DisabledConnectionCard({ connection }: { connection: ConnectedConnection }) {
+function DisabledConnectionCard({ connection }: Readonly<{ connection: ConnectedConnection }>) {
   const t = useT();
   const broker = connection.brokerage ?? connection.id;
   return (
@@ -182,11 +215,15 @@ function DisabledConnectionCard({ connection }: { connection: ConnectedConnectio
  * connected, and this states what it actually said, so nobody goes looking
  * for a connection that already exists.
  */
-function ConnectionCard({ connection }: { connection: ConnectedConnection }) {
+function ConnectionCard({ connection }: Readonly<{ connection: ConnectedConnection }>) {
   const t = useT();
   const broker = connection.brokerage ?? connection.id;
-  const state =
-    connection.disabled === null ? null : connection.disabled ? t('live.connDisabled') : t('live.connActive');
+  // null when the brokerage did not say — which is not the same as active,
+  // and the card renders the two differently.
+  let state: string | null = null;
+  if (connection.disabled !== null) {
+    state = connection.disabled ? t('live.connDisabled') : t('live.connActive');
+  }
 
   return (
     <Card padding={16} gap={7}>
@@ -215,7 +252,7 @@ function ConnectionCard({ connection }: { connection: ConnectedConnection }) {
 }
 
 /** A number the brokerage reported, or an explicit "—" when it did not. */
-function Maybe({ value, format }: { value: number | null; format: (n: number) => string }) {
+function Maybe({ value, format }: Readonly<{ value: number | null; format: (n: number) => string }>) {
   if (value === null) return <span className="text-muted">—</span>;
   return <Num>{format(value)}</Num>;
 }
@@ -234,7 +271,7 @@ function formatAsOf(iso: string, language: 'en' | 'he'): string {
   });
 }
 
-function AccountCard({ account }: { account: ConnectedAccount }) {
+function AccountCard({ account }: Readonly<{ account: ConnectedAccount }>) {
   const t = useT();
   const { language } = useTheme();
   // The brokerage often prefixes the account name with its own name
@@ -313,7 +350,7 @@ function AccountCard({ account }: { account: ConnectedAccount }) {
   );
 }
 
-function PositionRow({ position }: { position: ConnectedPosition }) {
+function PositionRow({ position }: Readonly<{ position: ConnectedPosition }>) {
   const t = useT();
   // Derived only from numbers the brokerage actually reported; null when any
   // is missing, so an unknown return shows "—" rather than a flat 0%.

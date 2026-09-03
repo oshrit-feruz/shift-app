@@ -1,3 +1,4 @@
+import { compareStrings } from './compare';
 import type { ManualTransaction } from '../state/appState';
 
 /**
@@ -21,5 +22,5 @@ export function newestFirst(a: ManualTransaction, b: ManualTransaction): number 
   const ac = a.createdAt ?? '';
   const bc = b.createdAt ?? '';
   if (ac !== bc) return ac > bc ? -1 : 1;
-  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  return compareStrings(a.id, b.id);
 }

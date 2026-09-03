@@ -93,14 +93,27 @@ const EXCHANGES = new Set([
  * ("BRK.B" -> "BRK-B.US"). A ticker already written the provider's way
  * ("RY-PT") only needs the exchange.
  */
+/** `s` without the dots at its end. Linear, and without a regex that can be
+ *  made to backtrack. */
+function stripTrailingDots(s: string): string {
+  let end = s.length;
+  while (end > 0 && s[end - 1] === '.') end -= 1;
+  return s.slice(0, end);
+}
+
 export function resolveSymbol(ticker: string): string {
   // Trailing dots would otherwise produce an empty suffix and a trailing
   // hyphen ("NVDA." -> "NVDA-.US"), which is a symbol nobody meant.
-  const clean = ticker.trim().toUpperCase().replace(/\.+$/, '');
+  //
+  // Trimmed by index rather than with /\.+$/, which backtracks: on a symbol
+  // like "A....B" the engine retries the run of dots from every position, so
+  // the cost is quadratic in the length of the input. This is linear, and the
+  // input here comes from a URL.
+  const clean = stripTrailingDots(ticker.trim().toUpperCase());
   const dot = clean.lastIndexOf('.');
   if (dot === -1) return `${clean}.US`;
   if (EXCHANGES.has(clean.slice(dot + 1))) return clean;
-  return `${clean.replace(/\./g, '-')}.US`;
+  return `${clean.replaceAll('.', '-')}.US`;
 }
 
 /**
@@ -575,7 +588,8 @@ export function mapIntradayBars(body: unknown): CandleRow[] | null {
  * none of which this app would otherwise know.
  */
 export function latestSession(bars: readonly CandleRow[]): CandleRow[] {
-  if (bars.length === 0) return [];
-  const day = bars[bars.length - 1].d.slice(0, 10);
+  const last = bars.at(-1);
+  if (last === undefined) return [];
+  const day = last.d.slice(0, 10);
   return bars.filter((b) => b.d.startsWith(day));
 }

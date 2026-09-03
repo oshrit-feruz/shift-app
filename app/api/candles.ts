@@ -127,7 +127,7 @@ export function createHandler(timeoutMs: number, fetchImpl: typeof fetch = fetch
       timeoutMs,
       'price history',
       '/api/candles',
-      fetchImpl,
+      { fetchImpl },
     );
     // Three outcomes, and the middle one — a 404 read as "no series for this
     // symbol" rather than as a failure — is why this goes through a shared

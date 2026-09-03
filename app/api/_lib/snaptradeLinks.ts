@@ -64,13 +64,13 @@ export async function readLink(
     `?user_id=eq.${encodeURIComponent(userId)}&select=snaptrade_user_id,user_secret&limit=1`;
   const res = await fetchJsonWithTimeout(url, { headers: headers(store) }, undefined, fetchImpl);
   if (!res.ok) throw new Error(`snaptrade_users read failed with ${res.status}`);
-  if (!Array.isArray(res.body)) throw new Error('snaptrade_users read returned a non-array body');
+  if (!Array.isArray(res.body)) throw new TypeError('snaptrade_users read returned a non-array body');
   const row = res.body[0];
   if (row === undefined) return null;
-  if (typeof row !== 'object' || row === null) throw new Error('snaptrade_users row is not an object');
+  if (typeof row !== 'object' || row === null) throw new TypeError('snaptrade_users row is not an object');
   const { snaptrade_user_id: id, user_secret: sealed } = row as Record<string, unknown>;
   if (typeof id !== 'string' || typeof sealed !== 'string') {
-    throw new Error('snaptrade_users row is missing its id or secret');
+    throw new TypeError('snaptrade_users row is missing its id or secret');
   }
   const userSecret = open(sealed, store.encryptionKey);
   if (userSecret === null) throw new LinkUnreadableError('stored userSecret did not decrypt');

@@ -263,6 +263,37 @@ export function trailTo(s: AppState, screen: Screen, ticker: string): NavEntry[]
   return trail.length > MAX_TRAIL ? trail.slice(trail.length - MAX_TRAIL) : trail;
 }
 
+/**
+ * Symbols reach the reducer from search, the earnings calendar and news chips
+ * as well as the stock page, so they are normalised in one place rather than
+ * at each call site — 'nvda' and 'NVDA' must never become two rows.
+ */
+function normaliseTicker(raw: string): string {
+  return raw.trim().toUpperCase();
+}
+
+/** The watchlist with `raw` added if absent and removed if present. */
+function toggleWatched(s: AppState, raw: string): AppState {
+  const ticker = normaliseTicker(raw);
+  if (!ticker) return s;
+  const watchlist = s.watchlist.includes(ticker)
+    ? s.watchlist.filter((t) => t !== ticker)
+    : [...s.watchlist, ticker];
+  return { ...s, watchlist };
+}
+
+/** The chosen providers with one institution set, or cleared when null. */
+function withConnection(
+  current: AppState['advConnections'],
+  inst: InstitutionKey,
+  provider: string | null | undefined,
+): AppState['advConnections'] {
+  const next = { ...current };
+  if (provider == null) delete next[inst];
+  else next[inst] = provider;
+  return next;
+}
+
 /** Exported for tests — the app itself only ever reaches this via dispatch. */
 export function reducer(s: AppState, a: Action): AppState {
   switch (a.type) {
@@ -281,7 +312,7 @@ export function reducer(s: AppState, a: Action): AppState {
         navStack: trailTo(s, 'stock', a.ticker),
       };
     case 'back': {
-      const previous = s.navStack[s.navStack.length - 1];
+      const previous = s.navStack.at(-1);
       if (previous == null) return s;
       // Spread whole: an entry is every field that makes the view what it was,
       // so nothing can be added to NavEntry and then quietly not restored.
@@ -310,27 +341,12 @@ export function reducer(s: AppState, a: Action): AppState {
       };
     case 'advBroker':
       return { ...s, advBroker: a.broker };
-    case 'advConnect': {
-      const next = { ...s.advConnections };
-      if (a.provider == null) delete next[a.inst];
-      else next[a.inst] = a.provider;
-      return { ...s, advConnections: next };
-    }
-    case 'toggleWatch': {
-      // Symbols reach this from search, the earnings calendar and news chips
-      // as well as the stock page, so they are normalised here rather than at
-      // each call site — 'nvda' and 'NVDA' must never become two rows.
-      const ticker = a.ticker.trim().toUpperCase();
-      if (!ticker) return s;
-      return {
-        ...s,
-        watchlist: s.watchlist.includes(ticker)
-          ? s.watchlist.filter((t) => t !== ticker)
-          : [...s.watchlist, ticker],
-      };
-    }
+    case 'advConnect':
+      return { ...s, advConnections: withConnection(s.advConnections, a.inst, a.provider) };
+    case 'toggleWatch':
+      return toggleWatched(s, a.ticker);
     case 'removeWatch': {
-      const ticker = a.ticker.trim().toUpperCase();
+      const ticker = normaliseTicker(a.ticker);
       if (!s.watchlist.includes(ticker)) return s;
       return { ...s, watchlist: s.watchlist.filter((t) => t !== ticker) };
     }

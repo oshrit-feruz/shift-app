@@ -80,12 +80,7 @@ export function HomeScreen({ openSearch }: ScreenProps) {
         </Card>
       )}
 
-      {/* Sample data, then the real portfolio, then neither. Without the
-          middle branch the home screen showed a linked user a "only in demo"
-          placeholder while their actual portfolio sat one tab away — the one
-          card here about their money, on the only screen that did not know
-          they had connected anything. */}
-      {!beg && (demo ? <MetricStripDemo /> : live ? <HeroPortfolio /> : <DemoOnly feature="home.pfToday" />)}
+      {!beg && <ProMetrics demo={demo} live={live} />}
 
       {/* Watchlist preview */}
       <Card padding="13px 13px 4px" gap={6}>
@@ -319,6 +314,21 @@ function monthLabel(iso: string, language: 'en' | 'he'): string {
     month: 'short',
     timeZone: 'UTC',
   });
+}
+
+/**
+ * What the non-beginner home screen puts where the beginner one puts the
+ * portfolio hero: sample metrics, the real portfolio, or neither.
+ *
+ * Three claims rather than three shades of one, so they are three returns.
+ * The middle one is the whole reason this exists — before it, a linked user
+ * got a "only in demo" placeholder while their actual portfolio sat one tab
+ * away, on the only screen that did not know they had connected anything.
+ */
+function ProMetrics({ demo, live }: Readonly<{ demo: boolean; live: boolean }>) {
+  if (demo) return <MetricStripDemo />;
+  if (live) return <HeroPortfolio />;
+  return <DemoOnly feature="home.pfToday" />;
 }
 
 /**

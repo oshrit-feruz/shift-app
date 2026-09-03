@@ -11,7 +11,10 @@ import { useTheme } from '../theme/ThemeProvider';
  * Renders nothing when there is no reason, so a caller can pass its error
  * state straight in without a conditional of its own.
  */
-export function ReasonNote({ title, reason }: { title: string; reason: { en: string; he: string } | null }) {
+export function ReasonNote({
+  title,
+  reason,
+}: Readonly<{ title: string; reason: { en: string; he: string } | null }>) {
   const { language } = useTheme();
   if (!reason) return null;
   return (

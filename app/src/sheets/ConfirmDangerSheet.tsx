@@ -39,7 +39,7 @@ export function ConfirmDangerSheet({
   errorTitle,
   onConfirm,
   closeOnSuccess = false,
-}: {
+}: Readonly<{
   open: boolean;
   onClose: () => void;
   title: string;
@@ -50,7 +50,7 @@ export function ConfirmDangerSheet({
   errorTitle: string;
   onConfirm: () => Promise<ConfirmResult>;
   closeOnSuccess?: boolean;
-}) {
+}>) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<Reason | null>(null);
 

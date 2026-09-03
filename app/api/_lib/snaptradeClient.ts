@@ -121,14 +121,15 @@ export async function snapTradeRequest({
     timeoutMs,
     PROVIDER,
     route,
-    fetchImpl,
-    'json',
     {
-      Accept: 'application/json',
-      Signature: signature,
-      ...(body ? { 'Content-Type': 'application/json' } : {}),
+      fetchImpl,
+      headers: {
+        Accept: 'application/json',
+        Signature: signature,
+        ...(body ? { 'Content-Type': 'application/json' } : {}),
+      },
+      init: method === 'GET' ? undefined : { method, ...(body ? { body: JSON.stringify(body) } : {}) },
     },
-    method === 'GET' ? undefined : { method, ...(body ? { body: JSON.stringify(body) } : {}) },
   );
   if (!result.ok) throw new UpstreamError(result.failure);
   return result.body;
