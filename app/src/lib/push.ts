@@ -9,7 +9,7 @@ import type { Language } from '../theme/ThemeProvider';
  * the Settings toggle cannot show one without the others: the browser has
  * granted notification permission, the service worker holds a push
  * subscription, and that subscription is stored in `push_subscriptions`
- * (supabase/migrations/0006_alerts.sql) where the alert engine can find it.
+ * (supabase/migrations/0007_alerts.sql) where the alert engine can find it.
  * A subscription the server does not know about is a toggle that lies.
  *
  * The public VAPID key is public by design — it identifies the server that

@@ -544,6 +544,16 @@ export interface ConnectedConnection {
  * screen uses to tell "nothing connected" from "connected, reporting nothing".
  */
 export interface ConnectedAccountsResult {
+  /**
+   * Whether this user has authorised a brokerage connection at all.
+   *
+   * The distinction the screens live on: `false` with no accounts means
+   * nobody has ever connected anything, and the app shows its own data
+   * instead. `true` with no accounts means they DID connect one and the
+   * brokerage reported nothing — a fact about their account, which must not
+   * be papered over with sample numbers.
+   */
+  linked: boolean;
   accounts: ConnectedAccount[];
   connections: ConnectedConnection[];
 }

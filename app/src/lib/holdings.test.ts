@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  fetchPortfolioHoldings,
   fetchYourPositions,
   manualPortfolioSummaries,
   mergeManualTransactions,
@@ -9,6 +10,8 @@ import {
 import type { PortfolioSummary, Quote } from '../data/types';
 import { withDemoData } from '../data/demoFlagsStub';
 import { demoService } from '../data/demoAdapter';
+import { appService } from '../data/appService';
+import { clearLinked, setLinked } from '../data/linkState';
 import type { ManualPortfolio, ManualTransaction } from '../state/appState';
 
 afterEach(() => {
@@ -140,6 +143,73 @@ describe('fetchYourPositions respects the sample-data switch', () => {
 // same invented six-position table as the brokers, so a user who had never
 // recorded a trade still opened it on $9,840 of holdings that were not theirs.
 // Manual portfolios are the user's own ledger and take nothing from that table.
+describe('fetchPortfolioHoldings picks its source by switch, then by connection', () => {
+  // Two rules in one place, and the order between them matters:
+  //  - sample data on  → the demo adapter, connected or not. The switch is
+  //    what makes the app safe to show to a room, so it wins.
+  //  - sample data off → the connected account, whose positions used to be
+  //    ignored here while the allocation ring beside them read appService.
+  //    One card, one account, two sources.
+  afterEach(() => {
+    clearLinked();
+    vi.restoreAllMocks();
+  });
+
+  const live = [
+    {
+      ticker: 'ORCL',
+      name: 'Oracle',
+      shares: 12,
+      avgCost: 140,
+      price: 150,
+      value: 1800,
+      plPct: 7.1,
+      costBasis: 1680,
+    },
+  ];
+
+  it('reads the linked account when sample data is off', async () => {
+    withDemoData(false);
+    setLinked(true, 'user-1');
+    const spy = vi.spyOn(appService, 'holdings').mockResolvedValue({ status: 'ok', data: live });
+
+    const res = await fetchPortfolioHoldings('acc-1', []);
+
+    expect(spy).toHaveBeenCalledWith('acc-1');
+    expect(res.status).toBe('ok');
+    if (res.status !== 'ok') return;
+    expect(res.data.rows.map((r) => r.ticker)).toEqual(['ORCL']);
+  });
+
+  it('leaves the connected account unread while sample data is on', async () => {
+    // Not a privacy nicety — it is the whole point of the switch. Someone
+    // presenting the app has flipped it precisely so their own positions do
+    // not appear, and a connection they made earlier must not defeat that.
+    withDemoData(true);
+    setLinked(true, 'user-1');
+    const liveSpy = vi.spyOn(appService, 'holdings');
+    const demoSpy = vi.spyOn(demoService, 'holdings').mockResolvedValue({ status: 'ok', data: [] });
+
+    await fetchPortfolioHoldings('blink', []);
+
+    expect(liveSpy).not.toHaveBeenCalled();
+    expect(demoSpy).toHaveBeenCalledWith('blink');
+  });
+
+  it('reads neither with sample data off and nothing connected', async () => {
+    withDemoData(false);
+    clearLinked();
+    const demoSpy = vi.spyOn(demoService, 'holdings');
+
+    const res = await fetchPortfolioHoldings('blink', []);
+
+    expect(demoSpy).not.toHaveBeenCalled();
+    expect(res.status).toBe('ok');
+    if (res.status !== 'ok') return;
+    expect(res.data.rows).toEqual([]);
+  });
+});
+
 describe('the fabricated holdings table is the demo brokers’ alone', () => {
   it('reports no demo Sandbox portfolio, even with sample data on', async () => {
     withDemoData(true);

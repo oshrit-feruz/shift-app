@@ -17,7 +17,7 @@ import { isValidTicker, type NewsArticle } from './news.js';
  * not every five minutes for as long as it stays there — and not the moment
  * the rule is created while the price already sits at 210, either. So each
  * rule remembers which side of its level it was on at the last check
- * (alert_states in supabase/migrations/0006_alerts.sql), the first check only
+ * (alert_states in supabase/migrations/0007_alerts.sql), the first check only
  * records that side, and a firing needs the side to have flipped since. The
  * cost of that honesty is that a crossing between creation and the first
  * check is not seen; the README says so.

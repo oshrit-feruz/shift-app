@@ -31,24 +31,33 @@ that has not been pasted into the SQL editor is not live, however green CI is.
   file). Must be run *before* deploying the client release that reads them;
   until it is, the client falls back to the legacy `user_state` jsonb copy of
   the ledger rather than showing an empty portfolio.
-- `0006_alerts.sql` — **alerts that fire.** Creates `notifications` (what the
+- `0006_snaptrade.sql` — **per-user brokerage links.** Creates
+  `snaptrade_users`, which holds each user's SnapTrade id and their
+  `userSecret` **encrypted** under the server-only `SNAPTRADE_SECRET_KEY` (see
+  `app/api/_lib/secretBox.ts`). Unlike every other table here it has **no RLS
+  policies at all** — with RLS enabled that denies the browser even its own
+  row, and the service-role key, which the API routes hold and the client
+  never sees, is the only thing that reaches it. Must be run before deploying
+  the release that lets users connect an account; until it is, connecting
+  fails with an honest error rather than half-linking anything.
+- `0007_alerts.sql` — **alerts that fire.** Creates `notifications` (what the
   engine fired, read by the notification centre), `alert_states` (the engine's
   memory between runs, no client access) and `push_subscriptions` (one row per
   device that turned push on), with their RLS policies. The alert rules
   themselves stay in `user_state.state`. Run it — **together with
-  `0008_alert_hardening.sql` below** — before deploying the client release
-  that reads `notifications`: on its own, 0006 leaves `authenticated` with
+  `0009_alert_hardening.sql` below** — before deploying the client release
+  that reads `notifications`: on its own, 0007 leaves `authenticated` with
   table-wide UPDATE on its own notification rows, and the push toggle calls a
-  function 0008 creates. Until 0006 is run the notification centre reports
+  function 0009 creates. Until 0007 is run the notification centre reports
   "unavailable" and the push toggle cannot store a subscription. The
   engine itself (`app/api/alerts-run.ts`) is called by
   `.github/workflows/alerts.yml` — see "Alerts" in the root README for the
   secrets it needs.
-- `0007_worker_heartbeat.sql` — one engine-only row the price worker
+- `0008_worker_heartbeat.sql` — one engine-only row the price worker
   (`app/worker/`) keeps fresh while its socket is up, which is how the
   scheduled route knows to stand down. Needed before the worker is deployed;
   harmless before then (the route reads "no heartbeat" as "no worker").
-- `0008_alert_hardening.sql` — two corrections to 0006, both from review.
+- `0009_alert_hardening.sql` — two corrections to 0007, both from review.
   Narrows the client's UPDATE on `notifications` to the `read_at` column
   (the row policy said which row, nothing said which columns, and Supabase
   grants `authenticated` table-wide UPDATE by default), and adds

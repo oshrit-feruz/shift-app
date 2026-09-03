@@ -426,7 +426,7 @@ async function fetchPrices(run: Run, symbols: string[]): Promise<Record<string, 
       run.timeoutMs,
       'quote',
       '/api/alerts-run',
-      run.fetchImpl,
+      { fetchImpl: run.fetchImpl },
     );
     if (!r.ok) {
       failed += 1;
@@ -471,7 +471,9 @@ async function fetchArticles(run: Run, tickers: string[]): Promise<Map<string, N
     u.searchParams.set('api_token', run.providerKey);
     u.searchParams.set('fmt', 'json');
     u.searchParams.set('limit', String(NEWS_ARTICLES));
-    const r = await fetchUpstreamJson(u, run.timeoutMs, 'news', '/api/alerts-run', run.fetchImpl);
+    const r = await fetchUpstreamJson(u, run.timeoutMs, 'news', '/api/alerts-run', {
+      fetchImpl: run.fetchImpl,
+    });
     if (!r.ok || !Array.isArray(r.body)) {
       failed += 1;
       return;
@@ -521,7 +523,10 @@ async function fetchCalendar(run: Run): Promise<EarningsRow[] | null> {
   u.searchParams.set('function', 'EARNINGS_CALENDAR');
   u.searchParams.set('horizon', '3month');
   u.searchParams.set('apikey', run.providerKey);
-  const r = await fetchUpstreamJson(u, run.timeoutMs, 'earnings', '/api/alerts-run', run.fetchImpl, 'text');
+  const r = await fetchUpstreamJson(u, run.timeoutMs, 'earnings', '/api/alerts-run', {
+    fetchImpl: run.fetchImpl,
+    as: 'text',
+  });
   if (!r.ok || typeof r.body !== 'string') return null;
   const text = r.body.trim();
   if (text.startsWith('{')) {

@@ -11,7 +11,6 @@ import { DeleteAccountSheet } from '../sheets/DeleteAccountSheet';
 import { useTheme, type Signal, type Theme, type Language } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { DEMO_FLAGS } from '../data/demoFlags';
-import { resetConnectedAccountCache } from '../data/appService';
 import { useEffect, useRef, useState } from 'react';
 import { disablePush, enablePush, isPushOn, pushSupport, type PushSupport } from '../lib/push';
 import type { StringKey } from '../i18n/strings';
@@ -34,7 +33,6 @@ export function SettingsScreen(_: ScreenProps) {
   // directly are mirrored here.
   const [flags, setFlags] = useState({
     unavailable: DEMO_FLAGS.unavailable,
-    liveAccount: DEMO_FLAGS.liveAccount,
   });
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -319,28 +317,6 @@ export function SettingsScreen(_: ScreenProps) {
             setFlags({ ...flags, unavailable: v });
           }}
         />
-        {/* Founder demo only. Off is the app exactly as it is today; on
-            swaps the demo accounts for the one real brokerage account read
-            through SnapTrade Personal, so the two can be shown side by side.
-            The cache reset makes the flip immediate rather than serving the
-            previous source's answer for the next few seconds. */}
-        <DemoFlagRow
-          label={t('live.setting')}
-          help={t('live.settingHelp')}
-          on={flags.liveAccount}
-          onChange={(v) => {
-            resetConnectedAccountCache();
-            DEMO_FLAGS.set('liveAccount', v);
-            setFlags({ ...flags, liveAccount: v });
-          }}
-        />
-        {flags.liveAccount && (
-          <SettingsLink
-            accent
-            label={t('more.snaptrade')}
-            onClick={() => dispatch({ type: 'go', screen: 'snaptrade' })}
-          />
-        )}
       </Card>
 
       {/* Setup */}

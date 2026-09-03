@@ -18,4 +18,9 @@ export interface ManualTransaction {
   shares: number;
   price: number;
   date: string;
+  /** When the row was entered, as opposed to the trade date it records.
+   *  Optional because valuation never needs it and older locally-held rows
+   *  predate it; the transaction log uses it to order same-day entries by
+   *  the order they were actually logged. */
+  createdAt?: string;
 }

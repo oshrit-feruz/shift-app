@@ -1,9 +1,9 @@
--- Two corrections to 0006, both found in review of the alert engine.
--- Run in the Supabase SQL editor after 0006 and 0007.
+-- Two corrections to 0007, both found in review of the alert engine.
+-- Run in the Supabase SQL editor after 0007 and 0008.
 
 -- ── 1. A reader may mark a notification read. Nothing else. ─────────────
 --
--- The "own notifications update" policy in 0006 decides WHICH ROW a client
+-- The "own notifications update" policy in 0007 decides WHICH ROW a client
 -- may update; it says nothing about which COLUMNS. Supabase grants the
 -- `authenticated` role table-wide UPDATE by default, so a signed-in client
 -- could rewrite the title, the ticker, the kind or the dedupe key of its own
@@ -29,7 +29,7 @@ grant update (read_at) on public.notifications to authenticated;
 -- the endpoint is a capability only the device holding it can present, and
 -- presenting it is what transfers the row. That is the same trust the push
 -- service itself places in the endpoint. A client still cannot read, write
--- or delete another account's row directly — the policies from 0006 are
+-- or delete another account's row directly — the policies from 0007 are
 -- untouched.
 create or replace function public.claim_push_subscription(
   p_endpoint   text,

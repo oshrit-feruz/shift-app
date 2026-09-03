@@ -260,19 +260,34 @@ export function trailTo(s: AppState, screen: Screen, ticker: string): NavEntry[]
 }
 
 /**
- * Add a symbol to the watchlist, or remove it if it is there.
- *
- * Symbols reach this from search, the earnings calendar and news chips as
- * well as the stock page, so they are normalised here rather than at each
- * call site — 'nvda' and 'NVDA' must never become two rows.
+ * Symbols reach the reducer from search, the earnings calendar and news chips
+ * as well as the stock page, so they are normalised in one place rather than
+ * at each call site — 'nvda' and 'NVDA' must never become two rows.
  */
-function toggleWatch(s: AppState, raw: string): AppState {
-  const ticker = raw.trim().toUpperCase();
+function normaliseTicker(raw: string): string {
+  return raw.trim().toUpperCase();
+}
+
+/** The watchlist with `raw` added if absent and removed if present. */
+function toggleWatched(s: AppState, raw: string): AppState {
+  const ticker = normaliseTicker(raw);
   if (!ticker) return s;
   const watchlist = s.watchlist.includes(ticker)
     ? s.watchlist.filter((t) => t !== ticker)
     : [...s.watchlist, ticker];
   return { ...s, watchlist };
+}
+
+/** The chosen providers with one institution set, or cleared when null. */
+function withConnection(
+  current: AppState['advConnections'],
+  inst: InstitutionKey,
+  provider: string | null | undefined,
+): AppState['advConnections'] {
+  const next = { ...current };
+  if (provider == null) delete next[inst];
+  else next[inst] = provider;
+  return next;
 }
 
 /** Exported for tests — the app itself only ever reaches this via dispatch. */
@@ -322,16 +337,12 @@ export function reducer(s: AppState, a: Action): AppState {
       };
     case 'advBroker':
       return { ...s, advBroker: a.broker };
-    case 'advConnect': {
-      const next = { ...s.advConnections };
-      if (a.provider == null) delete next[a.inst];
-      else next[a.inst] = a.provider;
-      return { ...s, advConnections: next };
-    }
+    case 'advConnect':
+      return { ...s, advConnections: withConnection(s.advConnections, a.inst, a.provider) };
     case 'toggleWatch':
-      return toggleWatch(s, a.ticker);
+      return toggleWatched(s, a.ticker);
     case 'removeWatch': {
-      const ticker = a.ticker.trim().toUpperCase();
+      const ticker = normaliseTicker(a.ticker);
       if (!s.watchlist.includes(ticker)) return s;
       return { ...s, watchlist: s.watchlist.filter((t) => t !== ticker) };
     }
