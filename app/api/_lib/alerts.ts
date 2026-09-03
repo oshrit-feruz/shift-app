@@ -344,7 +344,10 @@ export function evaluateNewsRule(
     .map((a) => ({ a, at: Date.parse(a.publishedAt) }))
     .filter((x) => Number.isFinite(x.at))
     .sort((x, y) => x.at - y.at);
-  const newest = dated.length > 0 ? dated[dated.length - 1].at : now.getTime();
+  // Sorted ascending, so the last entry is the newest; `now` when the
+  // provider returned nothing datable, which arms the rule at this moment
+  // rather than at the epoch.
+  const newest = dated.at(-1)?.at ?? now.getTime();
   const mark = new Date(newest).toISOString();
 
   if (prev === undefined) return { firings: [], states: [{ key, state: mark }] };
@@ -356,7 +359,8 @@ export function evaluateNewsRule(
   // Truncated: the mark stops at the last article that fired. Untruncated:
   // it goes to the newest article seen, matching or not, so an article the
   // keywords rejected is not weighed again every half hour forever.
-  const upTo = matched.length > taken.length ? taken[taken.length - 1].at : newest;
+  const lastFired = taken.at(-1);
+  const upTo = matched.length > taken.length && lastFired ? lastFired.at : newest;
   const firings = taken.map((m) => newsFiring(rule, m.a, m.hit));
   return { firings, states: upTo > since ? [{ key, state: new Date(upTo).toISOString() }] : [] };
 }
