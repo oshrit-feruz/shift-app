@@ -661,7 +661,7 @@ function SourceStrip({
         </span>
       </span>
       {/* Every manual portfolio, the Sandbox included since
-          0006_portfolio_delete.sql lifted the database's guard on it.
+          0008_portfolio_delete.sql lifted the database's guard on it.
           The button opens a confirmation, never deletes by itself. */}
       {isManual ? (
         <Button variant="ghost" fontSize={15.5} onClick={() => onDelete()}>

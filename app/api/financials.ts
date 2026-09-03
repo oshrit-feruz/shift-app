@@ -127,12 +127,21 @@ export function createHandler(timeoutMs: number, fetchImpl: typeof fetch = fetch
     }
     const headers = { 'User-Agent': userAgent, Accept: 'application/json' };
 
+    // ONE budget for the whole request, not one per read. A cold cache makes
+    // two sequential upstream calls, and giving each its own `timeoutMs`
+    // allowed 40s of waiting inside a function Vercel kills at 30 — the
+    // caller would get no response at all rather than a timeout it could
+    // report. Each read gets whatever is left, and a read whose share has
+    // run out is asked for a moment rather than a negative span.
+    const deadline = Date.now() + timeoutMs;
+    const remaining = () => Math.max(1, deadline - Date.now());
+
     // The ticker file, from the cache when it is fresh.
     let map = tickerMap && Date.now() - tickerMap.at < TICKER_MAP_TTL_MS ? tickerMap.map : null;
     if (!map) {
       const result = await fetchUpstreamJson(
         TICKER_FILE_URL,
-        timeoutMs,
+        remaining(),
         PROVIDER,
         ROUTE,
         fetchImpl,
@@ -160,7 +169,7 @@ export function createHandler(timeoutMs: number, fetchImpl: typeof fetch = fetch
 
     const facts = await fetchUpstreamJson(
       companyFactsUrl(entry.cik),
-      timeoutMs,
+      remaining(),
       PROVIDER,
       ROUTE,
       fetchImpl,
@@ -185,15 +194,24 @@ export function createHandler(timeoutMs: number, fetchImpl: typeof fetch = fetch
         .json({ error: 'bad_response', message: `The ${PROVIDER} provider returned an unexpected shape.` });
     }
 
-    const body: FinancialsBody = {
-      ticker,
-      listed: true,
-      cik: company.cik,
-      entity: company.entityName ?? entry.title,
-      annual: buildStatements(company, 'annual', ANNUAL_PERIODS),
-      quarterly: buildStatements(company, 'quarterly', QUARTERLY_PERIODS),
-      source: SOURCE,
-    };
+    // A CIK in the SEC's ticker file is not the same fact as US-GAAP data
+    // to read. An IFRS filer or a fund answers 200 here with no `us-gaap`
+    // key at all, which readCompanyFacts reports as an empty facts map —
+    // and `listed: true` for one of those told the reader "listed, no
+    // statements" where the truth is "no US-GAAP statements to read". The
+    // route's own contract says so; only the 404 path was honouring it.
+    const body: FinancialsBody =
+      company.facts.size === 0
+        ? { ...notListed(ticker), cik: company.cik, entity: company.entityName ?? entry.title }
+        : {
+            ticker,
+            listed: true,
+            cik: company.cik,
+            entity: company.entityName ?? entry.title,
+            annual: buildStatements(company, 'annual', ANNUAL_PERIODS),
+            quarterly: buildStatements(company, 'quarterly', QUARTERLY_PERIODS),
+            source: SOURCE,
+          };
     res.setHeader('Cache-Control', CACHE_CONTROL);
     return res.status(200).json(body);
   };

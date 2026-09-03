@@ -401,9 +401,12 @@ export const STRINGS = {
   ),
   'stock.annual': p('Annual', 'שנתי'),
   'stock.quarterly': p('Quarterly', 'רבעוני'),
+  // Says what is missing — US-GAAP data — rather than "no SEC filings",
+  // which is false for a foreign private issuer: it files a 20-F, under
+  // IFRS, and EDGAR's company-facts simply carries no us-gaap block for it.
   'stock.notSecListed': p(
-    'No SEC filings for this ticker — it is not a US-listed filer, or it reports under IFRS.',
-    'אין דוחות SEC לסימבול הזה — הוא אינו מדווח בארה"ב, או מדווח לפי IFRS.',
+    'No US-GAAP statement data for this ticker. It may file under IFRS, or not file with the SEC at all.',
+    'אין נתוני דוחות לפי US-GAAP לסימבול הזה. ייתכן שהוא מדווח לפי IFRS, או שאינו מדווח ל-SEC כלל.',
   ),
   'stock.statementsEmpty': p('No filed periods on record for this view.', 'אין תקופות מדווחות לתצוגה הזו.'),
   // Why the quarterly view skips every fourth quarter: it is not filed as one.

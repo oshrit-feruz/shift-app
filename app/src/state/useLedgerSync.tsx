@@ -283,7 +283,14 @@ function useLedgerSync(): LedgerApi {
     // all there is nowhere to put them; the next read tries again.
     const portfolios = serverRef.current.portfolios;
     const sandbox = portfolios.find((p) => p.isDefault) ?? portfolios[0];
-    if (!sandbox) return;
+    if (!sandbox) {
+      // Release the marker set above, or "the next read tries again" is not
+      // true: the guard at the top would refuse every later attempt in this
+      // session, and a reader who deleted their Sandbox and then made a new
+      // portfolio would never get their legacy ledger back.
+      importedFor.current = null;
+      return;
+    }
     let legacy;
     try {
       legacy = readLegacyLedger(JSON.parse(localStorage.getItem('shift.state') ?? '{}'));

@@ -129,6 +129,21 @@ describe('/api/financials', () => {
     expect(res._body).toMatchObject({ listed: false });
   });
 
+  // The route's own contract says a filer with no US-GAAP facts answers
+  // listed: false. Only the 404 path was honouring it, so an IFRS filer or a
+  // fund — 200, a real CIK, no `us-gaap` key — came back listed with an empty
+  // table, telling the reader "listed, no statements" where the truth is "no
+  // US-GAAP statements to read".
+  it('answers "not listed" for a 200 that carries no US-GAAP facts at all', async () => {
+    const ifrs = { cik: 804328, entityName: 'A FOREIGN FILER', facts: { 'ifrs-full': {} } };
+    const res = await call({ symbol: 'QCOM' }, edgar({ status: 200, body: ifrs }));
+    expect(res._status).toBe(200);
+    expect(res._body).toMatchObject({ listed: false, annual: [], quarterly: [] });
+    // Still says who it is: the CIK and name were read successfully, and
+    // withholding them would claim less than the route actually knows.
+    expect(res._body).toMatchObject({ cik: '804328', entity: 'A FOREIGN FILER' });
+  });
+
   it('reports a blocked request as forbidden rather than as no statements', async () => {
     const res = await call({ symbol: 'QCOM' }, edgar({ status: 403 }));
     expect(res._status).toBe(502);

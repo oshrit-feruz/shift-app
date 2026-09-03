@@ -87,13 +87,26 @@ export function extractFinancials(body: unknown): Financials | null {
   const ticker = str(b.ticker);
   if (!ticker || typeof b.listed !== 'boolean') return null;
   if (!Array.isArray(b.annual) || !Array.isArray(b.quarterly)) return null;
-  return {
-    ticker: ticker.toUpperCase(),
-    listed: b.listed,
-    entity: str(b.entity),
-    annual: b.annual.map(mapRow).filter((r): r is FinancialStatementRow => r !== null),
-    quarterly: b.quarterly.map(mapRow).filter((r): r is FinancialStatementRow => r !== null),
-  };
+  // A row we cannot read makes the whole answer unreadable, rather than a
+  // shorter table nobody is told is short. Dropping it left a statement
+  // history with a period silently missing from the middle of it, which is
+  // the same class of quiet inaccuracy as a fabricated figure: the reader
+  // has no way to tell that a column is gone.
+  const annual = mapRows(b.annual);
+  const quarterly = mapRows(b.quarterly);
+  if (annual === null || quarterly === null) return null;
+  return { ticker: ticker.toUpperCase(), listed: b.listed, entity: str(b.entity), annual, quarterly };
+}
+
+/** Every row, or null the moment one of them cannot be read. */
+function mapRows(rows: unknown[]): FinancialStatementRow[] | null {
+  const out: FinancialStatementRow[] = [];
+  for (const raw of rows) {
+    const row = mapRow(raw);
+    if (row === null) return null;
+    out.push(row);
+  }
+  return out;
 }
 
 /**

@@ -255,7 +255,11 @@ export async function fetchPortfolioHoldings(
 export interface HoldingsSummary {
   /** Market value of the open positions. */
   value: number | null;
-  /** What the open positions cost. */
+  /**
+   * What the open positions committed, each leg counted at its absolute
+   * basis — a short's negative basis (money received) adds to the base
+   * rather than cancelling a long's.
+   */
   cost: number;
   /** Return in currency, and as a percent of `cost`. */
   pl: number | null;
@@ -267,7 +271,14 @@ export interface HoldingsSummary {
 
 export function summarizeHoldings(rows: readonly Holding[]): HoldingsSummary {
   const held = rows.filter((row) => row.shares !== 0);
-  const cost = held.reduce((sum, row) => sum + row.costBasis, 0);
+  // Absolute, for the same reason dayMove() takes an absolute base and the
+  // row prints money(Math.abs(costBasis)): a short's cost basis is negative
+  // (money received), so a signed sum nets it against the longs. That gave a
+  // short-only portfolio a negative denominator — plPct null though the
+  // return is perfectly well known — and a mixed one a denominator smaller
+  // than what was actually committed, overstating the percentage and able to
+  // flip its sign.
+  const cost = held.reduce((sum, row) => sum + Math.abs(row.costBasis), 0);
 
   const value = held.some((row) => row.value === null)
     ? null

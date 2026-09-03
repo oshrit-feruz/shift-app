@@ -10,6 +10,7 @@ import { DataState } from '../components/DataState';
 import { SkeletonList } from '../components/Skeleton';
 import { useLoadable } from '../data/useLoadable';
 import { fetchConnectedAccounts } from '../data/snaptradeAccount';
+import { liveAccountIndex } from '../data/appService';
 import type { ConnectedAccount, ConnectedConnection } from '../data/types';
 import { useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
@@ -200,11 +201,30 @@ function LiveLinkedAccounts() {
             {dead.map((connection) => (
               <DisabledConnectionCard key={connection.id} connection={connection} />
             ))}
+            {/* A connection that is live and reporting nothing is its own
+                fact, and it used to vanish the moment ANY other account
+                loaded — the branch below rendered account rows or connection
+                cards, never both, so a second brokerage sitting empty
+                disappeared from the screen entirely. Rendered on its own
+                terms now: any active connection with no accounts of its own,
+                whatever the rest of the list did. */}
+            {quiet
+              .filter((connection) => connection.accountCount === 0)
+              .map((connection) => (
+                <ConnectionCard key={connection.id} connection={connection} />
+              ))}
             {accounts.length > 0 ? (
               <Card padding="4px 0" gap={0}>
                 <div style={{ padding: '4px 13px 2px' }}>
                   {accounts.map((account) => (
-                    <AccountRow key={account.id} account={account} />
+                    <AccountRow
+                      key={account.id}
+                      account={account}
+                      index={liveAccountIndex(
+                        accounts.map((a) => a.id),
+                        account.id,
+                      )}
+                    />
                   ))}
                 </div>
                 <p
@@ -227,7 +247,13 @@ function LiveLinkedAccounts() {
                 </span>
               </Card>
             ) : (
-              quiet.map((connection) => <ConnectionCard key={connection.id} connection={connection} />)
+              // Only the ones the block above did not already render: a
+              // connection that claims accounts but delivered none is still
+              // worth stating, and is not covered by the accountCount === 0
+              // filter.
+              quiet
+                .filter((connection) => connection.accountCount !== 0)
+                .map((connection) => <ConnectionCard key={connection.id} connection={connection} />)
             )}
           </>
         );
@@ -241,13 +267,21 @@ function LiveLinkedAccounts() {
  * here is the brokerage's own; a total it did not report is "—", never a
  * sum of the parts it did.
  */
-function AccountRow({ account }: Readonly<{ account: ConnectedAccount }>) {
+function AccountRow({ account, index }: Readonly<{ account: ConnectedAccount; index: number }>) {
   const t = useT();
   const dispatch = useDispatch();
   return (
     <button
       type="button"
-      onClick={() => dispatch({ type: 'go', screen: 'pf' })}
+      onClick={() => {
+        // Select this account BEFORE navigating. Going to 'pf' alone left
+        // the tab on whichever portfolio pfIndex already held, so tapping
+        // the second account opened the first one — or the aggregate.
+        // A -1 means the ordering rule did not recognise the account, and
+        // leaving the selection alone beats moving it to the wrong one.
+        if (index >= 0) dispatch({ type: 'pfIndex', index });
+        dispatch({ type: 'go', screen: 'pf' });
+      }}
       style={{
         display: 'flex',
         alignItems: 'center',

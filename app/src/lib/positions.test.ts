@@ -319,4 +319,17 @@ describe('portfolio-level return', () => {
     expect(v.pl).toBe(0);
     expect(v.plPct).toBeNull();
   });
+
+  // A closed position is worth zero — known, and known without a quote.
+  // Treating it as unpriced made its booked result null, so a position sold
+  // out months ago read as "—" whenever its ticker happened to be missing
+  // from today's quotes, though realised and soldCost already say everything.
+  it('books a closed position with no quote at all, rather than reporting null', () => {
+    const pos = buildPositions([tx('buy', 'MDA', 5, 20), tx('sell', 'MDA', 5, 30)]);
+    const [closed] = valuePositions(pos, {}).positions;
+    expect(closed.shares).toBe(0);
+    expect(closed.value).toBe(0);
+    expect(closed.pl).toBe(50);
+    expect(closed.plPct).toBeCloseTo(50, 6);
+  });
 });

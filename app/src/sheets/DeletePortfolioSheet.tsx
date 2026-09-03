@@ -15,7 +15,7 @@ import { useT } from '../i18n/useT';
  * should make them pause.
  *
  * The Sandbox is deleted through here like any other portfolio since
- * 0006_portfolio_delete.sql. It is created once per account, so the sheet
+ * 0008_portfolio_delete.sql. It is created once per account, so the sheet
  * says so: a new portfolio can always be made, but not another Sandbox.
  */
 export function DeletePortfolioSheet({

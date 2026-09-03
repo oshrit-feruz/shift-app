@@ -402,6 +402,29 @@ describe('summarizeHoldings', () => {
     expect(s.dayChange).toBe(10);
   });
 
+  // A short's cost basis is negative — money received — so a signed sum nets
+  // it against the longs. That left a short-only portfolio with a negative
+  // denominator (plPct null, though the return is known) and a mixed one with
+  // a base smaller than what was committed, overstating the percentage.
+  it('measures the return against an absolute cost base, so a short-only portfolio has one', () => {
+    const s = summarizeHoldings([
+      row({ ticker: 'ALB', shares: -10, avgCost: 100, price: 90, value: -900, costBasis: -1000, pl: 100 }),
+    ]);
+    expect(s.cost).toBe(1000);
+    expect(s.plPct).toBeCloseTo(10, 6);
+  });
+
+  it('does not let a short cancel a long out of the denominator', () => {
+    const s = summarizeHoldings([
+      row({ ticker: 'A', costBasis: 1000, pl: 100 }),
+      row({ ticker: 'B', shares: -10, avgCost: 100, price: 90, value: -900, costBasis: -1000, pl: 100 }),
+    ]);
+    // Signed, the base would have been 0 and the percentage unreportable on
+    // 2,000 of committed money.
+    expect(s.cost).toBe(2000);
+    expect(s.plPct).toBeCloseTo(10, 6);
+  });
+
   it('has no percentages over nothing', () => {
     const s = summarizeHoldings([]);
     expect(s).toEqual({ value: 0, cost: 0, pl: 0, plPct: null, dayChange: 0, dayChangePct: null });

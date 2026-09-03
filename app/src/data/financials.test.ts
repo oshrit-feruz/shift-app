@@ -46,9 +46,24 @@ describe('extractFinancials', () => {
     expect(f.annual[0].eps).toBe(4.51);
   });
 
-  it('drops a row that names no filing rather than showing a figure without one', () => {
-    const f = extractFinancials({ ...body, annual: [{ ...row, filed: undefined }] })!;
-    expect(f.annual).toEqual([]);
+  // Dropping it left a statement history with a period silently missing from
+  // the middle, and no way for the reader to tell a column was gone. An
+  // unreadable row makes the whole answer unreadable instead, so the screen
+  // shows its unavailable state rather than a quietly shorter table.
+  it('is null when a row names no filing, rather than dropping that row', () => {
+    expect(extractFinancials({ ...body, annual: [{ ...row, filed: undefined }] })).toBeNull();
+  });
+
+  it('is null when the unreadable row is a quarterly one', () => {
+    expect(extractFinancials({ ...body, quarterly: [{ ...row, form: undefined }] })).toBeNull();
+  });
+
+  // A row that is merely thin is not a row that is unreadable: the filing is
+  // named, and a line it does not carry is null, which is the whole contract.
+  it('keeps a row whose figures are missing but whose filing is named', () => {
+    const f = extractFinancials({ ...body, annual: [{ ...row, revenue: undefined }] })!;
+    expect(f.annual).toHaveLength(1);
+    expect(f.annual[0].revenue).toBeNull();
   });
 
   it('is null for a body it cannot read', () => {

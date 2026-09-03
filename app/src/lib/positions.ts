@@ -207,7 +207,12 @@ export function valuePositions(
 ): PortfolioValuation {
   const valued: ValuedPosition[] = positions.map((pos) => {
     const price = quotes?.[pos.ticker]?.price ?? null;
-    const value = price === null ? null : pos.shares * price;
+    // A closed position is worth zero — known, not unknown, and known
+    // without a quote. Passing null here made its booked result null too,
+    // so a position sold out months ago showed "—" whenever its ticker
+    // happened to be unpriced today, though realised, dividends and soldCost
+    // already determine the whole answer.
+    const value = pos.shares === 0 ? 0 : price === null ? null : pos.shares * price;
     return { ...pos, price, value, pl: totalReturn(pos, value), plPct: totalReturnPct(pos, value) };
   });
 
