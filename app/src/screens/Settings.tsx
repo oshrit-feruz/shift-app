@@ -12,7 +12,7 @@ import { useTheme, type Signal, type Theme, type Language } from '../theme/Theme
 import { useT } from '../i18n/useT';
 import { DEMO_FLAGS } from '../data/demoFlags';
 import { resetConnectedAccountCache } from '../data/appService';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { disablePush, enablePush, isPushOn, pushSupport, type PushSupport } from '../lib/push';
 import type { StringKey } from '../i18n/strings';
 import type { ScreenProps } from '../App';
@@ -49,11 +49,18 @@ export function SettingsScreen(_: ScreenProps) {
     note: null,
     busy: false,
   });
+  // The arrival read and a toggle race each other: `isPushOn` asks the
+  // browser and the database, and can answer after an enable has already
+  // stored a subscription — putting the switch back to off while push is on.
+  // A toggle bumps the generation, and a status read applies only if it is
+  // still the one this generation asked for.
+  const pushGen = useRef(0);
   useEffect(() => {
     if (!userId) return;
+    const gen = pushGen.current;
     let alive = true;
     void isPushOn(userId).then((on) => {
-      if (alive) setPush((p) => ({ ...p, on }));
+      if (alive && pushGen.current === gen) setPush((p) => ({ ...p, on }));
     });
     return () => {
       alive = false;
@@ -62,9 +69,10 @@ export function SettingsScreen(_: ScreenProps) {
   const pushNote = pushNoteFor(userId, support, push.note);
   const togglePush = (on: boolean) => {
     if (!userId || push.busy) return;
+    pushGen.current += 1;
     setPush((p) => ({ ...p, busy: true }));
     if (on) {
-      void enablePush(userId, language).then((err) =>
+      void enablePush(language).then((err) =>
         setPush({ on: err === null, note: err === null ? null : PUSH_NOTE[err], busy: false }),
       );
     } else {

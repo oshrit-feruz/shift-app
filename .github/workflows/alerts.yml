@@ -11,13 +11,19 @@ name: Run the alert engine
 #
 # Three schedules, one scope each, because the three inputs have different
 # costs (see the route's header):
-#   prices — every five minutes across the US regular session (13:30–20:00
-#            UTC), Monday to Friday. The engine sees a crossing only while
-#            prices move; polling a closed market would spend Finnhub calls
-#            on a number that cannot change. This is the FALLBACK: while the
-#            price worker (app/worker/) reports a fresh heartbeat the route
-#            answers `skipped: worker_alive` and does nothing, and the run
-#            here is a health check that costs one request.
+#   prices — every five minutes across the US regular session, Monday to
+#            Friday. The engine sees a crossing only while prices move;
+#            polling a closed market would spend Finnhub calls on a number
+#            that cannot change. Three cron lines rather than one because
+#            cron has no timezone and New York does: the session is
+#            13:30–20:00 UTC on daylight time and 14:30–21:00 on standard
+#            time, so the union 13:30–21:00 is what a fixed-UTC schedule can
+#            say. A slot outside the session on one half of the year costs
+#            one request and evaluates against a price that cannot have
+#            moved. This is the FALLBACK: while the price worker
+#            (app/worker/) reports a fresh heartbeat the route answers
+#            `skipped: worker_alive` and does nothing, and the run here is a
+#            health check that costs one request.
 #   news   — every half hour, all week. Coverage does not keep market hours.
 #   daily  — once a morning, 04:00 UTC (07:00 Israel), for earnings
 #            reminders. Alpha Vantage's free key allows a couple of dozen
@@ -31,7 +37,9 @@ name: Run the alert engine
 
 on:
   schedule:
-    - cron: '*/5 13-20 * * 1-5'
+    - cron: '30,35,40,45,50,55 13 * * 1-5'
+    - cron: '*/5 14-20 * * 1-5'
+    - cron: '0 21 * * 1-5'
     # Off the hour and half hour on purpose: the top of the hour is when
     # every other repository's schedule fires too, and the queue is longest.
     - cron: '7,37 * * * *'
@@ -63,10 +71,12 @@ jobs:
           # `github.event.schedule` is the cron line exactly as written above,
           # so each case must match its line character for character.
           case "$SCHEDULE" in
-            '*/5 13-20 * * 1-5') SCOPE=prices ;;
-            '7,37 * * * *')      SCOPE=news ;;
-            '0 4 * * *')         SCOPE=daily ;;
-            '')                  SCOPE="$INPUT" ;;
+            '30,35,40,45,50,55 13 * * 1-5') SCOPE=prices ;;
+            '*/5 14-20 * * 1-5')            SCOPE=prices ;;
+            '0 21 * * 1-5')                 SCOPE=prices ;;
+            '7,37 * * * *')                 SCOPE=news ;;
+            '0 4 * * *')                    SCOPE=daily ;;
+            '')                             SCOPE="$INPUT" ;;
             *)
               echo "::error::Schedule '$SCHEDULE' has no scope — add it to the case above"
               exit 1

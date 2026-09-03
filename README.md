@@ -671,7 +671,7 @@ on the phone that subscribed.
 | The deciding | `app/api/_lib/alerts.ts` — pure functions, unit-tested per rule kind. |
 | The run | `POST /api/alerts-run?scope=prices\|news\|daily`, guarded by `ALERTS_CRON_SECRET`, reading and writing every user's rows with the service-role key. |
 | The clock | `.github/workflows/alerts.yml` — prices every 5 minutes across the US session on weekdays, news every half hour, the earnings calendar once a morning. |
-| The price worker | `app/worker/` — one always-on process on EODHD's US trades socket, checking price rules on every trade, 04:00–20:00 New York time. `app/worker/README.md` has the deploy. While its heartbeat (`worker_heartbeat`, migration 0007) is fresh the route's `prices` scope stands down; when it goes stale the route takes over at its slower cadence. |
+| The price worker | `app/worker/` — one always-on process on EODHD's US trades socket, checking price rules on every trade, 04:00–20:00 New York time. `app/worker/README.md` has the deploy. While its heartbeat (`worker_heartbeat`, migration 0007) is fresh the route's `prices` scope stands down for the symbols the worker covers — the socket takes 50, and any past that are named in the heartbeat and checked by the route instead. When the heartbeat goes stale the route takes over everything at its slower cadence. |
 | What fired | `notifications` (`supabase/migrations/0006_alerts.sql`), read by `src/data/notifications.ts` under RLS; the header badge and the sheet share one read (`useNotifications`). |
 | The engine's memory | `alert_states` — which side of its level each rule was on at the last check. Engine-only. |
 | Push | `push_subscriptions` + `VAPID_*`; `src/lib/push.ts` subscribes from the Settings toggle, `public/sw.js` shows the banner. |
@@ -735,7 +735,7 @@ alert lands "within a few minutes", and the README does not claim tighter.
 
 **To turn it on for a deployment** (each step is one-time):
 
-1. Run `supabase/migrations/0006_alerts.sql` and `0007_worker_heartbeat.sql` in the SQL editor.
+1. Run `supabase/migrations/0006_alerts.sql`, `0007_worker_heartbeat.sql` and `0008_alert_hardening.sql` in the SQL editor.
 2. Set `ALERTS_CRON_SECRET` (any long random string) in Vercel, and the same
    value as the `ALERTS_CRON_SECRET` repository secret on GitHub beside
    `ALERTS_RUN_URL` (`https://<deployment>/api/alerts-run`).

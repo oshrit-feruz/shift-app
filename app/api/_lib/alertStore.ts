@@ -55,6 +55,8 @@ export type StoreResult<T> = { ok: true; value: T } | { ok: false; failure: Stor
 const CONCURRENCY = 4;
 /** How long a push may wait in the push service for a phone that is off. */
 const PUSH_TTL_SECONDS = 3_600;
+/** Socket timeout for one delivery, so an unanswered request cannot hold a slot open. */
+const PUSH_TIMEOUT_MS = 10_000;
 
 /** Row shapes as PostgREST returns them. `numeric` columns arrive as strings. */
 interface StateRow {
@@ -87,6 +89,33 @@ function failed<T>(table: string, detail: string): StoreResult<T> {
   return { ok: false, failure: { table, detail } };
 }
 
+/**
+ * PostgREST caps a response at the project's `max-rows` (1000 by default)
+ * and says so nowhere in the payload: a truncated read is a successful read.
+ * For this engine that would mean users, transactions, remembered states or
+ * devices silently missing from a run — alerts that do not fire, with a
+ * 200 and clean counters to say everything was fine. So every list read
+ * pages until a short page comes back.
+ *
+ * Ordered by primary key, without which a row can move between pages as the
+ * table changes underneath the walk and be read twice or not at all.
+ */
+const PAGE_ROWS = 1000;
+
+async function pageAll<T>(
+  table: string,
+  page: (from: number, to: number) => PromiseLike<{ data: unknown; error: { message: string } | null }>,
+): Promise<StoreResult<T[]>> {
+  const all: T[] = [];
+  for (let from = 0; ; from += PAGE_ROWS) {
+    const got = await page(from, from + PAGE_ROWS - 1);
+    if (got.error) return failed(table, got.error.message);
+    const rows = (got.data ?? []) as T[];
+    all.push(...rows);
+    if (rows.length < PAGE_ROWS) return { ok: true, value: all };
+  }
+}
+
 /** Run `work` over `items` with a fixed number of workers in flight. */
 export async function inBatches<T, R>(items: T[], work: (item: T) => Promise<R>): Promise<R[]> {
   const out: R[] = [];
@@ -109,9 +138,11 @@ export async function loadUsers(
   db: SupabaseClient,
   keep: (u: UserRules) => boolean,
 ): Promise<StoreResult<UserRules[]>> {
-  const rows = await db.from('user_state').select('user_id,state');
-  if (rows.error) return failed('user_state', rows.error.message);
-  const users = ((rows.data ?? []) as StateRow[])
+  const rows = await pageAll<StateRow>('user_state', (from, to) =>
+    db.from('user_state').select('user_id,state').order('user_id').range(from, to),
+  );
+  if (!rows.ok) return rows;
+  const users = rows.value
     .map((r) => ({ userId: r.user_id, rules: readRules(r.state), thresholds: readThresholds(r.state) }))
     .filter(keep);
   return { ok: true, value: users };
@@ -126,9 +157,17 @@ export function hasPriceRules(u: UserRules): boolean {
 export async function loadStates(db: SupabaseClient, userIds: string[]): Promise<StoreResult<StateMap>> {
   const states: StateMap = new Map();
   if (userIds.length === 0) return { ok: true, value: states };
-  const rows = await db.from('alert_states').select('user_id,key,state').in('user_id', userIds);
-  if (rows.error) return failed('alert_states', rows.error.message);
-  for (const row of (rows.data ?? []) as AlertStateRow[]) {
+  const rows = await pageAll<AlertStateRow>('alert_states', (from, to) =>
+    db
+      .from('alert_states')
+      .select('user_id,key,state')
+      .in('user_id', userIds)
+      .order('user_id')
+      .order('key')
+      .range(from, to),
+  );
+  if (!rows.ok) return rows;
+  for (const row of rows.value) {
     const bag = states.get(row.user_id) ?? {};
     bag[row.key] = row.state;
     states.set(row.user_id, bag);
@@ -147,14 +186,18 @@ export async function loadPositions(
 ): Promise<StoreResult<Map<string, HeldPosition[]>>> {
   const positions = new Map<string, HeldPosition[]>();
   if (userIds.length === 0) return { ok: true, value: positions };
-  const rows = await db
-    .from('transactions')
-    .select('user_id,ticker,side,shares,price,trade_date')
-    .in('user_id', userIds);
-  if (rows.error) return failed('transactions', rows.error.message);
+  const rows = await pageAll<TransactionRow>('transactions', (from, to) =>
+    db
+      .from('transactions')
+      .select('user_id,ticker,side,shares,price,trade_date')
+      .in('user_id', userIds)
+      .order('id')
+      .range(from, to),
+  );
+  if (!rows.ok) return rows;
 
   const byUser = new Map<string, ManualTransaction[]>();
-  for (const row of (rows.data ?? []) as TransactionRow[]) {
+  for (const row of rows.value) {
     const list = byUser.get(row.user_id) ?? [];
     list.push({
       id: '',
@@ -189,13 +232,23 @@ export function outcomeKey(o: { userId: string; firing: { dedupeKey: string } })
  * same crossing and tries again — and the dedupe key makes the retry a
  * no-op once a row exists. Returns the keys of the firings that became NEW
  * rows, which are the only ones worth a push.
+ *
+ * A FAILURE STILL CARRIES `inserted`. The dangerous order is the middle
+ * case: notifications written, states not. The next run re-evaluates the
+ * same crossing, but `ignoreDuplicates` means the row it already wrote comes
+ * back from `.select()` as nothing, so that run has nothing to push and the
+ * banner would be lost for good while the row sits unread in the app. So the
+ * caller pushes what this call did insert before reporting the failure.
  */
+export type PersistResult =
+  { ok: true; value: Set<string> } | { ok: false; failure: StoreFailure; inserted: Set<string> };
+
 export async function persistOutcomes(
   db: SupabaseClient,
   outcomes: Outcome[],
   states: UserState[],
   now: Date,
-): Promise<StoreResult<Set<string>>> {
+): Promise<PersistResult> {
   let inserted = new Set<string>();
   if (outcomes.length > 0) {
     const rows = outcomes.map((o) => ({
@@ -212,7 +265,9 @@ export async function persistOutcomes(
       .from('notifications')
       .upsert(rows, { onConflict: 'user_id,dedupe_key', ignoreDuplicates: true })
       .select('user_id,dedupe_key');
-    if (write.error) return failed('notifications', write.error.message);
+    if (write.error) {
+      return { ok: false, failure: { table: 'notifications', detail: write.error.message }, inserted };
+    }
     inserted = new Set(
       ((write.data ?? []) as Array<{ user_id: string; dedupe_key: string }>).map(
         (r) => `${r.user_id}|${r.dedupe_key}`,
@@ -225,7 +280,9 @@ export async function persistOutcomes(
       states.map((s) => ({ user_id: s.userId, key: s.key, state: s.state, updated_at: stamp })),
       { onConflict: 'user_id,key' },
     );
-    if (write.error) return failed('alert_states', write.error.message);
+    if (write.error) {
+      return { ok: false, failure: { table: 'alert_states', detail: write.error.message }, inserted };
+    }
   }
   return { ok: true, value: inserted };
 }
@@ -260,15 +317,19 @@ export async function deliverPush(db: SupabaseClient, outcomes: Outcome[]): Prom
   webpush.setVapidDetails(subject, publicKey, privateKey);
 
   const userIds = [...new Set(outcomes.map((o) => o.userId))];
-  const subs = await db
-    .from('push_subscriptions')
-    .select('id,user_id,endpoint,p256dh,auth,lang')
-    .in('user_id', userIds);
-  if (subs.error) {
-    console.error(`alerts: push_subscriptions query failed: ${subs.error.message}`);
+  const subs = await pageAll<PushRow>('push_subscriptions', (from, to) =>
+    db
+      .from('push_subscriptions')
+      .select('id,user_id,endpoint,p256dh,auth,lang')
+      .in('user_id', userIds)
+      .order('id')
+      .range(from, to),
+  );
+  if (!subs.ok) {
+    console.error(`alerts: push_subscriptions query failed: ${subs.failure.detail}`);
     return { push: 'sent', pushed: 0, pushFailed: outcomes.length, pushDropped: 0 };
   }
-  const jobs = pushJobs(outcomes, (subs.data ?? []) as PushRow[]);
+  const jobs = pushJobs(outcomes, subs.value);
   const results = await inBatches(jobs, sendOne);
   const dead = new Set<string>();
   let pushed = 0;
@@ -314,7 +375,10 @@ async function sendOne({
     await webpush.sendNotification(
       { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
       payload,
-      { TTL: PUSH_TTL_SECONDS },
+      // A socket that never answers would otherwise hold one of the four
+      // delivery slots for as long as the platform allows, and a run that
+      // cannot finish delivering is a run that cannot report what it did.
+      { TTL: PUSH_TTL_SECONDS, timeout: PUSH_TIMEOUT_MS },
     );
     return 'sent';
   } catch (err) {
@@ -348,15 +412,38 @@ export async function writeHeartbeat(
   return write.error ? { table: 'worker_heartbeat', detail: write.error.message } : null;
 }
 
+/**
+ * What a worker last reported.
+ *
+ * `uncovered` is the part the route cannot do without: a worker's socket has
+ * a symbol ceiling, and the symbols past it are named in its heartbeat. They
+ * are watched by nobody unless the route picks them up, so "the worker is
+ * alive" is not on its own a reason for the route to stand down.
+ */
+export interface Heartbeat {
+  at: Date;
+  uncovered: string[];
+}
+
 /** When the named worker last reported, or null when it never has. A missing table reads as never. */
-export async function readHeartbeat(db: SupabaseClient, name: string): Promise<Date | null> {
-  const row = await db.from('worker_heartbeat').select('at').eq('name', name).maybeSingle();
+export async function readHeartbeat(db: SupabaseClient, name: string): Promise<Heartbeat | null> {
+  const row = await db.from('worker_heartbeat').select('at,detail').eq('name', name).maybeSingle();
   if (row.error || !row.data) return null;
-  const at = new Date((row.data as { at: string }).at);
-  return Number.isNaN(at.getTime()) ? null : at;
+  const data = row.data as { at: string; detail?: unknown };
+  const at = new Date(data.at);
+  if (Number.isNaN(at.getTime())) return null;
+  return { at, uncovered: readUncovered(data.detail) };
+}
+
+/** The `skipped` list a worker writes beside its heartbeat; anything unreadable is no claim of coverage. */
+function readUncovered(detail: unknown): string[] {
+  if (detail === null || typeof detail !== 'object') return [];
+  const raw = (detail as { skipped?: unknown }).skipped;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((s): s is string => typeof s === 'string');
 }
 
 /** Whether a heartbeat is recent enough to trust the worker with the prices. */
-export function workerAlive(at: Date | null, now: Date, staleMs: number = WORKER_STALE_MS): boolean {
-  return at !== null && now.getTime() - at.getTime() < staleMs;
+export function workerAlive(beat: Heartbeat | null, now: Date, staleMs: number = WORKER_STALE_MS): boolean {
+  return beat !== null && now.getTime() - beat.at.getTime() < staleMs;
 }

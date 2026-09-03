@@ -73,9 +73,10 @@ export async function isPushOn(userId: string): Promise<boolean> {
  *
  * Returns what stopped it, or null on success. A permission prompt is a
  * user gesture's to trigger, so this is called from the toggle, never on
- * load.
+ * load. Which account the row belongs to is decided in the database from
+ * the session, not passed in from here.
  */
-export async function enablePush(userId: string, lang: Language): Promise<PushSupport | 'failed' | null> {
+export async function enablePush(lang: Language): Promise<PushSupport | 'failed' | null> {
   const support = pushSupport();
   if (support !== 'ready') return support;
   const permission = await Notification.requestPermission();
@@ -92,17 +93,19 @@ export async function enablePush(userId: string, lang: Language): Promise<PushSu
     const p256dh = json.keys?.p256dh;
     const auth = json.keys?.auth;
     if (!json.endpoint || !p256dh || !auth) return 'failed';
-    const { error } = await (supabase as NonNullable<typeof supabase>).from('push_subscriptions').upsert(
-      {
-        user_id: userId,
-        endpoint: json.endpoint,
-        p256dh,
-        auth,
-        lang,
-        user_agent: navigator.userAgent.slice(0, 200),
-      },
-      { onConflict: 'endpoint' },
-    );
+    // Through the function, not a direct upsert: the endpoint is unique per
+    // browser profile, so a second account signing in on this device meets a
+    // row the first account owns and that RLS will not let it touch. The
+    // function (migration 0008) moves ownership server-side as the caller.
+    // `userId` is not sent — the function reads auth.uid() itself, and a
+    // client-supplied id would be a claim rather than a fact.
+    const { error } = await (supabase as NonNullable<typeof supabase>).rpc('claim_push_subscription', {
+      p_endpoint: json.endpoint,
+      p_p256dh: p256dh,
+      p_auth: auth,
+      p_lang: lang,
+      p_user_agent: navigator.userAgent.slice(0, 200),
+    });
     if (error) {
       console.warn('push subscription could not be stored', error.message);
       return 'failed';

@@ -71,6 +71,17 @@ export interface TickResult {
 }
 
 /**
+ * A copy of the engine's memory, deep enough to evaluate against safely.
+ *
+ * The per-user bag is copied too. A shallow `new Map(states)` would share
+ * those objects, so `evaluateTick` writing into the copy would still reach
+ * the original — which is the whole thing the copy exists to prevent.
+ */
+export function cloneStates(states: StateMap): StateMap {
+  return new Map([...states].map(([userId, bag]) => [userId, { ...bag }]));
+}
+
+/**
  * One trade against every rule that watches its symbol.
  *
  * `states` is the engine's memory and is UPDATED IN PLACE with whatever the
@@ -78,6 +89,10 @@ export interface TickResult {
  * side this one recorded — the database write that follows is for the next
  * process, not for this one. Without that, two trades in the same second
  * would both see the pre-crossing side and both fire.
+ *
+ * In place, but not on the live map: the caller evaluates against a
+ * `cloneStates` copy and installs it only once the write succeeded, so a
+ * crossing the database refused is not remembered as handled.
  */
 export function evaluateTick(
   snapshot: Snapshot,

@@ -296,8 +296,32 @@ describe('news rules', () => {
       '2026-09-03T10:00:00.000Z',
       now,
     );
+    // The three OLDEST unseen articles, and the mark stops at the last one.
     expect(r.firings).toHaveLength(MAX_NEWS_FIRINGS_PER_RULE);
-    expect(r.firings[0].dedupeKey).toBe('news|NVDA|https://example.com/5');
+    expect(r.firings.map((f) => f.dedupeKey)).toEqual([
+      'news|NVDA|https://example.com/0',
+      'news|NVDA|https://example.com/1',
+      'news|NVDA|https://example.com/2',
+    ]);
+    expect(r.states).toEqual([{ key: 'news|NVDA|', state: '2026-09-03T11:02:00.000Z' }]);
+  });
+
+  it('fires the ones the cap held back on the next run instead of losing them', () => {
+    const many = Array.from({ length: 6 }, (_, i) =>
+      article({ url: `https://example.com/${i}`, publishedAt: `2026-09-03T11:0${i}:00Z` }),
+    );
+    const first = evaluateNewsRule(rule({ kind: 'news', value: '' }), many, '2026-09-03T10:00:00.000Z', now);
+    const second = evaluateNewsRule(rule({ kind: 'news', value: '' }), many, first.states[0].state, now);
+    expect(second.firings.map((f) => f.dedupeKey)).toEqual([
+      'news|NVDA|https://example.com/3',
+      'news|NVDA|https://example.com/4',
+      'news|NVDA|https://example.com/5',
+    ]);
+    // Everything seen now, so the mark reaches the newest article and a
+    // third run has nothing left to say.
+    expect(second.states).toEqual([{ key: 'news|NVDA|', state: '2026-09-03T11:05:00.000Z' }]);
+    const third = evaluateNewsRule(rule({ kind: 'news', value: '' }), many, second.states[0].state, now);
+    expect(third).toEqual({ firings: [], states: [] });
   });
 });
 

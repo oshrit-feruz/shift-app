@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { Coalescer, evaluateTick, planSubscriptions, wantedSymbols, type Snapshot } from './engine.js';
+import {
+  cloneStates,
+  Coalescer,
+  evaluateTick,
+  planSubscriptions,
+  wantedSymbols,
+  type Snapshot,
+} from './engine.js';
 import type { AlertRule } from '../api/_lib/alerts.js';
 import type { StateMap } from '../api/_lib/alertStore.js';
 
@@ -137,5 +144,32 @@ describe('Coalescer', () => {
     expect(c.due(10_500)).toEqual([]);
     expect(c.size).toBe(1);
     expect(c.due(11_000)).toEqual([{ symbol: 'NVDA', price: 3 }]);
+  });
+});
+
+describe('cloneStates', () => {
+  it('copies the per-user bag, so evaluating against the copy leaves the original alone', () => {
+    const live: StateMap = new Map([['u1', { 'price|NVDA|rise|200': 'below' }]]);
+    const copy = cloneStates(live);
+
+    // A crossing recorded in the copy — what evaluateTick does in place.
+    const snap = snapshot();
+    const result = evaluateTick(snap, copy, 'NVDA', 201, '2026-01-05');
+    expect(result.outcomes).toHaveLength(1);
+    expect(copy.get('u1')).toEqual({ 'price|NVDA|rise|200': 'above' });
+
+    // The live map still says `below`, so a run whose write failed and threw
+    // the copy away sees the crossing again on the next trade.
+    expect(live.get('u1')).toEqual({ 'price|NVDA|rise|200': 'below' });
+    const retry = evaluateTick(snap, cloneStates(live), 'NVDA', 201, '2026-01-05');
+    expect(retry.outcomes).toHaveLength(1);
+  });
+
+  it('copies a user the original does not have without adding them to it', () => {
+    const live: StateMap = new Map();
+    const copy = cloneStates(live);
+    evaluateTick(snapshot(), copy, 'NVDA', 199, '2026-01-05');
+    expect(copy.has('u1')).toBe(true);
+    expect(live.size).toBe(0);
   });
 });

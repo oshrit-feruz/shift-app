@@ -6,7 +6,9 @@ regular hours only" with "within a second, 04:00–20:00 New York time,
 pre-market and after-hours included". The route keeps running and stands
 down while this is alive — see `worker_heartbeat` in
 `supabase/migrations/0007_worker_heartbeat.sql` — so a dead worker degrades
-to the slower cadence rather than to silence.
+to the slower cadence rather than to silence. It stands down only for what
+this actually watches: the symbols past the socket's ceiling are named in
+the heartbeat, and the route keeps checking those on its schedule.
 
 It decides nothing of its own: the rules, the memory, the notification rows
 and the push are `api/_lib/alerts.ts` and `api/_lib/alertStore.ts`, shared
@@ -30,9 +32,17 @@ with the route. `worker/engine.ts` turns a trade into those calls;
 
 ## Run it locally
 
+`npm run worker` holds the terminal — it is the process, not a command that
+returns — so the health probe belongs in a second one.
+
 ```sh
+# Terminal 1
 cd app
 EODHD_API_KEY=… SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… npm run worker
+```
+
+```sh
+# Terminal 2
 curl localhost:8080/healthz
 ```
 
@@ -49,7 +59,8 @@ the difference between ~$2 and ~$6 a month. `fly.toml` already carries the
 app name, the region and the size, so create the app and deploy it directly
 and the file is used verbatim.
 
-1. Run `supabase/migrations/0007_worker_heartbeat.sql` in the SQL editor.
+1. Run `supabase/migrations/0007_worker_heartbeat.sql` in the SQL editor
+   (and `0008_alert_hardening.sql`, if it has not been run yet).
 2. Install `flyctl` and `fly auth login`. Fly asks for a payment method
    before it will place a machine, even for the small one this uses.
 3. From `app/`, create the app (no wizard, no deploy yet):

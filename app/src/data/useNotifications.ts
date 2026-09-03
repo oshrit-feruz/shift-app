@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   fetchNotifications,
   markAllRead,
@@ -32,6 +32,15 @@ export function useNotifications(userId: string | null) {
   const { state, retry } = useLoadable(() => fetchNotifications(userId), [userId], NOTIFICATIONS_REFRESH_MS);
   const [readIds, setReadIds] = useState<ReadonlySet<string>>(() => new Set());
   const [allReadAt, setAllReadAt] = useState<number | null>(null);
+
+  // The overrides describe one person's reading. `userId` changes without a
+  // remount when a session ends and another begins, and a carried-over
+  // `allReadAt` would mark every older row of the next user read on screen
+  // while the database still holds them unread.
+  useEffect(() => {
+    setReadIds(new Set());
+    setAllReadAt(null);
+  }, [userId]);
 
   const list: Loadable<AppNotification[]> = useMemo(() => {
     if (state.status !== 'ok') return state;

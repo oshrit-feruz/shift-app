@@ -11,9 +11,12 @@ import {
   persistOutcomes,
   PRICE_WORKER,
   writeHeartbeat,
+  type Outcome,
+  type PushReport,
   type StateMap,
 } from '../api/_lib/alertStore.js';
 import {
+  cloneStates,
   Coalescer,
   EMPTY_SNAPSHOT,
   evaluateTick,
@@ -86,7 +89,14 @@ class Worker {
   private lastRefreshAt: number | null = null;
   private lastRefreshError: string | null = null;
   private skipped: string[] = [];
-  private evaluating = false;
+  // Refresh and evaluation both read and replace `snapshot` and `states`,
+  // and both await between reading and writing. One flag covers both, so a
+  // refresh cannot land a fresh snapshot on top of a crossing an evaluation
+  // has recorded but not yet committed, and an evaluation cannot run against
+  // a snapshot a refresh is halfway through replacing. A refresh that finds
+  // the flag set is dropped, not queued: it runs again in a minute, and
+  // `status().healthy` goes red on its own if refreshes stop landing.
+  private busy = false;
   readonly counters: Counters = {
     trades: 0,
     evaluated: 0,
@@ -113,6 +123,16 @@ class Worker {
 
   /** Re-read the rules and reconcile the socket to them. */
   async refresh(): Promise<void> {
+    if (this.busy) return;
+    this.busy = true;
+    try {
+      await this.reload();
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  private async reload(): Promise<void> {
     const users = await loadUsers(this.db, hasPriceRules);
     if (!users.ok) return this.refreshFailed(users.failure.table, users.failure.detail);
     const ids = users.value.map((u) => u.userId);
@@ -156,15 +176,23 @@ class Worker {
   async evaluate(): Promise<void> {
     // One at a time: a slow database write must not let the next tick
     // evaluate against memory the previous one has not finished updating.
-    if (this.evaluating) return;
+    if (this.busy) return;
     const due = this.coalescer.due(Date.now());
     if (due.length === 0) return;
-    this.evaluating = true;
+    this.busy = true;
     try {
       const now = new Date();
       const today = isoDayUtc(now);
       for (const { symbol, price } of due) {
-        const result = evaluateTick(this.snapshot, this.states, symbol, price, today);
+        // Evaluate against a copy. `evaluateTick` records the new side in the
+        // map it is given, and that memory is what stops the next trade a
+        // second later from firing the same crossing again — but only a
+        // crossing that reached the database may be forgotten. If the write
+        // fails the copy is dropped, so the next trade sees the old side and
+        // tries again, instead of the alert vanishing into memory that no
+        // row backs.
+        const next = cloneStates(this.states);
+        const result = evaluateTick(this.snapshot, next, symbol, price, today);
         this.counters.evaluated += 1;
         if (result.outcomes.length === 0 && result.states.length === 0) continue;
         this.counters.fired += result.outcomes.length;
@@ -172,28 +200,42 @@ class Worker {
         if (!written.ok) {
           this.counters.storeFailures += 1;
           log('persist.failed', { ...written.failure });
+          // Notifications may have landed even though the states did not.
+          // Those rows exist now, so no later run will see them as new and
+          // push them; this one has to, or the banner is lost while the row
+          // sits unread in the app.
+          await this.push(result.outcomes, written.inserted, symbol, price);
           continue;
         }
+        this.states = next;
         this.counters.recorded += written.value.size;
-        const toPush = result.outcomes.filter((o) => o.push && written.value.has(outcomeKey(o)));
-        if (toPush.length > 0) {
-          const report = await deliverPush(this.db, toPush);
-          this.counters.pushed += report.pushed;
-          this.counters.pushFailed += report.pushFailed;
-          log('fired', {
-            symbol,
-            price,
-            fired: result.outcomes.length,
-            recorded: written.value.size,
-            ...report,
-          });
-        } else if (result.outcomes.length > 0) {
+        const report = await this.push(result.outcomes, written.value, symbol, price);
+        if (report === null && result.outcomes.length > 0) {
           log('fired', { symbol, price, fired: result.outcomes.length, recorded: written.value.size });
         }
       }
     } finally {
-      this.evaluating = false;
+      this.busy = false;
     }
+  }
+
+  /**
+   * Deliver the firings that became new rows, and only those. Returns the
+   * report, or null when there was nothing to send.
+   */
+  private async push(
+    outcomes: Outcome[],
+    inserted: Set<string>,
+    symbol: string,
+    price: number,
+  ): Promise<PushReport | null> {
+    const toPush = outcomes.filter((o) => o.push && inserted.has(outcomeKey(o)));
+    if (toPush.length === 0) return null;
+    const report = await deliverPush(this.db, toPush);
+    this.counters.pushed += report.pushed;
+    this.counters.pushFailed += report.pushFailed;
+    log('fired', { symbol, price, fired: outcomes.length, recorded: inserted.size, ...report });
+    return report;
   }
 
   /** What the health endpoint and the heartbeat both report. */

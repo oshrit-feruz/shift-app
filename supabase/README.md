@@ -45,6 +45,13 @@ that has not been pasted into the SQL editor is not live, however green CI is.
   (`app/worker/`) keeps fresh while its socket is up, which is how the
   scheduled route knows to stand down. Needed before the worker is deployed;
   harmless before then (the route reads "no heartbeat" as "no worker").
+- `0008_alert_hardening.sql` — two corrections to 0006, both from review.
+  Narrows the client's UPDATE on `notifications` to the `read_at` column
+  (the row policy said which row, nothing said which columns, and Supabase
+  grants `authenticated` table-wide UPDATE by default), and adds
+  `claim_push_subscription`, which lets a second account on the same browser
+  take over the push endpoint the first one registered — without it,
+  enabling push on a shared device fails with no way out.
 
 ### Verifying the ledger's RLS
 

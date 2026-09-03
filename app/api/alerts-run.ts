@@ -116,6 +116,14 @@ interface Run {
   writes: UserState[];
   /** Counts of what was asked upstream and what failed, for the response. */
   upstream: Record<string, number>;
+  /**
+   * When set, the only symbols this run may evaluate — the ones a live
+   * worker told us it is NOT watching. Absent means everything, which is
+   * what a run with no worker behind it does.
+   */
+  only?: Set<string>;
+  /** What the live worker reported, echoed in the response when it shaped this run. */
+  worker?: { heartbeat: string; uncovered: number };
 }
 
 export function isScope(v: unknown): v is Scope {
@@ -202,14 +210,23 @@ export function createHandler(
 
     if (scope === 'prices') {
       const beat = await readHeartbeat(run.db, PRICE_WORKER);
-      if (workerAlive(beat, now)) {
-        res.setHeader('Cache-Control', 'no-store');
-        return res.status(200).json({
-          scope,
-          today: run.today,
-          skipped: 'worker_alive',
-          workerHeartbeat: beat?.toISOString(),
-        });
+      if (beat !== null && workerAlive(beat, now)) {
+        // A live worker is not the same as a covered one. Its socket takes a
+        // fixed number of symbols and names the overflow in its heartbeat; it
+        // never receives a trade for those, so standing down completely would
+        // leave them checked by nobody. Stand down for what it covers, and
+        // check the rest here on the schedule.
+        if (beat.uncovered.length === 0) {
+          res.setHeader('Cache-Control', 'no-store');
+          return res.status(200).json({
+            scope,
+            today: run.today,
+            skipped: 'worker_alive',
+            workerHeartbeat: beat.at.toISOString(),
+          });
+        }
+        run.only = new Set(beat.uncovered);
+        run.worker = { heartbeat: beat.at.toISOString(), uncovered: beat.uncovered.length };
       }
     }
 
@@ -224,11 +241,17 @@ export function createHandler(
     if (gathered) return send(res, gathered);
 
     const persisted = await persistOutcomes(run.db, run.outcomes, run.writes, now);
-    if (!persisted.ok) return send(res, dbFailure(persisted.failure));
+    if (!persisted.ok) {
+      // Rows may already be written even though the run is about to report a
+      // failure. The next run will not push them — they exist, so they come
+      // back as duplicates and look like nothing new — so this one does,
+      // before it answers.
+      await pushInserted(run, persisted.inserted);
+      return send(res, dbFailure(persisted.failure));
+    }
     const inserted = persisted.value;
 
-    const toPush = run.outcomes.filter((o) => o.push && inserted.has(outcomeKey(o)));
-    const push = await deliverPush(run.db, toPush);
+    const push = await pushInserted(run, inserted);
 
     // Success only. A failure above must keep reaching this function so a
     // real recovery shows up on the next run, not after a cached error.
@@ -244,8 +267,16 @@ export function createHandler(
       statesWritten: run.writes.length,
       ...push,
       upstream: run.upstream,
+      // Present only when a live worker narrowed this run to its overflow.
+      ...(run.worker ? { worker: run.worker } : {}),
     });
   };
+}
+
+/** Deliver the firings that became new rows this run, and only those. */
+async function pushInserted(run: Run, inserted: Set<string>) {
+  const toPush = run.outcomes.filter((o) => o.push && inserted.has(outcomeKey(o)));
+  return deliverPush(run.db, toPush);
 }
 
 // ── Guard ────────────────────────────────────────────────────────────────
@@ -339,12 +370,21 @@ async function gatherPrices(run: Run): Promise<Failure | null> {
   );
   if (!positions.ok) return dbFailure(positions.failure);
 
-  const wanted = wantedPriceSymbols(run.users, positions.value);
+  const wanted = coveredHere(run, wantedPriceSymbols(run.users, positions.value));
   const quotes = await fetchPrices(run, askedSymbols(run, wanted, MAX_QUOTE_SYMBOLS));
   for (const u of run.users) {
     evaluatePriceUser(run, u, positions.value.get(u.userId) ?? [], quotes);
   }
   return null;
+}
+
+/**
+ * Narrowed to what this run is responsible for. With a live worker that is
+ * only the symbols its socket could not fit; with no worker, everything.
+ */
+function coveredHere(run: Run, wanted: Set<string>): Set<string> {
+  if (run.only === undefined) return wanted;
+  return new Set([...wanted].filter((s) => run.only?.has(s)));
 }
 
 /** Every price rule's ticker with a readable level, and every held ticker of a user with a threshold. */

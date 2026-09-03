@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { Sheet } from '../components/Sheet';
 import { Button } from '../components/Button';
 import { DataState } from '../components/DataState';
@@ -77,37 +78,15 @@ export function NotificationsSheet({
                     </Button>
                   </div>
                 )}
-                {rows.map((n) => (
-                  <div
-                    key={n.id}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 6,
-                      padding: 9,
-                      borderRadius: 'var(--radius-sm)',
-                      background: n.unread ? 'var(--sunk)' : 'transparent',
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!n.isThresholdAlert) openStock(n);
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: 10,
-                        minHeight: 40,
-                        border: 0,
-                        textAlign: 'start',
-                        font: 'inherit',
-                        color: 'inherit',
-                        cursor: n.isThresholdAlert ? 'default' : 'pointer',
-                        background: 'transparent',
-                        padding: 0,
-                      }}
-                    >
+                {rows.map((n) => {
+                  // A threshold alert is not about one stock, so its row opens
+                  // nothing. Wrapping the body in a button regardless put a
+                  // focusable control in the tab order that a keyboard or a
+                  // screen reader announces as actionable and that does
+                  // nothing when activated. Only an openable row is a control;
+                  // the mark-as-read button below is the threshold row's.
+                  const body = (
+                    <>
                       <span
                         style={{
                           width: 26,
@@ -140,35 +119,56 @@ export function NotificationsSheet({
                       >
                         {agoLabel(n.createdAt, now, language)}
                       </span>
-                    </button>
-                    {n.isThresholdAlert && (
-                      <>
-                        {/* Equal-prominence disclaimer: same size as the title, not fine print. */}
-                        <p
-                          style={{
-                            fontSize: 'var(--text-row)',
-                            lineHeight: 1.5,
-                            margin: 0,
-                            whiteSpace: 'normal',
-                          }}
-                        >
-                          {t('thresh.disclaimer')}
-                        </p>
-                        {n.unread && (
-                          <Button
-                            variant="secondary"
-                            fontSize={16}
-                            minHeight={36}
-                            alignSelf="flex-start"
-                            onClick={() => markOne(n.id)}
+                    </>
+                  );
+                  return (
+                    <div
+                      key={n.id}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 6,
+                        padding: 9,
+                        borderRadius: 'var(--radius-sm)',
+                        background: n.unread ? 'var(--sunk)' : 'transparent',
+                      }}
+                    >
+                      {n.isThresholdAlert ? (
+                        <div style={rowBody(false)}>{body}</div>
+                      ) : (
+                        <button type="button" onClick={() => openStock(n)} style={rowBody(true)}>
+                          {body}
+                        </button>
+                      )}
+                      {n.isThresholdAlert && (
+                        <>
+                          {/* Equal-prominence disclaimer: same size as the title, not fine print. */}
+                          <p
+                            style={{
+                              fontSize: 'var(--text-row)',
+                              lineHeight: 1.5,
+                              margin: 0,
+                              whiteSpace: 'normal',
+                            }}
                           >
-                            {t('thresh.markRead')}
-                          </Button>
-                        )}
-                      </>
-                    )}
-                  </div>
-                ))}
+                            {t('thresh.disclaimer')}
+                          </p>
+                          {n.unread && (
+                            <Button
+                              variant="secondary"
+                              fontSize={16}
+                              minHeight={36}
+                              alignSelf="flex-start"
+                              onClick={() => markOne(n.id)}
+                            >
+                              {t('thresh.markRead')}
+                            </Button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
               </>
             )
           }
@@ -197,3 +197,24 @@ const GLYPH: Record<AppNotification['kind'], string> = {
   news: '◎',
   earn: '📅',
 };
+
+/**
+ * The row body's layout, shared by the openable button and the inert div a
+ * threshold row uses instead. One function so the two cannot drift apart:
+ * they must look identical, they differ only in whether they are a control.
+ */
+function rowBody(clickable: boolean): CSSProperties {
+  return {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 10,
+    minHeight: 40,
+    border: 0,
+    textAlign: 'start',
+    font: 'inherit',
+    color: 'inherit',
+    cursor: clickable ? 'pointer' : 'default',
+    background: 'transparent',
+    padding: 0,
+  };
+}

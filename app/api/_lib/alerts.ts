@@ -315,11 +315,19 @@ export function newsRuleKey(rule: AlertRule): string {
 /**
  * One news rule against the stock's latest articles.
  *
- * The state is the newest publication instant seen so far. The first check
- * records it and fires nothing — the alternative is ten notifications for
- * last week's coverage the moment a rule is created. From then on an
- * article fires if it is newer than that mark and, when the rule names
- * keywords, mentions one of them in its headline or excerpt.
+ * The state is a watermark: the publication instant up to which this rule
+ * has been dealt with. The first check records it and fires nothing — the
+ * alternative is ten notifications for last week's coverage the moment a
+ * rule is created. From then on an article fires if it is newer than that
+ * mark and, when the rule names keywords, mentions one of them in its
+ * headline or excerpt.
+ *
+ * OLDEST MATCH FIRST, and that is what makes the cap a delay rather than a
+ * loss. A run fires for at most MAX_NEWS_FIRINGS_PER_RULE articles; when
+ * more matched, the mark stops at the last one that fired, so the rest are
+ * still newer than the mark and fire on the next run. Taking the newest
+ * three instead would leave the older ones behind a mark that has already
+ * passed them, and they would never fire at all.
  *
  * Only the stored mark decides "new": an article with no readable date
  * cannot be placed before or after it and is skipped rather than assumed
@@ -335,42 +343,51 @@ export function evaluateNewsRule(
   const dated = articles
     .map((a) => ({ a, at: Date.parse(a.publishedAt) }))
     .filter((x) => Number.isFinite(x.at))
-    .sort((x, y) => y.at - x.at);
-  const newest = dated.length > 0 ? dated[0].at : now.getTime();
+    .sort((x, y) => x.at - y.at);
+  const newest = dated.length > 0 ? dated[dated.length - 1].at : now.getTime();
   const mark = new Date(newest).toISOString();
 
   if (prev === undefined) return { firings: [], states: [{ key, state: mark }] };
   const since = Date.parse(prev);
   if (!Number.isFinite(since)) return { firings: [], states: [{ key, state: mark }] };
 
-  const firings = matchNewArticles(rule, dated, since);
-  return { firings, states: newest > since ? [{ key, state: mark }] : [] };
+  const matched = matchNewArticles(rule, dated, since);
+  const taken = matched.slice(0, MAX_NEWS_FIRINGS_PER_RULE);
+  // Truncated: the mark stops at the last article that fired. Untruncated:
+  // it goes to the newest article seen, matching or not, so an article the
+  // keywords rejected is not weighed again every half hour forever.
+  const upTo = matched.length > taken.length ? taken[taken.length - 1].at : newest;
+  const firings = taken.map((m) => newsFiring(rule, m.a, m.hit));
+  return { firings, states: upTo > since ? [{ key, state: new Date(upTo).toISOString() }] : [] };
 }
 
-/** The articles newer than the mark that the rule's keywords match, newest first, capped. */
+/** Every article newer than the mark whose keywords match, oldest first, uncapped. */
 function matchNewArticles(
   rule: AlertRule,
   dated: Array<{ a: NewsArticle; at: number }>,
   since: number,
-): Firing[] {
+): Array<{ a: NewsArticle; at: number; hit: string | null }> {
   const keywords = readKeywords(rule);
-  const firings: Firing[] = [];
+  const out: Array<{ a: NewsArticle; at: number; hit: string | null }> = [];
   for (const { a, at } of dated) {
-    if (at <= since) break;
+    if (at <= since) continue;
     const hit = matchKeyword(a, keywords);
     if (hit === undefined) continue;
-    firings.push({
-      kind: 'news',
-      ticker: rule.ticker,
-      title: { en: `${a.source}: ${a.headline}`, he: `${a.source}: ${a.headline}` },
-      detail: hit
-        ? { en: `News alert · matched "${hit}"`, he: `התראת חדשות · נמצא "${hit}"` }
-        : { en: 'News alert', he: 'התראת חדשות' },
-      dedupeKey: `news|${rule.ticker}|${a.url}`,
-    });
-    if (firings.length >= MAX_NEWS_FIRINGS_PER_RULE) break;
+    out.push({ a, at, hit });
   }
-  return firings;
+  return out;
+}
+
+function newsFiring(rule: AlertRule, a: NewsArticle, hit: string | null): Firing {
+  return {
+    kind: 'news',
+    ticker: rule.ticker,
+    title: { en: `${a.source}: ${a.headline}`, he: `${a.source}: ${a.headline}` },
+    detail: hit
+      ? { en: `News alert · matched "${hit}"`, he: `התראת חדשות · נמצא "${hit}"` }
+      : { en: 'News alert', he: 'התראת חדשות' },
+    dedupeKey: `news|${rule.ticker}|${a.url}`,
+  };
 }
 
 /**

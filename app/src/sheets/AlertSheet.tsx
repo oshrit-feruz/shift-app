@@ -65,15 +65,17 @@ export function AlertSheet({
   const price = quote.state.status === 'ok' ? (quote.state.data[target]?.price ?? null) : null;
   // The level field opens at the live price and follows it until the user
   // types — after that it is theirs, and a refreshed quote must not overwrite
-  // what they entered. Both reset on close, so the next stock starts clean.
+  // what they entered.
   const [value, setValue] = useState('');
   const [edited, setEdited] = useState(false);
+  // Reset on every open AND on every change of stock. Closing alone is not
+  // enough: the sheet can be handed a different ticker while it is open, and
+  // a level typed for the previous one would otherwise still be in the field,
+  // ready to be saved as a rule about a stock it was never meant for.
   useEffect(() => {
-    if (!open) {
-      setValue('');
-      setEdited(false);
-    }
-  }, [open]);
+    setValue('');
+    setEdited(false);
+  }, [open, target]);
   useEffect(() => {
     if (open && !edited) setValue(defaultLevel(price));
   }, [open, edited, price]);
