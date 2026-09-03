@@ -915,35 +915,10 @@ export const STRINGS = {
     'לתיק תיאורטי אין ברוקר מאחוריו — רושמים בו את העסקאות ידנית. שימושי לבדוק רעיון לפני שהוא עולה כסף.',
   ),
   'connScreen.newTheo': p('New theoretical portfolio', 'תיק תיאורטי חדש'),
-  // ── Linking a brokerage (SnapTrade Commercial, read-only) ─────────────
-  'conn.linkBroker': p('Connect a brokerage', 'לחבר חשבון ברוקר'),
-  'conn.linkBrokerHelp': p(
-    'Opens SnapTrade’s secure portal, where you sign in to your broker. Shift never sees your broker password, and asks for read-only access — it can see balances and positions and can never place an order or move money.',
-    'נפתח הפורטל המאובטח של SnapTrade, שבו נכנסים לחשבון הברוקר. Shift לא רואה את הסיסמה לברוקר, ומבקשת הרשאת קריאה בלבד — היא רואה יתרות ופוזיציות ולא יכולה לשלוח פקודה או להזיז כסף.',
-  ),
-  // Said before the person is sent there, not after they arrive confused:
-  // SnapTrade ships the portal in English and Portuguese only.
-  'conn.linkBrokerLang': p('SnapTrade’s portal is in English.', 'הפורטל של SnapTrade באנגלית.'),
-  'conn.linking': p('Opening…', 'פותח…'),
-  'conn.linkFailed': p('The portal did not open', 'הפורטל לא נפתח'),
-  'conn.signInFirst': p('Sign in to connect a brokerage.', 'צריך להתחבר כדי לחבר חשבון ברוקר.'),
-  'conn.disconnect': p('Disconnect', 'לנתק'),
-  'conn.disconnectAria': p('Disconnect {broker}', 'לנתק את {broker}'),
-  'conn.disconnectTitle': p('Disconnect {broker}?', 'לנתק את {broker}?'),
-  'conn.disconnectWarn': p(
-    'Shift will stop reading this account, and SnapTrade removes the balances and positions it holds for it. That cannot be undone — you can connect the broker again, but its history here starts over.',
-    'Shift תפסיק לקרוא את החשבון הזה, ו-SnapTrade תמחק את היתרות והפוזיציות שהיא מחזיקה עבורו. אי אפשר לבטל את זה — אפשר לחבר את הברוקר מחדש, אבל ההיסטוריה כאן מתחילה מהתחלה.',
-  ),
-  'conn.disconnectConfirm': p('Disconnect', 'לנתק'),
-  'conn.disconnecting': p('Disconnecting…', 'מנתק…'),
-  'conn.disconnectFailed': p('Not disconnected', 'לא נותק'),
-  'conn.disconnectQueued': p('{broker} is being disconnected', '{broker} בתהליך ניתוק'),
   'connScreen.freq': p('Frequency', 'תדירות'),
   'connScreen.freqV': p('Every 15 minutes', 'כל 15 דקות'),
   'connScreen.perms': p('Permissions', 'הרשאות'),
   'connScreen.permsV': p('Read positions only', 'קריאת פוזיציות בלבד'),
-  // Retired with the founder demo: linking is per-reader now, so there is no
-  // "one real account" to describe and no separate screen to send anyone to.
   'connScreen.history': p('History imported', 'היסטוריה שיובאה'),
   'connScreen.historyV': p('Back to Jan 2024', 'מינואר 2024'),
 

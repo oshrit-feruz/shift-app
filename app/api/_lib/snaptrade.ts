@@ -4,12 +4,10 @@
  * without a request/response pair or a mocked global fetch. Same split as
  * _lib/news.ts.
  *
- * SCOPE — READ-ONLY BROKERAGE DATA, PER USER:
- * This module knows about the account, balance, position, connection and
- * user-registration paths in ../snaptrade.ts, and nothing else. Nothing here
- * can describe an order, and no trading path appears anywhere in this file.
- * The one place a trading permission could enter — the connection portal's
- * `connectionType` — is pinned to 'read' in connectBody() below.
+ * SCOPE — READ ONLY, PERSONAL TIER, ONE ACCOUNT:
+ * This module knows about exactly three SnapTrade paths, all GET, all
+ * read-only (see READ_ONLY_PATHS in ../snaptrade.ts). Nothing here can
+ * describe an order, and no trading path appears anywhere in this file.
  */
 
 import { createHmac } from 'node:crypto';
@@ -63,11 +61,9 @@ export function canonicalJson(value: unknown): string {
  * separately for the URL is the classic way to get a 401 that looks like a bad
  * key.
  *
- * `content` is the request body: the object itself for a POST, and null for a
- * GET or a DELETE that carries none. Getting this wrong is invisible until
- * the server recomputes the hash and refuses — the spec is explicit that the
- * body is part of the signed payload, so a POST signed as though it had none
- * fails with the same 401 a bad key gives.
+ * `content` is the request body; every call this app makes is a GET, so it is
+ * always null here. It stays a parameter rather than a hardcoded null only so
+ * the signing rule is expressed completely and testably.
  */
 export function computeSignature({
   path,
@@ -85,122 +81,13 @@ export function computeSignature({
 }
 
 /**
- * The query string every request carries: the clientId and a Unix timestamp.
- *
- * This is the whole query only for the two paths that are not about a
- * particular person — registering a user, and nothing else. Every read of
- * someone's accounts adds their credentials; see buildUserQuery.
+ * The query string carried by every request: the Personal clientId and a Unix
+ * timestamp. Deliberately no userId/userSecret — under Personal API key auth
+ * SnapTrade resolves the user from the key itself, and a Personal user has no
+ * userSecret to send (docs.snaptrade.com/docs/personal-vs-commercial).
  */
 export function buildQuery(clientId: string, timestampSec: number): string {
   return `clientId=${encodeURIComponent(clientId)}&timestamp=${timestampSec}`;
-}
-
-/**
- * The query string for a request about one person: the clientId, a timestamp,
- * and that person's SnapTrade credentials.
- *
- * Commercial API key auth identifies the user in the query rather than from
- * the key, which is what makes per-user linking possible at all — a Personal
- * key resolves to one fixed user and has no userSecret to send
- * (docs.snaptrade.com/docs/authentication-methods).
- *
- * Both values are percent-encoded, and the caller signs THIS EXACT STRING:
- * SnapTrade hashes the raw query as sent, so encoding it again for the URL
- * would produce a valid-looking signature the server rejects.
- *
- * The `userSecret` travels in the query to SnapTrade over TLS and appears
- * nowhere else — never in a response body, never in a log, never in the
- * client. It is read from public.snaptrade_users by the service role alone
- * (supabase/migrations/0007_snaptrade_users.sql).
- *
- * It is optional because one path takes the user without it: deleting a
- * SnapTrade user is authorised by the partner key and the id alone
- * (reference/Authentication/Authentication_deleteSnapTradeUser). Sending a
- * secret a path does not declare would change the signed string for no
- * reason, and on the one path we call after losing access to a secret there
- * may not be one to send.
- */
-export function buildUserQuery(
-  clientId: string,
-  timestampSec: number,
-  userId: string,
-  userSecret?: string,
-): string {
-  const base =
-    `clientId=${encodeURIComponent(clientId)}&timestamp=${timestampSec}` +
-    `&userId=${encodeURIComponent(userId)}`;
-  return userSecret === undefined ? base : `${base}&userSecret=${encodeURIComponent(userSecret)}`;
-}
-
-/**
- * The body of a connection-portal request.
- *
- * `connectionType: 'read'` is the important line in this file. SnapTrade
- * defaults to read, but this app's product rule is that no trade can ever be
- * placed through it, and a default is a thing that changes — stating it
- * makes the permission the app asks for visible at the one point where a
- * trading connection could be requested by accident.
- *
- * `immediateRedirect` with `customRedirect` sends the person straight back to
- * the app when they finish, instead of leaving them on SnapTrade's own
- * "done" screen wondering where they are. Both are omitted together when
- * there is no origin to return to (see returnTo): an immediate redirect to an
- * empty string is not a weaker version of that, it is a request to send
- * someone nowhere.
- *
- * `locale` is 'en' because SnapTrade ships only `en` and `pt-BR` — this is a
- * Hebrew-first app, and the portal will not be in Hebrew. That is worth
- * saying to the reader before they are sent there, which the UI does, rather
- * than passing a locale the API would reject.
- */
-export function connectBody(returnTo: string, darkMode: boolean): Record<string, unknown> {
-  return {
-    connectionType: 'read',
-    connectionPortalVersion: 'v4',
-    locale: 'en',
-    darkMode,
-    ...(returnTo === '' ? {} : { immediateRedirect: true, customRedirect: returnTo }),
-  };
-}
-
-/**
- * The registration body: the id we address this person by at SnapTrade.
- *
- * Prefixed rather than the bare Supabase uuid so a row in SnapTrade's own
- * dashboard is identifiable as this app's, and immutable per person, which
- * SnapTrade requires of the field.
- */
-export function snapTradeUserId(supabaseUserId: string): string {
-  return `shift-${supabaseUserId}`;
-}
-
-/**
- * The portal URL out of a /snapTrade/login response.
- *
- * Null for the encrypted-response variant the schema also allows (it applies
- * to users registered with an SSH public key, which this app never does) and
- * for any other shape — the caller reports that as a bad response rather
- * than sending someone to `undefined`.
- */
-export function readRedirectUri(raw: unknown): string | null {
-  if (typeof raw !== 'object' || raw === null) return null;
-  const uri = (raw as Record<string, unknown>).redirectURI;
-  return typeof uri === 'string' && uri.startsWith('https://') ? uri : null;
-}
-
-/**
- * The generated secret out of a /snapTrade/registerUser response.
- *
- * Both fields must be present and be strings: this is the only time
- * SnapTrade ever sends the secret, so a half-read response is a failure to
- * report, never something to store partially.
- */
-export function readRegistration(raw: unknown): { userId: string; userSecret: string } | null {
-  if (typeof raw !== 'object' || raw === null) return null;
-  const r = raw as Record<string, unknown>;
-  const userId = str(r.userId);
-  const userSecret = str(r.userSecret);
-  return userId && userSecret ? { userId, userSecret } : null;
 }
 
 /** First candidate that is a non-empty string, trimmed. Upstream field names vary by brokerage. */

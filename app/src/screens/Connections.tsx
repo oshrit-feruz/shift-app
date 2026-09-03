@@ -7,12 +7,9 @@ import { LogoTile } from '../components/TickerTile';
 import { InstitutionRows } from './advisory/InstitutionRows';
 import { NewPortfolioSheet } from '../sheets/NewPortfolioSheet';
 import { DataState } from '../components/DataState';
-import { ListRow } from '../components/ListRow';
 import { SkeletonList } from '../components/Skeleton';
-import { useToast } from '../components/Toast';
 import { useLoadable } from '../data/useLoadable';
-import { fetchConnectedAccounts, fetchConnectionPortalUrl, reasonOf } from '../data/snaptradeAccount';
-import { DisconnectBrokerageSheet } from '../sheets/DisconnectBrokerageSheet';
+import { fetchConnectedAccounts } from '../data/snaptradeAccount';
 import type { ConnectedAccount, ConnectedConnection } from '../data/types';
 import { useDispatch } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
@@ -167,8 +164,7 @@ export function ConnectionsScreen(_: ScreenProps) {
 }
 
 /**
- * The reader's own brokerage accounts, read live and read-only through
- * SnapTrade, and the controls to link and unlink one.
+ * The real connected account, read live and read-only through SnapTrade.
  *
  * Every state is rendered honestly and none falls back to the demo rows
  * above: loading, unavailable, a connection SnapTrade has disabled, a live
@@ -176,200 +172,67 @@ export function ConnectionsScreen(_: ScreenProps) {
  * The last two used to look identical, and they are different facts — one
  * says "go connect something", the other says "it is connected; the broker
  * has not reported yet".
- *
- * The connect card sits below whatever those states show rather than only in
- * the empty case, because linking a SECOND brokerage is the same action as
- * linking a first.
  */
 function LiveLinkedAccounts() {
   const t = useT();
-  const toast = useToast();
   const accounts = useLoadable(() => fetchConnectedAccounts(), []);
-  const [removing, setRemoving] = useState<{ id: string; brokerage: string } | null>(null);
-
-  const askRemove = (connection: ConnectedConnection) =>
-    setRemoving({ id: connection.id, brokerage: connection.brokerage ?? connection.id });
 
   return (
-    <>
-      <DataState
-        state={accounts.state}
-        onRetry={accounts.retry}
-        skeleton={
-          <Card padding="4px 0" gap={0}>
-            <div style={{ padding: '10px 13px 2px' }}>
-              <SkeletonList count={1} leading minHeight={52} />
-            </div>
-          </Card>
-        }
-      >
-        {({ accounts: rows, connections }) => {
-          // A disabled connection is reported whether or not other accounts
-          // loaded: its figures are withheld, and silently omitting the whole
-          // connection would read as "you never linked that".
-          const dead = connections.filter((c) => c.disabled === true);
-          const quiet = connections.filter((c) => c.disabled !== true);
-          return (
-            <>
-              {dead.map((connection) => (
-                <DisabledConnectionCard
-                  key={connection.id}
-                  connection={connection}
-                  onDisconnect={() => askRemove(connection)}
-                />
-              ))}
-              {rows.length > 0 ? (
-                <>
-                  <Card padding="4px 0" gap={0}>
-                    <div style={{ padding: '4px 13px 2px' }}>
-                      {rows.map((account) => (
-                        <AccountRow key={account.id} account={account} />
-                      ))}
-                    </div>
-                    <p
-                      className="text-muted"
-                      style={{
-                        fontSize: 'var(--text-caption)',
-                        margin: 0,
-                        padding: '4px 13px 10px',
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      {t('live.readOnly')}
-                    </p>
-                  </Card>
-                  {/* The brokers themselves, because a connection is what can
-                      be removed — an account is something a broker reports. */}
-                  {quiet.length > 0 && (
-                    <Card padding="4px 0" gap={0}>
-                      {quiet.map((connection) => (
-                        <ConnectionRow
-                          key={connection.id}
-                          connection={connection}
-                          onDisconnect={() => askRemove(connection)}
-                        />
-                      ))}
-                    </Card>
-                  )}
-                </>
-              ) : (
-                <>
-                  {quiet.length === 0 && dead.length === 0 && (
-                    <Card padding={16} gap={6}>
-                      <span style={{ fontSize: 'var(--text-row)' }}>{t('live.none')}</span>
-                      <span
-                        className="text-muted"
-                        style={{ fontSize: 'var(--text-caption)', lineHeight: 1.5 }}
-                      >
-                        {t('live.noneHelp')}
-                      </span>
-                    </Card>
-                  )}
-                  {quiet.map((connection) => (
-                    <ConnectionCard
-                      key={connection.id}
-                      connection={connection}
-                      onDisconnect={() => askRemove(connection)}
-                    />
-                  ))}
-                </>
-              )}
-            </>
-          );
-        }}
-      </DataState>
-
-      <ConnectCard />
-
-      {removing && (
-        <DisconnectBrokerageSheet
-          open={removing !== null}
-          onClose={() => setRemoving(null)}
-          onDone={() => {
-            toast(t('conn.disconnectQueued', { broker: removing.brokerage }));
-            accounts.retry();
-          }}
-          connection={removing}
-        />
-      )}
-    </>
-  );
-}
-
-/**
- * The card that starts a link: what the portal is, what access it asks for,
- * and the honest reason when it cannot open.
- *
- * The portal URL is fetched on the press rather than when the screen loads,
- * because SnapTrade's link expires five minutes after it is issued — one
- * prepared in advance would be dead by the time anybody used it.
- */
-function ConnectCard() {
-  const t = useT();
-  const { language, theme } = useTheme();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<{ en: string; he: string } | null>(null);
-
-  const connect = async () => {
-    setBusy(true);
-    setError(null);
-    const result = await fetchConnectionPortalUrl(fetch, theme);
-    if (result.status !== 'ok') {
-      setBusy(false);
-      setError(reasonOf(result));
-      return;
-    }
-    // A full navigation, not a new tab: this app runs from the home screen,
-    // where a popup is blocked as often as not, and the portal is asked to
-    // send the person straight back here when they finish. `busy` is left on
-    // deliberately — the page is leaving, and a button that springs back to
-    // life underneath a starting navigation invites a second press.
-    window.location.assign(result.data);
-  };
-
-  return (
-    <Card padding={13} gap={8}>
-      <CardTitle>{t('conn.linkBroker')}</CardTitle>
-      <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.55 }}>
-        {t('conn.linkBrokerHelp')}
-      </p>
-      <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0 }}>
-        {t('conn.linkBrokerLang')}
-      </p>
-      {error && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <span style={{ fontSize: 'var(--text-body)' }}>{t('conn.linkFailed')}</span>
-          <span className="text-muted" style={{ fontSize: 'var(--text-caption)', lineHeight: 1.5 }}>
-            {error[language]}
-          </span>
-        </div>
-      )}
-      <Button block fontSize={16} minHeight={44} onClick={connect} disabled={busy}>
-        {busy ? t('conn.linking') : t('conn.linkBroker')}
-      </Button>
-    </Card>
-  );
-}
-
-/** One linked broker, with the one action that belongs to it. */
-function ConnectionRow({
-  connection,
-  onDisconnect,
-}: Readonly<{ connection: ConnectedConnection; onDisconnect: () => void }>) {
-  const t = useT();
-  const broker = connection.brokerage ?? connection.id;
-  return (
-    <ListRow
-      leading={<LogoTile src={null} label={broker.slice(0, 2).toUpperCase()} />}
-      title={broker}
-      subtitle={t('connScreen.permsV')}
-      trailing={
-        <Button variant="ghost" fontSize={14} minHeight={32} onClick={onDisconnect}>
-          <span aria-label={t('conn.disconnectAria', { broker })}>{t('conn.disconnect')}</span>
-        </Button>
+    <DataState
+      state={accounts.state}
+      onRetry={accounts.retry}
+      skeleton={
+        <Card padding="4px 0" gap={0}>
+          <div style={{ padding: '10px 13px 2px' }}>
+            <SkeletonList count={1} leading minHeight={52} />
+          </div>
+        </Card>
       }
-      minHeight={52}
-    />
+    >
+      {({ accounts, connections }) => {
+        // A disabled connection is reported whether or not other accounts
+        // loaded: its figures are withheld, and silently omitting the whole
+        // connection would read as "you never linked that".
+        const dead = connections.filter((c) => c.disabled === true);
+        const quiet = connections.filter((c) => c.disabled !== true);
+        return (
+          <>
+            {dead.map((connection) => (
+              <DisabledConnectionCard key={connection.id} connection={connection} />
+            ))}
+            {accounts.length > 0 ? (
+              <Card padding="4px 0" gap={0}>
+                <div style={{ padding: '4px 13px 2px' }}>
+                  {accounts.map((account) => (
+                    <AccountRow key={account.id} account={account} />
+                  ))}
+                </div>
+                <p
+                  className="text-muted"
+                  style={{
+                    fontSize: 'var(--text-caption)',
+                    margin: 0,
+                    padding: '4px 13px 10px',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {t('live.readOnly')}
+                </p>
+              </Card>
+            ) : quiet.length === 0 && dead.length === 0 ? (
+              <Card padding={16} gap={6}>
+                <span style={{ fontSize: 'var(--text-row)' }}>{t('live.none')}</span>
+                <span className="text-muted" style={{ fontSize: 'var(--text-caption)', lineHeight: 1.5 }}>
+                  {t('live.noneHelp')}
+                </span>
+              </Card>
+            ) : (
+              quiet.map((connection) => <ConnectionCard key={connection.id} connection={connection} />)
+            )}
+          </>
+        );
+      }}
+    </DataState>
   );
 }
 
@@ -445,10 +308,7 @@ function AccountRow({ account }: Readonly<{ account: ConnectedAccount }>) {
  * connection keeps serving its last cached state and nothing says how old it
  * is. This card exists so that withholding is visible rather than silent.
  */
-function DisabledConnectionCard({
-  connection,
-  onDisconnect,
-}: Readonly<{ connection: ConnectedConnection; onDisconnect: () => void }>) {
+function DisabledConnectionCard({ connection }: Readonly<{ connection: ConnectedConnection }>) {
   const t = useT();
   const broker = connection.brokerage ?? connection.id;
   return (
@@ -459,12 +319,6 @@ function DisabledConnectionCard({
       <span className="text-muted" style={{ fontSize: 'var(--text-caption)', lineHeight: 1.55 }}>
         {t('live.connDisabledHelp')}
       </span>
-      {/* Removing it is the other way out of a dead connection, beside
-          reconnecting — and the one that applies when the reader is done
-          with that broker rather than trying to fix it. */}
-      <Button variant="ghost" alignSelf="flex-start" fontSize={15} onClick={onDisconnect}>
-        {t('conn.disconnect')}
-      </Button>
     </Card>
   );
 }
@@ -476,10 +330,7 @@ function DisabledConnectionCard({
  * connected, and this states what it actually said, so nobody goes looking
  * for a connection that already exists.
  */
-function ConnectionCard({
-  connection,
-  onDisconnect,
-}: Readonly<{ connection: ConnectedConnection; onDisconnect: () => void }>) {
+function ConnectionCard({ connection }: Readonly<{ connection: ConnectedConnection }>) {
   const t = useT();
   const broker = connection.brokerage ?? connection.id;
   const state =
@@ -507,9 +358,6 @@ function ConnectionCard({
           {connection.dataFreshnessMode ? ` · ${connection.dataFreshnessMode}` : ''}
         </span>
       )}
-      <Button variant="ghost" alignSelf="flex-start" fontSize={15} onClick={onDisconnect}>
-        {t('conn.disconnect')}
-      </Button>
     </Card>
   );
 }
