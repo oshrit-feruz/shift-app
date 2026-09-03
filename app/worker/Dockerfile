@@ -9,7 +9,10 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --no-audit --no-fund
+# --ignore-scripts: nothing this image needs runs a lifecycle script (esbuild
+# resolves its binary through an optional dependency), and a dependency that
+# could run arbitrary code at install time should not get to.
+RUN npm ci --no-audit --no-fund --ignore-scripts
 COPY . .
 RUN npm run build:worker
 

@@ -339,27 +339,41 @@ async function gatherPrices(run: Run): Promise<Failure | null> {
   );
   if (!positions.ok) return dbFailure(positions.failure);
 
-  const wanted = new Set<string>();
-  for (const u of run.users) {
-    for (const r of u.rules) if (r.kind === 'price' && readLevel(r) !== null) wanted.add(r.ticker);
-    for (const p of positions.value.get(u.userId) ?? []) wanted.add(p.ticker);
-  }
+  const wanted = wantedPriceSymbols(run.users, positions.value);
   const quotes = await fetchPrices(run, askedSymbols(run, wanted, MAX_QUOTE_SYMBOLS));
-
   for (const u of run.users) {
-    const prev = prevFor(run, u.userId);
-    for (const r of u.rules) {
-      if (r.kind !== 'price') continue;
-      const level = readLevel(r);
-      const price = quotes[r.ticker];
-      if (level === null || price === undefined) continue;
-      const stored = prev[priceRuleKey(r.ticker, r.condition, level)];
-      collect(run, u.userId, r.notifyBy.push, evaluatePriceRule(r, price, stored, run.today));
-    }
-    const held: HeldPosition[] = positions.value.get(u.userId) ?? [];
-    collect(run, u.userId, true, evaluateThresholds(held, u.thresholds, quotes, prev, run.today));
+    evaluatePriceUser(run, u, positions.value.get(u.userId) ?? [], quotes);
   }
   return null;
+}
+
+/** Every price rule's ticker with a readable level, and every held ticker of a user with a threshold. */
+function wantedPriceSymbols(users: UserRules[], positions: Map<string, HeldPosition[]>): Set<string> {
+  const wanted = new Set<string>();
+  for (const u of users) {
+    for (const r of u.rules) if (r.kind === 'price' && readLevel(r) !== null) wanted.add(r.ticker);
+    for (const p of positions.get(u.userId) ?? []) wanted.add(p.ticker);
+  }
+  return wanted;
+}
+
+/** One user's price rules and thresholds against the quotes this run fetched. */
+function evaluatePriceUser(
+  run: Run,
+  u: UserRules,
+  held: HeldPosition[],
+  quotes: Record<string, number>,
+): void {
+  const prev = prevFor(run, u.userId);
+  for (const r of u.rules) {
+    if (r.kind !== 'price') continue;
+    const level = readLevel(r);
+    const price = quotes[r.ticker];
+    if (level === null || price === undefined) continue;
+    const stored = prev[priceRuleKey(r.ticker, r.condition, level)];
+    collect(run, u.userId, r.notifyBy.push, evaluatePriceRule(r, price, stored, run.today));
+  }
+  collect(run, u.userId, true, evaluateThresholds(held, u.thresholds, quotes, prev, run.today));
 }
 
 /** Last prices from Finnhub, keyed by ticker; a failed or absent quote is simply not in the map. */
