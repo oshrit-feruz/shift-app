@@ -8,7 +8,7 @@ interface Rect {
 }
 
 /**
- * Segmented control (Beginner/Advanced switch, alert conditions, tx sides).
+ * Segmented control (Beginner/Advanced switch, reminder timing, tx sides).
  *
  * The selection is a pill that slides between the options. It used to be a
  * background painted on whichever option was active, which meant switching

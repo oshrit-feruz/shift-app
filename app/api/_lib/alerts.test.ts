@@ -34,7 +34,7 @@ const rule = (over: Partial<AlertRule> = {}): AlertRule => ({
   id: 'alert-1',
   ticker: 'NVDA',
   kind: 'price',
-  condition: 'rise',
+  condition: 'cross',
   value: '200',
   remind: 'day',
   notifyBy: { push: true, email: false },
@@ -63,14 +63,16 @@ describe('readRules', () => {
     };
     const rules = readRules(bag);
     expect(rules.map((r) => r.id)).toEqual(['a', 'd']);
+    // The bag's 'rise' is read as 'cross': a price rule watches a level and
+    // the direction it was stored with is not part of the question.
     expect(rules[0]).toMatchObject({
       ticker: 'NVDA',
-      condition: 'rise',
+      condition: 'cross',
       notifyBy: { push: true, email: false },
     });
     expect(rules[1]).toMatchObject({
       remind: 'lands',
-      condition: 'rise',
+      condition: 'cross',
       notifyBy: { push: false, email: false },
     });
   });
@@ -114,43 +116,44 @@ describe('evaluatePriceRule', () => {
   it('arms on the first look without firing, whichever side the price is on', () => {
     const above = evaluatePriceRule(rule(), 210, undefined, TODAY);
     expect(above.firings).toEqual([]);
-    expect(above.states).toEqual([{ key: priceRuleKey('NVDA', 'rise', 200), state: 'above' }]);
+    expect(above.states).toEqual([{ key: priceRuleKey('NVDA', 200), state: 'above' }]);
     const below = evaluatePriceRule(rule(), 190, undefined, TODAY);
     expect(below.firings).toEqual([]);
-    expect(below.states).toEqual([{ key: priceRuleKey('NVDA', 'rise', 200), state: 'below' }]);
+    expect(below.states).toEqual([{ key: priceRuleKey('NVDA', 200), state: 'below' }]);
   });
 
-  it('fires on the crossing in the watched direction, and records the new side', () => {
+  it('fires on the way up and says which way it went', () => {
     const r = evaluatePriceRule(rule(), 201.5, 'below', TODAY);
     expect(r.firings).toHaveLength(1);
     expect(r.firings[0]).toMatchObject({
       kind: 'price',
       ticker: 'NVDA',
-      dedupeKey: 'price|NVDA|rise|200|2026-09-03',
+      dedupeKey: 'price|NVDA|200|above|2026-09-03',
     });
     expect(r.firings[0].title.en).toBe('NVDA rose above $200.00 (now $201.50)');
     expect(r.firings[0].title.he).toContain('עלתה מעל');
-    expect(r.states).toEqual([{ key: 'price|NVDA|rise|200', state: 'above' }]);
+    expect(r.states).toEqual([{ key: 'price|NVDA|200', state: 'above' }]);
   });
 
-  it('stays quiet while the condition merely holds', () => {
-    const r = evaluatePriceRule(rule(), 230, 'above', TODAY);
-    expect(r.firings).toEqual([]);
-    expect(r.states).toEqual([]);
-  });
-
-  it('does not fire a rise rule on the way back down, but re-arms it', () => {
+  it('fires on the way down too — the rule watches a level, not a direction', () => {
     const r = evaluatePriceRule(rule(), 195, 'above', TODAY);
-    expect(r.firings).toEqual([]);
-    expect(r.states).toEqual([{ key: 'price|NVDA|rise|200', state: 'below' }]);
+    expect(r.firings).toHaveLength(1);
+    expect(r.firings[0].title.en).toBe('NVDA fell below $200.00 (now $195.00)');
+    expect(r.firings[0].title.he).toContain('ירדה מתחת');
+    expect(r.states).toEqual([{ key: 'price|NVDA|200', state: 'below' }]);
   });
 
-  it('fires a fall rule only on the way down', () => {
-    const fall = rule({ condition: 'fall', value: '150' });
-    expect(evaluatePriceRule(fall, 149, 'above', TODAY).firings[0].title.en).toBe(
-      'NVDA fell below $150.00 (now $149.00)',
-    );
-    expect(evaluatePriceRule(fall, 151, 'below', TODAY).firings).toEqual([]);
+  it('separates the two directions in the dedupe key, so a round trip in a day is two rows', () => {
+    const up = evaluatePriceRule(rule(), 201, 'below', TODAY);
+    const down = evaluatePriceRule(rule(), 199, 'above', TODAY);
+    expect(up.firings[0].dedupeKey).not.toBe(down.firings[0].dedupeKey);
+    // A second crossing the same way that day is still the same row.
+    expect(evaluatePriceRule(rule(), 205, 'below', TODAY).firings[0].dedupeKey).toBe(up.firings[0].dedupeKey);
+  });
+
+  it('stays quiet while the price merely stays on one side', () => {
+    expect(evaluatePriceRule(rule(), 230, 'above', TODAY)).toEqual({ firings: [], states: [] });
+    expect(evaluatePriceRule(rule(), 150, 'below', TODAY)).toEqual({ firings: [], states: [] });
   });
 
   it('does nothing for an unreadable level or a missing price', () => {
@@ -159,8 +162,8 @@ describe('evaluatePriceRule', () => {
   });
 
   it('keys the state on the rule, not its id, so re-creating a rule does not re-fire it', () => {
-    expect(priceRuleKey('NVDA', 'rise', 200)).toBe(priceRuleKey('NVDA', 'rise', 200));
-    expect(priceRuleKey('NVDA', 'rise', 200)).not.toBe(priceRuleKey('NVDA', 'rise', 210));
+    expect(priceRuleKey('NVDA', 200)).toBe(priceRuleKey('NVDA', 200));
+    expect(priceRuleKey('NVDA', 200)).not.toBe(priceRuleKey('NVDA', 210));
   });
 });
 

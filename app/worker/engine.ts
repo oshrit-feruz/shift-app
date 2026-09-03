@@ -122,7 +122,7 @@ export function evaluateTick(
       if (r.kind !== 'price' || r.ticker !== symbol) continue;
       const level = readLevel(r);
       if (level === null) continue;
-      const stored = prev[priceRuleKey(r.ticker, r.condition, level)];
+      const stored = prev[priceRuleKey(r.ticker, level)];
       collect(r.notifyBy.push, evaluatePriceRule(r, price, stored, today));
     }
 

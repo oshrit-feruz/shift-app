@@ -197,7 +197,7 @@ describe('adoptRemote — what the foreground re-read applies', () => {
         id: 'a1',
         ticker: 'NVDA',
         kind: 'price' as const,
-        condition: 'rise' as const,
+        condition: 'cross' as const,
         value: '200',
         remind: 'day' as const,
         sources: { wires: true, filings: true },

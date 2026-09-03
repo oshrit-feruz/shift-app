@@ -410,7 +410,7 @@ function evaluatePriceUser(
     const level = readLevel(r);
     const price = quotes[r.ticker];
     if (level === null || price === undefined) continue;
-    const stored = prev[priceRuleKey(r.ticker, r.condition, level)];
+    const stored = prev[priceRuleKey(r.ticker, level)];
     collect(run, u.userId, r.notifyBy.push, evaluatePriceRule(r, price, stored, run.today));
   }
   collect(run, u.userId, true, evaluateThresholds(held, u.thresholds, quotes, prev, run.today));

@@ -40,7 +40,14 @@ export interface SavedAlert {
   id: string;
   ticker: string;
   kind: AlertKind;
-  condition: 'rise' | 'fall';
+  /**
+   * A price alert watches a LEVEL. It fires when the price crosses it,
+   * whichever way it was going: "tell me when NVDA is at 200" is one
+   * question, and which direction it arrived from is part of the answer the
+   * notification gives, not part of what you asked. Rules saved before this
+   * carry 'rise' or 'fall' and are read as the same rule.
+   */
+  condition: 'cross';
   value: string;
   remind: 'day' | 'morning' | 'lands';
   sources: { wires: boolean; filings: boolean };
@@ -51,7 +58,7 @@ export interface SavedAlert {
  * What makes two alerts the same alert.
  *
  * Everything the alert *watches for* is in the key; the delivery channels are
- * not. Asking twice for "tell me when MSFT falls below $200" is one alert the
+ * not. Asking twice for "tell me when MSFT is at $200" is one alert the
  * second time as much as the first — the user wants that notification, not two
  * of it — while asking for it by email as well is a change to how the same
  * alert reaches them, so it edits the one that exists rather than filing a
@@ -66,7 +73,8 @@ export function alertKey(a: Omit<SavedAlert, 'id'>): string {
 function alertDetailKey(a: Omit<SavedAlert, 'id'>): string {
   switch (a.kind) {
     case 'price':
-      return `${a.condition}|${a.value.trim()}`;
+      // The level alone: a price rule has no direction to tell two apart.
+      return a.value.trim();
     case 'news':
       return `${a.value.trim().toLowerCase()}|${a.sources.wires}|${a.sources.filings}`;
     default:

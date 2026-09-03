@@ -21,7 +21,7 @@ const rule = (over: Partial<AlertRule> = {}): AlertRule => ({
   id: 'a1',
   ticker: 'NVDA',
   kind: 'price',
-  condition: 'rise',
+  condition: 'cross',
   value: '200',
   remind: 'day',
   notifyBy: { push: true, email: false },
@@ -83,7 +83,7 @@ describe('evaluateTick', () => {
     const states: StateMap = new Map();
     const first = evaluateTick(snapshot(), states, 'NVDA', 199, today);
     expect(first.outcomes).toEqual([]);
-    expect(first.states).toEqual([{ userId: 'u1', key: 'price|NVDA|rise|200', state: 'below' }]);
+    expect(first.states).toEqual([{ userId: 'u1', key: 'price|NVDA|200', state: 'below' }]);
     // The memory was updated in place: the second trade sees 'below'.
     const second = evaluateTick(snapshot(), states, 'NVDA', 200.5, today);
     expect(second.outcomes).toHaveLength(1);
@@ -123,7 +123,7 @@ describe('evaluateTick', () => {
   it('starts memory for a user the store had nothing for', () => {
     const states: StateMap = new Map();
     evaluateTick(snapshot(), states, 'NVDA', 150, today);
-    expect(states.get('u1')).toEqual({ 'price|NVDA|rise|200': 'below' });
+    expect(states.get('u1')).toEqual({ 'price|NVDA|200': 'below' });
   });
 });
 
@@ -149,18 +149,18 @@ describe('Coalescer', () => {
 
 describe('cloneStates', () => {
   it('copies the per-user bag, so evaluating against the copy leaves the original alone', () => {
-    const live: StateMap = new Map([['u1', { 'price|NVDA|rise|200': 'below' }]]);
+    const live: StateMap = new Map([['u1', { 'price|NVDA|200': 'below' }]]);
     const copy = cloneStates(live);
 
     // A crossing recorded in the copy — what evaluateTick does in place.
     const snap = snapshot();
     const result = evaluateTick(snap, copy, 'NVDA', 201, '2026-01-05');
     expect(result.outcomes).toHaveLength(1);
-    expect(copy.get('u1')).toEqual({ 'price|NVDA|rise|200': 'above' });
+    expect(copy.get('u1')).toEqual({ 'price|NVDA|200': 'above' });
 
     // The live map still says `below`, so a run whose write failed and threw
     // the copy away sees the crossing again on the next trade.
-    expect(live.get('u1')).toEqual({ 'price|NVDA|rise|200': 'below' });
+    expect(live.get('u1')).toEqual({ 'price|NVDA|200': 'below' });
     const retry = evaluateTick(snap, cloneStates(live), 'NVDA', 201, '2026-01-05');
     expect(retry.outcomes).toHaveLength(1);
   });

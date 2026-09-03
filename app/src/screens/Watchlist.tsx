@@ -328,11 +328,7 @@ function alertTags(alerts: SavedAlert[], ticker: string, t: TFn): string[] {
   return alerts
     .filter((a) => a.ticker === ticker)
     .map((a) =>
-      a.kind === 'price'
-        ? `$${a.value} ${a.condition === 'rise' ? '▲' : '▼'}`
-        : a.kind === 'news'
-          ? t('alert.newsType')
-          : t('alert.earnType'),
+      a.kind === 'price' ? `$${a.value} ⇅` : a.kind === 'news' ? t('alert.newsType') : t('alert.earnType'),
     );
 }
 
@@ -380,8 +376,8 @@ function alertLine(alert: SavedAlert, t: TFn): { glyph: string; title: string; d
     .join(', ');
   if (alert.kind === 'price') {
     return {
-      glyph: alert.condition === 'rise' ? '▲' : '▼',
-      title: `${t(alert.condition === 'rise' ? 'alert.rises' : 'alert.falls')} $${alert.value}`,
+      glyph: '⇅',
+      title: `${t('alert.crosses')} $${alert.value}`,
       detail: notify,
     };
   }

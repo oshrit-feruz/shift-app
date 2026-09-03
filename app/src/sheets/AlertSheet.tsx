@@ -53,7 +53,6 @@ export function AlertSheet({
   // The caller's ticker wins; the picker only matters when it gave none.
   const target = ticker || picked;
   const [kind, setKind] = useState<AlertKind>('price');
-  const [cond, setCond] = useState<'rise' | 'fall'>('rise');
   const [remind, setRemind] = useState<'day' | 'morning' | 'lands'>('day');
   // The quote for the stock the alert is about. Only read while the sheet
   // is open and has a target: a closed sheet must not spend a call, and one
@@ -102,7 +101,7 @@ export function AlertSheet({
   const draft: Omit<SavedAlert, 'id'> = {
     ticker: target,
     kind,
-    condition: cond,
+    condition: 'cross',
     value: kind === 'price' ? value : kind === 'news' ? keywords : '',
     remind,
     sources,
@@ -215,18 +214,6 @@ export function AlertSheet({
 
       {kind === 'price' && (
         <>
-          <div className="field">
-            <label>{t('alert.condition')}</label>
-            <SegmentedControl
-              options={[
-                { value: 'rise', label: t('alert.rises') },
-                { value: 'fall', label: t('alert.falls') },
-              ]}
-              value={cond}
-              onChange={setCond}
-              fontSize={16}
-            />
-          </div>
           <Field
             label={t('alert.price')}
             value={value}

@@ -38,7 +38,13 @@ export interface AlertRule {
   id: string;
   ticker: string;
   kind: 'price' | 'news' | 'earn';
-  condition: 'rise' | 'fall';
+  /**
+   * Price rules watch a LEVEL, not a direction: the alert is "this price was
+   * reached", and the notification says which way it went when it happened.
+   * Rules stored before that change carry 'rise' or 'fall'; they are read as
+   * the same question, because they always were.
+   */
+  condition: 'cross';
   value: string;
   remind: 'day' | 'morning' | 'lands';
   notifyBy: { push: boolean; email: boolean };
@@ -97,7 +103,7 @@ function readRule(v: unknown): AlertRule | null {
     id: a.id,
     ticker,
     kind: a.kind,
-    condition: a.condition === 'fall' ? 'fall' : 'rise',
+    condition: 'cross',
     value: a.value,
     remind: a.remind === 'morning' || a.remind === 'lands' ? a.remind : 'day',
     notifyBy: readNotifyBy(a.notifyBy),
@@ -144,22 +150,32 @@ type Side = 'above' | 'below';
 
 /**
  * The state key for a price rule. Deliberately the rule's SUBSTANCE rather
- * than its id: delete "rise above 200" and file it again, and it is the same
+ * than its id: delete "NVDA at 200" and file it again, and it is the same
  * question with the same answer, so it must not fire on a crossing that
  * already happened. Change the level and it is a new question, freshly
  * armed.
+ *
+ * No direction in the key, because the rule has none. The side the price is
+ * on is the STATE stored under this key, and a firing is that side changing.
+ * Keys written before the direction was dropped (`price|NVDA|rise|200`) no
+ * longer match, so every existing rule re-arms on its next check: it records
+ * which side it is on and fires nothing, which is what arming means here.
  */
-export function priceRuleKey(ticker: string, condition: 'rise' | 'fall', level: number): string {
-  return `price|${ticker}|${condition}|${level}`;
+export function priceRuleKey(ticker: string, level: number): string {
+  return `price|${ticker}|${level}`;
 }
 
 /**
  * One price rule against one price.
  *
  * `prev` is the side recorded at the last check, or undefined on the first.
- * A firing needs the side to have flipped in the direction the rule watches
- * for; the state is written whenever it differs from what was stored, which
- * includes the first observation.
+ * A firing is the side having CHANGED — either way. "Tell me when NVDA is at
+ * 200" is one question, and whether the price arrived from below or from
+ * above is part of the answer, not part of the question.
+ *
+ * The direction still reaches the reader: the notification says "rose above"
+ * or "fell below" according to what actually happened, because a record of
+ * an observation should say what was observed.
  */
 export function evaluatePriceRule(
   rule: AlertRule,
@@ -170,14 +186,11 @@ export function evaluatePriceRule(
   const level = readLevel(rule);
   if (level === null || !isPositive(price)) return NOTHING;
   const side: Side = price >= level ? 'above' : 'below';
-  const key = priceRuleKey(rule.ticker, rule.condition, level);
+  const key = priceRuleKey(rule.ticker, level);
   const states: StateWrite[] = prev === side ? [] : [{ key, state: side }];
-  const crossed =
-    prev !== undefined &&
-    prev !== side &&
-    ((rule.condition === 'rise' && side === 'above') || (rule.condition === 'fall' && side === 'below'));
+  const crossed = prev !== undefined && prev !== side;
   if (!crossed) return { firings: [], states };
-  const rose = rule.condition === 'rise';
+  const rose = side === 'above';
   return {
     states,
     firings: [
@@ -189,9 +202,12 @@ export function evaluatePriceRule(
           he: `${rule.ticker} ${rose ? 'עלתה מעל' : 'ירדה מתחת ל־'}${money(level)} (כרגע ${money(price)})`,
         },
         detail: { en: 'Price alert', he: 'התראת מחיר' },
-        // One row per rule per day. A price that oscillates around the level
-        // all afternoon is one event to the reader, not thirty.
-        dedupeKey: `${key}|${today}`,
+        // One row per level per DIRECTION per day. A price that oscillates
+        // around the level all afternoon is one event to the reader, not
+        // thirty — but crossing up in the morning and back down in the
+        // afternoon is two things happening, and the second must not be
+        // swallowed by the first.
+        dedupeKey: `${key}|${side}|${today}`,
       },
     ],
   };

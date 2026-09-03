@@ -667,15 +667,13 @@ export const STRINGS = {
     'Add a stock to your watchlist first — an alert has to be about something.',
     'קודם להוסיף מניה לווטצ׳ליסט — התראה חייבת להיות על משהו.',
   ),
-  'alert.condition': p('Condition', 'תנאי'),
-  'alert.rises': p('Rises above', 'עולה מעל'),
-  'alert.falls': p('Falls below', 'יורד מתחת'),
+  'alert.crosses': p('Crosses', 'נחצה'),
   'alert.price': p('Price', 'מחיר'),
   'alert.hintAbove': p("That's about {pct}% above today's price.", 'זה בערך {pct}% מעל המחיר של היום.'),
   'alert.hintBelow': p("That's about {pct}% below today's price.", 'זה בערך {pct}% מתחת למחיר של היום.'),
   'alert.priceNote': p(
-    'Fires when the price crosses this level after the alert is saved — not if it is already past it.',
-    'תופעל כשהמחיר יחצה את הרף אחרי שההתראה נשמרה — לא אם הוא כבר מעבר לו.',
+    'Fires when the price crosses this level, in either direction, after the alert is saved. Saving only notes which side the price is on now.',
+    'תופעל כשהמחיר יחצה את הרמה הזו, לכל כיוון, אחרי שההתראה נשמרה. השמירה רק רושמת באיזה צד המחיר נמצא עכשיו.',
   ),
   'alert.newsNote': p(
     "Checks the stock's news every half hour. Any new article mentioning a keyword fires; leave blank for any article.",

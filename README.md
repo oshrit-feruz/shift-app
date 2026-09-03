@@ -687,8 +687,14 @@ for the day, not thirty (the row's `dedupe_key`).
 
 **What each kind reads, honestly:**
 
-- *Price levels* are checked by the worker on every trade from EODHD's US
-  feed (the real-time one on this plan — `docs/eodhd-plan-decision.md`
+- *Price levels* watch a level, not a direction: a rule is "NVDA at 200", and
+  it fires when the price crosses that level either way — the notification is
+  what says "rose above" or "fell below", because that is the observation.
+  Saving a rule only records which side the price is on now, so nothing fires
+  for a level the price is already past. A crossing up and a later crossing
+  down on the same day are two notifications; repeated crossings the same way
+  that day are one. They are checked by the worker on every trade from EODHD's
+  US feed (the real-time one on this plan — `docs/eodhd-plan-decision.md`
   measured it seconds behind the tape, against 15–21 minutes for EODHD's
   REST quote), so a crossing fires within about a second, pre-market and
   after-hours included. The feed carries US stocks only and 50 symbols per
