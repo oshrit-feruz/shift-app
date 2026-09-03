@@ -195,6 +195,9 @@ function LiveLinkedAccounts() {
         // connection would read as "you never linked that".
         const dead = connections.filter((c) => c.disabled === true);
         const quiet = connections.filter((c) => c.disabled !== true);
+        // What the live connections say they hold, against what actually came
+        // back below.
+        const claimed = quiet.reduce((sum, c) => sum + c.accountCount, 0);
         return (
           <>
             {dead.map((connection) => (
@@ -230,6 +233,25 @@ function LiveLinkedAccounts() {
                 >
                   {t('live.readOnly')}
                 </p>
+                {/* An account that fails to arrive looks exactly like one the
+                    reader never linked. Which connection is short cannot be
+                    said here — ConnectedAccount carries no connection id, and
+                    the route that would add one belongs to the brokerage-
+                    linking branch, not this one — so the shortfall is stated
+                    in aggregate rather than not at all. */}
+                {claimed > accounts.length && (
+                  <p
+                    className="text-muted"
+                    style={{
+                      fontSize: 'var(--text-caption)',
+                      margin: 0,
+                      padding: '0 13px 10px',
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {t('live.accountsShort', { claimed, shown: accounts.length })}
+                  </p>
+                )}
               </Card>
             ) : quiet.length === 0 && dead.length === 0 ? (
               <Card padding={16} gap={6}>

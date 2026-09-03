@@ -990,6 +990,46 @@ function ledgerState(
 }
 
 /**
+ * The ring's slices, biggest first, with everything past the palette gathered
+ * into one named slice rather than dropped.
+ *
+ * Dropping the tail was the bug: `total` counts every priced holding, so a
+ * portfolio with more holdings than colours drew a ring whose percentages
+ * stopped adding up to a hundred, with nothing on screen to say why. That is
+ * the same silent omission this component already refuses for a short and for
+ * an unpriced leg — named there, and now named here too.
+ *
+ * `grouped` is how many holdings went into that last slice, so the caller can
+ * say so; zero when the palette was wide enough for all of them.
+ */
+export function allocationSlices(
+  priced: readonly Holding[],
+  total: number,
+  palette: readonly string[],
+  otherLabel: string,
+): { slices: Array<{ label: string; pct: number; colorVar: string }>; grouped: number } {
+  const ranked = [...priced].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+  // One colour short of the palette when gathering, because the gathered
+  // slice needs a colour of its own.
+  const named = ranked.length > palette.length ? ranked.slice(0, palette.length - 1) : ranked;
+  const rest = ranked.slice(named.length);
+  const pctOf = (value: number) => (value / total) * 100;
+  const slices = named.map((r, i) => ({
+    label: r.ticker,
+    pct: pctOf(r.value ?? 0),
+    colorVar: palette[i],
+  }));
+  if (rest.length > 0) {
+    slices.push({
+      label: otherLabel,
+      pct: pctOf(rest.reduce((sum, r) => sum + (r.value ?? 0), 0)),
+      colorVar: palette[palette.length - 1],
+    });
+  }
+  return { slices, grouped: rest.length };
+}
+
+/**
  * Allocation computed from the portfolio's actual positions — the same rows
  * the holdings card lists, for every kind of portfolio.
  *
@@ -1010,13 +1050,11 @@ function Allocation({ rows }: Readonly<{ rows: Holding[] }>) {
   if (held.length === 0) return <EmptyState>{t('pf.holdingsEmpty')}</EmptyState>;
   if (total === 0) return <EmptyState>{t('live.noAllocation')}</EmptyState>;
   const palette = [...ALLOC_COLORS, 'var(--acc-pale)', 'var(--muted)', 'var(--line)'];
-  const slices = [...priced]
-    .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
-    .slice(0, palette.length)
-    .map((r, i) => ({ label: r.ticker, pct: ((r.value ?? 0) / total) * 100, colorVar: palette[i] }));
+  const { slices, grouped } = allocationSlices(priced, total, palette, t('pf.allocOther'));
   return (
     <>
       <DonutChart slices={slices} />
+      {grouped > 0 && <Note>{t('pf.allocOtherNote', { n: grouped })}</Note>}
       {shorts.length > 0 && (
         <Note>{t('live.shortExcluded', { tickers: shorts.map((r) => r.ticker).join(', ') })}</Note>
       )}

@@ -635,6 +635,14 @@ export const STRINGS = {
   'pf.holdingsEmpty': p('No positions yet', 'עדיין אין פוזיציות'),
   // Which held legs the allocation ring leaves out, and why.
   'pf.unpricedExcluded': p('Not in the ring (no price): {tickers}.', 'לא בטבעת (אין מחיר): {tickers}.'),
+  // The ring has one colour per holding and then runs out. The rest are
+  // gathered rather than dropped: a slice missing from a ring is invisible,
+  // and the percentages would quietly stop adding up to a hundred.
+  'pf.allocOther': p('Other', 'אחר'),
+  'pf.allocOtherNote': p(
+    'The smallest {n} holdings are grouped as "Other".',
+    '{n} ההחזקות הקטנות ביותר מקובצות כ"אחר".',
+  ),
 
   // ── A manual portfolio's value through time ───────────────────────────
   // Two lines, and the legend has to say which is a claim about the market
@@ -1090,6 +1098,14 @@ export const STRINGS = {
   // here is read-only and single-account; nothing may read as trading.
   'live.title': p('Connected account', 'חשבון מקושר'),
   'live.badge': p('Real data', 'נתונים אמיתיים'),
+  // The connections say how many accounts they hold; the accounts list says
+  // which ones actually came back. When those disagree the difference is
+  // stated, because an account that silently fails to arrive looks exactly
+  // like an account the reader never linked.
+  'live.accountsShort': p(
+    'Your connections report {claimed} accounts and {shown} came back. The rest could not be read just now.',
+    'החיבורים שלך מדווחים על {claimed} חשבונות, ו-{shown} חזרו. את השאר לא ניתן היה לקרוא כרגע.',
+  ),
   'live.readOnly': p(
     'Read-only: balances and positions only. No trading endpoint is ever called.',
     'קריאה בלבד: יתרות ופוזיציות בלבד. לא מתבצעת שום קריאה לממשק מסחר.',
