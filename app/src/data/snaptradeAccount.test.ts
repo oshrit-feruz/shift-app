@@ -328,6 +328,31 @@ describe('connecting and disconnecting', () => {
     expect(isLinked()).toBe(false);
   });
 
+  it("does not let one user's disconnect throw away another user's answer", async () => {
+    // The revision is per user for this reason. With one counter for
+    // everybody, A revoking their account would invalidate the read B is
+    // waiting on, and B would sit with no link status at all until something
+    // happened to ask again.
+    await fetchConnectedAccounts(async () => res({ linked: true, accounts: [ACCOUNT] }));
+
+    let release: (r: Response) => void = () => {};
+    USER_ID = 'user-2';
+    const forUser2 = fetchConnectedAccounts(() => new Promise<Response>((resolve) => (release = resolve)));
+
+    // user-1's disconnect lands while user-2's read is still on the wire.
+    USER_ID = 'user-1';
+    expect((await disconnectBrokerage(async () => res({ disconnected: true }))).status).toBe('ok');
+    USER_ID = 'user-2';
+
+    release(res({ linked: true, accounts: [ACCOUNT] }));
+    await forUser2;
+
+    // user-2's own answer is recorded: nothing about it was made untrue by
+    // what user-1 did.
+    expect(linkedUserId()).toBe('user-2');
+    expect(isLinked()).toBe(true);
+  });
+
   it('ignores a disconnect that completes after a different user has signed in', async () => {
     await fetchConnectedAccounts(async () => res({ linked: true, accounts: [ACCOUNT] }));
     expect(isLinked()).toBe(true);

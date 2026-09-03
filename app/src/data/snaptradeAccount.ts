@@ -243,28 +243,39 @@ async function stillSignedInAs(userId: string): Promise<boolean> {
 }
 
 /**
- * Counts the times the link state has been changed by an act of the user
- * rather than by an observation of it — which today means one thing: a
+ * Counts, per user, the times their link state has been changed by an act of
+ * theirs rather than by an observation of it — which today means one thing: a
  * completed disconnect.
  *
  * This is the same-user ordering the session check cannot cover. An account
  * read started before a disconnect can land after it, and its answer is a
  * true description of a moment that has since passed. Recording it would put
  * `linked` back to true for a connection the user has just revoked.
+ *
+ * Kept per user rather than as one number for everybody, because a single
+ * counter lets one person's disconnect silence another person's read: after a
+ * switch from A to B, A's revocation landing late would throw away the answer
+ * B was waiting for, leaving B's status unresolved until something asked
+ * again. One user's actions must not invalidate what is true of another.
  */
-let linkStateRevision = 0;
+const linkStateRevisions = new Map<string, number>();
+
+/** This user's revision, starting at zero for someone who has revoked nothing. */
+function revisionFor(userId: string): number {
+  return linkStateRevisions.get(userId) ?? 0;
+}
 
 /**
  * Whether an observation made at `revision`, about `userId`, is still worth
- * writing down — the same person is signed in, and nothing has deliberately
- * changed the link state since the read began.
+ * writing down — the same person is signed in, and they have not changed
+ * their own link state since the read began.
  *
  * The revision is compared *after* the session lookup, because that lookup is
  * itself an await and a disconnect can complete during it.
  */
 async function mayRecord(userId: string, revision: number): Promise<boolean> {
   const sameUser = await stillSignedInAs(userId);
-  return sameUser && revision === linkStateRevision;
+  return sameUser && revision === revisionFor(userId);
 }
 
 /** The answer for someone with no connection: true, complete, and not an error. */
@@ -277,10 +288,6 @@ const NOT_LINKED: ConnectedAccountsResult = { linked: false, accounts: [], conne
 export async function fetchConnectedAccounts(
   fetchImpl: typeof fetch = fetch,
 ): Promise<Loadable<ConnectedAccountsResult>> {
-  // Captured before anything is awaited, so a disconnect that happens while
-  // this read is on the wire can be told apart from one that happened before
-  // it started.
-  const revision = linkStateRevision;
   const caller = await currentUser();
   // Signed out. Not a failure and not worth a request: there is no user for
   // the route to resolve, and the app's own data is what a signed-out reader
@@ -288,6 +295,11 @@ export async function fetchConnectedAccounts(
   // against — the auth layer clears the remembered answer on sign-out.
   if (!caller) return ok(NOT_LINKED);
   const { token, userId } = caller;
+  // Captured before the request goes out, so a disconnect that happens while
+  // it is on the wire can be told apart from one that happened before it
+  // started — a disconnect that completed while the session was being
+  // resolved is already in whatever the server is about to say.
+  const revision = revisionFor(userId);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -422,11 +434,12 @@ export async function disconnectBrokerage(
   if ((result.data.body as { disconnected?: unknown })?.disconnected !== true) {
     return unavailable(REASONS.badShape);
   }
-  // Any account read already in flight described a connection that no longer
-  // exists, so its answer is out of date whoever it turns out to be about.
-  linkStateRevision += 1;
+  // Any account read already in flight FOR THIS USER described a connection
+  // that no longer exists, so its answer is out of date. Nobody else's is.
+  const revoked = result.data.userId;
+  linkStateRevisions.set(revoked, revisionFor(revoked) + 1);
   // Same rule as the account read: a disconnect that completes after someone
   // else has signed in must not tell the app THEY have nothing connected.
-  if (await stillSignedInAs(result.data.userId)) setLinked(false, result.data.userId);
+  if (await stillSignedInAs(revoked)) setLinked(false, revoked);
   return ok({ disconnected: true });
 }
