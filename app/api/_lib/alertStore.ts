@@ -99,20 +99,37 @@ function failed<T>(table: string, detail: string): StoreResult<T> {
  *
  * Ordered by primary key, without which a row can move between pages as the
  * table changes underneath the walk and be read twice or not at all.
+ *
+ * A SHORT PAGE IS NOT THE END OF THE TABLE. `db-max-rows` can be set below
+ * whatever this asks for, and then every page comes back short — so treating
+ * "fewer rows than requested" as "done" would stop at the cap and call it a
+ * complete read, which is the failure this function exists to prevent, in a
+ * new place. Two things decide instead, neither of which assumes the
+ * deployment's limit: the next offset is how many rows have ACTUALLY been
+ * read, so a capped page simply means smaller steps; and `count` — the total
+ * the filter matches, which PostgREST returns in Content-Range — says when
+ * every row is in hand. An empty page ends the walk if `count` is missing.
  */
 const PAGE_ROWS = 1000;
 
+interface Page {
+  data: unknown;
+  count: number | null;
+  error: { message: string } | null;
+}
+
 async function pageAll<T>(
   table: string,
-  page: (from: number, to: number) => PromiseLike<{ data: unknown; error: { message: string } | null }>,
+  page: (from: number, to: number) => PromiseLike<Page>,
 ): Promise<StoreResult<T[]>> {
   const all: T[] = [];
-  for (let from = 0; ; from += PAGE_ROWS) {
-    const got = await page(from, from + PAGE_ROWS - 1);
+  for (;;) {
+    const got = await page(all.length, all.length + PAGE_ROWS - 1);
     if (got.error) return failed(table, got.error.message);
     const rows = (got.data ?? []) as T[];
     all.push(...rows);
-    if (rows.length < PAGE_ROWS) return { ok: true, value: all };
+    if (rows.length === 0) return { ok: true, value: all };
+    if (got.count !== null && all.length >= got.count) return { ok: true, value: all };
   }
 }
 
@@ -139,7 +156,7 @@ export async function loadUsers(
   keep: (u: UserRules) => boolean,
 ): Promise<StoreResult<UserRules[]>> {
   const rows = await pageAll<StateRow>('user_state', (from, to) =>
-    db.from('user_state').select('user_id,state').order('user_id').range(from, to),
+    db.from('user_state').select('user_id,state', { count: 'exact' }).order('user_id').range(from, to),
   );
   if (!rows.ok) return rows;
   const users = rows.value
@@ -160,7 +177,7 @@ export async function loadStates(db: SupabaseClient, userIds: string[]): Promise
   const rows = await pageAll<AlertStateRow>('alert_states', (from, to) =>
     db
       .from('alert_states')
-      .select('user_id,key,state')
+      .select('user_id,key,state', { count: 'exact' })
       .in('user_id', userIds)
       .order('user_id')
       .order('key')
@@ -189,7 +206,7 @@ export async function loadPositions(
   const rows = await pageAll<TransactionRow>('transactions', (from, to) =>
     db
       .from('transactions')
-      .select('user_id,ticker,side,shares,price,trade_date')
+      .select('user_id,ticker,side,shares,price,trade_date', { count: 'exact' })
       .in('user_id', userIds)
       .order('id')
       .range(from, to),
@@ -320,7 +337,7 @@ export async function deliverPush(db: SupabaseClient, outcomes: Outcome[]): Prom
   const subs = await pageAll<PushRow>('push_subscriptions', (from, to) =>
     db
       .from('push_subscriptions')
-      .select('id,user_id,endpoint,p256dh,auth,lang')
+      .select('id,user_id,endpoint,p256dh,auth,lang', { count: 'exact' })
       .in('user_id', userIds)
       .order('id')
       .range(from, to),

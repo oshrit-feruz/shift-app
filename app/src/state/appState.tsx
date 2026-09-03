@@ -501,6 +501,11 @@ export function readPersisted(saved: Record<string, unknown>): Partial<AppState>
     // heals that list once, on the next boot.
     picked.savedAlerts = picked.savedAlerts
       .filter(isSavedAlert)
+      // A price rule stored before the direction was dropped carries 'rise'
+      // or 'fall'. It is the same rule — a level — so it is read as one here
+      // rather than left sitting in a field whose type says 'cross', where
+      // every later reader would have to remember that it might not be.
+      .map((alert) => (alert.condition === 'cross' ? alert : { ...alert, condition: 'cross' as const }))
       // Wrapped rather than passed straight to reduce: the callback is handed
       // an index and the source array too, and addAlert must not be reading a
       // third and fourth argument it never declared.

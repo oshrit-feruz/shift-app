@@ -35,9 +35,12 @@ that has not been pasted into the SQL editor is not live, however green CI is.
   engine fired, read by the notification centre), `alert_states` (the engine's
   memory between runs, no client access) and `push_subscriptions` (one row per
   device that turned push on), with their RLS policies. The alert rules
-  themselves stay in `user_state.state`. Run it before deploying the client
-  release that reads `notifications`; until it is, the notification centre
-  reports "unavailable" and the push toggle cannot store a subscription. The
+  themselves stay in `user_state.state`. Run it — **together with
+  `0008_alert_hardening.sql` below** — before deploying the client release
+  that reads `notifications`: on its own, 0006 leaves `authenticated` with
+  table-wide UPDATE on its own notification rows, and the push toggle calls a
+  function 0008 creates. Until 0006 is run the notification centre reports
+  "unavailable" and the push toggle cannot store a subscription. The
   engine itself (`app/api/alerts-run.ts`) is called by
   `.github/workflows/alerts.yml` — see "Alerts" in the root README for the
   secrets it needs.

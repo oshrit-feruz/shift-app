@@ -328,9 +328,20 @@ function alertTags(alerts: SavedAlert[], ticker: string, t: TFn): string[] {
   return alerts.filter((a) => a.ticker === ticker).map((a) => alertTag(a, t));
 }
 
+/**
+ * A stored level as it should read on screen, with exactly one currency
+ * symbol. The field accepts "$1,000" — `readLevel` strips the symbol and the
+ * commas — and the value is stored as typed, so prepending another "$" here
+ * would print "$$1,000".
+ */
+export function levelLabel(value: string): string {
+  const level = value.trim();
+  return level.startsWith('$') ? level : `$${level}`;
+}
+
 /** One alert as a pill: the level for a price rule, the kind's name for the others. */
 function alertTag(a: SavedAlert, t: TFn): string {
-  if (a.kind === 'price') return `$${a.value} ⇅`;
+  if (a.kind === 'price') return `${levelLabel(a.value)} ⇅`;
   return t(a.kind === 'news' ? 'alert.newsType' : 'alert.earnType');
 }
 
@@ -379,7 +390,7 @@ function alertLine(alert: SavedAlert, t: TFn): { glyph: string; title: string; d
   if (alert.kind === 'price') {
     return {
       glyph: '⇅',
-      title: `${t('alert.crosses')} $${alert.value}`,
+      title: `${t('alert.crosses')} ${levelLabel(alert.value)}`,
       detail: notify,
     };
   }

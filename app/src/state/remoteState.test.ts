@@ -215,4 +215,26 @@ describe('adoptRemote — what the foreground re-read applies', () => {
     expect(adoptRemote(current, { watchlist: [...LEGACY_SEED_WATCHLIST] })).toBeNull();
     expect(adoptRemote(current, { watchlist: [' orcl ', 'ORCL'] })?.watchlist).toEqual(['ORCL']);
   });
+
+  it('reads a row written before price alerts dropped their direction', () => {
+    // A server row from an older client carries 'rise' or 'fall' in a field
+    // the type now says holds 'cross'. Both mean the same rule — a level —
+    // so hydration says so once, rather than leaving every later reader to
+    // wonder. The two on the same level collapse, as one alert should.
+    const stored = (condition: string, id: string) => ({
+      id,
+      ticker: 'NVDA',
+      kind: 'price',
+      condition,
+      value: '200',
+      remind: 'day',
+      sources: { wires: true, filings: true },
+      notifyBy: { push: true, email: false },
+    });
+    const next = adoptRemote(pickPersisted(initial), {
+      savedAlerts: [stored('rise', 'a1'), stored('fall', 'a2')],
+    });
+    expect(next?.savedAlerts).toHaveLength(1);
+    expect(next?.savedAlerts?.[0]).toMatchObject({ id: 'a1', condition: 'cross', value: '200' });
+  });
 });
