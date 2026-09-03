@@ -42,19 +42,31 @@ without them alerts are recorded in the app and the log says
 
 ## Deploy on Fly.io (one-time)
 
+**Not `fly launch`.** That command runs a wizard that wants to decide the
+region and the machine size for you — it asks for the region in a browser,
+and it defaults to 1GB of RAM where `fly.toml` here asks for 256MB, which is
+the difference between ~$2 and ~$6 a month. `fly.toml` already carries the
+app name, the region and the size, so create the app and deploy it directly
+and the file is used verbatim.
+
 1. Run `supabase/migrations/0007_worker_heartbeat.sql` in the SQL editor.
-2. Install `flyctl`, `fly auth login`, then from `app/`:
-   `fly launch --no-deploy --copy-config --name shift-alerts-worker`
-   (accepts `fly.toml` as it is; say no to a database).
-3. Secrets, never in the file:
+2. Install `flyctl` and `fly auth login`. Fly asks for a payment method
+   before it will place a machine, even for the small one this uses.
+3. From `app/`, create the app (no wizard, no deploy yet):
+   ```sh
+   fly apps create shift-alerts-worker
+   ```
+4. Secrets, never in the file:
    ```sh
    fly secrets set EODHD_API_KEY=… SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… \
      VAPID_PUBLIC_KEY=… VAPID_PRIVATE_KEY=… VAPID_SUBJECT=mailto:…
    ```
-4. `fly deploy`. Then `fly logs` should show `socket.open`, a
+5. `fly deploy`. Then `fly logs` should show `socket.open`, a
    `socket.status {"code":200,"message":"Authorized"}` and a `subscriptions`
    line; `curl https://shift-alerts-worker.fly.dev/healthz` answers 200 with
    the same status the heartbeat writes.
+6. `fly scale show` — confirm 256MB. If a machine came up larger,
+   `fly scale memory 256`.
 
 Railway or Render work the same way: build from `app/` with
 `worker/Dockerfile`, set the same variables, keep one instance always on,
