@@ -79,6 +79,10 @@ function parseRedirect(raw: unknown): string | null {
   }
 }
 
+/**
+ * The route, with its upstream timeout injected so tests can drive it without
+ * waiting fifteen seconds for the real one.
+ */
 export function createHandler(timeoutMs: number) {
   return async function handler(req: ApiRequest, res: ApiResponse) {
     if (req.method !== 'POST' && req.method !== 'DELETE') {

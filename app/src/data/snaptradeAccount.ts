@@ -135,6 +135,8 @@ function reasonFor(code: unknown): { en: string; he: string } {
   }
 }
 
+/** A non-empty trimmed string, or null. An all-whitespace name is absent,
+ * not a name made of spaces. */
 function str(v: unknown): string | null {
   return typeof v === 'string' && v.trim() !== '' ? v.trim() : null;
 }

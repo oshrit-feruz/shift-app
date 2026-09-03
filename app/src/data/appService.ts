@@ -57,6 +57,11 @@ const AGGREGATE_ID = 'agg';
 const CACHE_MS = 20_000;
 let cache: { at: number; promise: Promise<Loadable<ConnectedAccountsResult>> } | null = null;
 
+/**
+ * One shared read of the connected accounts, briefly cached, so the several
+ * screens that ask within the same moment cost one upstream call rather than
+ * one each.
+ */
 function connectedAccounts(): Promise<Loadable<ConnectedAccountsResult>> {
   const now = Date.now();
   if (cache && now - cache.at < CACHE_MS) return cache.promise;
@@ -161,6 +166,11 @@ function toHolding(position: ConnectedAccount['positions'][number]): Holding {
   };
 }
 
+/**
+ * The portfolio list as the brokerage reports it, with the app's own data as
+ * the fallback when nothing is connected — an unlinked user sees the demo
+ * portfolios, not an error and not an empty screen.
+ */
 async function livePortfolios(): Promise<Loadable<PortfolioSummary[]>> {
   const result = await connectedAccounts();
   if (result.status !== 'ok') return result;
@@ -195,6 +205,10 @@ async function livePortfolios(): Promise<Loadable<PortfolioSummary[]>> {
   return ok([aggregate, ...rows]);
 }
 
+/**
+ * The holdings under one portfolio, from the same source and with the same
+ * fallback as the list it hangs under.
+ */
 async function liveHoldings(portfolioId: string): Promise<Loadable<Holding[]>> {
   const result = await connectedAccounts();
   if (result.status !== 'ok') return result;

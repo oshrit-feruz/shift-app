@@ -37,6 +37,12 @@ export type SessionResult =
   | { ok: true; userId: string; link: SnapTradeLink | null; store: LinkStore; creds: SnapTradeCreds }
   | { ok: false; error: RouteError };
 
+/**
+ * A failure the caller can return verbatim. The body is phrased here, once,
+ * so both routes answer the same condition with the same words — a session
+ * that cannot be verified must not read as an expired one in one route and a
+ * server fault in the other.
+ */
 function fail(status: number, error: string, message: string): { ok: false; error: RouteError } {
   return { ok: false, error: { status, body: { error, message } } };
 }

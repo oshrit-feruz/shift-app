@@ -22,6 +22,8 @@ const VERSION = 'v1';
 const IV_BYTES = 12;
 const KEY_BYTES = 32;
 
+/** base64url rather than base64: the envelope is dot-separated and must
+ * survive being put in a URL or a header without re-encoding. */
 function b64url(buf: Buffer): string {
   return buf.toString('base64url');
 }

@@ -139,6 +139,13 @@ function isDisabled(c: { disabled: boolean | null }): boolean {
   return c.disabled === true;
 }
 
+/**
+ * Reads the accounts under every live connection, in parallel.
+ *
+ * Kept per-connection as well as flattened because the count a connection
+ * reports is the count of what was actually read back for it — a connection
+ * that returned nothing says nothing, rather than borrowing another's total.
+ */
 async function realtimeAccounts(
   live: Array<Omit<ConnectedConnection, 'accountCount'>>,
   read: ReadPath,

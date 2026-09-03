@@ -124,6 +124,8 @@ export function isLinkResolved(): boolean {
   return memory !== null;
 }
 
+/** Notifies on every change to the flag, so a component reading it through
+ * useSyncExternalStore re-renders when the link is made or revoked. */
 export function subscribeLinked(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
