@@ -714,7 +714,7 @@ for the day, not thirty (the row's `dedupe_key`).
 
 **Delivery.** Every firing is a row in the notification centre. A device that
 turned push on in Settings also gets a banner, in the language it subscribed
-in. Email is listed in Settings and on the sheet as *not yet available*
+in. The sheet opens its level field at the stock's live price rather than a literal 200.00, and refuses to save a price rule whose level the engine could not read. Email is listed in Settings and on the sheet as *not yet available*
 rather than as a toggle that stores nothing — there is no mail provider
 configured, and the checkbox that used to be there promised one. The old
 SMS / morning digest / unusual movers toggles, which were local component

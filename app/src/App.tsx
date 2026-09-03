@@ -266,7 +266,6 @@ function AppShell() {
   const currentSymbol =
     symbols.state.status === 'ok' ? symbols.state.data.find((x) => x.ticker === s.ticker) : undefined;
   const alertFor = alertTicker ?? (s.screen === 'stock' ? s.ticker : '');
-  const alertSymbol = currentSymbol?.ticker === alertFor ? currentSymbol : null;
 
   const titleKey = `title.${s.screen}` as StringKey;
   const kickerKey = `kicker.${s.screen}` as StringKey;
@@ -418,12 +417,7 @@ function AppShell() {
         />
         <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
         <NotificationsSheet open={notifOpen} onClose={() => setNotifOpen(false)} centre={centre} />
-        <AlertSheet
-          open={alertOpen}
-          onClose={() => setAlertOpen(false)}
-          ticker={alertFor}
-          symbol={alertSymbol}
-        />
+        <AlertSheet open={alertOpen} onClose={() => setAlertOpen(false)} ticker={alertFor} />
         {!s.firstRunSeen && <FirstRunOverlay />}
       </div>
     </div>

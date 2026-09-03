@@ -9,28 +9,33 @@ import { moneyOrDash } from '../lib/format';
 import { newId } from '../lib/ids';
 import { useToast } from '../components/Toast';
 import { alertKey, useAppState, useDispatch, type AlertKind, type SavedAlert } from '../state/appState';
-import type { SymbolInfo } from '../data/types';
+import { fetchQuotes } from '../data/quotes';
+import { useLoadable } from '../data/useLoadable';
+import { ok, type Quote } from '../data/types';
 
 /**
  * New-alert sheet. Alerts are notifications only — creating one never places
  * or schedules any trade.
  *
- * `ticker` is what the alert will be about, and `symbol` is its sample-table
- * row when there is one (for the price in the sheet header). Opened from
- * somewhere with no ticker in hand — the watchlist's own "New alert" button —
- * the sheet asks which stock, choosing from the user's watchlist, rather than
- * saving an alert attached to nothing.
+ * `ticker` is what the alert will be about. Opened from somewhere with no
+ * ticker in hand — the watchlist's own "New alert" button — the sheet asks
+ * which stock, choosing from the user's watchlist, rather than saving an
+ * alert attached to nothing.
+ *
+ * The sheet reads the stock's live quote itself (the same /api/quote every
+ * screen prints), for three things: the price in the header, the level the
+ * field opens at, and the "about N% above today's price" line under it. It
+ * used to open at a literal 200.00 whatever the stock, which for a $30 stock
+ * was a rule nobody meant.
  */
 export function AlertSheet({
   open,
   onClose,
   ticker,
-  symbol,
 }: {
   open: boolean;
   onClose: () => void;
   ticker: string;
-  symbol: SymbolInfo | null;
 }) {
   const t = useT();
   const dispatch = useDispatch();
@@ -50,7 +55,28 @@ export function AlertSheet({
   const [kind, setKind] = useState<AlertKind>('price');
   const [cond, setCond] = useState<'rise' | 'fall'>('rise');
   const [remind, setRemind] = useState<'day' | 'morning' | 'lands'>('day');
-  const [value, setValue] = useState('200.00');
+  // The quote for the stock the alert is about. Only read while the sheet
+  // is open and has a target: a closed sheet must not spend a call, and one
+  // with nothing picked yet has nothing to ask for.
+  const quote = useLoadable<Record<string, Quote>>(
+    () => (open && target ? fetchQuotes([target]) : Promise.resolve(ok({}))),
+    [open, target],
+  );
+  const price = quote.state.status === 'ok' ? (quote.state.data[target]?.price ?? null) : null;
+  // The level field opens at the live price and follows it until the user
+  // types — after that it is theirs, and a refreshed quote must not overwrite
+  // what they entered. Both reset on close, so the next stock starts clean.
+  const [value, setValue] = useState('');
+  const [edited, setEdited] = useState(false);
+  useEffect(() => {
+    if (!open) {
+      setValue('');
+      setEdited(false);
+    }
+  }, [open]);
+  useEffect(() => {
+    if (open && !edited) setValue(defaultLevel(price));
+  }, [open, edited, price]);
   const [keywords, setKeywords] = useState(t('alert.keywords'));
   // Kept on the saved rule for compatibility with rules already stored; the
   // engine reads every article the provider returns for the stock, so there
@@ -59,7 +85,9 @@ export function AlertSheet({
   // Email is not delivered by anything yet, so it cannot be chosen: a box
   // that could be ticked would promise a channel that does not exist.
   const [notifyBy, setNotifyBy] = useState({ push: true, email: false });
-  const hint = priceHint(value, symbol?.quote?.price ?? null);
+  const hint = priceHint(value, price);
+  // A price rule needs a level the engine can read; the others need none.
+  const levelOk = kind !== 'price' || readableLevel(value);
 
   const types: Array<{ k: AlertKind; glyph: string; title: string; help: string }> = [
     { k: 'price', glyph: '▲', title: t('alert.priceType'), help: t('alert.priceHelp') },
@@ -85,7 +113,7 @@ export function AlertSheet({
   const duplicate = target !== '' && s.savedAlerts.some((x) => alertKey(x) === alertKey(draft));
 
   const submit = () => {
-    if (!target) return;
+    if (!target || !levelOk) return;
     dispatch({ type: 'addAlert', alert: { ...draft, id: newId('alert') } });
     toast(duplicate ? t('alert.already', { ticker: target }) : t('alert.created', { ticker: target }));
     onClose();
@@ -97,7 +125,11 @@ export function AlertSheet({
       onClose={onClose}
       title={t('watch.newAlert')}
       meta={
-        target ? <Num>{symbol ? `${target} · ${moneyOrDash(symbol.quote?.price)}` : target}</Num> : undefined
+        target ? (
+          // The dash only once the read has settled: while it is in flight
+          // the price is not missing, it is not here yet.
+          <Num>{quote.state.status === 'loading' ? target : `${target} · ${moneyOrDash(price)}`}</Num>
+        ) : undefined
       }
     >
       {/* Only when the caller had no ticker. Everywhere else the alert's
@@ -193,7 +225,15 @@ export function AlertSheet({
               fontSize={16}
             />
           </div>
-          <Field label={t('alert.price')} value={value} onChange={(e) => setValue(e.target.value)} />
+          <Field
+            label={t('alert.price')}
+            value={value}
+            placeholder={price === null ? '0.00' : undefined}
+            onChange={(e) => {
+              setEdited(true);
+              setValue(e.target.value);
+            }}
+          />
           {hint && (
             <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0 }}>
               {t(hint.above ? 'alert.hintAbove' : 'alert.hintBelow', { pct: hint.pct })}
@@ -252,7 +292,7 @@ export function AlertSheet({
           {t('alert.duplicateHint')}
         </p>
       )}
-      <Button block minHeight={44} onClick={submit} disabled={!target}>
+      <Button block minHeight={44} onClick={submit} disabled={!target || !levelOk}>
         {duplicate ? t('alert.update') : t('alert.create')}
       </Button>
     </Sheet>
@@ -271,4 +311,15 @@ export function priceHint(level: string, price: number | null): { above: boolean
   if (!Number.isFinite(n) || n <= 0) return null;
   const pct = ((n - price) / price) * 100;
   return { above: pct >= 0, pct: Math.abs(pct).toFixed(1) };
+}
+
+/** What the level field opens at: the live price to the cent, or empty when there is none. */
+export function defaultLevel(price: number | null): string {
+  return price !== null && price > 0 ? price.toFixed(2) : '';
+}
+
+/** Whether the typed level is a price the engine will read (see api/_lib/alerts.ts readLevel). */
+export function readableLevel(level: string): boolean {
+  const n = Number(level.trim().replace(/^\$/, '').replace(/,/g, ''));
+  return Number.isFinite(n) && n > 0;
 }
