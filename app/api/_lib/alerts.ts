@@ -91,12 +91,21 @@ export function readRules(bag: unknown): AlertRule[] {
   return raw.map(readRule).filter((r): r is AlertRule => r !== null);
 }
 
+/**
+ * Every condition any version of the client has written: the current one and
+ * the two directions it replaced. Kept in step with `isSavedAlert` in
+ * app/src/state/appState.tsx — a row one of them drops and the other keeps
+ * is an alert that fires for a rule its owner cannot see in their list.
+ */
+const STORED_CONDITIONS = new Set(['cross', 'rise', 'fall']);
+
 /** One stored row as a rule, or null for a row the client would drop too. */
 function readRule(v: unknown): AlertRule | null {
   if (v === null || typeof v !== 'object') return null;
-  const a = v as Partial<AlertRule>;
+  const a = v as Partial<AlertRule> & { condition?: unknown };
   if (typeof a.id !== 'string' || typeof a.ticker !== 'string' || typeof a.value !== 'string') return null;
   if (a.kind !== 'price' && a.kind !== 'news' && a.kind !== 'earn') return null;
+  if (typeof a.condition !== 'string' || !STORED_CONDITIONS.has(a.condition)) return null;
   const ticker = a.ticker.trim().toUpperCase();
   if (!ticker || !isValidTicker(ticker)) return null;
   return {

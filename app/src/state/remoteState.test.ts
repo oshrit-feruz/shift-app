@@ -237,4 +237,30 @@ describe('adoptRemote — what the foreground re-read applies', () => {
     expect(next?.savedAlerts).toHaveLength(1);
     expect(next?.savedAlerts?.[0]).toMatchObject({ id: 'a1', condition: 'cross', value: '200' });
   });
+
+  it('drops a row whose condition no version of the app ever wrote', () => {
+    // Normalising to 'cross' must not heal a corrupted row into an armed
+    // alert: only the three conditions the app has actually written are read.
+    const stored = (over: Record<string, unknown>) => ({
+      id: 'a1',
+      ticker: 'NVDA',
+      kind: 'price',
+      condition: 'cross',
+      value: '200',
+      remind: 'day',
+      sources: { wires: true, filings: true },
+      notifyBy: { push: true, email: false },
+      ...over,
+    });
+    // Dropped, so the row leaves nothing to adopt and adoptRemote says the
+    // server's slice matches this device's empty list.
+    expect(
+      adoptRemote(pickPersisted(initial), { savedAlerts: [stored({ condition: 'invalid' })] }),
+    ).toBeNull();
+    expect(
+      adoptRemote(pickPersisted(initial), { savedAlerts: [stored({ condition: undefined })] }),
+    ).toBeNull();
+    const good = adoptRemote(pickPersisted(initial), { savedAlerts: [stored({})] });
+    expect(good?.savedAlerts).toHaveLength(1);
+  });
 });

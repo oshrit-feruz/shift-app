@@ -56,8 +56,12 @@ describe('readRules', () => {
           notifyBy: { push: true },
         },
         { id: 'b', ticker: 'AMD', kind: 'bogus', value: '1' },
+        // A condition no version of the client ever wrote: hand-edited or
+        // corrupted, and dropped rather than read as a level rule.
+        { id: 'e', ticker: 'AMD', kind: 'price', condition: 'invalid', value: '1' },
+        { id: 'f', ticker: 'AMD', kind: 'price', value: '1' },
         { id: 'c', ticker: 'BAD TICKER', kind: 'news', value: '' },
-        { id: 'd', ticker: 'LLY', kind: 'earn', value: '', remind: 'lands' },
+        { id: 'd', ticker: 'LLY', kind: 'earn', condition: 'rise', value: '', remind: 'lands' },
         'not an object',
       ],
     };

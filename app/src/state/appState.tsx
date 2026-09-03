@@ -504,7 +504,9 @@ export function readPersisted(saved: Record<string, unknown>): Partial<AppState>
       // A price rule stored before the direction was dropped carries 'rise'
       // or 'fall'. It is the same rule — a level — so it is read as one here
       // rather than left sitting in a field whose type says 'cross', where
-      // every later reader would have to remember that it might not be.
+      // every later reader would have to remember that it might not be. Only
+      // those two reach this point: isSavedAlert has already dropped a row
+      // carrying anything else.
       .map((alert) => (alert.condition === 'cross' ? alert : { ...alert, condition: 'cross' as const }))
       // Wrapped rather than passed straight to reduce: the callback is handed
       // an index and the source array too, and addAlert must not be reading a
@@ -514,15 +516,25 @@ export function readPersisted(saved: Record<string, unknown>): Partial<AppState>
   return picked;
 }
 
+/**
+ * Every condition any version of this app has written: the current one and
+ * the two directions it replaced. A row carrying anything else — or nothing
+ * — was not written by the app, and is dropped rather than healed: reading
+ * it as 'cross' would turn a corrupted row into an armed alert.
+ */
+const STORED_CONDITIONS = new Set(['cross', 'rise', 'fall']);
+
 /** A stored row shaped like an alert; anything else is dropped on read. */
 function isSavedAlert(value: unknown): value is SavedAlert {
   if (value === null || typeof value !== 'object') return false;
-  const a = value as Partial<SavedAlert>;
+  const a = value as Partial<SavedAlert> & { condition?: unknown };
   return (
     typeof a.id === 'string' &&
     typeof a.ticker === 'string' &&
     typeof a.value === 'string' &&
     (a.kind === 'price' || a.kind === 'news' || a.kind === 'earn') &&
+    typeof a.condition === 'string' &&
+    STORED_CONDITIONS.has(a.condition) &&
     typeof a.sources === 'object' &&
     a.sources !== null &&
     typeof a.notifyBy === 'object' &&
