@@ -1,5 +1,14 @@
 -- 0007: the SnapTrade user behind each of our users.
 --
+-- HEADS UP, THIS TABLE HAS TWO AUTHORS. The branch
+-- claude/customer-portfolio-connection-uubbde creates the same table in its
+-- own `0006_snaptrade.sql`, and on the shared project that file is what
+-- actually ran — so the table is already there. This one is written to be
+-- idempotent against that: the create is `if not exists`, the column list
+-- matches theirs exactly, and the operative statement here is the revoke.
+-- If the two branches are merged, renumber one of them; nothing below has to
+-- change for the app to work either way.
+--
 -- Per-user brokerage linking on SnapTrade's Commercial tier works like this:
 -- we register a SnapTrade user, SnapTrade generates a `userSecret` once, and
 -- every later read of that person's accounts must present it. This table is
@@ -19,16 +28,21 @@
 --     other order would leave a live brokerage connection at SnapTrade that
 --     no one can ever reach.
 --
--- NOBODY BUT THE SERVER MAY READ IT. RLS is enabled with NO policies at all,
--- which under RLS denies every operation to the `anon` and `authenticated`
--- roles the browser uses; the grants are revoked as well, so the table is
--- closed by two independent mechanisms rather than one. The service-role key
--- bypasses RLS and is what api/snaptrade.ts uses — it is server-only and
--- never shipped to the client (see app/.env.example).
+-- NOBODY BUT THE SERVER MAY READ IT, BY TWO INDEPENDENT MECHANISMS. RLS is
+-- enabled with NO policies at all, which denies every statement from the
+-- `anon` and `authenticated` roles the browser uses. The grants are revoked
+-- as well — and that revoke is not decoration: when this migration ran
+-- against the shared project the table was already present with RLS on, and
+-- both client roles still held full SELECT/INSERT/UPDATE/DELETE on it. RLS
+-- was denying them, so nothing was exposed; but a single policy added later
+-- by mistake would have opened a per-user brokerage secret to the client.
+-- The service-role key bypasses RLS, keeps its grants, and is what
+-- api/snaptrade.ts uses — it is server-only and never shipped to the client
+-- (see app/.env.example).
 --
--- Run after 0006, once, in the SQL editor, BEFORE deploying the client
--- release that offers brokerage linking: without the table every connect
--- attempt answers an honest configuration error.
+-- Run once, in the SQL editor, BEFORE deploying the client release that
+-- offers brokerage linking: without the table every connect attempt answers
+-- an honest configuration error.
 
 create table if not exists public.snaptrade_users (
   -- One SnapTrade user per app user. `on delete cascade` keeps the mapping
@@ -39,7 +53,9 @@ create table if not exists public.snaptrade_users (
   snaptrade_user_id  text not null unique,
   -- SnapTrade's generated secret. See the note above.
   user_secret        text not null,
-  created_at         timestamptz not null default now()
+  -- Named to match the table already deployed; the app reads neither.
+  linked_at          timestamptz not null default now(),
+  updated_at         timestamptz not null default now()
 );
 
 alter table public.snaptrade_users enable row level security;
