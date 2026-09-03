@@ -546,6 +546,23 @@ export const STRINGS = {
   'pf.manage': p('Manage', 'לנהל'),
   'pf.delete': p('Delete', 'למחוק'),
   'pf.deleted': p('{name} deleted', '{name} נמחק'),
+  // The confirmation before a portfolio goes. Says what goes with it — the
+  // recorded trades, counted — rather than a bare "are you sure". Two
+  // sentences because Hebrew inflects the noun.
+  'pf.deleteTitle': p('Delete {name}?', 'למחוק את {name}?'),
+  'pf.deleteWarnOne': p(
+    'This removes the portfolio and the 1 transaction recorded in it. It cannot be undone.',
+    'התיק יימחק יחד עם העסקה האחת שנרשמה בו. אי אפשר לבטל את זה.',
+  ),
+  'pf.deleteWarnMany': p(
+    'This removes the portfolio and the {n} transactions recorded in it. It cannot be undone.',
+    'התיק יימחק יחד עם {n} העסקאות שנרשמו בו. אי אפשר לבטל את זה.',
+  ),
+  'pf.deleteSandboxNote': p(
+    'Sandbox is created once per account. You can always create a new portfolio, but not another Sandbox.',
+    'Sandbox נוצר פעם אחת לחשבון. תמיד אפשר ליצור תיק חדש, אבל לא Sandbox נוסף.',
+  ),
+  'pf.deleteConfirm': p('Delete portfolio', 'למחוק את התיק'),
   'pf.link': p('Link', 'לחבר'),
   'pf.longTerm': p('Long-term savings', 'חיסכון ארוך טווח'),
   'pf.readOnly': p('Read-only', 'קריאה בלבד'),
@@ -577,8 +594,6 @@ export const STRINGS = {
   // Nothing is recorded until the reader confirms it.
   'pf.closePosition': p('Close', 'לסגור'),
   'pf.closeAria': p('Close the {ticker} position', 'לסגור את הפוזיציה ב-{ticker}'),
-  'pf.disconnect': p('Disconnect', 'לנתק'),
-  'pf.disconnected': p('{name} disconnected', '{name} נותק'),
   'pf.holdingsEmpty': p('No positions yet', 'עדיין אין פוזיציות'),
   // Which held legs the allocation ring leaves out, and why.
   'pf.unpricedExcluded': p('Not in the ring (no price): {tickers}.', 'לא בטבעת (אין מחיר): {tickers}.'),

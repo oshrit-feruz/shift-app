@@ -15,13 +15,7 @@ import { SegmentedControl } from '../components/SegmentedControl';
 import { Skeleton, SkeletonCard, SkeletonList } from '../components/Skeleton';
 import { ALLOC_COLORS } from '../components/AllocationBar';
 import { useDemoMode } from '../lib/DemoModeProvider';
-import {
-  useAppState,
-  useDispatch,
-  type InstitutionKey,
-  type ManualTransaction,
-  type TransactionSide,
-} from '../state/appState';
+import { useAppState, useDispatch, type ManualTransaction, type TransactionSide } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
 import { useToast } from '../components/Toast';
@@ -33,6 +27,7 @@ import { useLoadable } from '../data/useLoadable';
 import { isoDate, money, moneyOrDash, pctOrDash, signalColor, signedCurrency } from '../lib/format';
 import { TxSheet, type TxPreset } from '../sheets/TxSheet';
 import { NewPortfolioSheet } from '../sheets/NewPortfolioSheet';
+import { DeletePortfolioSheet } from '../sheets/DeletePortfolioSheet';
 import {
   fetchPortfolioHoldings,
   portfolioList,
@@ -80,12 +75,8 @@ export function PortfolioScreen(_: ScreenProps) {
   // sell — or null for a blank sheet.
   const [txPreset, setTxPreset] = useState<TxPreset | null>(null);
   const [view, setView] = useState<ChangeView>('day');
-  const ledger = useLedger();
-  const toast = useToast();
-  const removePortfolio = (pf: { id: string; name: string }) => {
-    ledger.removePortfolio(pf.id);
-    toast(t('pf.deleted', { name: pf.name }));
-  };
+  // Deleting asks first: it takes the whole transaction log with it.
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [newPfOpen, setNewPfOpen] = useState(false);
 
   return (
@@ -197,7 +188,7 @@ export function PortfolioScreen(_: ScreenProps) {
               <SourceStrip
                 pf={pf}
                 linked={linked}
-                onDelete={() => removePortfolio(pf)}
+                onDelete={() => setDeleteOpen(true)}
                 onManage={() => dispatch({ type: 'go', screen: 'connections' })}
               />
 
@@ -254,6 +245,15 @@ export function PortfolioScreen(_: ScreenProps) {
                 preset={txPreset}
               />
               <NewPortfolioSheet open={newPfOpen} onClose={() => setNewPfOpen(false)} />
+              {isManual && (
+                <DeletePortfolioSheet
+                  open={deleteOpen}
+                  onClose={() => setDeleteOpen(false)}
+                  portfolio={pf}
+                  transactionCount={(s.manualTransactions[pf.id] ?? []).length}
+                  isSandbox={isSandbox(pf.id)}
+                />
+              )}
             </>
           );
         }}
@@ -635,13 +635,10 @@ function SourceStrip({
           {detail}
         </span>
       </span>
-      {/* Hidden for the default portfolio, matching the RLS
-          predicate in 0005_ledger.sql (`and not is_default`) rather
-          than the UI merely declining to offer it — so the button a
-          user can see is exactly the one the database will allow.
-          Sandbox is where a trade can always be recorded, so it
-          cannot be deleted out from under that. */}
-      {isManual && !isSandbox(pf.id) ? (
+      {/* Every manual portfolio, the Sandbox included since
+          0006_portfolio_delete.sql lifted the database's guard on it.
+          The button opens a confirmation, never deletes by itself. */}
+      {isManual ? (
         <Button variant="ghost" fontSize={15.5} onClick={() => onDelete()}>
           {t('pf.delete')}
         </Button>
@@ -1103,10 +1100,10 @@ function newestFirst(a: ManualTransaction, b: ManualTransaction): number {
 }
 
 /**
- * Whether this is the user's Sandbox — the one portfolio that cannot be
- * deleted. Recognised by the id the SQL trigger and the client's self-heal
- * both generate, which is the same string on purpose so neither can create a
- * second one.
+ * Whether this is the user's Sandbox — the portfolio every account starts
+ * with. Recognised by the id the SQL signup trigger generates. Deleting it
+ * is allowed and asks first; the sheet uses this to say that no second
+ * Sandbox can be made.
  */
 function isSandbox(id: string): boolean {
   return id.startsWith('pf-sandbox-');
@@ -1121,22 +1118,12 @@ function sharePct(total: number | null, aggTotal: number | null): string {
   return `${((total / aggTotal) * 100).toFixed(1)}%`;
 }
 
-/**
- * Pension / hishtalmut / bank — totals by provider only, never merged into the
- * portfolio number, never itemized (product rule).
- *
- * Each row can be disconnected from here, not only from the Connections
- * screen: the row is where the reader sees the institution, so it is where
- * they will look for the way to remove it. The figures are sample data —
- * these institutions have no live source — so the card sits behind the
- * sample-data switch and says so in place when it is off.
- */
+/** Pension / hishtalmut / bank — totals by provider only, never merged into the
+ *  portfolio number, never itemized (product rule). */
 export function LongTermSavings() {
   const s = useAppState();
   const dispatch = useDispatch();
   const t = useT();
-  const toast = useToast();
-  const demo = useDemoMode();
   const conn = s.advConnections;
   const rows = (
     [
@@ -1145,11 +1132,6 @@ export function LongTermSavings() {
       ['bank', 'conn.bank', '$7,860', ''],
     ] as const
   ).filter(([k]) => conn[k]);
-  const disconnect = (k: InstitutionKey) => {
-    const name = conn[k] ?? t(k === 'pension' ? 'conn.pension' : k === 'hisht' ? 'conn.hisht' : 'conn.bank');
-    dispatch({ type: 'advConnect', inst: k, provider: null });
-    toast(t('pf.disconnected', { name }));
-  };
 
   return (
     <Card padding="12px 13px 4px" gap={4}>
@@ -1198,21 +1180,7 @@ export function LongTermSavings() {
             }
             title={t(labelKey)}
             subtitle={`${conn[k] ?? ''} · ${t('pf.syncedAgo')}`}
-            // The figures are invented, so with sample data off the row keeps
-            // its institution and drops the numbers rather than stating a
-            // balance nothing reported.
-            right={
-              demo ? (
-                <RowValues main={value} sub={ytd || undefined} subColor="var(--up)" />
-              ) : (
-                <RowValues main="—" />
-              )
-            }
-            trailing={
-              <Button variant="ghost" fontSize={14} minHeight={32} onClick={() => disconnect(k)}>
-                {t('pf.disconnect')}
-              </Button>
-            }
+            right={<RowValues main={value} sub={ytd || undefined} subColor="var(--up)" />}
             minHeight={50}
           />
         ))

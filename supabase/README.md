@@ -31,6 +31,10 @@ that has not been pasted into the SQL editor is not live, however green CI is.
   file). Must be run *before* deploying the client release that reads them;
   until it is, the client falls back to the legacy `user_state` jsonb copy of
   the ledger rather than showing an empty portfolio.
+- `0006_portfolio_delete.sql` — lets the owner delete the Sandbox too. Must
+  be run *before* deploying the client release that offers that delete: under
+  the 0005 policy the delete affects no rows and reports no error, so the
+  Sandbox would disappear from the screen and return on the next read.
 
 ### Verifying the ledger's RLS
 
@@ -40,7 +44,8 @@ cannot read A's rows, cannot file a transaction into A's portfolio (which the
 foreign key alone does not prevent — FKs are validated by the system, which does
 not apply RLS), cannot insert a row stamped as A, and cannot delete A's
 transactions; that a transaction cannot be updated even by its owner; that
-Sandbox cannot be deleted; and that a signed-out visitor sees nothing.
+the owner can delete any of their portfolios, the Sandbox included (0006);
+and that a signed-out visitor sees nothing.
 
 It creates and deletes users, so run it against **staging, never production**,
 and it needs credentials so it cannot run in CI. Treat it like the migrations
