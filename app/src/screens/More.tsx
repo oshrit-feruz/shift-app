@@ -6,7 +6,7 @@ import { useDemoMode, useSetDemoMode } from '../lib/DemoModeProvider';
 import { useDispatch, type Screen } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
 import { useT } from '../i18n/useT';
-import { useDemoFlag } from '../data/useDemoFlag';
+import { useLinked } from '../data/useLinked';
 import { InstallSteps } from '../components/InstallSteps';
 import { useIsStandalone } from '../lib/useInstall';
 import type { StringKey } from '../i18n/strings';
@@ -42,7 +42,7 @@ export function MoreScreen(_: ScreenProps) {
   const beg = mode === 'beginner';
   const demo = useDemoMode();
   const setDemo = useSetDemoMode();
-  const live = useDemoFlag('liveAccount');
+  const live = useLinked();
   // Only in a browser tab. On a phone in production this screen is only
   // reachable from the installed app, so the card is really for desktop and
   // for builds where the gate is off — there is no point offering an install

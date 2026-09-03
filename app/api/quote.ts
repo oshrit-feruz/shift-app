@@ -81,13 +81,9 @@ async function fetchOne(
   timeoutMs: number,
   fetchImpl: typeof fetch,
 ): Promise<SymbolOutcome> {
-  const result = await fetchUpstreamJson(
-    quoteUrl(symbol, apiKey),
-    timeoutMs,
-    'quote',
-    '/api/quote',
+  const result = await fetchUpstreamJson(quoteUrl(symbol, apiKey), timeoutMs, 'quote', '/api/quote', {
     fetchImpl,
-  );
+  });
   if (!result.ok) return { kind: 'failed', symbol, failure: result.failure };
   const quote = mapQuote(result.body);
   return quote === null ? { kind: 'absent', symbol } : { kind: 'quote', symbol, quote };

@@ -72,7 +72,7 @@ export interface CandlesBody {
 export function buildBody(ticker: string, bars: CandleRow[]): CandlesBody {
   return {
     ticker,
-    as_of: bars.length > 0 ? bars[bars.length - 1].d : null,
+    as_of: bars.at(-1)?.d ?? null,
     source: 'eodhd:eod',
     bars,
   };
@@ -127,7 +127,7 @@ export function createHandler(timeoutMs: number, fetchImpl: typeof fetch = fetch
       timeoutMs,
       'price history',
       '/api/candles',
-      fetchImpl,
+      { fetchImpl },
     );
     // Three outcomes, and the middle one — a 404 read as "no series for this
     // symbol" rather than as a failure — is why this goes through a shared

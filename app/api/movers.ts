@@ -122,7 +122,7 @@ export function createHandler(timeoutMs: number, fetchImpl: typeof fetch = fetch
       timeoutMs,
       'market movers',
       '/api/movers',
-      fetchImpl,
+      { fetchImpl },
     );
     if (!result.ok) return res.status(result.failure.status).json(failureBody(result.failure));
 

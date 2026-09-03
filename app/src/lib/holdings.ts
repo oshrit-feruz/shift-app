@@ -2,10 +2,39 @@ import { demoService } from '../data/demoAdapter';
 import { appService } from '../data/appService';
 import { fetchQuotes } from '../data/quotes';
 import { DEMO_FLAGS } from '../data/demoFlags';
-import { ok, unavailable, type Loadable } from '../data/types';
-import type { Holding, PortfolioSummary, Quote } from '../data/types';
+import { isLinked } from '../data/linkState';
+import {
+  ok,
+  unavailable,
+  type Holding,
+  type Loadable,
+  type PortfolioSummary,
+  type Quote,
+} from '../data/types';
 import { buildPositions, valuePositions, type PortfolioValuation } from './positions';
 import type { ManualPortfolio, ManualTransaction } from '../state/appState';
+
+/**
+ * Which of the three sources the holdings calls should read, named once.
+ *
+ * The order is the rule, and it is written here rather than repeated as a
+ * ternary at each call: the sample-data switch wins over a real connection
+ * (data/appService.ts, liveDataActive), because that switch is what makes the
+ * app safe to show to a room.
+ */
+type HoldingsSource = 'demo' | 'live' | 'none';
+
+function holdingsSource(): HoldingsSource {
+  if (DEMO_FLAGS.demoData) return 'demo';
+  return isLinked() ? 'live' : 'none';
+}
+
+/** One portfolio's holdings from the source `holdingsSource()` named. */
+function holdingsOf(source: HoldingsSource, portfolioId: string): Promise<Loadable<Holding[]>> {
+  if (source === 'demo') return demoService.holdings(portfolioId);
+  if (source === 'live') return appService.holdings(portfolioId);
+  return Promise.resolve(ok<Holding[]>([]));
+}
 
 /**
  * The user's own manual portfolios as PortfolioSummary rows, so they can sit
@@ -137,13 +166,11 @@ export async function fetchYourPositions(
   manualTransactions: Record<string, ManualTransaction[]>,
   manualPortfolios: ManualPortfolio[] = [],
 ): Promise<Loadable<TickerPosition[]>> {
-  // A real connected account outranks both demo paths: it is the one source
-  // here that is neither sample data nor absent.
-  const pfs = DEMO_FLAGS.liveAccount
-    ? await appService.portfolios()
-    : DEMO_FLAGS.demoData
-      ? await demoService.portfolios()
-      : ok<PortfolioSummary[]>([]);
+  const source = holdingsSource();
+  let pfs: Loadable<PortfolioSummary[]>;
+  if (source === 'demo') pfs = await demoService.portfolios();
+  else if (source === 'live') pfs = await appService.portfolios();
+  else pfs = ok<PortfolioSummary[]>([]);
   if (pfs.status !== 'ok') return pfs;
 
   // Built from the same list the Portfolio tab renders, so the index recorded
@@ -151,13 +178,10 @@ export async function fetchYourPositions(
   const all = portfolioList(pfs.data, manualPortfolios);
   const eligible = all.filter((pf) => pf.kind !== 'aggregate');
   const settled = await Promise.all(
-    eligible.map((pf) =>
-      DEMO_FLAGS.liveAccount
-        ? appService.holdings(pf.id)
-        : DEMO_FLAGS.demoData
-          ? demoService.holdings(pf.id)
-          : Promise.resolve(ok<Holding[]>([])),
-    ),
+    // The same source as the portfolio list above, resolved once outside the
+    // loop so the two halves of this answer can never come from different
+    // places mid-iteration.
+    eligible.map((pf) => holdingsOf(source, pf.id)),
   );
   if (settled.some((r) => r.status !== 'ok')) return unavailable();
 
@@ -210,7 +234,14 @@ export async function fetchPortfolioHoldings(
   portfolioId: string,
   transactions: ManualTransaction[],
 ): Promise<Loadable<PortfolioHoldings>> {
-  const service = DEMO_FLAGS.demoData ? await demoService.holdings(portfolioId) : ok<Holding[]>([]);
+  // Reading only the demo adapter was the bug this replaces, and it failed in
+  // both directions. With sample data OFF, a linked account's holdings came
+  // back empty while the allocation ring beside them — which already went
+  // through appService — drew the real positions, so the same card said the
+  // account both held things and held nothing. With sample data ON it was
+  // worse: invented rows sat under a real account's real total, which is
+  // exactly what this app's data contract exists to prevent.
+  const service = await holdingsOf(holdingsSource(), portfolioId);
   if (service.status !== 'ok') return service;
 
   // Every ticker this portfolio touches, from both halves of it: the service

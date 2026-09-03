@@ -124,14 +124,9 @@ async function fetchAndMap(
   ticker: string | null,
 ): Promise<UpstreamOutcome> {
   // The calendar answers CSV; the per-company history answers JSON.
-  const result = await fetchUpstreamJson(
-    upstreamUrl,
-    timeoutMs,
-    'earnings',
-    '/api/earnings',
-    fetch,
-    ticker === null ? 'text' : 'json',
-  );
+  const result = await fetchUpstreamJson(upstreamUrl, timeoutMs, 'earnings', '/api/earnings', {
+    as: ticker === null ? 'text' : 'json',
+  });
   if (!result.ok) return { status: result.failure.status, body: failureBody(result.failure) };
 
   // Alpha Vantage reports its own failures with HTTP 200 and a JSON body,

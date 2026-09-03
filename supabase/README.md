@@ -31,6 +31,15 @@ that has not been pasted into the SQL editor is not live, however green CI is.
   file). Must be run *before* deploying the client release that reads them;
   until it is, the client falls back to the legacy `user_state` jsonb copy of
   the ledger rather than showing an empty portfolio.
+- `0006_snaptrade.sql` — **per-user brokerage links.** Creates
+  `snaptrade_users`, which holds each user's SnapTrade id and their
+  `userSecret` **encrypted** under the server-only `SNAPTRADE_SECRET_KEY` (see
+  `app/api/_lib/secretBox.ts`). Unlike every other table here it has **no RLS
+  policies at all** — with RLS enabled that denies the browser even its own
+  row, and the service-role key, which the API routes hold and the client
+  never sees, is the only thing that reaches it. Must be run before deploying
+  the release that lets users connect an account; until it is, connecting
+  fails with an honest error rather than half-linking anything.
 
 ### Verifying the ledger's RLS
 

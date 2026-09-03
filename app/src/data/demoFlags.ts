@@ -11,7 +11,7 @@
  * provider is the only writer, which keeps the two in step.
  */
 
-export type DemoFlag = 'unavailable' | 'demoData' | 'liveAccount';
+export type DemoFlag = 'unavailable' | 'demoData';
 
 /**
  * What the flags read when localStorage cannot be reached.
@@ -37,23 +37,21 @@ const memory = new Map<DemoFlag, boolean>();
  * halves stay live either way: prices and the day change beside them come
  * from the quote route with the switch in either position.
  *
- * The other two start off. `unavailable` is a QA switch for rendering failure
- * states on purpose, and `liveAccount` points a demo at one real brokerage
- * account — neither is a state to put a reader in without them asking.
+ * `unavailable` starts off: it is a QA switch for rendering failure states on
+ * purpose, which is not a state to put a reader in without them asking.
  */
 const DEFAULTS: Record<DemoFlag, boolean> = {
   unavailable: false,
   demoData: true,
-  liveAccount: false,
 };
 
 /**
  * Subscribers notified when any flag flips — see data/useDemoFlag.ts.
  *
  * DemoModeProvider mirrors `demoData` into React state and is its only
- * writer, which covers that flag. `liveAccount` is read straight out of
- * storage by useDemoFlag() instead, so it needs a change signal of its own;
- * this is it. Both go through `set` below, so neither can drift.
+ * writer; anything reading a flag straight out of storage needs a change
+ * signal of its own, and this is it. Every write goes through `set` below, so
+ * the two cannot drift.
  */
 const listeners = new Set<() => void>();
 
@@ -61,7 +59,6 @@ export const DEMO_FLAGS = {
   key: {
     unavailable: 'shift.demo.unavailable',
     demoData: 'shift.demo.data',
-    liveAccount: 'shift.demo.liveAccount',
   } as Record<DemoFlag, string>,
   read(flag: DemoFlag): boolean {
     try {
@@ -104,19 +101,6 @@ export const DEMO_FLAGS = {
    */
   get demoData(): boolean {
     return this.read('demoData');
-  },
-  /**
-   * Founder-demo switch: replace the demo adapter's accounts and holdings
-   * with the one real brokerage account read through SnapTrade Personal
-   * (see data/snaptradeAccount.ts). Off by default, and off means the app
-   * behaves exactly as it did before this flag existed — every surface it
-   * touches falls straight back to the demo adapter.
-   *
-   * Unlike demoData this never substitutes invented numbers: it swaps one
-   * real source in. A failure behind it still reports itself as a failure.
-   */
-  get liveAccount(): boolean {
-    return this.read('liveAccount');
   },
   set(flag: DemoFlag, on: boolean) {
     // Recorded before the write, so the flag still answers correctly for this

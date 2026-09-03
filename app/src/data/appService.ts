@@ -2,27 +2,40 @@
  * The DataService the screens actually read.
  *
  * By default it *is* the demo adapter — every method delegates straight
- * through, so with the founder-demo switch off the app behaves exactly as it
- * did before this file existed.
+ * through, so a user who has not connected a brokerage sees exactly the app
+ * that existed before this file.
  *
- * With Settings → "הדגמה: חשבון מקושר אמיתי" on, two methods change source:
- * portfolios() and holdings() stop returning the demo adapter's invented
- * accounts and return the one REAL brokerage account read through SnapTrade
- * Personal instead (data/snaptradeAccount.ts). Everything else — symbols,
- * satellite signals, news, earnings, chart series — is untouched by the flag
- * and keeps its existing source.
+ * Once a user connects one (Connections → "connect an account", which opens
+ * SnapTrade's hosted portal), two methods change source: portfolios() and
+ * holdings() stop returning the demo adapter's invented accounts and return
+ * that person's REAL brokerage accounts instead (data/snaptradeAccount.ts).
+ * Everything else — symbols, satellite signals, news, earnings, chart series
+ * — is untouched and keeps its existing source.
  *
- * This is a founder-demo capability, not the architecture for end users: see
- * data/snaptradeAccount.ts and the README.
+ * WHAT DECIDES WHICH SOURCE. Two things, in order — see liveDataActive()
+ * below. First the sample-data switch: while it is on these methods answer
+ * from the demo adapter no matter what is connected, because that switch is
+ * what makes the app safe to put on a screen in front of other people, and a
+ * mode that still drew the presenter's own positions would not be. Then
+ * `isLinked()` (data/linkState.ts), the remembered answer to "has this user
+ * connected a brokerage", written only by a real response from the server.
  *
- * DATA HONESTY: when the flag is on and the SnapTrade call fails, these
+ * Nothing is disconnected by the switch. The account is simply not read until
+ * it goes off, and the screen that manages the connection
+ * (screens/ConnectedAccount.tsx) shows the truth either way — that is where
+ * someone goes to look at or revoke it rather than to present the app.
+ *
+ * DATA HONESTY: when a user IS linked and the SnapTrade call fails, these
  * methods return 'unavailable'. They never silently fall back to the demo
- * numbers — a screen promising a real account must not quietly show an
- * invented one.
+ * numbers — a screen showing a real account must not quietly show an invented
+ * one. The one case that does fall back is `linked: false`, which is not a
+ * failure at all: it is the server saying this person has connected nothing,
+ * and the app's own data is then the honest thing to show.
  */
 
 import { demoService } from './demoAdapter';
 import { DEMO_FLAGS } from './demoFlags';
+import { isLinked } from './linkState';
 import { fetchConnectedAccounts } from './snaptradeAccount';
 import { positionReturnPct } from '../lib/format';
 import type { DataService } from './service';
@@ -52,6 +65,11 @@ const AGGREGATE_ID = 'agg';
 const CACHE_MS = 20_000;
 let cache: { at: number; promise: Promise<Loadable<ConnectedAccountsResult>> } | null = null;
 
+/**
+ * One shared read of the connected accounts, briefly cached, so the several
+ * screens that ask within the same moment cost one upstream call rather than
+ * one each.
+ */
 function connectedAccounts(): Promise<Loadable<ConnectedAccountsResult>> {
   const now = Date.now();
   if (cache && now - cache.at < CACHE_MS) return cache.promise;
@@ -65,7 +83,11 @@ function connectedAccounts(): Promise<Loadable<ConnectedAccountsResult>> {
   return promise;
 }
 
-/** Drops the cache so the next read goes back to SnapTrade — used when the flag flips. */
+/**
+ * Drops the cache so the next read goes back to SnapTrade — used the moment a
+ * connection is created or revoked, where serving the previous answer for the
+ * next twenty seconds would show an account that has just been disconnected.
+ */
 export function resetConnectedAccountCache() {
   cache = null;
 }
@@ -152,9 +174,18 @@ function toHolding(position: ConnectedAccount['positions'][number]): Holding {
   };
 }
 
+/**
+ * The portfolio list as the brokerage reports it, with the app's own data as
+ * the fallback when nothing is connected — an unlinked user sees the demo
+ * portfolios, not an error and not an empty screen.
+ */
 async function livePortfolios(): Promise<Loadable<PortfolioSummary[]>> {
   const result = await connectedAccounts();
   if (result.status !== 'ok') return result;
+  // The remembered link state was stale — this user has connected nothing
+  // (or signed out). Not an error: fall back to the app's own portfolios,
+  // which is what someone with no brokerage connection should see.
+  if (!result.data.linked) return demoService.portfolios();
   // No account to show: a real, honest empty list. The screens render their
   // genuine empty state rather than an error or a placeholder account. Which
   // KIND of empty this is — nothing connected, or a connection reporting
@@ -182,9 +213,17 @@ async function livePortfolios(): Promise<Loadable<PortfolioSummary[]>> {
   return ok([aggregate, ...rows]);
 }
 
+/**
+ * The holdings under one portfolio, from the same source and with the same
+ * fallback as the list it hangs under.
+ */
 async function liveHoldings(portfolioId: string): Promise<Loadable<Holding[]>> {
   const result = await connectedAccounts();
   if (result.status !== 'ok') return result;
+  // Same fallback as livePortfolios, and it must be the same: holdings that
+  // came from a different source than the portfolio list they hang under
+  // would be an empty account beside a full one.
+  if (!result.data.linked) return demoService.holdings(portfolioId);
   const accounts =
     portfolioId === AGGREGATE_ID
       ? result.data.accounts
@@ -195,13 +234,29 @@ async function liveHoldings(portfolioId: string): Promise<Loadable<Holding[]>> {
 }
 
 /**
+ * Whether to read the connected account rather than the sample data.
+ *
+ * Both conditions, and in this order. A connection is necessary but not
+ * sufficient: while the sample-data switch is on it wins, because that switch
+ * is what makes the app safe to show to a room, and a mode that still drew
+ * the presenter's own positions would not be. Nothing is disconnected by it —
+ * the account is simply not read until the switch goes off.
+ *
+ * The data layer's copy of the rule; the React side is useLiveData()
+ * (data/useLinked.ts), and the two must say the same thing.
+ */
+export function liveDataActive(): boolean {
+  return !DEMO_FLAGS.demoData && isLinked();
+}
+
+/**
  * Spread first, then override: every method the flag does not touch stays
  * bound to the demo adapter, so adding a method to DataService cannot
  * accidentally leave it unimplemented here.
  */
 export const appService: DataService = {
   ...demoService,
-  portfolios: () => (DEMO_FLAGS.liveAccount ? livePortfolios() : demoService.portfolios()),
+  portfolios: () => (liveDataActive() ? livePortfolios() : demoService.portfolios()),
   holdings: (portfolioId: string) =>
-    DEMO_FLAGS.liveAccount ? liveHoldings(portfolioId) : demoService.holdings(portfolioId),
+    liveDataActive() ? liveHoldings(portfolioId) : demoService.holdings(portfolioId),
 };
