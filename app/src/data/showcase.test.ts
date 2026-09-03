@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { showcaseHistory, showcaseWeek } from './showcase';
-import { fetchTickerEarnings, fetchWeekEarnings } from './earnings';
+import { fetchTickerEarnings, fetchWeekEarnings, weekAheadWindow } from './earnings';
 import { withDemoData } from './demoFlagsStub';
 
 const NOW = new Date('2026-08-28T09:00:00Z'); // a Friday
@@ -34,6 +34,33 @@ describe('showcaseWeek', () => {
     const dates = showcaseWeek(NOW).rows.map((r) => r.reportDate);
     expect([...dates].sort((a, b) => a.localeCompare(b))).toEqual(dates);
     expect(new Set(dates).size).toBeGreaterThanOrEqual(5);
+  });
+
+  // A demo spanning different dates than the live screen is not showing what
+  // the live screen would look like with better data, which is its only job.
+  it('stays inside the window the live calendar asks for', () => {
+    const { from, to } = weekAheadWindow(NOW);
+    for (const row of showcaseWeek(NOW).rows) {
+      expect(row.reportDate >= from, row.reportDate).toBe(true);
+      expect(row.reportDate <= to, row.reportDate).toBe(true);
+    }
+  });
+
+  it('places no report on a weekend', () => {
+    for (const row of showcaseWeek(NOW).rows) {
+      const day = new Date(`${row.reportDate}T00:00:00Z`).getUTCDay();
+      expect(day, row.reportDate).not.toBe(0);
+      expect(day, row.reportDate).not.toBe(6);
+    }
+  });
+
+  // Two weeks, not one: the fortnight is what makes the second week visible
+  // at all, and a demo confined to five days would not show it.
+  it('spreads across both weeks of the window', () => {
+    const dates = new Set(showcaseWeek(NOW).rows.map((r) => r.reportDate));
+    const { from } = weekAheadWindow(NOW);
+    const secondWeekStart = new Date(Date.parse(from) + 7 * 86_400_000).toISOString().slice(0, 10);
+    expect([...dates].some((d) => d >= secondWeekStart)).toBe(true);
   });
 });
 

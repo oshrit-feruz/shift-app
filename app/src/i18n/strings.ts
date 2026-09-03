@@ -466,14 +466,14 @@ export const STRINGS = {
   'news.sentimentNegative': p('Negative', 'שלילי'),
   'news.sentimentNeutral': p('Neutral', 'ניטרלי'),
   'earn.truncated': p(
-    'Showing {shown} of {total} reports in the week ahead.',
-    'מוצגים {shown} מתוך {total} דוחות בשבוע הקרוב.',
+    'Showing {shown} of {total} reports in these two weeks.',
+    'מוצגים {shown} מתוך {total} דוחות בשבועיים האלה.',
   ),
   'earn.noneInShown': p(
-    'None of the reports shown match — but the week ahead is only partly loaded, so there may be others.',
-    'אף אחד מהדוחות המוצגים לא תואם — אבל השבוע הקרוב נטען רק חלקית, ייתכן שיש נוספים.',
+    'None of the reports shown match — but these two weeks are only partly loaded, so there may be others.',
+    'אף אחד מהדוחות המוצגים לא תואם — אבל השבועיים האלה נטענו רק חלקית, ייתכן שיש נוספים.',
   ),
-  'earn.weekEmpty': p('No companies report in the week ahead.', 'אין חברות שמדווחות בשבוע הקרוב.'),
+  'earn.weekEmpty': p('No companies report in these two weeks.', 'אין חברות שמדווחות בשבועיים האלה.'),
   // The market-wide feed lists only reports that have not happened yet, so a
   // reader who sees a company they know reported on Monday must not conclude
   // the app thinks it is still pending. Said plainly, once, above the week.
@@ -499,8 +499,8 @@ export const STRINGS = {
   // about agreement across the feature names.
   'demo.only': p('{feature} is only available in demo', '{feature} — רק בדמו'),
   'earn.scheduledOnly': p(
-    'The week ahead: reports still to come. Results already published appear on each stock’s own page.',
-    'השבוע הקרוב: דוחות שעוד צפויים. תוצאות שכבר פורסמו מופיעות בדף של כל מניה.',
+    'This week and the next: reports still to come. Days already past are empty here because the feed carries only what has not happened yet — published results appear on each stock’s own page.',
+    'השבוע הזה והבא: דוחות שעוד צפויים. ימים שכבר עברו ריקים כאן, כי הפיד מכיל רק את מה שטרם קרה — תוצאות שכבר פורסמו מופיעות בדף של כל מניה.',
   ),
   'stock.nextEarn': p('Next earnings', 'הדוח הבא'),
   // Reached by opening a company from the earnings calendar: the sample
@@ -662,6 +662,14 @@ export const STRINGS = {
     'העסקה הראשונה שלך היא מ־{date}; הגרף מתחיל היכן שהיסטוריית המחירים היומית מגיעה.',
   ),
   'pf.valueNoneYet': p('The chart appears once a trade is recorded.', 'הגרף יופיע אחרי שתירשם עסקה.'),
+  // One session is a dot, not a line. Said out loud because the alternative
+  // was an SVG containing a single moveto — a chart area that renders
+  // completely blank while the figures beside it render fine, which reads as
+  // a broken screen rather than as a portfolio that is one day old.
+  'pf.valueOneSession': p(
+    'One closing price so far. The line starts once there is a second session to draw it to.',
+    'יש עד כה מחיר סגירה אחד. הקו יתחיל להיווצר כשתהיה סגירה שנייה.',
+  ),
   // The ledger is newer than the last published close — which is the ordinary
   // state during a trading day, not a problem, so it must not be worded as one.
   'pf.valueAheadOfClose': p(
@@ -822,6 +830,13 @@ export const STRINGS = {
   'news.analyst': p('Analyst', 'אנליסטים'),
   'news.viewTicker': p('View {ticker}', 'לצפייה ב-{ticker}'),
   'earn.allCompanies': p('All companies', 'כל החברות'),
+  // Shown on the calendar whenever showcase mode is filling it. Without it
+  // the illustrative rows are indistinguishable from reported results, which
+  // is the one thing this app's data contract does not allow.
+  'earn.showcase': p(
+    'Illustrative figures — showcase mode is on. Turn sample data off in More to read the live calendar.',
+    'נתונים להמחשה — מצב הדגמה דלוק. כדי לראות את היומן האמיתי, כבי נתוני דוגמה בלשונית עוד.',
+  ),
   'earn.highMove': p('High implied move', 'תנועה צפויה גבוהה'),
   'earn.epsEst': p('EPS est', 'צפי EPS'),
   'earn.implied': p('implied', 'תנועה משתמעת'),
@@ -831,7 +846,7 @@ export const STRINGS = {
   'earn.revEst': p('Rev est', 'צפי הכנסות'),
   'earn.mktCap': p('Mkt cap', 'שווי שוק'),
   'earn.lastSurprise': p('Last surprise', 'הפתעה אחרונה'),
-  'earn.weekOf': p('{n} companies report in the week ahead', '{n} חברות מדווחות בשבוע הקרוב'),
+  'earn.weekOf': p('{n} companies report in these two weeks', '{n} חברות מדווחות בשבועיים האלה'),
   'earn.noneMatch': p('No reports match this filter', 'אין דוחות שתואמים לסינון הזה'),
 
   // ── Compare ───────────────────────────────────────────────────────────

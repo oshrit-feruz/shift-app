@@ -324,7 +324,7 @@ function PortfolioBody({
           onChange={onView}
           fontSize={14.5}
         />
-        {isManual && data && <ManualValueNotes valuation={data.valuation} />}
+        {isManual && data && <ManualValueNotes valuation={data.valuation} view={view} />}
         <PerformanceSlot
           live={live}
           isManual={isManual}
@@ -474,9 +474,13 @@ function HoldingRow({
   onClose,
 }: Readonly<{ h: Holding; view: ChangeView; closed?: boolean; onOpen: () => void; onClose?: () => void }>) {
   const t = useT();
-  // A closed position has no day to speak of; what it has is what it booked.
-  const abs = view === 'day' ? (closed ? null : h.dayChange) : h.pl;
-  const pct = view === 'day' ? (closed ? null : h.dayChangePct) : h.plPct;
+  // A closed position has no day to speak of; what it has is what it booked,
+  // and that is what it shows under either reading. It used to render "—" on
+  // the day tab, which is true and useless: a row of dashes under "closed
+  // positions" reads as data the app failed to load rather than as a
+  // position whose result is already final.
+  const abs = closed ? h.pl : view === 'day' ? h.dayChange : h.pl;
+  const pct = closed ? h.plPct : view === 'day' ? h.dayChangePct : h.plPct;
   const change = abs === null ? '—' : `${signedCurrency(abs)}${pct === null ? '' : ` (${pctOrDash(pct)})`}`;
   const short = h.shares < 0;
   return (
@@ -855,6 +859,11 @@ function ManualValueChart({ ledger, label }: Readonly<{ ledger: ManualTransactio
         // which is a fact about the holdings, not a failure of the read, and
         // the two must not be worded the same way.
         if (priced.length === 0) return <Note>{t('pf.valueNoHistory')}</Note>;
+        // A line needs two points to exist. With one, sparseLinePath emits a
+        // bare "M x y" and sparseAreaPath emits nothing at all, so the chart
+        // area rendered blank while the legend and the open P/L beside it
+        // rendered normally — the screen looked broken. Say which it is.
+        if (priced.length === 1) return <Note>{t('pf.valueOneSession')}</Note>;
 
         const gain = openGain(series.points);
         // Two sentences, because Hebrew inflects the verb and not only the noun.
@@ -912,11 +921,17 @@ function ManualValueChart({ ledger, label }: Readonly<{ ledger: ManualTransactio
  * what could not be priced is the difference between "we don't know" and
  * "something went wrong".
  */
-function ManualValueNotes({ valuation }: Readonly<{ valuation: PortfolioValuation }>) {
+function ManualValueNotes({
+  valuation,
+  view,
+}: Readonly<{ valuation: PortfolioValuation; view: ChangeView }>) {
   const t = useT();
   return (
     <>
-      {valuation.positions.length > 0 && valuation.invested > 0 && (
+      {/* Only under the reading it describes. On the day tab the figure above
+          is today's move, and captioning that "total return of X invested"
+          labelled it as something it is not. */}
+      {view === 'open' && valuation.positions.length > 0 && valuation.invested > 0 && (
         <span className="text-muted" style={{ fontSize: 'var(--text-caption)' }}>
           {t('pf.totalReturn')} · {t('pf.returnBasis', { invested: money(valuation.invested) })}
         </span>

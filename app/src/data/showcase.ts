@@ -19,7 +19,7 @@
  * reloads. A demo whose figures flicker looks broken rather than illustrative.
  */
 
-import { isoDay, type EarningsPage } from './earnings';
+import { isoDay, WINDOW_DAYS, type EarningsPage } from './earnings';
 import type { EarningsRow } from './types';
 
 /** Companies the illustrative week is built from, with plausible consensus. */
@@ -58,27 +58,38 @@ function surpriseFor(key: string): number {
   return Math.round((seeded(key) * 20 - 8) * 10) / 10;
 }
 
-/** Return an array of 7 dates representing the Monday-to-Sunday calendar week containing the given date, in UTC. */
-function calendarWeek(now: Date): Date[] {
+/**
+ * The weekdays of the window the live calendar asks for, in UTC: this week's
+ * Monday and the thirteen days after it, with Saturdays and Sundays dropped.
+ *
+ * Kept in step with `weekAheadWindow` on purpose. A demo that spans a
+ * different stretch of dates than the live screen is not showing what the
+ * live screen would look like with better data, which is the only thing it
+ * is for.
+ */
+function windowWeekdays(now: Date): Date[] {
   const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const monday = new Date(d.getTime() - ((d.getUTCDay() + 6) % 7) * 86_400_000);
-  return Array.from({ length: 7 }, (_, i) => new Date(monday.getTime() + i * 86_400_000));
+  return Array.from({ length: WINDOW_DAYS }, (_, i) => new Date(monday.getTime() + i * 86_400_000)).filter(
+    (day) => day.getUTCDay() !== 0 && day.getUTCDay() !== 6,
+  );
 }
 
 /**
- * An illustrative calendar week: a whole Monday-to-Sunday week, with the days
- * that have already passed carrying reported results and the days ahead
- * carrying estimates.
+ * An illustrative fortnight: the same two-week window the live calendar asks
+ * for, with the days that have already passed carrying reported results and
+ * the days ahead carrying estimates.
  *
- * The window is the calendar week rather than the live screen's week-ahead
- * precisely because that IS the difference being shown: a provider with
- * reported results makes the days behind you worth rendering.
+ * The days behind you are the whole point. The free plan's market-wide feed
+ * carries only reports that have not happened yet, so on the live path those
+ * days are empty; filling them is exactly the difference a paid plan buys,
+ * and the difference is what this mode exists to show.
  */
 export function showcaseWeek(now: Date = new Date()): EarningsPage {
-  const days = calendarWeek(now);
+  const days = windowWeekdays(now);
   const today = isoDay(now);
   const rows: EarningsRow[] = COMPANIES.map((c, i) => {
-    const day = days[i % 5]; // weekdays carry the reports; the weekend stays quiet
+    const day = days[i % days.length];
     const reportDate = isoDay(day);
     const reported = reportDate < today;
     const surprisePct = reported ? surpriseFor(`${c.ticker}${reportDate}`) : null;
