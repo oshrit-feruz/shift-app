@@ -180,9 +180,11 @@ function Result({ profile }: Readonly<{ profile: ProfileKey }>) {
  */
 function RadarLine({ wording }: Readonly<{ wording: 'home.radarYours' | 'rec.radarPassed' }>) {
   const t = useT();
-  const radar = useLoadable(() => demoService.stockRadar(), []);
+  // The unpriced read: this line only counts names, and the home screen
+  // should not spend quotes on prices it does not show.
+  const radar = useLoadable(() => demoService.satelliteSignals(), []);
   // Counts the names the engine marks actionable now, as the radar screens do.
-  const n = radar.state.status === 'ok' ? actionableSignals(radar.state.data.signals).length : 0;
+  const n = radar.state.status === 'ok' ? actionableSignals(radar.state.data).length : 0;
   if (n === 0) return null;
   return (
     <span

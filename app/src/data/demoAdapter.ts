@@ -33,7 +33,12 @@
  */
 
 import type { DataService } from './service';
-import { fetchRankedTickers, fetchSatelliteSignals, fetchStockRadar } from './recoveryDetector';
+import {
+  actionableSignals,
+  fetchRankedTickers,
+  fetchSatelliteSignals,
+  fetchStockRadar,
+} from './recoveryDetector';
 import { fetchQuotes } from './quotes';
 import { fetchDailySeries } from './priceHistory';
 import {
@@ -44,6 +49,7 @@ import {
   type Loadable,
   type NewsItem,
   type PortfolioSummary,
+  type PricedStockRadar,
   type Quote,
   type SymbolInfo,
   type WatchRow,
@@ -310,10 +316,10 @@ export const demoService: DataService & { isDemo: true } = {
    * actually shows (see SearchOverlay), which is both cheaper and fresher.
    *
    * Dedupe is on the normalised ticker, not the raw snapshot key. mapSignal
-   * uppercases what the snapshot carries but does not trim it, so a key with
-   * stray whitespace failed a raw comparison against the sample table while
-   * watchRow normalised it to the same symbol — two rows for one company,
-   * under one React key.
+   * now trims and uppercases what the snapshot carries, but this list also
+   * takes `include` from the caller, so it normalises again rather than
+   * trusting every source to have — a key with stray whitespace once made
+   * two rows for one company, under one React key.
    *
    * A dead ranking leaves the sample table, which is still a usable — if
    * short — list to search, so this is only 'unavailable' under the demo
@@ -350,9 +356,26 @@ export const demoService: DataService & { isDemo: true } = {
     return fetchSatelliteSignals();
   },
 
-  /** REAL, like satelliteSignals: the same mirror read, plus the engine's policy. */
-  async stockRadar() {
-    return fetchStockRadar();
+  /**
+   * REAL, like satelliteSignals: the same mirror read, plus the engine's
+   * policy, plus a LIVE quote for each actionable name.
+   *
+   * The quotes come from data/quotes.ts, exactly as `symbol()` attaches them
+   * for the stock page, so a radar tile and the page behind it show the same
+   * price. Only the actionable names are priced — they are the only ones a
+   * screen shows — so the read costs at most the policy's cap in quotes, and
+   * the cache shares them with the stock page the tile opens.
+   *
+   * A failed quote read leaves `quotes` empty rather than failing the radar:
+   * which names cleared today's checks is still a good answer, and rows that
+   * render "—" for the price tell the reader more than a screen-wide
+   * "unavailable" would. No demo fallback either way.
+   */
+  async stockRadar(): Promise<Loadable<PricedStockRadar>> {
+    const radar = await fetchStockRadar();
+    if (radar.status !== 'ok') return radar;
+    const quotes = await fetchQuotes(actionableSignals(radar.data.signals).map((s) => s.ticker));
+    return ok({ ...radar.data, quotes: quotes.status === 'ok' ? quotes.data : {} });
   },
 
   /**

@@ -46,6 +46,12 @@ describe('mapSignal — defensive field mapping', () => {
   it('uppercases the ticker', () => {
     expect(mapSignal({ symbol: 'teva' })?.ticker).toBe('TEVA');
   });
+  it('trims whitespace around the ticker, and treats a blank one as no ticker', () => {
+    // The ticker is the key the live quote is looked up by; a padded key
+    // would miss its own quote and render a dash beside a price we had.
+    expect(mapSignal({ ticker: ' nvda ' })?.ticker).toBe('NVDA');
+    expect(mapSignal({ ticker: '   ' })).toBeNull();
+  });
   it('accepts price, current_price or last', () => {
     expect(mapSignal({ ticker: 'X', price: 20 })?.price).toBe(20);
     expect(mapSignal({ ticker: 'X', current_price: 21 })?.price).toBe(21);
