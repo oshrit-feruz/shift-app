@@ -396,12 +396,20 @@ lag. So the tab carries the same line the movers board does, whenever the
 session it draws is not today's.
 
 Two details the feed forced, both verified against it rather than read off the
-documentation. Five minutes and not one: a session is 79 five-minute bars, a
-legible line on a phone, where 1m is 390 points for the same picture at the
-same cost. And every session ends with a zero-width bar stamped at 20:00 UTC
-whose volume is `null` — the closing print, seen on five sessions across two
-symbols and never in an interior bar. It is dropped rather than drawn as five
-minutes in which nothing traded; a missing volume anywhere else still
+documentation — and both stated as what was *observed*, because neither is a
+constant. Five minutes and not one: a full regular session came back as 79
+five-minute bars, a legible line on a phone, where 1m is 390 points for the
+same picture at the same cost. And each of those sessions ended with a
+zero-width bar whose volume is `null` — the closing print, seen on five
+sessions across two symbols and never in an interior bar — stamped at 20:00
+UTC, which is 16:00 in New York while daylight time is in force.
+
+Neither number is safe to assume. Standard time moves that close to 21:00 UTC,
+and a half day (the afternoons before Thanksgiving, Christmas and July 4th)
+ends at 13:00 local with roughly half the bars. Nothing in the code counts
+bars or matches that timestamp: the closing print is recognised by being
+zero-width with a `null` volume, and it is dropped rather than drawn as five
+minutes in which nothing traded. A missing volume anywhere else still
 invalidates the series.
 
 The 1D tab is offered only with **sample data off**. Every other window still

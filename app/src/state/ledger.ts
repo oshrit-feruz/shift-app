@@ -191,6 +191,10 @@ export function transactionsByPortfolio(snapshot: LedgerSnapshot): Record<string
       shares: row.shares,
       price: row.price,
       date: row.tradeDate,
+      // Carried through so the log can order two trades entered on the same
+      // day. Dropping it here left the screen with nothing to break that tie
+      // with, and equal rows sort in whatever order they arrived in.
+      createdAt: row.createdAt,
     });
   }
   return out;

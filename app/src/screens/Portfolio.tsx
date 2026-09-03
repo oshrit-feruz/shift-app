@@ -26,6 +26,7 @@ import { useLinked } from '../data/useLinked';
 import { loading, ok, unavailable, type Holding, type Loadable, type PortfolioSummary } from '../data/types';
 import { useLoadable } from '../data/useLoadable';
 import { isoDate, money, moneyOrDash, pctOrDash, signalColor, signedCurrency } from '../lib/format';
+import { newestFirst } from '../lib/transactionOrder';
 import { TxSheet } from '../sheets/TxSheet';
 import { NewPortfolioSheet } from '../sheets/NewPortfolioSheet';
 import { fetchPortfolioHoldings, portfolioList, sumTotals } from '../lib/holdings';
@@ -1046,16 +1047,6 @@ const SIDE_KEYS = { buy: 'tx.buy', sell: 'tx.sell', div: 'tx.div' } as const;
 
 function sideKey(side: TransactionSide): (typeof SIDE_KEYS)[TransactionSide] {
   return SIDE_KEYS[side];
-}
-
-/**
- * Newest first: the row someone is most likely to have mistyped is the one
- * they just entered, so it belongs at the top of the log.
- */
-function newestFirst(a: ManualTransaction, b: ManualTransaction): number {
-  if (a.date > b.date) return -1;
-  if (a.date < b.date) return 1;
-  return 0;
 }
 
 /**
