@@ -24,6 +24,40 @@
  * gets noticed. This does not — which is why it needs an alarm of its own
  * rather than a habit of remembering to look.
  *
+ * THE SHAPES THIS TAKES, all observed on this repo, all worth recognising by
+ * name because each one reads as good news:
+ *
+ *   1. A GREEN CHECK WHOSE TEXT SAYS OTHERWISE. "Review rate limited" and
+ *      "Review skipped: draft pull request" both ship as `success`. Only the
+ *      description distinguishes them from a review that ran.
+ *   2. A COVERAGE MARKER PINNED TO AN OLDER COMMIT. After a later push the
+ *      status may not be re-posted at all, and the walkthrough's
+ *      `final_review_risk_coverage` is then the only thing still telling the
+ *      truth about which commit was actually read.
+ *   3. A HEADLINE RENDERED FROM THAT STALE MARKER. "Merge Risk: Moderate ·
+ *      up to `87efa`" is the human-readable face of case 2, and it is the one
+ *      a person actually reads. It stayed on `87efa` for eight hours across
+ *      four pushes while reading like a current verdict.
+ *   4. AVAILABILITY REPORTED AS ACTION. "Reviews are available now" says a
+ *      quota refilled, not that anything ran — and nothing did, for fifty
+ *      minutes, because this reviewer is event-driven and no push or command
+ *      had followed. An allowance becoming available is not a queued job
+ *      resuming. The two are easy to read as one sentence.
+ *   5. SKIPPED IS NOT PASSED. A verification step that is skipped because an
+ *      earlier step failed has confirmed NOTHING, while sitting in a list of
+ *      steps that mostly say success. On 2026-09-02 the screener mirror's
+ *      "Confirm what is now published" was skipped for exactly this reason
+ *      (see .github/workflows/mirror-screener.yml) — a positive-confirmation
+ *      step that did not run, on a run that had published nothing new.
+ *
+ * AND ONE TRAP FOR WHOEVER EXTENDS THIS. Do not measure whether a scheduled
+ * job is alive by reading its COMMIT LOG. A job that commits only when its
+ * data changed produces a log that looks exactly like a run log and counts
+ * something else: on this repo it showed one entry per weekday while four
+ * passes were configured, and none at all on a Saturday and Sunday when there
+ * was correctly nothing to publish. `checkWorkflowSchedules` below reads the
+ * Actions API, which reports every attempt whether or not it committed.
+ *
  * This script is the alarm. It reads the TEXT of each signal, never the
  * colour, and fails loudly when a signal points at anything other than the
  * current head.
@@ -40,6 +74,8 @@
  *
  * Options:
  *   --pr <n>            also check CodeRabbit's review coverage on that PR
+ *   --workflow f:hours  also check that a scheduled workflow is still firing,
+ *                       e.g. --workflow mirror-screener.yml:30. Repeatable.
  *   --all-prs           check review coverage on every open PR. This is the
  *                       mode that actually catches anything: a push-triggered
  *                       run always sees a head inside the grace period.
@@ -71,6 +107,10 @@ const REPO = arg("repo", "oshrit-feruz/shift-app");
 const PROJECT = arg("project", "oshrit-feruz_shift-app");
 const PR = arg("pr");
 const ALL_PRS = args.includes("--all-prs");
+/** Repeatable `--workflow <file>:<maxAgeHours>`, e.g. mirror-screener.yml:30. */
+const WORKFLOWS = args
+  .map((a, i) => (a === "--workflow" ? args[i + 1] : null))
+  .filter(Boolean);
 const MAX_AGE_DAYS = Number(arg("max-age-days", "2"));
 // How long a new head is given before "no review covers it" counts as stale.
 const GRACE_MIN = Number(arg("grace-minutes", "20"));
@@ -262,6 +302,79 @@ async function openPullRequests() {
 }
 
 /**
+ * How far past its tolerance a timestamp is. Pure, so every branch is testable
+ * without a network — the arithmetic is the part that can be quietly wrong.
+ */
+export function staleBy(lastIso, maxAgeHours, nowMs = Date.now()) {
+  const t = Date.parse(lastIso);
+  if (Number.isNaN(t))
+    return { ageHours: null, stale: true, reason: "unparseable timestamp" };
+  const ageHours = (nowMs - t) / 3_600_000;
+  return { ageHours, stale: ageHours > maxAgeHours, reason: "" };
+}
+
+/**
+ * Is a scheduled workflow still actually running?
+ *
+ * THE CASE THIS EXISTS FOR. A cron job that stops firing produces no failure,
+ * no red check and no notification — it simply stops, and everything
+ * downstream keeps serving whatever it last published. That is the same
+ * question as the stale Sonar baseline (#58) pointed at CI instead: a thing
+ * that stopped working while nothing said so.
+ *
+ * Read from the Actions API and filtered to `event=schedule`, deliberately.
+ * A manual `workflow_dispatch` proves someone ran it by hand, which is not
+ * evidence the schedule is alive — and the commit log proves less than that
+ * (see the trap in the header).
+ *
+ * The tolerance is per workflow because cadences differ, and it should be
+ * generous: GitHub does not guarantee scheduled start times, and on this repo
+ * every measured run of the screener mirror started 4h05m-6h53m late. The
+ * alarm is for "has stopped", not "is late".
+ */
+async function checkWorkflowSchedules(specs) {
+  const headers = {
+    Authorization: `Bearer ${GITHUB_TOKEN}`,
+    Accept: "application/vnd.github+json",
+    "User-Agent": "shift-freshness-check",
+  };
+  for (const spec of specs) {
+    const idx = spec.lastIndexOf(":");
+    const file = idx === -1 ? spec : spec.slice(0, idx);
+    const maxAgeHours = idx === -1 ? 30 : Number(spec.slice(idx + 1));
+    if (!Number.isFinite(maxAgeHours) || maxAgeHours <= 0) {
+      throw new Error(
+        `--workflow ${spec}: max age must be a positive number of hours`,
+      );
+    }
+    requested += 1;
+    const runs = await getJson(
+      `https://api.github.com/repos/${REPO}/actions/workflows/${encodeURIComponent(file)}` +
+        `/runs?event=schedule&per_page=1`,
+      headers,
+    );
+    const last = (runs.workflow_runs || [])[0];
+    if (!last) {
+      check(
+        `schedule: ${file} has fired on a schedule`,
+        false,
+        "no scheduled run on record",
+      );
+      continue;
+    }
+    const started = last.run_started_at || last.created_at;
+    const { ageHours, stale, reason } = staleBy(started, maxAgeHours);
+    check(
+      `schedule: ${file} fired within ${maxAgeHours}h`,
+      !stale,
+      reason ||
+        `last scheduled run ${started} (${ageHours.toFixed(1)}h ago, conclusion ` +
+          `${safeText(last.conclusion || "none", 40)})`,
+    );
+  }
+}
+
+/**
  * Did a CodeRabbit review actually run on this PR's current head?
  *
  * Two reads again, and again because they fail differently:
@@ -404,7 +517,7 @@ export function verdict({ failures, ran, requested }) {
     return {
       code: 2,
       message:
-        "nothing was checked — set SONAR_TOKEN and/or pass --pr <n> / --all-prs",
+        "nothing was checked — set SONAR_TOKEN and/or pass --pr <n> / --all-prs / --workflow <f:hours>",
     };
   }
   if (failures > 0) {
@@ -448,6 +561,14 @@ async function main() {
     }
   } else {
     console.log("\nCodeRabbit review coverage: skipped (no --pr/--all-prs)");
+  }
+
+  if (WORKFLOWS.length > 0) {
+    if (!GITHUB_TOKEN) throw new Error("--workflow needs GITHUB_TOKEN");
+    console.log(`\nScheduled workflows still firing:`);
+    await checkWorkflowSchedules(WORKFLOWS);
+  } else {
+    console.log("\nScheduled workflows: skipped (no --workflow)");
   }
 
   // The requested === 0 case is NOT thrown here: `verdict` owns the exit code

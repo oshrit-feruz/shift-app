@@ -84,5 +84,16 @@ jobs:
           if [ -n "${{ github.event.pull_request.number }}" ]; then
             node scripts/freshness-check.mjs --pr ${{ github.event.pull_request.number }}
           else
-            node scripts/freshness-check.mjs --all-prs
+            # 30h, not 24: the screener mirror runs four times a day but every
+            # measured run started 4h05m-6h53m after its nominal slot, so a
+            # tolerance tuned to lateness would fire daily and be muted. This
+            # asks whether the schedule has STOPPED.
+            #
+            # Only mirror-screener is listed. alerts.yml is deliberately NOT
+            # here yet: its five cron lines mix weekday-only and every-day
+            # schedules, and nobody has measured what it actually achieves.
+            # Picking a tolerance for it from the cron file would be inventing
+            # the number this check exists to replace.
+            node scripts/freshness-check.mjs --all-prs \
+              --workflow mirror-screener.yml:30
           fi

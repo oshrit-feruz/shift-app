@@ -19,7 +19,12 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { findCoverageMarker, verdict, safeText } from "./freshness-check.mjs";
+import {
+  findCoverageMarker,
+  verdict,
+  safeText,
+  staleBy,
+} from "./freshness-check.mjs";
 
 const HEAD = "3a13ad899af61548f66ffb6ad07f66e92171a125";
 const REVIEWED = "87efa7c98112d8900a8516f4ae4c754e8f166145";
@@ -141,4 +146,51 @@ test("caps length, with a per-call override for diagnostics worth keeping", () =
 test("handles null and undefined rather than printing them unguarded", () => {
   assert.equal(safeText(undefined), "");
   assert.equal(safeText(null), "");
+});
+
+// --- is a scheduled job still firing --------------------------------------
+//
+// A cron job that stops produces no failure, no red check and no notification.
+// It simply stops, and everything downstream keeps serving what it last
+// published — the stale Sonar baseline of #58, pointed at CI.
+//
+// The tolerance is deliberately generous. Every measured run of this repo's
+// screener mirror started 4h05m-6h53m after its nominal slot, so an alarm tuned
+// to lateness would fire constantly and be muted. This asks "has it stopped".
+
+const HOUR = 3_600_000;
+const NOW = Date.parse("2026-09-04T12:00:00Z");
+
+test("a run inside the tolerance is not stale", () => {
+  const r = staleBy(new Date(NOW - 5 * HOUR).toISOString(), 30, NOW);
+  assert.equal(r.stale, false);
+  assert.ok(Math.abs(r.ageHours - 5) < 0.001);
+});
+
+test("a run past the tolerance is stale", () => {
+  const r = staleBy(new Date(NOW - 31 * HOUR).toISOString(), 30, NOW);
+  assert.equal(r.stale, true);
+});
+
+test("lateness alone does not trip it — that is the muting failure", () => {
+  // The worst delay actually measured on this repo: 6h53m. With a daily job on
+  // a 30h tolerance that must still read as healthy, or the alarm cries wolf
+  // every single day and stops being read.
+  const r = staleBy(new Date(NOW - 6.9 * HOUR).toISOString(), 30, NOW);
+  assert.equal(r.stale, false);
+});
+
+test("an unparseable timestamp is stale, not silently fine", () => {
+  // The dangerous direction: NaN comparisons are false, so a naive
+  // `age > max` would call a garbage timestamp healthy.
+  const r = staleBy("not a date", 30, NOW);
+  assert.equal(r.stale, true);
+  assert.match(r.reason, /unparseable/);
+});
+
+test("exactly at the tolerance is not yet stale", () => {
+  assert.equal(
+    staleBy(new Date(NOW - 30 * HOUR).toISOString(), 30, NOW).stale,
+    false,
+  );
 });
