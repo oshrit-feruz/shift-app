@@ -145,10 +145,15 @@ export const DEMO_FLAGS = {
     try {
       const raw = localStorage.getItem(this.key[flag]);
       // A stored value is always an explicit choice, in either direction —
-      // `set` writes '0' for off rather than removing the key. It has to:
-      // with `demoData` defaulting ON, a removed key would read as "on"
-      // again, so turning the switch off would quietly undo itself on the
-      // next load, which is the one thing a switch may never do.
+      // `set` writes '0' for off rather than removing the key. It has to,
+      // and now for a second reason as well as the first. An absent key means
+      // "never chose", which is what `migrateLegacyDemoDefault` reads to tell
+      // an existing install from a new one — so a reader who turned demo OFF
+      // by deleting the key would look like someone who never chose, and the
+      // migration would turn it back ON on the next load. That is the one
+      // thing a switch may never do, and it is what this PR's regression test
+      // covers. The same holds in the other direction now that the default is
+      // OFF: a deleted key would read as "off" and undo a reader's ON.
       if (raw !== null) return raw === '1';
     } catch {
       /* fall through to memory, then to the default */
@@ -160,7 +165,7 @@ export const DEMO_FLAGS = {
     return this.read('unavailable');
   },
   /**
-   * Demo data: one switch, ON by default (see DEFAULTS), that makes every
+   * Demo data: one switch, OFF by default (see DEFAULTS), that makes every
    * figure in the app that has nothing real behind it a sample figure.
    *
    * Price charts draw a generated series instead of the published sessions,
@@ -189,9 +194,11 @@ export const DEMO_FLAGS = {
     memory.set(flag, on);
     try {
       // Both directions are written. See `read`: an absent key means "no
-      // choice yet" and falls back to the default, so recording "off" by
-      // deleting the key would lose the reader's choice for any flag whose
-      // default is on.
+      // choice yet", which falls back to the default and is also what
+      // `migrateLegacyDemoDefault` reads as "this reader never chose". So
+      // recording "off" by deleting the key would lose the reader's choice
+      // either way — no flag defaults ON any more, but the migration would
+      // still restore demo mode for a legacy install that had turned it off.
       localStorage.setItem(this.key[flag], on ? '1' : '0');
     } catch {
       /* no storage — the flag holds for this session but does not persist */
