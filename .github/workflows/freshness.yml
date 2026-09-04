@@ -1,0 +1,86 @@
+name: Are the quality signals still measuring anything
+
+# Turns a habit into an alarm.
+#
+# Twice in one week a green signal in this repo turned out to mean that
+# nothing had run:
+#
+#   - SonarCloud's `main` analysis had been REJECTED since 29 August — the
+#     organisation is on a 50,000-line cap and the project measures 51,379.
+#     Pull-request scans kept succeeding, so every PR carried a "Quality Gate
+#     passed" comment graded against a baseline six days and 176 commits out
+#     of date. Nothing went red, because nothing in CI runs Sonar: it is
+#     SonarCloud's own automatic analysis, so there was no check to fail.
+#     See issue #58.
+#
+#   - CodeRabbit posted a green commit status on a head it had never
+#     reviewed. The status DESCRIPTION read "Review rate limited"; only the
+#     colour said success.
+#
+# Neither is a crash. Both are a measurement that quietly stopped meaning what
+# it appears to mean while continuing to read healthy — which is precisely the
+# kind of failure that survives a human promising to remember to check.
+#
+# ARCHITECTURE.md already requires a publish step to positively confirm what it
+# published. This is the same rule pointed at the reviewers: a green check has
+# to name a review that ran on the CURRENT head, not merely the absence of a
+# failure.
+#
+# The two checks share one script because they ask one question. See
+# scripts/freshness-check.mjs.
+
+on:
+  # On a PR, so a head that has outrun its review is visible on the PR itself
+  # rather than in a log nobody opens. `synchronize` is the important trigger:
+  # it fires on every push to an open PR, which is exactly when the review
+  # coverage goes stale.
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  # And on a clock, because the Sonar baseline can go stale with no PR
+  # activity at all — that is how it went unnoticed for six days.
+  schedule:
+    - cron: "17 7 * * *"
+  workflow_dispatch:
+
+# The default token can read PRs and statuses; nothing here writes.
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: read
+
+jobs:
+  freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The Sonar check compares the baseline's date against main's latest
+          # commit date, so it needs main's history, not just this ref.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # The marker parser has tests; run them before trusting its verdict.
+      # A checker whose own logic is broken is worse than no checker, because
+      # it reports "current" and is believed.
+      - name: Test the checker itself
+        run: node --test "scripts/*.test.mjs"
+
+      - name: Make sure main is present for the date comparison
+        run: git fetch origin main:main --force || git fetch origin main
+
+      - name: Check the signals
+        env:
+          # Absent on a fork PR, and that is handled: the script skips the
+          # Sonar half rather than failing, so a fork contributor does not see
+          # a red X for a secret they cannot have.
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          if [ -n "${{ github.event.pull_request.number }}" ]; then
+            node scripts/freshness-check.mjs --pr ${{ github.event.pull_request.number }}
+          else
+            node scripts/freshness-check.mjs
+          fi
