@@ -76,6 +76,12 @@ const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 
 let failures = 0;
 let ran = 0;
+// Checks this invocation ASKED for, which is not the same as assertions that
+// evaluated. A requested check can be legitimately not-yet-applicable — see
+// the grace period in checkCodeRabbit — and that is a pass, not a
+// misconfiguration. Conflating the two made this script's own first CI run
+// exit 2 on a healthy PR.
+let requested = 0;
 
 /** One assertion. Records a failure without stopping — a run that halts on the
  *  first problem hides the others, and these two signals fail independently. */
@@ -294,10 +300,48 @@ export function findCoverageMarker(comments) {
   return null;
 }
 
+/**
+ * Turns the tallies into an exit code, kept pure so every branch is testable.
+ *
+ * This exists because the interesting case is not "stale" or "current" but the
+ * third one: a check that was requested and turned out not to apply yet. The
+ * first CI run of this very workflow hit it — no SONAR_TOKEN configured, and a
+ * PR head one minute old, inside the review grace period — and exited 2,
+ * putting a red X on a healthy PR. An alarm that is red by default is one
+ * nobody reads, which is the failure this script exists to prevent.
+ *
+ *   2  nothing was even requested — a misconfiguration, not a measurement
+ *   1  something was measured and is stale
+ *   0  everything measured is current, OR every requested check was
+ *      legitimately not applicable yet
+ */
+export function verdict({ failures, ran, requested }) {
+  if (requested === 0) {
+    return {
+      code: 2,
+      message: "nothing was checked — set SONAR_TOKEN and/or pass --pr <n>",
+    };
+  }
+  if (failures > 0) {
+    return {
+      code: 1,
+      message: `${failures} of ${ran} signal(s) stale — a green check here would be lying.`,
+    };
+  }
+  if (ran === 0) {
+    return {
+      code: 0,
+      message: `${requested} check(s) requested, none applicable yet — nothing is stale.`,
+    };
+  }
+  return { code: 0, message: `All ${ran} signal(s) current.` };
+}
+
 async function main() {
   console.log(`freshness-check · repo ${REPO} · sonar project ${PROJECT}\n`);
 
   if (SONAR_TOKEN) {
+    requested += 1;
     console.log("SonarCloud baseline:");
     await checkSonar();
   } else {
@@ -306,14 +350,17 @@ async function main() {
 
   if (PR) {
     if (!GITHUB_TOKEN) throw new Error("--pr needs GITHUB_TOKEN");
+    requested += 1;
     console.log(`\nCodeRabbit review coverage on PR #${PR}:`);
     await checkCodeRabbit();
   } else {
     console.log("\nCodeRabbit review coverage: skipped (no --pr)");
   }
 
-  if (ran === 0)
-    throw new Error("nothing was checked — set SONAR_TOKEN and/or --pr");
+  // The requested === 0 case is NOT thrown here: `verdict` owns the exit code
+  // so that every branch of it is reachable from a test. Throwing would also
+  // route a misconfiguration through the same path as a network failure, and
+  // those deserve different messages.
 }
 
 // Only when run as a command. Importing the module (freshness-check.test.mjs
@@ -325,12 +372,9 @@ if (
 ) {
   main().then(
     () => {
-      console.log(
-        failures === 0
-          ? `\nAll ${ran} signal(s) current.`
-          : `\n${failures} of ${ran} signal(s) stale — a green check here would be lying.`,
-      );
-      process.exit(failures === 0 ? 0 : 1);
+      const v = verdict({ failures, ran, requested });
+      console.log(`\n${v.message}`);
+      process.exit(v.code);
     },
     (err) => {
       console.error(`\nfreshness-check could not run: ${err.message}`);

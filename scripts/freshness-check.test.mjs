@@ -19,7 +19,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { findCoverageMarker } from "./freshness-check.mjs";
+import { findCoverageMarker, verdict } from "./freshness-check.mjs";
 
 const HEAD = "3a13ad899af61548f66ffb6ad07f66e92171a125";
 const REVIEWED = "87efa7c98112d8900a8516f4ae4c754e8f166145";
@@ -72,4 +72,38 @@ test("ignores a comment that merely mentions the marker name in prose", () => {
     body: "the final_review_risk_coverage: marker is stuck on 87efa",
   };
   assert.equal(findCoverageMarker([prose]), null);
+});
+
+// --- exit codes -----------------------------------------------------------
+//
+// These four cases are the whole contract, and the third one is why the
+// function exists: this workflow's own first CI run exited 2 on a healthy PR,
+// because "no requested check was applicable yet" went down the same path as
+// "you configured nothing". A checker that is red by default is one nobody
+// reads — the exact failure it was written to prevent.
+
+test("exit 2 when nothing was even requested — a misconfiguration", () => {
+  const v = verdict({ failures: 0, ran: 0, requested: 0 });
+  assert.equal(v.code, 2);
+  assert.match(v.message, /nothing was checked/);
+});
+
+test("exit 1 when something measured is stale", () => {
+  const v = verdict({ failures: 2, ran: 2, requested: 1 });
+  assert.equal(v.code, 1);
+  assert.match(v.message, /would be lying/);
+});
+
+test("exit 0 when a requested check is not applicable yet — the CI regression", () => {
+  // No SONAR_TOKEN, and a PR head inside the review grace period: one check
+  // requested, none evaluated, nothing wrong. This returned 2 before.
+  const v = verdict({ failures: 0, ran: 0, requested: 1 });
+  assert.equal(v.code, 0);
+  assert.match(v.message, /none applicable yet/);
+});
+
+test("exit 0 when everything measured is current", () => {
+  const v = verdict({ failures: 0, ran: 3, requested: 2 });
+  assert.equal(v.code, 0);
+  assert.match(v.message, /All 3 signal\(s\) current/);
 });
