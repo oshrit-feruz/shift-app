@@ -68,6 +68,19 @@ that has not been pasted into the SQL editor is not live, however green CI is.
   be run *before* deploying the client release that offers that delete: under
   the 0005 policy the delete affects no rows and reports no error, so the
   Sandbox would disappear from the screen and return on the next read.
+- `0011_funnel_events.sql` — **the conversion funnel.** Creates
+  `funnel_events` and the `funnel_summary` view behind it. Like 0006 it has
+  **no RLS policies at all**, so the browser can neither read nor write it;
+  rows arrive only through `app/api/events.ts` under the service-role key,
+  and reading is done from the SQL editor (`docs/funnel.md` has the queries).
+  The table deliberately has **no `user_id` column** — the funnel is counted
+  by an anonymous per-device id and a per-tab session id, neither of which
+  joins to a person. Run it before deploying the release that fires the
+  events; until it is, `/api/events` answers `502 write_failed` and every
+  funnel query reads zero, which is indistinguishable from nobody using the
+  flow. Needs `SUPABASE_SERVICE_ROLE_KEY` set on the deployment, the same
+  variable `/api/delete-account` already requires — without it the route
+  answers `500 not_configured` and records nothing.
 
 ### Verifying the ledger's RLS
 

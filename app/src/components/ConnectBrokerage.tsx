@@ -4,6 +4,7 @@ import { Button } from './Button';
 import { ReasonNote } from './ReasonNote';
 import { useAuth } from '../auth/AuthProvider';
 import { startBrokerageConnection } from '../data/snaptradeAccount';
+import { track } from '../data/analytics';
 import { useT } from '../i18n/useT';
 
 /**
@@ -36,6 +37,20 @@ export function ConnectBrokerage({ card = true }: { card?: boolean } = {}) {
   const signedIn = session.status === 'ok' && session.data !== null;
 
   const connect = async () => {
+    // The other half of the primary KPI. The advisory flow's own broker
+    // screen offers the referral hand-off (screens/advisory/Connect.tsx);
+    // this button is the read-only link itself, and both are the user
+    // acting on the recommendation.
+    //
+    // Worth knowing when reading the funnel: this card lives on the
+    // Connections and connected-account screens, not on the flow's broker
+    // step, so a session can record this stage without having recorded
+    // broker_screen_viewed. The queries in docs/funnel.md count each stage
+    // independently rather than assuming an order, for exactly this reason.
+    //
+    // Recorded before the request, not after: what this measures is the
+    // user acting, and a portal that fails to open is still an act.
+    track('broker_action_clicked');
     setBusy(true);
     setError(null);
     const result = await startBrokerageConnection();

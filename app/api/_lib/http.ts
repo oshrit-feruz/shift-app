@@ -18,6 +18,14 @@ export interface ApiRequest {
    * `Authorization` is not silently ignored — see readBearerToken.
    */
   headers?: Partial<Record<string, string | string[]>>;
+  /**
+   * The parsed request body. The runtime fills this in for a JSON content
+   * type, and leaves it undefined otherwise — so it is typed `unknown`
+   * rather than as any particular shape. A route that reads it is reading
+   * something the caller controls entirely, and must validate every field
+   * before use (see api/events.ts).
+   */
+  body?: unknown;
 }
 
 export interface ApiResponse {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardTitle } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Tag } from '../../components/Tag';
@@ -20,6 +20,7 @@ import { PRICE_REFRESH_MS } from '../../data/quotes';
 import { demoService } from '../../data/demoAdapter';
 import { actionableSignals } from '../../data/recoveryDetector';
 import { CORE_FUNDS, mapProfile, PROFILES, sizeRadar } from '../../lib/advisory';
+import { track } from '../../data/analytics';
 import type { StringKey } from '../../i18n/strings';
 import type { ScreenProps } from '../../App';
 import type { ReactNode } from 'react';
@@ -72,6 +73,12 @@ export function AdvisoryRecommendation(_: ScreenProps) {
   const profileKey = mapProfile(s.advAnswers) ?? 'bal';
   const profile = PROFILES[profileKey];
   const corePct = 100 - profile.satellitePct;
+
+  // The second funnel stage: the user is looking at an allocation. Recorded
+  // on arrival rather than on any interaction with it — "saw their
+  // allocation" is what the stage claims, and scrolling it is not required
+  // for that to be true. Once per session; see data/analytics.ts.
+  useEffect(() => track('reco_completed'), []);
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
