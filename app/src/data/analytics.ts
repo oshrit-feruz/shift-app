@@ -44,19 +44,57 @@ export type FunnelEvent =
 export const FUNNEL_TABLE = 'funnel_events';
 
 /**
- * The stages already recorded in this session, so a view is counted once
- * however many times its screen mounts.
+ * Where the "already recorded in this session" set is kept.
  *
- * Two things make that necessary rather than tidy. React StrictMode (see
- * main.tsx) mounts every component twice in development, and the app swaps
- * screens by remounting them, so navigating away from the allocation and
- * back would file a second `reco_completed` for one person who saw it once.
- * Both would inflate exactly the numbers this table exists to report.
+ * sessionStorage, NOT a module-scope Set alone. The session id itself lives
+ * in sessionStorage (lib/analyticsIds.ts), which survives a reload — so a
+ * guard held only in memory would reset on reload while the id it guards
+ * stayed the same, and returning to a tracked screen would file a second
+ * view row for one session. That is precisely the once-per-session contract
+ * this guard exists to keep, broken by the guard itself.
  *
- * Page-scoped, matching the session id it guards: a reload is a new session
- * and legitimately counts again.
+ * The database enforces the same rule independently (the partial unique
+ * index in 0011_funnel_events.sql), so a duplicate cannot land even if this
+ * fails entirely. This is here to avoid the pointless round trip, and to
+ * make the contract legible where the events are sent from.
+ */
+const SENT_KEY = 'shift.analytics.sent';
+
+/**
+ * The in-memory mirror. Read first because it needs no storage access, and
+ * it is the only guard when storage throws (Safari private mode, cookies
+ * blocked) — where it still covers everything except a reload.
  */
 const sentThisSession = new Set<FunnelEvent>();
+
+/** The stages recorded so far in this session, from both stores. */
+function alreadySent(name: FunnelEvent): boolean {
+  if (sentThisSession.has(name)) return true;
+  try {
+    const raw = sessionStorage.getItem(SENT_KEY);
+    return raw !== null && (JSON.parse(raw) as unknown[]).includes(name);
+  } catch {
+    // No storage, or a value some other tool wrote over ours. The in-memory
+    // set above still holds for this page, and the unique index still holds
+    // for the table.
+    return false;
+  }
+}
+
+/**
+ * Records `name` as sent, in both stores.
+ *
+ * Written BEFORE the insert is attempted, not after it resolves: two mounts
+ * in the same frame would both pass an after-the-fact check and send twice.
+ */
+function markSent(name: FunnelEvent) {
+  sentThisSession.add(name);
+  try {
+    sessionStorage.setItem(SENT_KEY, JSON.stringify([...sentThisSession]));
+  } catch {
+    /* persistence is best-effort; see alreadySent */
+  }
+}
 
 /**
  * Records `name`, at most once per session for the three view events.
@@ -66,10 +104,8 @@ const sentThisSession = new Set<FunnelEvent>();
  */
 export function track(name: FunnelEvent) {
   if (name !== 'broker_action_clicked') {
-    if (sentThisSession.has(name)) return;
-    // Added BEFORE the request, not after it resolves: two mounts in the same
-    // frame would both pass an after-the-fact check and send twice.
-    sentThisSession.add(name);
+    if (alreadySent(name)) return;
+    markSent(name);
   }
   void send(name);
 }
@@ -105,7 +141,12 @@ async function send(name: FunnelEvent): Promise<void> {
   }
 }
 
-/** Test seam: forgets what this session has already recorded. */
+/** Test seam: forgets what this session has already recorded, in both stores. */
 export function resetFunnelSessionForTest() {
   sentThisSession.clear();
+  try {
+    sessionStorage.removeItem(SENT_KEY);
+  } catch {
+    /* nothing to clear */
+  }
 }

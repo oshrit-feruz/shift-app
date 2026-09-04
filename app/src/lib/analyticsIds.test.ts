@@ -35,6 +35,10 @@ const throwing = {
   },
 };
 
+/**
+ * Reimports the module with a clean registry, so each case starts without the
+ * previous one's in-memory fallbacks.
+ */
 async function freshModule() {
   vi.resetModules();
   return import('./analyticsIds');

@@ -55,6 +55,27 @@ create index funnel_events_name_created_idx on public.funnel_events (name, creat
 -- Session-level rollups (did THIS session reach the broker screen?).
 create index funnel_events_session_idx on public.funnel_events (session_id);
 
+-- ONCE PER SESSION for the three view stages, enforced here rather than only
+-- in the client.
+--
+-- The client keeps its own guard (src/data/analytics.ts), but a guard living
+-- in the browser is a guard the browser can lose — a reload, a second tab
+-- restored into the same session, storage that throws — and each of those
+-- would file a second "saw the allocation" row for one person who saw it
+-- once. That inflates precisely the column this table exists to report, so
+-- the rule belongs where it cannot be lost.
+--
+-- It doubles as the cheapest abuse control available without a server: a
+-- signed-in browser can still write a view event it did not earn, but it
+-- cannot write the same one a thousand times to bend a report.
+--
+-- broker_action_clicked is deliberately excluded. Clicking twice is two acts,
+-- and collapsing them would lose the distinction between someone who tried
+-- once and someone who kept trying.
+create unique index funnel_events_one_view_per_session_idx
+  on public.funnel_events (session_id, name)
+  where name <> 'broker_action_clicked';
+
 -- ── Row-Level Security ─────────────────────────────────────────────────
 
 alter table public.funnel_events enable row level security;
@@ -78,7 +99,21 @@ grant insert (name, session_id, anon_id) on public.funnel_events to authenticate
 -- `to authenticated` is the whole access rule: somebody signed in may record
 -- an event. `with check (true)` because there is nothing about the row to
 -- constrain per-user — no user_id to match against auth.uid(), by design.
--- The check constraints on the columns are what keep a malformed row out.
+--
+-- WHAT THIS DOES AND DOES NOT DEFEND AGAINST, stated plainly because these
+-- numbers get quoted in decisions. A signed-in user can write a well-formed
+-- event they did not earn. Three things bound what that is worth: the column
+-- check constraints reject a malformed row, the partial unique index above
+-- caps view stages at one per session, and there is nothing here to steal or
+-- escalate — no identity, and no read access to what anyone else recorded.
+--
+-- What it is NOT is a defence against a determined signed-in user minting
+-- fresh session ids in a loop to pad a stage. Doing better needs
+-- server-controlled ingestion (an allowlist and a rate limit the browser
+-- cannot skip), and the deployment has no serverless function slot left to
+-- put one in — twelve of twelve are spoken for, which is what removed the
+-- route this replaced. So treat these as internal product metrics, honest
+-- about their own precision, and not as figures to defend externally.
 create policy "signed-in insert" on public.funnel_events
   for insert to authenticated with check (true);
 

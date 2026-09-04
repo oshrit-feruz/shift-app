@@ -27,6 +27,40 @@ vi.mock('../lib/analyticsIds', () => ({
   sessionId: () => 's-session-0000-1111-2222-333',
 }));
 
+/**
+ * A sessionStorage that persists across module reloads within a case, which
+ * is what makes the reload test below a real reload: the browser keeps
+ * sessionStorage when the page reloads, and so must this.
+ */
+function installSessionStorage(seed: Record<string, string> = {}) {
+  const store = new Map(Object.entries(seed));
+  vi.stubGlobal('sessionStorage', {
+    getItem: (k: string) => store.get(k) ?? null,
+    setItem: (k: string, v: string) => void store.set(k, v),
+    removeItem: (k: string) => void store.delete(k),
+  });
+  return store;
+}
+
+/** A sessionStorage that throws on every access, as Safari private mode can. */
+function installThrowingSessionStorage() {
+  vi.stubGlobal('sessionStorage', {
+    getItem() {
+      throw new Error('denied');
+    },
+    setItem() {
+      throw new Error('denied');
+    },
+    removeItem() {
+      throw new Error('denied');
+    },
+  });
+}
+
+/**
+ * Reimports the module with a clean module registry — which is exactly what a
+ * page reload does to it, and why it can stand in for one.
+ */
 async function freshModule() {
   vi.resetModules();
   return import('./analytics');
@@ -35,9 +69,13 @@ async function freshModule() {
 beforeEach(() => {
   getSession.mockResolvedValue({ data: { session: { access_token: 'tok' } } });
   insert.mockResolvedValue({ error: null });
+  installSessionStorage();
 });
 
-afterEach(() => vi.clearAllMocks());
+afterEach(() => {
+  vi.clearAllMocks();
+  vi.unstubAllGlobals();
+});
 
 /** Lets the fire-and-forget write settle before assertions. */
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -149,5 +187,62 @@ describe('track', () => {
 
     expect(track('reco_started')).toBeUndefined();
     await settle();
+  });
+
+  it('does not re-record a view stage after a reload of the same session', async () => {
+    // The regression this guards. sessionId() lives in sessionStorage and
+    // survives a reload, so a guard held only in module memory would reset
+    // while the id it guards stayed the same — filing a second
+    // "saw the allocation" for one person who saw it once.
+    const first = await freshModule();
+    first.track('reco_completed');
+    await settle();
+    expect(insert).toHaveBeenCalledTimes(1);
+
+    // The reload: fresh module registry, same sessionStorage.
+    const second = await freshModule();
+    second.track('reco_completed');
+    await settle();
+
+    expect(insert).toHaveBeenCalledTimes(1);
+  });
+
+  it('still records a click after a reload, because a click is not deduplicated', async () => {
+    const first = await freshModule();
+    first.track('broker_action_clicked');
+    await settle();
+
+    const second = await freshModule();
+    second.track('broker_action_clicked');
+    await settle();
+
+    expect(insert).toHaveBeenCalledTimes(2);
+  });
+
+  it('starts fresh when sessionStorage is a new session', async () => {
+    const first = await freshModule();
+    first.track('reco_started');
+    await settle();
+
+    // A genuinely new tab: new sessionStorage, and a new session id with it.
+    installSessionStorage();
+    const second = await freshModule();
+    second.track('reco_started');
+    await settle();
+
+    expect(insert).toHaveBeenCalledTimes(2);
+  });
+
+  it('still deduplicates within a page when storage throws', async () => {
+    // Storage unusable: the in-memory guard is all there is, and it still
+    // covers everything except a reload. The unique index covers the rest.
+    installThrowingSessionStorage();
+    const { track } = await freshModule();
+
+    track('reco_completed');
+    track('reco_completed');
+    await settle();
+
+    expect(insert).toHaveBeenCalledTimes(1);
   });
 });
