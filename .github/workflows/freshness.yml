@@ -75,9 +75,14 @@ jobs:
           # a red X for a secret they cannot have.
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ github.token }}
+        # On a PR event the head is seconds old, so the review check lands
+        # inside its grace period and skips — that run is really just the
+        # Sonar baseline plus fast feedback. The SCHEDULED run is the one that
+        # catches a stale review, because by then a head has had hours to be
+        # covered: it sweeps every open PR.
         run: |
           if [ -n "${{ github.event.pull_request.number }}" ]; then
             node scripts/freshness-check.mjs --pr ${{ github.event.pull_request.number }}
           else
-            node scripts/freshness-check.mjs
+            node scripts/freshness-check.mjs --all-prs
           fi

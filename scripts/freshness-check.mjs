@@ -40,6 +40,9 @@
  *
  * Options:
  *   --pr <n>            also check CodeRabbit's review coverage on that PR
+ *   --all-prs           check review coverage on every open PR. This is the
+ *                       mode that actually catches anything: a push-triggered
+ *                       run always sees a head inside the grace period.
  *   --max-age-days <n>  Sonar baseline staleness tolerance (default 2)
  *   --grace-minutes <n> how long a fresh head is exempt from the review
  *                       check (default 20) — a push-triggered run sees a head
@@ -67,6 +70,7 @@ function arg(name, fallback = null) {
 const REPO = arg("repo", "oshrit-feruz/shift-app");
 const PROJECT = arg("project", "oshrit-feruz_shift-app");
 const PR = arg("pr");
+const ALL_PRS = args.includes("--all-prs");
 const MAX_AGE_DAYS = Number(arg("max-age-days", "2"));
 // How long a new head is given before "no review covers it" counts as stale.
 const GRACE_MIN = Number(arg("grace-minutes", "20"));
@@ -212,6 +216,33 @@ async function checkSonar() {
 }
 
 /**
+ * Every open pull request, for the scheduled sweep.
+ *
+ * WHY THE SWEEP EXISTS. On a `pull_request` event the head is by definition
+ * seconds old, so the review check always lands inside its grace period and
+ * always skips. Wired only to that trigger, the coverage check could never
+ * once fire — it would sit green forever having evaluated nothing, which is
+ * the exact failure this script was written to detect, reproduced by the
+ * script itself. Caught by reading its own first green run's log rather than
+ * its colour.
+ *
+ * The scheduled run is therefore the one that does the work: by then a head
+ * has had hours to be reviewed, and a PR still uncovered is genuinely stale.
+ */
+async function openPullRequests() {
+  const headers = {
+    Authorization: `Bearer ${GITHUB_TOKEN}`,
+    Accept: "application/vnd.github+json",
+    "User-Agent": "shift-freshness-check",
+  };
+  const prs = await getJson(
+    `https://api.github.com/repos/${REPO}/pulls?state=open&per_page=100`,
+    headers,
+  );
+  return prs.map((p) => p.number);
+}
+
+/**
  * Did a CodeRabbit review actually run on this PR's current head?
  *
  * Two reads again, and again because they fail differently:
@@ -224,7 +255,7 @@ async function checkSonar() {
  *     When a push lands after a review, the status may not be re-posted at
  *     all, and this marker is the only thing that still tells the truth.
  */
-async function checkCodeRabbit() {
+async function checkCodeRabbit(prNumber) {
   const headers = {
     Authorization: `Bearer ${GITHUB_TOKEN}`,
     Accept: "application/vnd.github+json",
@@ -232,9 +263,9 @@ async function checkCodeRabbit() {
   };
   const api = `https://api.github.com/repos/${REPO}`;
 
-  const pr = await getJson(`${api}/pulls/${PR}`, headers);
+  const pr = await getJson(`${api}/pulls/${prNumber}`, headers);
   const headSha = pr.head?.sha;
-  if (!headSha) throw new Error(`PR #${PR} reported no head sha`);
+  if (!headSha) throw new Error(`PR #${prNumber} reported no head sha`);
 
   // A review takes time. On a push-triggered run the head is seconds old and
   // no reviewer has had a chance yet, so flagging it would fire on every push
@@ -353,7 +384,8 @@ export function verdict({ failures, ran, requested }) {
   if (requested === 0) {
     return {
       code: 2,
-      message: "nothing was checked — set SONAR_TOKEN and/or pass --pr <n>",
+      message:
+        "nothing was checked — set SONAR_TOKEN and/or pass --pr <n> / --all-prs",
     };
   }
   if (failures > 0) {
@@ -382,13 +414,21 @@ async function main() {
     console.log("SonarCloud baseline: skipped (no SONAR_TOKEN)");
   }
 
-  if (PR) {
-    if (!GITHUB_TOKEN) throw new Error("--pr needs GITHUB_TOKEN");
-    requested += 1;
-    console.log(`\nCodeRabbit review coverage on PR #${PR}:`);
-    await checkCodeRabbit();
+  if (PR || ALL_PRS) {
+    if (!GITHUB_TOKEN) {
+      throw new Error("--pr and --all-prs need GITHUB_TOKEN");
+    }
+    const numbers = PR ? [PR] : await openPullRequests();
+    if (numbers.length === 0) {
+      console.log("\nCodeRabbit review coverage: no open pull requests");
+    }
+    for (const n of numbers) {
+      requested += 1;
+      console.log(`\nCodeRabbit review coverage on PR #${n}:`);
+      await checkCodeRabbit(n);
+    }
   } else {
-    console.log("\nCodeRabbit review coverage: skipped (no --pr)");
+    console.log("\nCodeRabbit review coverage: skipped (no --pr/--all-prs)");
   }
 
   // The requested === 0 case is NOT thrown here: `verdict` owns the exit code
