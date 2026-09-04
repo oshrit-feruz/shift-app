@@ -39,6 +39,26 @@ on:
     # leaves it room to finish; the rest catch same-day republishes and
     # out-of-band runs. Each pass is a couple of HTTP GETs and exits without a
     # commit when nothing changed, so the extra passes cost close to nothing.
+    #
+    # THESE TIMES ARE A REQUEST, NOT A PROMISE. Measured from the Actions API,
+    # every scheduled run under the previous single-pass cron ('15 12 * * *')
+    # started HOURS after its nominal minute — seven runs, seven late:
+    #
+    #   29 Aug  16:43 (4h28m)   01 Sep  16:40 (4h25m)   03 Sep  16:25 (4h10m)
+    #   30 Aug  16:41 (4h26m)   02 Sep  16:35 (4h20m)   04 Sep  16:20 (4h05m)
+    #   31 Aug  19:08 (6h53m)
+    #
+    # GitHub does not guarantee scheduled start times and drops or delays runs
+    # under load; on this repo the delay has been consistent, not occasional.
+    # So read the four entries as ORDERING, not as clock times: in practice the
+    # first pass has been landing around 16:20, well after the engine's 11:30.
+    #
+    # That is the real argument for four passes, and it is not the freshness
+    # one. The data is end-of-day and `computed_on` is daily, so three of four
+    # passes normally find nothing to commit. They are REDUNDANCY against a
+    # queue that has never once delivered on time: four late passes still get
+    # the day's data published the same day, and a single late-or-dropped pass
+    # does not.
     - cron: '15 12,15,19,23 * * *'
   # Manual runs for backfilling after an outage, or to test a change to this
   # workflow without waiting for the next pass.
@@ -344,6 +364,28 @@ jobs:
           mkdir -p "$(dirname "$TARGET")"
           cp /tmp/screener.normalised.json "$TARGET"
 
+      # HOW TO MEASURE THIS JOB, AND TWO WAYS THE OBVIOUS METHOD LIES.
+      #
+      # 1. THE COMMIT LOG COUNTS PUBLICATIONS, NOT RUNS. This step commits only
+      #    when the payload changed, which is the intended behaviour and makes
+      #    `git log` useless for "did the schedule fire". It showed one entry
+      #    per weekday while four passes were configured, and no entries at all
+      #    on 29-30 Aug — a Saturday and Sunday, when the engine computes
+      #    nothing and there is correctly nothing to publish. Absent commits are
+      #    not missed runs. Count runs with the Actions API (event=schedule),
+      #    which reports every attempt whether or not it committed.
+      #
+      # 2. A RED RUN IS NOT NECESSARILY A LOST PUBLICATION. The 02 Sep run shows
+      #    `failure`, and its data published normally that day at 16:35. The red
+      #    is attempt 2 — a manual re-run the following morning, which fetched
+      #    and verified fine and then failed at this step because there was
+      #    nothing new to commit. "Confirm what is now published" was SKIPPED as
+      #    a consequence, so that run positively confirmed nothing while looking
+      #    like it had something to say. Skipped is not passed.
+      #
+      # Neither of these is a bug in this workflow. Both are ways its signals
+      # stop meaning what they appear to mean, which is worth knowing before
+      # anyone reasons from them.
       - name: Commit if the data changed
         run: |
           set -euo pipefail
