@@ -1,19 +1,47 @@
 name: Mirror screener data
 
-# The Recovery Detector engine runs on Render's free tier, which sleeps after
-# ~15 minutes idle and takes 30-60s to wake. The screener recomputes once a
-# day, so there is no reason for the app to pay that cold start on every
-# visit: this job fetches the day's result and commits it into the repo, and
-# the app reads the static file from Vercel's edge instead.
+# The Recovery Detector's daily result is COMPUTED by a GitHub Actions job in
+# the engine repo (weekdays 11:30 UTC) and pushed to its `automation/daily-state`
+# branch as `data/screener_cache/<date>.json`. Render's web service does not
+# compute anything: it fetches that same file over raw.githubusercontent,
+# reshapes it, and serves it at /api/screener. (Engine docs/ARCHITECTURE.md,
+# "Actions computes, Render reads".)
 #
-# The engine's own daily job runs at 11:30 UTC; this runs at 12:15 UTC to
-# leave it room to finish.
+# This job used to fetch from Render. It now goes to the branch directly, for
+# three reasons:
+#
+#   * Render is a link in the chain that adds nothing but latency and failure
+#     modes: a free instance that sleeps after ~15 minutes and takes 30-60s to
+#     wake, plus a one-hour in-process response cache that can hand back a
+#     result older than the branch already has.
+#   * Because of that cold start the old fetch needed --max-time 120 and five
+#     retries, which made running this job more than once a day unattractive.
+#     Reading a static file from raw.githubusercontent costs milliseconds, so
+#     the schedule below can afford several passes a day.
+#   * Several passes a day is the actual fix for the bug that prompted this.
+#     `data/screener_cache/<date>.json` is NOT immutable — a manual
+#     workflow_dispatch or the engine's monthly universe rebuild can republish
+#     the same date with different contents. Mirroring once at 12:15 UTC
+#     captured whichever version existed at that minute and never looked
+#     again. On 2026-09-02 that meant the app showed 2 buy signals where the
+#     engine's final published result had 5, and COIN (rank 1, BUY) did not
+#     reach the app until the following day.
+#
+# The cost of skipping Render is that this job must do the reshaping Render did.
+# That is the `Normalise` step below, and it is not cosmetic: Render converts
+# `drawdown_pct` from a fraction to a percentage, so a naive passthrough would
+# publish 0.548 where the app expects 54.8 and every drawdown in the product
+# would read as roughly 1/100th of its real size.
 
 on:
   schedule:
-    - cron: '15 12 * * *'
+    # The engine's daily run fires at 11:30 UTC on weekdays. The first pass
+    # leaves it room to finish; the rest catch same-day republishes and
+    # out-of-band runs. Each pass is a couple of HTTP GETs and exits without a
+    # commit when nothing changed, so the extra passes cost close to nothing.
+    - cron: '15 12,15,19,23 * * *'
   # Manual runs for backfilling after an outage, or to test a change to this
-  # workflow without waiting a day.
+  # workflow without waiting for the next pass.
   workflow_dispatch:
 
 # Least privilege: the only write this job needs is its own commit.
@@ -25,11 +53,21 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  SCREENER_URL: https://stock-screener-7lvr.onrender.com/api/screener
+  # The engine's published-state branch. Public, so raw.githubusercontent
+  # serves it anonymously; if the repo is ever made private every fetch below
+  # returns 404 and this job fails the "no snapshot found" gate loudly, which
+  # is the correct outcome — it does not degrade into publishing nothing while
+  # reporting success.
+  RAW_BASE: https://raw.githubusercontent.com/oshrit-feruz/stock-screener/automation/daily-state/data/screener_cache
   TARGET: app/public/data/screener.json
   # Must match MAX_SNAPSHOT_AGE_DAYS in app/src/data/recoveryDetector.ts. If
   # they drift apart this job can publish a snapshot the app refuses to read,
   # which is the one outcome the verification here exists to avoid.
+  #
+  # It doubles as the walk-back window below, and the two uses agree by
+  # construction: there is no point fetching a snapshot older than the app
+  # will accept. Render applies the same 4-day lookback for the same reason
+  # (_DAILY_STATE_LOOKBACK_DAYS in product/api/main.py).
   MAX_SNAPSHOT_AGE_DAYS: 4
 
 jobs:
@@ -38,19 +76,138 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch screener response
+      - name: Find and fetch the newest published snapshot
         run: |
           set -euo pipefail
-          # --fail turns a non-2xx into a non-zero exit instead of happily
-          # writing an error page into the payload. The retry flags cover
-          # Render's cold start: the instance is very likely asleep at this
-          # hour, and the first request can take the better part of a minute.
-          curl --fail --silent --show-error \
-               --retry 5 --retry-delay 15 --retry-all-errors \
-               --max-time 120 \
-               -H 'Accept: application/json' \
-               -o /tmp/screener.fetched.json \
-               "$SCREENER_URL"
+          # There is no "latest.json" on the branch — files are named by date,
+          # so finding the newest one means walking back from today. Today's
+          # file does not exist on weekends, holidays, or any weekday morning
+          # before the engine's 11:30 UTC run, and 404 is the ordinary answer
+          # in all three cases, not an error.
+          #
+          # The file's own date is its provenance: whichever day we land on
+          # becomes `computed_on`, exactly as Render derives it from the
+          # filename rather than from the payload. The app displays it, so a
+          # Friday scan shown on Sunday says Friday.
+          FOUND=''
+          for DELTA in $(seq 0 "$MAX_SNAPSHOT_AGE_DAYS"); do
+            D="$(date -u -d "$DELTA days ago" +%Y-%m-%d)"
+            # --fail so a 404 is a non-zero exit rather than an error page
+            # written into the payload. No long timeouts or retry storms are
+            # needed here: this is a static file on a CDN, not a sleeping
+            # instance. A couple of retries still cover a transient blip.
+            #
+            # Deliberately NOT --retry-all-errors: 404 is the expected answer
+            # for a day the engine has not published, and retrying it would
+            # spend 15s and four scary-looking log lines per walk-back step to
+            # re-confirm a fact curl already established. Plain --retry covers
+            # what should be retried (timeouts, 5xx, 429) and passes 404
+            # straight through to the walk-back.
+            if curl --fail --silent --show-error \
+                    --retry 3 --retry-delay 5 \
+                    --max-time 30 \
+                    -H 'Accept: application/json' \
+                    -H 'Cache-Control: no-cache' \
+                    -o /tmp/screener.raw.json \
+                    "$RAW_BASE/$D.json"; then
+              echo "Found published snapshot for $D"
+              FOUND="$D"
+              break
+            fi
+            echo "No published snapshot for $D — walking back."
+          done
+
+          if [ -z "$FOUND" ]; then
+            echo "::error::No published snapshot in the last $MAX_SNAPSHOT_AGE_DAYS days — refusing to publish. Check the engine's daily-screener workflow."
+            exit 1
+          fi
+
+          # `case` matches the WHOLE value, so nothing unexpected can ride into
+          # $GITHUB_ENV on a second line. The value comes from `date` here so
+          # this is belt-and-braces, but the variable is used in a commit
+          # message and a filename below and the check costs nothing.
+          case "$FOUND" in
+            [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;;
+            *) echo "::error::Snapshot date $FOUND is malformed"; exit 1 ;;
+          esac
+          echo "COMPUTED_ON=$FOUND" >> "$GITHUB_ENV"
+
+      - name: Normalise the branch payload into the shape the app reads
+        run: |
+          set -euo pipefail
+          # This step reproduces `_row_to_dict` and `_screener_payload` from the
+          # engine's product/api/main.py — the transformation Render applied
+          # between the branch file and /api/screener. It is transcribed from
+          # that source, not inferred from sample output, because two of the
+          # renames are invisible in a casual comparison and one of the unit
+          # changes is silently catastrophic:
+          #
+          #   as_of_date    -> as_of, and computed_on comes from the filename
+          #   current_price -> price
+          #   drawdown_pct  -> abs(x) * 100        <- fraction to percentage
+          #
+          # Carried through unchanged: market_regime, satellite_policy, gate,
+          # signal, veto_reason, active, target_exit_date, high_52w, and the
+          # four scores.
+          #
+          # Two deliberate departures from Render's output:
+          #
+          #   * `schema_version` is dropped. Render stamped it from a constant
+          #     compiled into the service; the branch file does not carry one,
+          #     so this job cannot know it and will not assert it. Nothing in
+          #     the app reads the field (grep app/src app/api).
+          #   * `universe_fingerprint` is carried through, where Render dropped
+          #     it. It is real provenance from the engine and it is what tells
+          #     two same-dated snapshots apart — the exact question that was
+          #     unanswerable while chasing the republish bug above. Additive,
+          #     and the app picks known keys.
+          #
+          # Rounding: jq's `round` breaks ties away from zero, Python's breaks
+          # them to even. On the 2026-09-03 snapshot that changed 2 values out
+          # of 100 rows, both by one cent (GS high_52w 1146.45 -> 1146.46,
+          # CSCO price 109.45 -> 109.46). Reproducing banker's rounding in jq
+          # to chase byte-parity with a service we are removing is not worth
+          # it; the ordinary convention is the better default and the size of
+          # the difference is stated here rather than left to be rediscovered.
+          #
+          # Nulls pass through as null rather than becoming 0. That is the
+          # app's data contract: a price we do not have renders as an em dash,
+          # never as a plausible-looking figure.
+          cat > /tmp/normalise.jq <<'JQ'
+          def r($n): if . == null then null else (. * pow(10; $n) | round) / pow(10; $n) end;
+
+          def row: {
+            ticker:           .ticker,
+            price:            (.current_price | r(2)),
+            high_52w:         (.high_52w      | r(2)),
+            drawdown_pct:     (if .drawdown_pct == null then null
+                               else (.drawdown_pct | fabs) * 100 | r(1) end),
+            composite_score:  (.composite_score | r(4)),
+            dip_score:        (.dip_score       | r(4)),
+            momentum_score:   (.momentum_score  | r(4)),
+            volume_score:     (.volume_score    | r(4)),
+            gate:             .gate,
+            signal:           .signal,
+            veto_reason:      .veto_reason,
+            active:           .active,
+            target_exit_date: .target_exit_date,
+          };
+
+          {
+            as_of:                .as_of_date,
+            computed_on:          $computed_on,
+            market_regime:        .market_regime,
+            satellite_policy:     .satellite_policy,
+            universe_fingerprint: .universe_fingerprint,
+            buy_signals:          [ .buy_signals[]  | row ],
+            full_ranking:         [ .full_ranking[] | row ],
+          }
+          JQ
+
+          # Stable key order and fixed indent so the diff between passes shows
+          # real data changes rather than incidental reordering.
+          jq -S --indent 2 --arg computed_on "$COMPUTED_ON" \
+             -f /tmp/normalise.jq /tmp/screener.raw.json > /tmp/screener.normalised.json
 
       - name: Verify the payload before publishing it
         run: |
@@ -61,52 +218,90 @@ jobs:
           # positively on the content, and fail loudly if it is not what we
           # expect — leaving the previous good file untouched, because nothing
           # has been copied over it yet at this point.
-          test -s /tmp/screener.fetched.json \
-            || { echo "::error::Fetched file is empty"; exit 1; }
+          RAW=/tmp/screener.raw.json
+          OUT=/tmp/screener.normalised.json
 
-          jq -e 'type == "object"' /tmp/screener.fetched.json > /dev/null \
+          test -s "$OUT" || { echo "::error::Normalised file is empty"; exit 1; }
+
+          jq -e 'type == "object"' "$OUT" > /dev/null \
             || { echo "::error::Payload is not a JSON object"; exit 1; }
 
-          jq -e '.full_ranking | type == "array"' /tmp/screener.fetched.json > /dev/null \
+          jq -e '.full_ranking | type == "array"' "$OUT" > /dev/null \
             || { echo "::error::full_ranking is missing or not an array"; exit 1; }
 
-          COUNT="$(jq '.full_ranking | length' /tmp/screener.fetched.json)"
+          COUNT="$(jq '.full_ranking | length' "$OUT")"
           if [ "$COUNT" -lt 1 ]; then
             echo "::error::full_ranking is empty ($COUNT entries) — refusing to publish"
             exit 1
           fi
 
-          # EVERY row must carry a usable identity, not merely one of them.
-          # Be strict in what we publish, lenient in what we read: the parser
-          # deliberately drops an unidentifiable row rather than rendering it
-          # (mapSignal returns null), so a partly-broken payload would render
-          # fine — but it would also mean the engine emitted something wrong,
-          # and publishing it under a step named "verify" is the sort of
-          # quiet half-success this whole job exists to refuse. Failing here
-          # is loud and costs nothing: the previous good file stays in place,
-          # and the app's MAX_SNAPSHOT_AGE_DAYS window covers the gap while
-          # someone looks at the engine.
-          #
-          # `ticker // symbol` because the parser accepts either, and trailing
-          # whitespace is trimmed there too — this gate must match mapSignal
-          # exactly, or it goes back to disagreeing with the reader.
-          jq -e 'all(.full_ranking[];
-                     (if type == "object" then ((.ticker // .symbol) // "") else "" end)
-                     | type == "string" and (gsub("^\\s+|\\s+$"; "") | length) > 0)' \
-            /tmp/screener.fetched.json > /dev/null \
-            || { echo "::error::A full_ranking entry has no usable ticker — refusing to publish"; exit 1; }
+          # EVERY per-row gate below runs over BOTH arrays, not just the
+          # ranking. `buy_signals` is normalised and published separately, and
+          # extractBuySignals() in the app reads it FIRST — it only falls back
+          # to filtering full_ranking when buy_signals is absent. So a payload
+          # whose ranking is entirely well-formed can still put a bad row in
+          # front of the user through the array the app actually prefers.
+          # Checking only full_ranking looks thorough and leaves the primary
+          # path unguarded. (Caught in review on this PR: with the ranking
+          # left valid, a raw buy_signals drawdown of 2 passed every check and
+          # published as 200.)
+          for KEY in full_ranking buy_signals; do
+            # The normalisation must not lose rows. A jq typo that filtered
+            # instead of mapped would still produce a valid, plausible file.
+            IN="$(jq --arg k "$KEY" '.[$k] | length' "$RAW")"
+            ON="$(jq --arg k "$KEY" '.[$k] | length' "$OUT")"
+            if [ "$IN" != "$ON" ]; then
+              echo "::error::Normalisation changed $KEY from $IN to $ON entries — refusing to publish"
+              exit 1
+            fi
+
+            # The unit conversion, checked in both directions. This is the one
+            # transformation that fails silently: 0.548 and 54.8 are both
+            # perfectly plausible numbers, and getting it backwards would make
+            # every drawdown in the app read as a hundredth of its real size
+            # with nothing anywhere reporting an error.
+            jq -e --arg k "$KEY" 'all(.[$k][];
+                       .drawdown_pct == null or (.drawdown_pct >= 0 and .drawdown_pct <= 100))' \
+              "$OUT" > /dev/null \
+              || { echo "::error::A normalised drawdown_pct in $KEY is outside 0-100 — refusing to publish"; exit 1; }
+
+            jq -e --arg k "$KEY" 'all(.[$k][];
+                       .drawdown_pct == null or ((.drawdown_pct | fabs) <= 1.0))' \
+              "$RAW" > /dev/null \
+              || { echo "::error::A raw drawdown_pct in $KEY is outside 0-1 — the engine has changed units, which makes the *100 in the normalise step wrong. Refusing to publish."; exit 1; }
+
+            # EVERY row must carry a usable identity, not merely one of them.
+            # Be strict in what we publish, lenient in what we read: the parser
+            # deliberately drops an unidentifiable row rather than rendering it
+            # (mapSignal returns null), so a partly-broken payload would render
+            # fine — but it would also mean the engine emitted something wrong,
+            # and publishing it under a step named "verify" is the sort of
+            # quiet half-success this whole job exists to refuse. Failing here
+            # is loud and costs nothing: the previous good file stays in place,
+            # and the app's MAX_SNAPSHOT_AGE_DAYS window covers the gap while
+            # someone looks at the engine.
+            #
+            # `ticker // symbol` because the parser accepts either, and trailing
+            # whitespace is trimmed there too — this gate must match mapSignal
+            # exactly, or it goes back to disagreeing with the reader.
+            jq -e --arg k "$KEY" 'all(.[$k][];
+                       (if type == "object" then ((.ticker // .symbol) // "") else "" end)
+                       | type == "string" and (gsub("^\\s+|\\s+$"; "") | length) > 0)' \
+              "$OUT" > /dev/null \
+              || { echo "::error::A $KEY entry has no usable ticker — refusing to publish"; exit 1; }
+          done
 
           # The app refuses a snapshot with no date, an impossible date, or one
           # older than MAX_SNAPSHOT_AGE_DAYS. Publishing such a payload would
           # replace a good file with one the app then rejects — the Satellite
           # card would go unavailable for the day, which is precisely what this
-          # step exists to prevent. So apply the same rules here.
-          COMPUTED_ON="$(jq -r '(.computed_on // .as_of) // ""' /tmp/screener.fetched.json)"
+          # step exists to prevent. So apply the same rules here. The walk-back
+          # above already bounds this, but that is an argument for the check
+          # being cheap, not for trusting it: read the value out of the file
+          # that is about to be published.
+          COMPUTED_ON_FILE="$(jq -r '(.computed_on // .as_of) // ""' "$OUT")"
 
-          # `case` matches the WHOLE value, so a crafted multi-line string
-          # cannot pass by having one valid-looking line — which also stops it
-          # injecting extra variables when appended to $GITHUB_ENV below.
-          case "$COMPUTED_ON" in
+          case "$COMPUTED_ON_FILE" in
             [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;;
             *)
               echo "::error::Snapshot date is missing or malformed — refusing to publish"
@@ -117,8 +312,8 @@ jobs:
           # Shape alone is not enough: 2026-02-31 has the right shape and is not
           # a real day. GNU date rejects it, where a naive parse would roll it
           # forward into March and read as plausible.
-          if ! SNAP_TS="$(date -u -d "$COMPUTED_ON" +%s 2>/dev/null)"; then
-            echo "::error::Snapshot date $COMPUTED_ON is not a real calendar date — refusing to publish"
+          if ! SNAP_TS="$(date -u -d "$COMPUTED_ON_FILE" +%s 2>/dev/null)"; then
+            echo "::error::Snapshot date $COMPUTED_ON_FILE is not a real calendar date — refusing to publish"
             exit 1
           fi
 
@@ -132,25 +327,22 @@ jobs:
           TODAY_TS="$(date -u -d "$(date -u +%Y-%m-%d)" +%s)"
           AGE_DAYS=$(( ( TODAY_TS - SNAP_TS ) / 86400 ))
           if [ "$AGE_DAYS" -gt "$MAX_SNAPSHOT_AGE_DAYS" ]; then
-            echo "::error::Snapshot is $AGE_DAYS days old (computed_on=$COMPUTED_ON) — refusing to publish"
+            echo "::error::Snapshot is $AGE_DAYS days old (computed_on=$COMPUTED_ON_FILE) — refusing to publish"
             exit 1
           fi
           if [ "$AGE_DAYS" -lt -1 ]; then
-            echo "::error::Snapshot is dated in the future (computed_on=$COMPUTED_ON) — refusing to publish"
+            echo "::error::Snapshot is dated in the future (computed_on=$COMPUTED_ON_FILE) — refusing to publish"
             exit 1
           fi
 
-          echo "Verified: $COUNT ranking entries, computed_on=$COMPUTED_ON, age=${AGE_DAYS}d"
+          echo "Verified: $COUNT ranking entries, computed_on=$COMPUTED_ON_FILE, age=${AGE_DAYS}d"
           echo "COUNT=$COUNT" >> "$GITHUB_ENV"
-          echo "COMPUTED_ON=$COMPUTED_ON" >> "$GITHUB_ENV"
 
       - name: Write the verified payload into the repo
         run: |
           set -euo pipefail
           mkdir -p "$(dirname "$TARGET")"
-          # Normalise formatting (stable key order, fixed indent) so the daily
-          # diff shows real data changes rather than incidental key reordering.
-          jq -S --indent 2 '.' /tmp/screener.fetched.json > "$TARGET"
+          cp /tmp/screener.normalised.json "$TARGET"
 
       - name: Commit if the data changed
         run: |
@@ -171,14 +363,14 @@ jobs:
 
           git commit -m "Mirror screener data (computed_on=$COMPUTED_ON, $COUNT entries)"
 
-          # Minutes can pass between checkout and here — the fetch step alone
-          # allows 120s plus retries, because the engine is usually asleep at
-          # this hour. If someone pushed to the branch in that window this push
-          # is rejected as non-fast-forward, and the day's mirror would simply
-          # be dropped until tomorrow. Rebase onto whatever landed and retry
-          # once; this commit only touches the mirror file, so it replays
-          # cleanly unless something else edited that same file, and a genuine
-          # conflict still fails the job loudly rather than resolving itself.
+          # Several passes a day means several chances to race a human push, and
+          # the concurrency group only serialises this workflow against itself.
+          # If someone pushed to the branch between checkout and here this push
+          # is rejected as non-fast-forward, and the pass would be dropped.
+          # Rebase onto whatever landed and retry once; this commit only touches
+          # the mirror file, so it replays cleanly unless something else edited
+          # that same file, and a genuine conflict still fails the job loudly
+          # rather than resolving itself.
           if ! git push; then
             echo "Push rejected — branch moved. Rebasing onto it and retrying once."
             git pull --rebase --autostash
