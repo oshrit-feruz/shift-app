@@ -11,7 +11,6 @@ import { TickerTile } from '../components/TickerTile';
 import { DataState, EmptyState } from '../components/DataState';
 import { Skeleton, SkeletonChart, SkeletonLine, SkeletonList, SkeletonText } from '../components/Skeleton';
 import { ProgressTrack } from '../components/Progress';
-import { DemoOnly } from '../components/DemoOnly';
 import { AdvisoryBand } from './home/AdvisoryBand';
 import { useAppState, useDispatch, setupProgress } from '../state/appState';
 import { useTheme } from '../theme/ThemeProvider';
@@ -54,7 +53,7 @@ export function HomeScreen({ openSearch }: ScreenProps) {
 
       {/* A connected brokerage account outranks the sample-data switch: it is
           not sample data, so the hero shows even with that switch off. */}
-      {beg && (live || demo ? <HeroPortfolio /> : <DemoOnly feature="home.pfToday" />)}
+      {beg && (live || demo ? <HeroPortfolio /> : <NothingHeldYet />)}
 
       {setup.showBanner && (
         <Card
@@ -328,7 +327,48 @@ function monthLabel(iso: string, language: 'en' | 'he'): string {
 function ProMetrics({ demo, live }: Readonly<{ demo: boolean; live: boolean }>) {
   if (demo) return <MetricStripDemo />;
   if (live) return <HeroPortfolio />;
-  return <DemoOnly feature="home.pfToday" />;
+  // Advanced mode gets the same empty state as beginner mode, for the same
+  // reason: with sample data off by default this is the common case, not the
+  // edge one, and "only in demo" leaves a reader with nothing to do.
+  return <NothingHeldYet />;
+}
+
+/**
+ * What the hero slot shows to a reader with no connected account and sample
+ * data off — which, now that sample data is off by default, is what most
+ * first-time readers see.
+ *
+ * It replaced `<DemoOnly feature="home.pfToday"/>`, and the difference is the
+ * point. "Your portfolio today — only in demo" is true and useless: it names
+ * a thing the reader cannot have and offers nothing to do about it. This says
+ * what is actually the case (nothing is connected yet) and offers the one
+ * next step the app is confident about.
+ *
+ * One action, not two. A "connect a broker" button belongs here too by
+ * symmetry, and is deliberately left out: someone with nothing to connect
+ * yet would have to pick between two doors without knowing which is theirs,
+ * and connecting is already reachable from the flow this button opens, one
+ * screen in.
+ */
+function NothingHeldYet() {
+  const dispatch = useDispatch();
+  const t = useT();
+  return (
+    <Card padding={18} gap={8} style={{ textAlign: 'center', alignItems: 'center' }}>
+      <span style={{ fontFamily: 'var(--font-heading)', fontSize: 'var(--text-title)' }}>
+        {t('empty.pfTitle')}
+      </span>
+      <p className="text-muted" style={{ fontSize: 'var(--text-row)', margin: 0, lineHeight: 1.5 }}>
+        {t('empty.pfBody')}
+      </p>
+      <Button
+        onClick={() => dispatch({ type: 'advGoto', screen: 'advChat', solo: false })}
+        style={{ marginTop: 6 }}
+      >
+        {t('empty.startFlow')}
+      </Button>
+    </Card>
+  );
 }
 
 /**

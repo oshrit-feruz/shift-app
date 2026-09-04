@@ -87,6 +87,15 @@ export function MoreScreen(_: ScreenProps) {
             <span style={{ display: 'block', fontSize: 'var(--text-row)', fontWeight: 500 }}>
               {t('more.demoData')}
             </span>
+            {/* What the switch is FOR, right under its name. It reads as a
+                tool now rather than as a state the app happens to be in:
+                off by default, turned on deliberately for a walkthrough. */}
+            <span
+              className="text-muted"
+              style={{ display: 'block', fontSize: 'var(--text-caption)', marginTop: 2, lineHeight: 1.4 }}
+            >
+              {t('more.demoDataFor')}
+            </span>
           </span>
           <Toggle label={t('more.demoData')} on={demo} onChange={setDemo} />
         </div>

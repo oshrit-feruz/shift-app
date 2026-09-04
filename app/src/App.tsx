@@ -12,6 +12,7 @@ import {
 import { AppHeader } from './components/AppHeader';
 import { TabBar } from './components/TabBar';
 import { AppBackground } from './components/AppBackground';
+import { DemoBadge } from './components/DemoBadge';
 import { useAppState, useDispatch, type Screen } from './state/appState';
 import { BackStackProvider, useBackEntries } from './state/backStack';
 import { useT } from './i18n/useT';
@@ -410,6 +411,8 @@ function AppShell() {
           </Suspense>
         </div>
         <BackToStepsPill />
+        {/* Renders nothing unless sample data is on — see DemoBadge. */}
+        <DemoBadge />
         <TabBar
           current={s.screen}
           onGo={(screen) => dispatch({ type: 'go', screen })}
