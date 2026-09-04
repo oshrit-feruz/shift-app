@@ -459,6 +459,50 @@ function ChangeLine({
  * closed position is history, and history belongs under what is still open
  * rather than mixed into it where it reads as a live holding of zero shares.
  */
+/**
+ * An empty portfolio, with somewhere to go from it.
+ *
+ * This is the state most readers actually land on now that sample data is off
+ * by default: every account gets a Sandbox at signup
+ * (supabase/migrations/0005_ledger.sql), so the Portfolio tab is never truly
+ * "no portfolios" — it is one portfolio holding nothing. The bare
+ * "No positions yet" line that used to sit here was accurate and terminal.
+ *
+ * Two routes out, because at this point they are genuinely different
+ * questions and the reader knows which is theirs: someone who has a trade in
+ * mind logs it, and someone who does not needs a starting allocation. The
+ * ledger route stays the plain text it always was, and only the flow gets a
+ * button — one primary action per screen.
+ */
+function EmptyHoldings() {
+  const dispatch = useDispatch();
+  const t = useT();
+  return (
+    <div style={{ padding: '10px 0 14px', textAlign: 'center' }}>
+      <div style={{ fontSize: 'var(--text-row)' }}>{t('empty.sandboxTitle')}</div>
+      <p
+        className="text-muted"
+        style={{
+          fontSize: 'var(--text-caption)',
+          margin: '4px auto 12px',
+          maxWidth: 320,
+          lineHeight: 1.45,
+        }}
+      >
+        {t('empty.sandboxBody')}
+      </p>
+      <Button
+        fontSize={16}
+        minHeight={38}
+        alignSelf="center"
+        onClick={() => dispatch({ type: 'advGoto', screen: 'advChat', solo: false })}
+      >
+        {t('empty.startFlow')}
+      </Button>
+    </div>
+  );
+}
+
 function Holdings({
   rows,
   view,
@@ -468,7 +512,7 @@ function Holdings({
   const t = useT();
   const held = rows.filter((h) => h.shares !== 0);
   const closed = rows.filter((h) => h.shares === 0);
-  if (rows.length === 0) return <EmptyState>{t('pf.holdingsEmpty')}</EmptyState>;
+  if (rows.length === 0) return <EmptyHoldings />;
   return (
     <>
       {held.map((h) => (

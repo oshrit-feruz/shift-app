@@ -501,6 +501,32 @@ export const STRINGS = {
   // Verbless in Hebrew on purpose — see the note in components/DemoOnly.tsx
   // about agreement across the feature names.
   'demo.only': p('{feature} is only available in demo', '{feature} — רק בדמו'),
+  // The badge every screen carries while sample data is on. Deliberately the
+  // same two words the switch itself uses (more.demoData) — a reader who
+  // wonders what the badge means should find the thing that turns it off
+  // under the same name.
+  'demo.badge': p('Sample data', 'נתוני דמו'),
+  'demo.badgeAria': p('Sample data is on — figures are illustrative', 'נתוני דמו פעילים — הנתונים להמחשה'),
+  // The empty states that replaced the "only available in demo" placeholders
+  // on the two screens a reader with no holdings actually lands on. One next
+  // action each, and it is the same action: the four questions.
+  'empty.pfTitle': p('Nothing here yet', 'עדיין אין כאן כלום'),
+  'empty.pfBody': p(
+    'When an account is connected, its holdings appear here. Not sure what to hold? Four questions give you a starting allocation.',
+    'כשמחברים חשבון, ההחזקות שלו מופיעות כאן. לא בטוחים במה להחזיק? ארבע שאלות נותנות חלוקה להתחלה.',
+  ),
+  'empty.sandboxTitle': p('This portfolio is empty', 'התיק הזה ריק'),
+  'empty.sandboxBody': p(
+    'Log a trade you are considering and follow how it would have done. Or answer four questions and start from a suggested allocation.',
+    'אפשר לרשום עסקה ששוקלים ולעקוב איך היא הייתה מתנהגת. או לענות על ארבע שאלות ולהתחיל מחלוקה מוצעת.',
+  ),
+  'empty.startFlow': p('Answer four questions', 'לענות על ארבע שאלות'),
+  // Sits under the switch now that it is off by default: says what it is FOR,
+  // rather than only what it does.
+  'more.demoDataFor': p(
+    'For walkthroughs and screenshots. Off by default — with it on, every screen says so.',
+    'להדגמות ולצילומי מסך. כבוי כברירת מחדל — כשהוא דלוק, כל מסך אומר זאת.',
+  ),
   'earn.scheduledOnly': p(
     'This week and the next: reports still to come. Days already past are empty here because the feed carries only what has not happened yet — published results appear on each stock’s own page.',
     'השבוע הזה והבא: דוחות שעוד צפויים. ימים שכבר עברו ריקים כאן, כי הפיד מכיל רק את מה שטרם קרה — תוצאות שכבר פורסמו מופיעות בדף של כל מניה.',

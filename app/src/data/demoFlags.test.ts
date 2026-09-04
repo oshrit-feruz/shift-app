@@ -3,8 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 /**
  * The switch's defaults, and the one way a default can go wrong.
  *
- * `demoData` starts ON, which makes "off" a stored state rather than an
- * absent one. That is the whole risk this file exists to hold down: while the
+ * `demoData` starts OFF now, and `set` still writes BOTH directions
+ * explicitly — which is what lets migrateLegacyDemoDefault tell "chose off"
+ * apart from "never chose". That is the whole risk this file exists to hold down: while the
  * default was off, recording "off" by deleting the key was harmless, and the
  * moment the default flips it becomes a switch that undoes itself on reload.
  *
@@ -42,9 +43,9 @@ afterEach(() => {
 });
 
 describe('defaults', () => {
-  it('starts with sample data ON, so a first run has something to look at', async () => {
+  it('starts with sample data OFF, so a first run is about the reader’s own money', async () => {
     withStorage();
-    expect((await freshFlags()).demoData).toBe(true);
+    expect((await freshFlags()).demoData).toBe(false);
   });
 
   it('starts with the QA switch off', async () => {
@@ -56,7 +57,7 @@ describe('defaults', () => {
 
   it('keeps the default when storage cannot be reached at all', async () => {
     withBrokenStorage();
-    expect((await freshFlags()).demoData).toBe(true);
+    expect((await freshFlags()).demoData).toBe(false);
   });
 });
 

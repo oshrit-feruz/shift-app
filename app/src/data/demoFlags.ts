@@ -27,15 +27,28 @@ const memory = new Map<DemoFlag, boolean>();
 /**
  * What each flag answers before anyone has chosen.
  *
- * `demoData` starts ON. The app is a demonstration first: with it off, a
- * first-time reader lands on a home screen where the movers card, the
- * portfolio and the earnings week are all "only available in demo"
- * placeholders and the watchlist is empty, so there is nothing on screen to
- * look at — including none of the live prices, because a price needs a stock
- * to be about. On, the app shows itself, and every invented figure in it is
- * still labelled as sample data by the switch that produced it. The live
- * halves stay live either way: prices and the day change beside them come
- * from the quote route with the switch in either position.
+ * `demoData` starts OFF. It used to start ON, and the argument for that was
+ * real: with it off a first-time reader landed on a home screen of "only
+ * available in demo" placeholders and an empty watchlist, so there was
+ * nothing to look at. The argument stopped holding once the app grew a front
+ * door. A reader with no holdings now has something specific to do — answer
+ * four questions and get an allocation — and showing them six invented
+ * positions instead answers a question they never asked, in a way that
+ * quietly implies the app already knows what they hold.
+ *
+ * It is also what makes "does this user hold anything" a question the app can
+ * answer at all. While the default was ON, every new reader looked like
+ * someone with a populated portfolio, because that is what the switch
+ * fabricated for them.
+ *
+ * Demo mode has not gone away and is not hidden: the switch is in the More
+ * tab, one tap, and while it is on every screen carries a badge saying so
+ * (components/DemoBadge.tsx). Turning it on is now something someone does on
+ * purpose — for a walkthrough, a screenshot, a partner demo — which is what
+ * it was always for.
+ *
+ * Existing installs are NOT flipped out from under their reader: see
+ * `migrateLegacyDemoDefault` below.
  *
  * `unavailable` starts off: it is a QA switch for rendering failure states on
  * purpose, which is not a state to put a reader in without them asking.
@@ -47,7 +60,7 @@ const memory = new Map<DemoFlag, boolean>();
  */
 const DEFAULTS: Record<DemoFlag, boolean> = {
   unavailable: false,
-  demoData: true,
+  demoData: false,
 };
 
 /**
@@ -59,6 +72,60 @@ const DEFAULTS: Record<DemoFlag, boolean> = {
  * the two cannot drift.
  */
 const listeners = new Set<() => void>();
+
+/**
+ * The key the app's persisted state lives under (state/appState.tsx). Read
+ * here only to answer one question: has this browser used Shift before?
+ */
+const APP_STATE_KEY = 'shift.state';
+
+/**
+ * Keeps demo mode ON for installs that were already using it, now that the
+ * default has flipped to OFF.
+ *
+ * THE PROBLEM THIS SOLVES. `read` treats an ABSENT key as "no choice yet" and
+ * falls back to the default. So flipping the default does not only affect new
+ * readers — it silently changes the app for every existing one who never
+ * touched the switch, which is most of them. They would open Shift to find
+ * their portfolio, their movers and their earnings week replaced by empty
+ * states, having changed nothing. A switch may never undo itself, and a
+ * default may never reach backwards.
+ *
+ * HOW IT TELLS THEM APART. `set` writes '1' or '0' explicitly, in both
+ * directions, so the key being PRESENT means the reader chose — and that
+ * choice is honoured whichever way it points. The key being ABSENT means they
+ * never chose, and then one thing separates an existing install from a fresh
+ * one: whether this browser has any stored app state at all. It does for
+ * anyone who has used the app; it does not for someone opening it today.
+ *
+ * Deliberately NOT keyed on the presence of a Supabase session or a user row.
+ * The flag is per-device and per-browser, and the question here is about this
+ * browser, not this account: the same person on a new phone is a new install
+ * and should get the new default.
+ *
+ * Runs once per load, before anything reads the flag (src/main.tsx), and is
+ * idempotent — after the first run the key exists, so every later call takes
+ * the first branch and does nothing.
+ */
+export function migrateLegacyDemoDefault(): void {
+  try {
+    // Already chosen, in either direction. Nothing to do, ever again.
+    if (localStorage.getItem(DEMO_FLAGS.key.demoData) !== null) return;
+    // Never chosen. A browser with stored state was using the app while the
+    // default was ON, so ON is the state it is actually in — write it down
+    // rather than let the new default change it.
+    if (localStorage.getItem(APP_STATE_KEY) !== null) {
+      localStorage.setItem(DEMO_FLAGS.key.demoData, '1');
+    }
+    // No stored state: a fresh install, which gets the new default by having
+    // no key at all. Writing '0' here would work too, but leaving it absent
+    // keeps "has never chosen" true for anything that later wants to ask.
+  } catch {
+    /* No storage: the flag falls back to the default for this session, which
+       is the same answer this migration would have produced for a browser
+       that cannot have stored anything either. */
+  }
+}
 
 export const DEMO_FLAGS = {
   key: {
