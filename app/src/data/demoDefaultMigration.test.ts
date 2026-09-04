@@ -36,6 +36,23 @@ function withBrokenStorage() {
   });
 }
 
+/**
+ * Storage that reads but cannot write — Safari's private mode, which is the
+ * configuration this migration is most likely to meet a problem in: it lets
+ * getItem succeed and makes setItem throw.
+ */
+function withReadOnlyStorage(seed: Record<string, string> = {}) {
+  const store = new Map(Object.entries(seed));
+  vi.stubGlobal('localStorage', {
+    getItem: (k: string) => store.get(k) ?? null,
+    setItem() {
+      throw new Error('quota');
+    },
+    removeItem: (k: string) => void store.delete(k),
+  });
+  return store;
+}
+
 /** Reimports the flags module with a clean in-memory fallback. */
 async function freshModule() {
   vi.resetModules();
@@ -106,6 +123,22 @@ describe('migrateLegacyDemoDefault', () => {
 
     expect(store.get(DEMO_KEY)).toBe('0');
     expect(DEMO_FLAGS.demoData).toBe(false);
+  });
+
+  it('keeps demo on for the session when the read works but the write fails', async () => {
+    // Safari private mode. Without recording to memory before attempting the
+    // write, the throw would escape with nothing set, `read` would fall to
+    // the new default, and a legacy reader would lose demo mode after all —
+    // in the one browser where they are least likely to get it back.
+    const store = withReadOnlyStorage({ [STATE_KEY]: '{"watchlist":["NVDA"]}' });
+    const { migrateLegacyDemoDefault, DEMO_FLAGS } = await freshModule();
+
+    expect(() => migrateLegacyDemoDefault()).not.toThrow();
+
+    // Nothing persisted, because nothing can be.
+    expect(store.has(DEMO_KEY)).toBe(false);
+    // But the session still answers correctly.
+    expect(DEMO_FLAGS.demoData).toBe(true);
   });
 
   it('does not throw when storage is unreachable', async () => {

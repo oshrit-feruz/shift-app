@@ -33,6 +33,8 @@ function withBrokenStorage() {
   vi.stubGlobal('localStorage', { getItem: deny, setItem: deny, removeItem: deny });
 }
 
+/** Reimports the flags with a clean in-memory fallback, so one case's writes
+ *  cannot answer the next one's reads. */
 async function freshFlags() {
   vi.resetModules();
   return (await import('./demoFlags')).DEMO_FLAGS;

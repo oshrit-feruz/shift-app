@@ -334,12 +334,6 @@ function ProMetrics({ demo, live }: Readonly<{ demo: boolean; live: boolean }>) 
 }
 
 /**
- * The beginner hero: total, day change, value line and the blurb under it.
- * Every figure is invented — the total is the demo Blink account, the line a
- * seeded walk — so it sits behind the switch, in its own component so the
- * fetch does not run at all when the switch is off.
- */
-/**
  * What the hero slot shows to a reader with no connected account and sample
  * data off — which, now that sample data is off by default, is what most
  * first-time readers see.
@@ -377,6 +371,12 @@ function NothingHeldYet() {
   );
 }
 
+/**
+ * The beginner hero: total, day change, value line and the blurb under it.
+ * Every figure is invented — the total is the demo Blink account, the line a
+ * seeded walk — so it sits behind the switch, in its own component so the
+ * fetch does not run at all when the switch is off.
+ */
 function HeroPortfolio() {
   const dispatch = useDispatch();
   const t = useT();

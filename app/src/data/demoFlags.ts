@@ -114,8 +114,17 @@ export function migrateLegacyDemoDefault(): void {
     // Never chosen. A browser with stored state was using the app while the
     // default was ON, so ON is the state it is actually in — write it down
     // rather than let the new default change it.
+    //
+    // Through `set` rather than a bare setItem, and the difference matters in
+    // exactly the browser this migration is most likely to meet a problem in.
+    // Safari's private mode lets reads succeed and makes writes throw; a raw
+    // setItem would throw past this whole function with the in-memory value
+    // never recorded, so `read` would fall to the new default and the legacy
+    // reader would lose demo mode for the session after all. `set` records to
+    // memory FIRST and swallows the write failure itself, which is precisely
+    // the ordering this needs — see its own note.
     if (localStorage.getItem(APP_STATE_KEY) !== null) {
-      localStorage.setItem(DEMO_FLAGS.key.demoData, '1');
+      DEMO_FLAGS.set('demoData', true);
     }
     // No stored state: a fresh install, which gets the new default by having
     // no key at all. Writing '0' here would work too, but leaving it absent

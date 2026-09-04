@@ -455,11 +455,6 @@ function ChangeLine({
 }
 
 /**
- * One portfolio's holdings list: held first, then anything sold out — a
- * closed position is history, and history belongs under what is still open
- * rather than mixed into it where it reads as a live holding of zero shares.
- */
-/**
  * An empty portfolio, with somewhere to go from it.
  *
  * This is the state most readers actually land on now that sample data is off
@@ -503,6 +498,11 @@ function EmptyHoldings() {
   );
 }
 
+/**
+ * One portfolio's holdings list: held first, then anything sold out — a
+ * closed position is history, and history belongs under what is still open
+ * rather than mixed into it where it reads as a live holding of zero shares.
+ */
 function Holdings({
   rows,
   view,
