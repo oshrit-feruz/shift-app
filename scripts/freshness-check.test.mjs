@@ -19,7 +19,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { findCoverageMarker, verdict } from "./freshness-check.mjs";
+import { findCoverageMarker, verdict, safeText } from "./freshness-check.mjs";
 
 const HEAD = "3a13ad899af61548f66ffb6ad07f66e92171a125";
 const REVIEWED = "87efa7c98112d8900a8516f4ae4c754e8f166145";
@@ -106,4 +106,39 @@ test("exit 0 when everything measured is current", () => {
   const v = verdict({ failures: 0, ran: 3, requested: 2 });
   assert.equal(v.code, 0);
   assert.match(v.message, /All 3 signal\(s\) current/);
+});
+
+// --- sanitising remote text ------------------------------------------------
+//
+// Every string this script prints about a signal came back from SonarCloud or
+// GitHub, and some of it is written by people. A checker whose output can be
+// spoofed by the service it is checking is worth nothing — and SonarCloud's
+// jssecurity:S5145 failed this PR's own gate on exactly that.
+
+test("strips newlines that could forge a log line", () => {
+  // The shape that matters: a remote string ending the current line and
+  // opening a convincing fake one.
+  const attack = "ok\n  ok    sonar: main baseline is current";
+  const out = safeText(attack);
+  assert.ok(!out.includes("\n"), "newline survived into log output");
+  assert.ok(!out.includes("\r"));
+  // The newline becomes a space, joining the two that already followed it.
+  assert.match(out, /ok {3}ok {4}sonar/);
+});
+
+test("strips ANSI escapes and other control characters", () => {
+  const out = safeText("red\u001b[31mALERT\u001b[0m\u0007bell");
+  assert.ok(!/[\u0000-\u001F\u007F-\u009F]/.test(out), "control char survived");
+  assert.match(out, /ALERT/);
+});
+
+test("caps length, with a per-call override for diagnostics worth keeping", () => {
+  const long = "x".repeat(1000);
+  assert.equal(safeText(long).length, 200);
+  assert.equal(safeText(long, 300).length, 300);
+});
+
+test("handles null and undefined rather than printing them unguarded", () => {
+  assert.equal(safeText(undefined), "");
+  assert.equal(safeText(null), "");
 });

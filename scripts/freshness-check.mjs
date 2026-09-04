@@ -111,16 +111,35 @@ async function getJson(url, headers) {
   const body = await res.text();
   if (!res.ok) {
     throw new Error(
-      `${res.status} from ${url.split("?")[0]} — ${body.slice(0, 200)}`,
+      `${res.status} from ${url.split("?")[0]} — ${safeText(body)}`,
     );
   }
   try {
     return JSON.parse(body);
   } catch {
-    throw new Error(
-      `non-JSON from ${url.split("?")[0]} — ${body.slice(0, 200)}`,
-    );
+    throw new Error(`non-JSON from ${url.split("?")[0]} — ${safeText(body)}`);
   }
+}
+
+/**
+ * Remote text, made safe to print.
+ *
+ * Everything this script reports on comes back from SonarCloud or GitHub, and
+ * some of it is written by people: a commit-status description, a Sonar error
+ * message, an HTTP body echoed into a thrown Error. Printed raw into a CI log
+ * it can carry newlines, carriage returns and ANSI escapes — enough to forge a
+ * log line, and enough for SonarCloud's jssecurity:S5145 to fail this PR's own
+ * quality gate on B Security Rating.
+ *
+ * A checker whose output can be spoofed by the service it is checking is worth
+ * exactly nothing, so this is not gate-appeasement: control characters become
+ * spaces and the text is capped, everywhere remote data reaches the console.
+ */
+export function safeText(value, max = 200) {
+  return String(value ?? "")
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, " ")
+    .trim()
+    .slice(0, max);
 }
 
 const days = (ms) => ms / 86_400_000;
@@ -210,7 +229,7 @@ async function checkSonar() {
     failed.length === 0,
     failed.length
       ? `${failed.length} recent failure(s); latest ${failed[0].submittedAt}: ` +
-          `${(failed[0].errorMessage || "").split("\n")[0]}`
+          `${safeText((failed[0].errorMessage || "").split("\n")[0], 300)}`
       : "",
   );
 }
@@ -304,7 +323,7 @@ async function checkCodeRabbit(prNumber) {
     check(
       `coderabbit: status on ${short(headSha)} describes a completed review`,
       !didNotRun,
-      `state=${cr.state} description="${desc}"`,
+      `state=${cr.state} description="${safeText(desc)}"`,
     );
   }
 
@@ -450,7 +469,9 @@ if (
     console.log(`\n${v.message}`);
     process.exit(v.code);
   } catch (err) {
-    console.error(`\nfreshness-check could not run: ${err.message}`);
+    console.error(
+      `\nfreshness-check could not run: ${safeText(err.message, 500)}`,
+    );
     process.exit(2);
   }
 }
