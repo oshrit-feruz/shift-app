@@ -124,36 +124,28 @@ describe('track', () => {
     },
   );
 
-  it('deduplicates synchronous double-mounts, not just settled ones', async () => {
-    // StrictMode mounts twice in the same frame, so a guard that only closed
-    // after the write landed would let both through.
+  /**
+   * Two calls in one frame, three different reasons for the count they
+   * produce — collected in one table because the contrast between the rows
+   * IS the contract, and it is easier to check three rows against each other
+   * than three test bodies.
+   *
+   * The first row is the StrictMode case: it mounts every component twice in
+   * the same frame, so a guard that only closed after the write landed would
+   * let both through. The second says a click is an act and is never
+   * collapsed. The third says the guard is per stage, not global.
+   */
+  it.each([
+    ['collapses two mounts of one view stage', ['reco_completed', 'reco_completed'], 1],
+    ['records both of two clicks', ['broker_action_clicked', 'broker_action_clicked'], 2],
+    ['keeps two different stages apart', ['reco_started', 'reco_completed'], 2],
+  ] as const)('%s', async (_label, events, expected) => {
     const { track } = await freshModule();
 
-    track('reco_completed');
-    track('reco_completed');
+    for (const name of events) track(name);
     await settle();
 
-    expect(insert).toHaveBeenCalledTimes(1);
-  });
-
-  it('counts every broker_action_clicked, because a click is an act', async () => {
-    const { track } = await freshModule();
-
-    track('broker_action_clicked');
-    track('broker_action_clicked');
-    await settle();
-
-    expect(insert).toHaveBeenCalledTimes(2);
-  });
-
-  it('keeps the stages apart', async () => {
-    const { track } = await freshModule();
-
-    track('reco_started');
-    track('reco_completed');
-    await settle();
-
-    expect(insert).toHaveBeenCalledTimes(2);
+    expect(insert).toHaveBeenCalledTimes(expected);
   });
 
   it('writes nothing when signed out, which the policy would refuse anyway', async () => {
