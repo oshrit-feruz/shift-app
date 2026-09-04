@@ -535,41 +535,56 @@ export function verdict({ failures, ran, requested }) {
   return { code: 0, message: `All ${ran} signal(s) current.` };
 }
 
+/**
+ * Every PR the review check should cover, and the counting that goes with it.
+ *
+ * Split out of `main` so each section there is one line. That keeps `main`
+ * readable as a list of what this run is checking, and it is also what took
+ * its cognitive complexity back under the limit (SonarCloud javascript:S3776,
+ * 16 against 15 allowed, once the third check landed).
+ */
+async function reviewCoverageSection() {
+  if (!GITHUB_TOKEN) throw new Error("--pr and --all-prs need GITHUB_TOKEN");
+  const numbers = PR ? [PR] : await openPullRequests();
+  if (numbers.length === 0) {
+    console.log("\nCodeRabbit review coverage: no open pull requests");
+    return;
+  }
+  for (const n of numbers) {
+    requested += 1;
+    console.log(`\nCodeRabbit review coverage on PR #${n}:`);
+    await checkCodeRabbit(n);
+  }
+}
+
+/** The Sonar half, with its own `requested` bookkeeping. */
+async function sonarSection() {
+  requested += 1;
+  console.log("SonarCloud baseline:");
+  await checkSonar();
+}
+
+/** The scheduled-workflow half. `requested` is counted per workflow inside. */
+async function scheduleSection() {
+  if (!GITHUB_TOKEN) throw new Error("--workflow needs GITHUB_TOKEN");
+  console.log(`\nScheduled workflows still firing:`);
+  await checkWorkflowSchedules(WORKFLOWS);
+}
+
 async function main() {
   console.log(`freshness-check · repo ${REPO} · sonar project ${PROJECT}\n`);
 
-  if (SONAR_TOKEN) {
-    requested += 1;
-    console.log("SonarCloud baseline:");
-    await checkSonar();
-  } else {
-    console.log("SonarCloud baseline: skipped (no SONAR_TOKEN)");
-  }
+  // One line per section, each either run or explicitly reported as skipped.
+  // A section that says nothing at all is how a check goes quiet unnoticed,
+  // which is the failure this whole script is about.
+  if (SONAR_TOKEN) await sonarSection();
+  else console.log("SonarCloud baseline: skipped (no SONAR_TOKEN)");
 
-  if (PR || ALL_PRS) {
-    if (!GITHUB_TOKEN) {
-      throw new Error("--pr and --all-prs need GITHUB_TOKEN");
-    }
-    const numbers = PR ? [PR] : await openPullRequests();
-    if (numbers.length === 0) {
-      console.log("\nCodeRabbit review coverage: no open pull requests");
-    }
-    for (const n of numbers) {
-      requested += 1;
-      console.log(`\nCodeRabbit review coverage on PR #${n}:`);
-      await checkCodeRabbit(n);
-    }
-  } else {
-    console.log("\nCodeRabbit review coverage: skipped (no --pr/--all-prs)");
-  }
+  if (PR || ALL_PRS) await reviewCoverageSection();
+  else console.log("\nCodeRabbit review coverage: skipped (no --pr/--all-prs)");
 
-  if (WORKFLOWS.length > 0) {
-    if (!GITHUB_TOKEN) throw new Error("--workflow needs GITHUB_TOKEN");
-    console.log(`\nScheduled workflows still firing:`);
-    await checkWorkflowSchedules(WORKFLOWS);
-  } else {
-    console.log("\nScheduled workflows: skipped (no --workflow)");
-  }
+  if (WORKFLOWS.length > 0) await scheduleSection();
+  else console.log("\nScheduled workflows: skipped (no --workflow)");
 
   // The requested === 0 case is NOT thrown here: `verdict` owns the exit code
   // so that every branch of it is reachable from a test. Throwing would also
