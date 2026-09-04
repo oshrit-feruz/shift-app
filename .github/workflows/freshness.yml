@@ -81,8 +81,15 @@ jobs:
         # catches a stale review, because by then a head has had hours to be
         # covered: it sweeps every open PR.
         run: |
+          # --workflow is passed on BOTH paths on purpose. It needs no PR
+          # context, and `schedule`/`workflow_dispatch` only run from the
+          # default branch — so if it were on the scheduled path alone it
+          # could not execute once before merging, and would ship having
+          # never run. A PR run is its only pre-merge exercise.
           if [ -n "${{ github.event.pull_request.number }}" ]; then
-            node scripts/freshness-check.mjs --pr ${{ github.event.pull_request.number }}
+            node scripts/freshness-check.mjs \
+              --pr ${{ github.event.pull_request.number }} \
+              --workflow mirror-screener.yml:30
           else
             # 30h, not 24: the screener mirror runs four times a day but every
             # measured run started 4h05m-6h53m after its nominal slot, so a
