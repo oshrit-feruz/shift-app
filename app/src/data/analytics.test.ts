@@ -225,6 +225,28 @@ describe('track', () => {
     expect(insert).toHaveBeenCalledTimes(2);
   });
 
+  it('keeps earlier stages recorded across a reload, instead of overwriting them', async () => {
+    // The multi-stage reload. The in-memory set is empty after a reload, so
+    // writing it verbatim would replace what earlier loads recorded — and the
+    // stage dropped that way would be sent a second time on the next reload.
+    const first = await freshModule();
+    first.track('reco_started');
+    await settle();
+
+    const second = await freshModule();
+    second.track('reco_completed');
+    await settle();
+    expect(insert).toHaveBeenCalledTimes(2);
+
+    // Third load: neither stage may be sent again.
+    const third = await freshModule();
+    third.track('reco_started');
+    third.track('reco_completed');
+    await settle();
+
+    expect(insert).toHaveBeenCalledTimes(2);
+  });
+
   it('still deduplicates within a page when storage throws', async () => {
     // Storage unusable: the in-memory guard is all there is, and it still
     // covers everything except a reload. The unique index covers the rest.

@@ -43,6 +43,15 @@ export type FunnelEvent =
 /** The table the events land in. */
 export const FUNNEL_TABLE = 'funnel_events';
 
+/** The same four names as a runtime set, for validating what comes back out
+ *  of storage. Kept beside the type so the two cannot drift. */
+const FUNNEL_EVENTS: ReadonlySet<FunnelEvent> = new Set<FunnelEvent>([
+  'reco_started',
+  'reco_completed',
+  'broker_screen_viewed',
+  'broker_action_clicked',
+]);
+
 /**
  * Where the "already recorded in this session" set is kept.
  *
@@ -67,18 +76,32 @@ const SENT_KEY = 'shift.analytics.sent';
  */
 const sentThisSession = new Set<FunnelEvent>();
 
+/**
+ * Every stage this session has already recorded, as stored.
+ *
+ * Filtered to the four known names rather than trusted: the value is JSON in
+ * a storage key any script on the origin can write, and an unrecognised entry
+ * must not be able to ride back into what we persist below.
+ */
+function storedStages(): FunnelEvent[] {
+  try {
+    const raw = sessionStorage.getItem(SENT_KEY);
+    if (raw === null) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((x): x is FunnelEvent => FUNNEL_EVENTS.has(x as FunnelEvent));
+  } catch {
+    // No storage, or a value some other tool wrote over ours. The in-memory
+    // set still holds for this page, and the unique index still holds for
+    // the table.
+    return [];
+  }
+}
+
 /** The stages recorded so far in this session, from both stores. */
 function alreadySent(name: FunnelEvent): boolean {
   if (sentThisSession.has(name)) return true;
-  try {
-    const raw = sessionStorage.getItem(SENT_KEY);
-    return raw !== null && (JSON.parse(raw) as unknown[]).includes(name);
-  } catch {
-    // No storage, or a value some other tool wrote over ours. The in-memory
-    // set above still holds for this page, and the unique index still holds
-    // for the table.
-    return false;
-  }
+  return storedStages().includes(name);
 }
 
 /**
@@ -86,9 +109,18 @@ function alreadySent(name: FunnelEvent): boolean {
  *
  * Written BEFORE the insert is attempted, not after it resolves: two mounts
  * in the same frame would both pass an after-the-fact check and send twice.
+ *
+ * The stored stages are merged in rather than overwritten, and that is the
+ * whole subtlety. The in-memory set starts EMPTY on every load, including a
+ * reload — so writing it verbatim would replace what earlier loads in this
+ * same session recorded. A reader who saw the allocation, reloaded, and then
+ * reached the broker screen would have "saw the allocation" quietly dropped,
+ * and would file it again on their next reload. The union is what makes the
+ * guard cumulative across the session it claims to cover.
  */
 function markSent(name: FunnelEvent) {
   sentThisSession.add(name);
+  for (const stage of storedStages()) sentThisSession.add(stage);
   try {
     sessionStorage.setItem(SENT_KEY, JSON.stringify([...sentThisSession]));
   } catch {
