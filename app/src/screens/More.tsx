@@ -35,6 +35,11 @@ const LIVE_LINK: (typeof LINKS)[number] = {
   help: 'more.snaptradeHelp',
 };
 
+/**
+ * Renders the More screen with view-mode controls, demo-data settings, installation guidance, and navigation links.
+ *
+ * @returns The More screen content
+ */
 export function MoreScreen(_: ScreenProps) {
   const dispatch = useDispatch();
   const { mode, setMode } = useTheme();

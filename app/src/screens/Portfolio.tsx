@@ -404,17 +404,11 @@ function PortfolioBody({
 }
 
 /**
- * The line under the total: today's move or the return since purchase, in
- * currency and as a percent, coloured by its sign.
+ * Displays a portfolio's daily change or return since purchase.
  *
- * A manual portfolio's return comes from its valuation rather than from the
- * rows added up, because its percentage is of everything ever invested —
- * including the cost of what has since been sold — and the rows no longer
- * carry that. Today's move has no such history and reads the same for every
- * kind.
- *
- * "—" while the read is in flight or when any held leg is unpriced: a sum
- * missing a leg is not a smaller number, it is a wrong one.
+ * @param view - Selects daily change or since-purchase return
+ * @param summary - Holdings summary containing change values
+ * @param valuation - Manual portfolio valuation used for since-purchase returns when available
  */
 function ChangeLine({
   view,
@@ -455,19 +449,7 @@ function ChangeLine({
 }
 
 /**
- * An empty portfolio, with somewhere to go from it.
- *
- * This is the state most readers actually land on now that sample data is off
- * by default: every account gets a Sandbox at signup
- * (supabase/migrations/0005_ledger.sql), so the Portfolio tab is never truly
- * "no portfolios" — it is one portfolio holding nothing. The bare
- * "No positions yet" line that used to sit here was accurate and terminal.
- *
- * Two routes out, because at this point they are genuinely different
- * questions and the reader knows which is theirs: someone who has a trade in
- * mind logs it, and someone who does not needs a starting allocation. The
- * ledger route stays the plain text it always was, and only the flow gets a
- * button — one primary action per screen.
+ * Displays an empty-state message for a portfolio with no holdings and offers a route to start the advisory flow.
  */
 function EmptyHoldings() {
   const dispatch = useDispatch();
@@ -499,9 +481,12 @@ function EmptyHoldings() {
 }
 
 /**
- * One portfolio's holdings list: held first, then anything sold out — a
- * closed position is history, and history belongs under what is still open
- * rather than mixed into it where it reads as a live holding of zero shares.
+ * Renders active holdings followed by closed positions, or an empty state when no holdings exist.
+ *
+ * @param rows - The holdings to display.
+ * @param view - The change basis used for holding metrics.
+ * @param onClose - Optional callback invoked when an active holding is closed.
+ * @returns The holdings list or empty state.
  */
 function Holdings({
   rows,

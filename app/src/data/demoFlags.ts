@@ -80,32 +80,11 @@ const listeners = new Set<() => void>();
 const APP_STATE_KEY = 'shift.state';
 
 /**
- * Keeps demo mode ON for installs that were already using it, now that the
- * default has flipped to OFF.
+ * Preserves demo mode for existing installs after the default changes to off.
  *
- * THE PROBLEM THIS SOLVES. `read` treats an ABSENT key as "no choice yet" and
- * falls back to the default. So flipping the default does not only affect new
- * readers — it silently changes the app for every existing one who never
- * touched the switch, which is most of them. They would open Shift to find
- * their portfolio, their movers and their earnings week replaced by empty
- * states, having changed nothing. A switch may never undo itself, and a
- * default may never reach backwards.
- *
- * HOW IT TELLS THEM APART. `set` writes '1' or '0' explicitly, in both
- * directions, so the key being PRESENT means the reader chose — and that
- * choice is honoured whichever way it points. The key being ABSENT means they
- * never chose, and then one thing separates an existing install from a fresh
- * one: whether this browser has any stored app state at all. It does for
- * anyone who has used the app; it does not for someone opening it today.
- *
- * Deliberately NOT keyed on the presence of a Supabase session or a user row.
- * The flag is per-device and per-browser, and the question here is about this
- * browser, not this account: the same person on a new phone is a new install
- * and should get the new default.
- *
- * Runs once per load, before anything reads the flag (src/main.tsx), and is
- * idempotent — after the first run the key exists, so every later call takes
- * the first branch and does nothing.
+ * Existing app state without an explicit demo setting is treated as an opt-in
+ * to demo mode. Fresh installs and explicit prior choices remain unchanged.
+ * The migration is idempotent and safely tolerates storage failures.
  */
 export function migrateLegacyDemoDefault(): void {
   try {

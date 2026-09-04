@@ -243,6 +243,9 @@ function RemoteSync() {
   return null;
 }
 
+/**
+ * Renders the authenticated application shell with navigation, active screen content, overlays, and shared app controls.
+ */
 function AppShell() {
   const s = useAppState();
   // The notification centre, read once here and shared with the header badge

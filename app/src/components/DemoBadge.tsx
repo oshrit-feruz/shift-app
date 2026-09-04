@@ -2,27 +2,9 @@ import { useDemoMode } from '../lib/DemoModeProvider';
 import { useT } from '../i18n/useT';
 
 /**
- * The standing "נתוני דמו" marker, shown on every screen whenever the
- * sample-data switch is on.
+ * Displays a persistent badge identifying when demo mode is enabled.
  *
- * WHY IT EXISTS. Sample data used to be the default, and the app leaned on
- * per-feature labels to say so. Now that it is off unless someone turns it
- * on, the situation it marks is different: a screen full of figures that
- * look real, in front of someone who may not be the person who flipped the
- * switch — a client at a walkthrough, whoever picks the phone up next. The
- * per-feature labels still say which cards are fabricated; this says the app
- * as a whole is in demo, without having to read a card.
- *
- * It carries the same two words as the switch itself (i18n more.demoData),
- * so a reader who wonders what it means finds the thing that turns it off
- * under the same name.
- *
- * Placed beside the tab bar rather than inside the scroll area on purpose:
- * it must not scroll away, because a claim about what the figures are is
- * worth exactly as much as its visibility. It sits above the bar and below
- * sheets (z-index 45, between the header's 40 and the bar's 50), and takes
- * no pointer events, so it can never swallow a tap meant for the row under
- * it.
+ * @returns The demo-data badge when demo mode is enabled, or `null` otherwise.
  */
 export function DemoBadge() {
   const demo = useDemoMode();

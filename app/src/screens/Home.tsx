@@ -28,6 +28,12 @@ import { ROW_BUTTON_STYLE } from '../lib/rowButton';
 import { ok, type Loadable } from '../data/types';
 import type { ScreenProps } from '../App';
 
+/**
+ * Renders the home screen with portfolio information, setup progress, watchlist, market movers, and upcoming earnings.
+ *
+ * @param openSearch - Opens search to add an item when the watchlist is empty
+ * @returns The home screen content
+ */
 export function HomeScreen({ openSearch }: ScreenProps) {
   const s = useAppState();
   const dispatch = useDispatch();
@@ -316,13 +322,11 @@ function monthLabel(iso: string, language: 'en' | 'he'): string {
 }
 
 /**
- * What the non-beginner home screen puts where the beginner one puts the
- * portfolio hero: sample metrics, the real portfolio, or neither.
+ * Selects the appropriate advanced home content for the user's data state.
  *
- * Three claims rather than three shades of one, so they are three returns.
- * The middle one is the whole reason this exists — before it, a linked user
- * got a "only in demo" placeholder while their actual portfolio sat one tab
- * away, on the only screen that did not know they had connected anything.
+ * @param demo - Whether to display sample portfolio metrics
+ * @param live - Whether a connected live portfolio is available
+ * @returns Sample metrics, the live portfolio, or the empty portfolio state
  */
 function ProMetrics({ demo, live }: Readonly<{ demo: boolean; live: boolean }>) {
   if (demo) return <MetricStripDemo />;
@@ -334,21 +338,7 @@ function ProMetrics({ demo, live }: Readonly<{ demo: boolean; live: boolean }>) 
 }
 
 /**
- * What the hero slot shows to a reader with no connected account and sample
- * data off — which, now that sample data is off by default, is what most
- * first-time readers see.
- *
- * It replaced `<DemoOnly feature="home.pfToday"/>`, and the difference is the
- * point. "Your portfolio today — only in demo" is true and useless: it names
- * a thing the reader cannot have and offers nothing to do about it. This says
- * what is actually the case (nothing is connected yet) and offers the one
- * next step the app is confident about.
- *
- * One action, not two. A "connect a broker" button belongs here too by
- * symmetry, and is deliberately left out: someone with nothing to connect
- * yet would have to pick between two doors without knowing which is theirs,
- * and connecting is already reachable from the flow this button opens, one
- * screen in.
+ * Displays the empty portfolio state and provides access to the advisory flow.
  */
 function NothingHeldYet() {
   const dispatch = useDispatch();
