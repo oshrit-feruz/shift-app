@@ -52,11 +52,11 @@ jobs:
   freshness:
     runs-on: ubuntu-latest
     steps:
+      # A shallow checkout is enough: main's head date is asked of the GitHub
+      # API, not of a local `git` (see mainHeadIso — shelling out to a bare
+      # command name resolves it through $PATH, which failed this PR's own
+      # quality gate on B Security Rating).
       - uses: actions/checkout@v4
-        with:
-          # The Sonar check compares the baseline's date against main's latest
-          # commit date, so it needs main's history, not just this ref.
-          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -67,9 +67,6 @@ jobs:
       # it reports "current" and is believed.
       - name: Test the checker itself
         run: node --test "scripts/*.test.mjs"
-
-      - name: Make sure main is present for the date comparison
-        run: git fetch origin main:main --force || git fetch origin main
 
       - name: Check the signals
         env:

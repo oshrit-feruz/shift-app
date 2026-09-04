@@ -74,7 +74,10 @@ export function rollup(rows) {
   const bySession = new Map();
   for (const r of rows) {
     let s = bySession.get(r.session_id);
-    if (!s) bySession.set(r.session_id, (s = { stages: new Set(), clicks: 0 }));
+    if (!s) {
+      s = { stages: new Set(), clicks: 0 };
+      bySession.set(r.session_id, s);
+    }
     s.stages.add(r.name);
     if (r.name === "broker_action_clicked") s.clicks += 1;
   }
@@ -180,15 +183,20 @@ async function main() {
   // headline rate hides which step is doing the losing.
   console.log(`\n  step-to-step:`);
   for (let i = 1; i < f.stages.length; i += 1) {
-    console.log(
-      `    ${pad(`${i} → ${i + 1}`, 12)}${lpad(rate(f.stages[i].sessions, f.stages[i - 1].sessions), 8)}`,
-    );
+    const step = pad(`${i} → ${i + 1}`, 12);
+    const pct = lpad(rate(f.stages[i].sessions, f.stages[i - 1].sessions), 8);
+    console.log(`    ${step}${pct}`);
   }
 
   console.log(
     `\n  broker actions outside the flow: ${f.outside.sessions} session(s), ${f.outside.clicks} click(s)`,
   );
 
+  // Deliberately not `Math.min`, which SonarCloud suggests here (S7766):
+  // `created_at` is an ISO-8601 STRING, and Math.min coerces its arguments to
+  // numbers, so that rewrite returns NaN — a wrong value that still prints,
+  // which is worse than the finding. String `<` compares ISO timestamps
+  // correctly because the format is lexicographically ordered by design.
   const first = rows.reduce(
     (a, r) => (r.created_at < a ? r.created_at : a),
     rows[0].created_at,
@@ -202,11 +210,11 @@ if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(process.argv[1]).href
 ) {
-  main().then(
-    () => process.exit(0),
-    (err) => {
-      console.error(`\nfunnel could not run: ${err.message}`);
-      process.exit(2);
-    },
-  );
+  try {
+    await main();
+    process.exit(0);
+  } catch (err) {
+    console.error(`\nfunnel could not run: ${err.message}`);
+    process.exit(2);
+  }
 }

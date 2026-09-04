@@ -30,8 +30,9 @@
  *
  * USAGE
  *
- *   # Sonar baseline only (no GitHub token needed)
- *   SONAR_TOKEN=<token> node scripts/freshness-check.mjs
+ *   # Sonar baseline only. GITHUB_TOKEN is still wanted: main's head date
+ *   # comes from the GitHub API, which rate-limits unauthenticated callers.
+ *   SONAR_TOKEN=<token> GITHUB_TOKEN=<token> node scripts/freshness-check.mjs
  *
  *   # Both checks, for one pull request
  *   SONAR_TOKEN=<token> GITHUB_TOKEN=<token> \
@@ -53,7 +54,6 @@
  * reintroduce exactly the ambiguity this script exists to remove.
  */
 
-import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
 const args = process.argv.slice(2);
@@ -87,11 +87,12 @@ let requested = 0;
  *  first problem hides the others, and these two signals fail independently. */
 function check(name, passed, detail = "") {
   ran += 1;
+  const suffix = detail ? ` — ${detail}` : "";
   if (passed) {
-    console.log(`  ok    ${name}${detail ? ` — ${detail}` : ""}`);
+    console.log(`  ok    ${name}${suffix}`);
   } else {
     failures += 1;
-    console.log(`  STALE ${name}${detail ? ` — ${detail}` : ""}`);
+    console.log(`  STALE ${name}${suffix}`);
   }
 }
 
@@ -122,6 +123,43 @@ const days = (ms) => ms / 86_400_000;
 const short = (sha) => (sha ? sha.slice(0, 7) : "(none)");
 
 /**
+ * When did `main` last actually change?
+ *
+ * Asked of the GitHub API rather than by shelling out to `git`. Spawning a
+ * bare command name resolves it through $PATH, so a writable directory
+ * anywhere on that path turns this check into an execution vector — and a
+ * script whose whole job is to be trusted about the state of the repo is a
+ * poor place to accept that (SonarCloud javascript:S4036, which failed this
+ * PR's own quality gate on B Security Rating).
+ *
+ * This TRADES one requirement for another, and both are worth stating. It
+ * removes the need for a checkout with `main` fetched and full history (the
+ * workflow was doing `fetch-depth: 0` plus an explicit fetch). It adds a need
+ * for GitHub API access: in CI `github.token` covers it, but a local
+ * Sonar-only run now needs GITHUB_TOKEN exported, or it hits the
+ * unauthenticated rate limit and exits 2.
+ *
+ * A failure here THROWS rather than falling back to comparing against the
+ * clock. "Time since the last analysis" is a different, weaker measurement,
+ * and silently substituting it is precisely the substitution this script
+ * exists to detect.
+ */
+async function mainHeadIso() {
+  const headers = {
+    Accept: "application/vnd.github+json",
+    "User-Agent": "shift-freshness-check",
+  };
+  if (GITHUB_TOKEN) headers.Authorization = `Bearer ${GITHUB_TOKEN}`;
+  const c = await getJson(
+    `https://api.github.com/repos/${REPO}/commits/main`,
+    headers,
+  );
+  const iso = c.commit?.committer?.date || c.commit?.author?.date;
+  if (!iso) throw new Error(`GitHub reported no commit date for ${REPO}@main`);
+  return iso;
+}
+
+/**
  * Is SonarCloud's `main` baseline current, and if not, why?
  *
  * Two independent reads, because they fail differently. The analysis DATE
@@ -142,12 +180,8 @@ async function checkSonar() {
   if (!main.analysisDate) throw new Error(`main has never been analysed`);
 
   // The repo's own head is the thing the baseline is supposed to describe.
-  const headIso = execFileSync("git", ["log", "-1", "--format=%cI", "main"], {
-    encoding: "utf8",
-  }).trim();
-
   const analysed = new Date(main.analysisDate);
-  const head = new Date(headIso);
+  const head = new Date(await mainHeadIso());
   const gap = days(head - analysed);
 
   check(
@@ -370,15 +404,13 @@ if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(process.argv[1]).href
 ) {
-  main().then(
-    () => {
-      const v = verdict({ failures, ran, requested });
-      console.log(`\n${v.message}`);
-      process.exit(v.code);
-    },
-    (err) => {
-      console.error(`\nfreshness-check could not run: ${err.message}`);
-      process.exit(2);
-    },
-  );
+  try {
+    await main();
+    const v = verdict({ failures, ran, requested });
+    console.log(`\n${v.message}`);
+    process.exit(v.code);
+  } catch (err) {
+    console.error(`\nfreshness-check could not run: ${err.message}`);
+    process.exit(2);
+  }
 }
