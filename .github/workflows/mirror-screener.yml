@@ -235,51 +235,61 @@ jobs:
             exit 1
           fi
 
-          # The normalisation must not lose rows. A jq typo that filtered
-          # instead of mapped would still produce a valid, plausible file.
+          # EVERY per-row gate below runs over BOTH arrays, not just the
+          # ranking. `buy_signals` is normalised and published separately, and
+          # extractBuySignals() in the app reads it FIRST — it only falls back
+          # to filtering full_ranking when buy_signals is absent. So a payload
+          # whose ranking is entirely well-formed can still put a bad row in
+          # front of the user through the array the app actually prefers.
+          # Checking only full_ranking looks thorough and leaves the primary
+          # path unguarded. (Caught in review on this PR: with the ranking
+          # left valid, a raw buy_signals drawdown of 2 passed every check and
+          # published as 200.)
           for KEY in full_ranking buy_signals; do
+            # The normalisation must not lose rows. A jq typo that filtered
+            # instead of mapped would still produce a valid, plausible file.
             IN="$(jq --arg k "$KEY" '.[$k] | length' "$RAW")"
             ON="$(jq --arg k "$KEY" '.[$k] | length' "$OUT")"
             if [ "$IN" != "$ON" ]; then
               echo "::error::Normalisation changed $KEY from $IN to $ON entries — refusing to publish"
               exit 1
             fi
+
+            # The unit conversion, checked in both directions. This is the one
+            # transformation that fails silently: 0.548 and 54.8 are both
+            # perfectly plausible numbers, and getting it backwards would make
+            # every drawdown in the app read as a hundredth of its real size
+            # with nothing anywhere reporting an error.
+            jq -e --arg k "$KEY" 'all(.[$k][];
+                       .drawdown_pct == null or (.drawdown_pct >= 0 and .drawdown_pct <= 100))' \
+              "$OUT" > /dev/null \
+              || { echo "::error::A normalised drawdown_pct in $KEY is outside 0-100 — refusing to publish"; exit 1; }
+
+            jq -e --arg k "$KEY" 'all(.[$k][];
+                       .drawdown_pct == null or ((.drawdown_pct | fabs) <= 1.0))' \
+              "$RAW" > /dev/null \
+              || { echo "::error::A raw drawdown_pct in $KEY is outside 0-1 — the engine has changed units, which makes the *100 in the normalise step wrong. Refusing to publish."; exit 1; }
+
+            # EVERY row must carry a usable identity, not merely one of them.
+            # Be strict in what we publish, lenient in what we read: the parser
+            # deliberately drops an unidentifiable row rather than rendering it
+            # (mapSignal returns null), so a partly-broken payload would render
+            # fine — but it would also mean the engine emitted something wrong,
+            # and publishing it under a step named "verify" is the sort of
+            # quiet half-success this whole job exists to refuse. Failing here
+            # is loud and costs nothing: the previous good file stays in place,
+            # and the app's MAX_SNAPSHOT_AGE_DAYS window covers the gap while
+            # someone looks at the engine.
+            #
+            # `ticker // symbol` because the parser accepts either, and trailing
+            # whitespace is trimmed there too — this gate must match mapSignal
+            # exactly, or it goes back to disagreeing with the reader.
+            jq -e --arg k "$KEY" 'all(.[$k][];
+                       (if type == "object" then ((.ticker // .symbol) // "") else "" end)
+                       | type == "string" and (gsub("^\\s+|\\s+$"; "") | length) > 0)' \
+              "$OUT" > /dev/null \
+              || { echo "::error::A $KEY entry has no usable ticker — refusing to publish"; exit 1; }
           done
-
-          # The unit conversion, checked in both directions. This is the one
-          # transformation that fails silently: 0.548 and 54.8 are both
-          # perfectly plausible numbers, and getting it backwards would make
-          # every drawdown in the app read as a hundredth of its real size
-          # with nothing anywhere reporting an error.
-          jq -e 'all(.full_ranking[];
-                     .drawdown_pct == null or (.drawdown_pct >= 0 and .drawdown_pct <= 100))' \
-            "$OUT" > /dev/null \
-            || { echo "::error::A normalised drawdown_pct is outside 0-100 — refusing to publish"; exit 1; }
-
-          jq -e 'all(.full_ranking[];
-                     .drawdown_pct == null or ((.drawdown_pct | fabs) <= 1.0))' \
-            "$RAW" > /dev/null \
-            || { echo "::error::A raw drawdown_pct is outside 0-1 — the engine has changed units, which makes the *100 in the normalise step wrong. Refusing to publish."; exit 1; }
-
-          # EVERY row must carry a usable identity, not merely one of them.
-          # Be strict in what we publish, lenient in what we read: the parser
-          # deliberately drops an unidentifiable row rather than rendering it
-          # (mapSignal returns null), so a partly-broken payload would render
-          # fine — but it would also mean the engine emitted something wrong,
-          # and publishing it under a step named "verify" is the sort of
-          # quiet half-success this whole job exists to refuse. Failing here
-          # is loud and costs nothing: the previous good file stays in place,
-          # and the app's MAX_SNAPSHOT_AGE_DAYS window covers the gap while
-          # someone looks at the engine.
-          #
-          # `ticker // symbol` because the parser accepts either, and trailing
-          # whitespace is trimmed there too — this gate must match mapSignal
-          # exactly, or it goes back to disagreeing with the reader.
-          jq -e 'all(.full_ranking[];
-                     (if type == "object" then ((.ticker // .symbol) // "") else "" end)
-                     | type == "string" and (gsub("^\\s+|\\s+$"; "") | length) > 0)' \
-            "$OUT" > /dev/null \
-            || { echo "::error::A full_ranking entry has no usable ticker — refusing to publish"; exit 1; }
 
           # The app refuses a snapshot with no date, an impossible date, or one
           # older than MAX_SNAPSHOT_AGE_DAYS. Publishing such a payload would
