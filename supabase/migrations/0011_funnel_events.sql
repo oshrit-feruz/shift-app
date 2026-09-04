@@ -25,11 +25,13 @@
 -- two devices counts as two. That is the price of not collecting identity,
 -- and for a funnel baseline it is the right trade.
 --
--- INGEST. Rows arrive only through app/api/events.ts, which verifies the
--- caller's Supabase access token before writing and then throws the user id
--- away. The token check is there to keep the table from being a public write
--- endpoint, not to attribute the row. RLS below therefore grants the client
--- nothing at all.
+-- INGEST: the client writes here directly, with the anon key, under the
+-- insert-only policy below. There is deliberately no API route in front of
+-- it. The route this replaced verified a bearer token and then threw the
+-- resolved id away — which is exactly what `to authenticated` does here, in
+-- the database, without spending one of the deployment's twelve serverless
+-- function slots on a hop that added nothing. See the grant note below for
+-- the one thing the route did that a bare policy would not.
 
 create table public.funnel_events (
   id         uuid primary key default gen_random_uuid(),
@@ -57,12 +59,34 @@ create index funnel_events_session_idx on public.funnel_events (session_id);
 
 alter table public.funnel_events enable row level security;
 
--- No policies, deliberately — the same arrangement as public.alert_states in
--- 0007_alerts.sql. RLS enabled with no matching policy denies every client
--- operation outright; only the service role (which bypasses RLS, and never
--- reaches the browser) writes here, and reading is done from the SQL editor.
--- In particular the client cannot SELECT: a table of everyone's funnel
--- positions is not something a browser needs to be able to read.
+-- Supabase grants `anon` and `authenticated` table-wide access on new tables
+-- in `public` by default, so the grant is taken away first and handed back
+-- one column at a time — the same two-step 0006_snaptrade.sql and
+-- 0009_alert_hardening.sql use.
+revoke all on public.funnel_events from anon, authenticated;
+
+-- INSERT ONLY, and only these three columns.
+--
+-- Naming the columns is what keeps `created_at` honest: it is the server's
+-- clock, and a client that could set it would be able to file events into
+-- last week and quietly bend every date range in the report. A row policy
+-- says which ROWS may be written and nothing about which COLUMNS, so the
+-- policy below could not express this on its own — the column grant is doing
+-- the work, exactly as it does for `read_at` on notifications in 0009.
+grant insert (name, session_id, anon_id) on public.funnel_events to authenticated;
+
+-- `to authenticated` is the whole access rule: somebody signed in may record
+-- an event. `with check (true)` because there is nothing about the row to
+-- constrain per-user — no user_id to match against auth.uid(), by design.
+-- The check constraints on the columns are what keep a malformed row out.
+create policy "signed-in insert" on public.funnel_events
+  for insert to authenticated with check (true);
+
+-- No SELECT policy and no select grant: a table of everyone's funnel
+-- positions is not something a browser needs to read, and the app never
+-- reads it. Reading is done from the SQL editor — see docs/funnel.md.
+-- No UPDATE and no DELETE either: an event is a fact about something that
+-- happened, and nothing in the app has any business revising one.
 
 -- ── Reading the funnel ─────────────────────────────────────────────────
 
@@ -93,9 +117,8 @@ group by e.name
 order by stage;
 
 -- Views run as their owner, so this one would hand out the readable summary
--- to any client that asked — the exact thing the empty policy set above
+-- to any client that asked — the exact thing the missing select grant above
 -- refuses. Postgres 15+ honours the invoker's own permissions instead.
 alter view public.funnel_summary set (security_invoker = on);
 
 revoke all on public.funnel_summary from anon, authenticated;
-revoke all on public.funnel_events  from anon, authenticated;

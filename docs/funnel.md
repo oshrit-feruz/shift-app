@@ -107,10 +107,12 @@ order by day desc;
 
 Read this before concluding anything from a surprising figure.
 
-- **Every stage reads zero.** Most likely the deployment has no
-  `SUPABASE_SERVICE_ROLE_KEY`, in which case `/api/events` answers `500
-  not_configured` and records nothing. Check the function logs for
-  `not_configured` before assuming nobody used the flow.
+- **Every stage reads zero.** Most likely `0011_funnel_events.sql` has not
+  been run on this project. Migrations are never applied by a build, so a
+  deployed app writes into a table that does not exist and every insert is
+  refused. Confirm the table exists before concluding nobody used the flow:
+  `select count(*) from public.funnel_events;` — an error there is the
+  answer, and it is a different answer from `0`.
 - **Stage 4 without stage 3 in the same session.** Expected. The read-only
   connect card also lives on the Connections and connected-account screens,
   which are reachable without the flow's broker step. Every query above counts
@@ -122,8 +124,12 @@ Read this before concluding anything from a surprising figure.
 - **One person counted twice.** A person on two devices is two `anon_id`s.
   That is the deliberate cost of not collecting identity, not a defect.
 - **A gap in the series.** Events are fire-and-forget by design
-  (`src/data/analytics.ts`): a request lost to a closing tab or a flaky network
+  (`src/data/analytics.ts`): a write lost to a closing tab or a flaky network
   is dropped rather than retried, because measurement must never delay or break
   the screen it measures. Treat the counts as a slight **undercount**, never as
   an upper bound.
+- **Only signed-in sessions are counted.** The insert policy admits
+  `authenticated` alone, and the flow is unreachable while signed out in any
+  case. Both sides of a before/after comparison are therefore
+  authenticated-only, which is what makes them comparable.
 
