@@ -220,7 +220,11 @@ async function getAllPages(url, headers, maxPages = 20) {
       headers,
     );
     if (!Array.isArray(batch)) {
-      throw new Error(`expected a list from ${url.split("?")[0]}`);
+      // TypeError, not Error: this is a type check (SonarCloud
+      // javascript:S7786). It changes nothing at the catch site — TypeError
+      // extends Error and the handler reads `.message` — but it names what
+      // went wrong for anyone reading the throw.
+      throw new TypeError(`expected a list from ${url.split("?")[0]}`);
     }
     out.push(...batch);
     if (batch.length < 100) return out;
