@@ -79,7 +79,12 @@ export function entryVariant(): EntryVariant | null {
 export function variantFor(id: string): EntryVariant {
   let h = 0x811c9dc5;
   for (let i = 0; i < id.length; i += 1) {
-    h ^= id.charCodeAt(i);
+    // codePointAt rather than charCodeAt (SonarCloud typescript:S7758). The two
+    // are identical for every input this can receive — lib/ids.ts mints
+    // `prefix-` plus a UUID, hex bytes or base36, all ASCII — so this is the
+    // lint's preference honoured at no cost, not a behaviour change. The `?? 0`
+    // is unreachable for the same reason: i is always in range.
+    h ^= id.codePointAt(i) ?? 0;
     // >>> 0 keeps it unsigned; Math.imul keeps the multiply from losing the
     // high bits to float precision, which would bias the split.
     h = Math.imul(h, 0x01000193) >>> 0;
