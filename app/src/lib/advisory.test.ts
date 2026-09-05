@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { CORE_FUNDS, hardRule, mapProfile, PROFILES, sizeRadar, type Answer } from './advisory';
+import {
+  CORE_FUNDS,
+  decisiveAnswer,
+  hardRule,
+  mapProfile,
+  PROFILES,
+  sizeRadar,
+  type Answer,
+} from './advisory';
 import { money, pct, signedMoney } from './format';
 
 const all: Answer[] = [1, 2, 3];
@@ -111,6 +119,105 @@ describe('advisory profile mapping', () => {
   it('does not recommend an unapproved fund for global government bonds', () => {
     expect(CORE_FUNDS.globalGovBonds).toBeUndefined();
     expect(Object.values(CORE_FUNDS).join(' ')).not.toContain('VEA');
+  });
+});
+
+describe('the ceiling on how many answers make a profile', () => {
+  /**
+   * The floor was always there; the ceiling was not. The thresholds are
+   * calibrated for four answers each in 1..3, so a five-element array sums
+   * five values against them and returns a profile that looks ordinary —
+   * silently the wrong allocation, with nothing to notice. The same array
+   * crashed the explanation line, which is the only reason the gap surfaced.
+   */
+  it('refuses five answers rather than summing them', () => {
+    expect(mapProfile([2, 2, 2, 2, 2])).toBeNull();
+    expect(mapProfile([3, 3, 3, 3, 3, 3])).toBeNull();
+  });
+
+  it('would have returned a plausible profile for five, before the ceiling', () => {
+    // Documents what was actually at stake. [2,2,2,2,2] sums to 10, which lands
+    // squarely inside the Balanced band — indistinguishable from a real answer.
+    const sum = [2, 2, 2, 2, 2].reduce((a, b) => a + b, 0);
+    expect(sum).toBe(10);
+    expect(mapProfile([2, 2, 2, 2])).toBe('bal'); // four 2s: the honest version
+    expect(mapProfile([2, 2, 2, 2, 2])).toBeNull(); // five: refused, not guessed
+  });
+
+  it('holds the ceiling on the hard rule too', () => {
+    // hardRule and mapProfile are read together — Chat.tsx shows the hard-rule
+    // note beside the profile. A length one accepts and the other rejects
+    // would explain a rule that did not fire.
+    expect(hardRule([1, 3, 3, 3, 3])).toBe(false);
+    expect(mapProfile([1, 3, 3, 3, 3])).toBeNull();
+    expect(hardRule([1, 3, 3, 3])).toBe(true);
+  });
+
+  it('agrees with decisiveAnswer on the count, in both directions', () => {
+    // The oversized cases here start with 1 or end with 1 deliberately. A
+    // five-answer array of 2s reads null from decisiveAnswer whatever its
+    // guard says — neither hard condition holds — so it cannot tell a ceiling
+    // from its absence. These can: with a `< 4` guard they name an answer.
+    for (const answers of [[], [1], [1, 1, 1], [1, 2, 2, 2, 2], [2, 2, 2, 1, 2]] as Answer[][]) {
+      expect(mapProfile(answers), JSON.stringify(answers)).toBeNull();
+      expect(decisiveAnswer(answers), JSON.stringify(answers)).toBeNull();
+    }
+  });
+
+  it('still maps every legitimate four-answer combination', () => {
+    // The ceiling must not cost anything real.
+    for (const a of all)
+      for (const b of all)
+        for (const c of all) for (const d of all) expect(mapProfile([a, b, c, d])).not.toBeNull();
+  });
+});
+
+describe('why this profile — which answer the screen is allowed to blame', () => {
+  it('names the horizon when it is under two years', () => {
+    for (const b of all)
+      for (const c of all) for (const d of all) expect(decisiveAnswer([1, b, c, d])).toBe(0);
+  });
+
+  it('names the safety net when there is none', () => {
+    // Only where the horizon did not already decide it — see the tie case.
+    for (const a of [2, 3] as Answer[])
+      for (const b of all) for (const c of all) expect(decisiveAnswer([a, b, c, 1])).toBe(3);
+  });
+
+  it('names the horizon when both hard conditions hold at once', () => {
+    expect(decisiveAnswer([1, 2, 2, 1])).toBe(0);
+  });
+
+  it('names NOTHING whenever the sum decided it', () => {
+    // The property that matters. Every combination that is not the hard rule
+    // is a sum of four against two thresholds, and no single answer caused it
+    // — so the screen must list all four rather than pick one to blame.
+    for (const a of [2, 3] as Answer[])
+      for (const b of all)
+        for (const c of all)
+          for (const d of [2, 3] as Answer[]) {
+            expect(decisiveAnswer([a, b, c, d])).toBeNull();
+            expect(hardRule([a, b, c, d])).toBe(false);
+          }
+  });
+
+  it('agrees with hardRule on every one of the 81 combinations', () => {
+    // Stated as an equivalence rather than trusted: if these ever drift, the
+    // screen explains one rule while the allocation follows another, and both
+    // look correct on their own.
+    for (const a of all)
+      for (const b of all)
+        for (const c of all)
+          for (const d of all) {
+            const ans: Answer[] = [a, b, c, d];
+            expect(decisiveAnswer(ans) !== null).toBe(hardRule(ans));
+          }
+  });
+
+  it('has nothing to say before four answers exist', () => {
+    expect(decisiveAnswer([])).toBeNull();
+    expect(decisiveAnswer([1])).toBeNull();
+    expect(decisiveAnswer([1, 1, 1])).toBeNull();
   });
 });
 

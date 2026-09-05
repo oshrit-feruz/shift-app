@@ -407,7 +407,16 @@ export function reducer(s: AppState, a: Action): AppState {
       // when the server state lands; yanking them elsewhere would read as a
       // crash, and dropping the trail would turn their next back press into
       // an app exit. Everything else resets to initial + the server's slice.
-      return { ...initial, ...a.persisted, screen: s.screen, ticker: s.ticker, navStack: s.navStack };
+      // Through withCoherentAdvisory because this is one of the two places a
+      // persisted slice becomes state, and the answers/stage invariant is only
+      // checkable once both halves are present — the server may send either.
+      return withCoherentAdvisory({
+        ...initial,
+        ...a.persisted,
+        screen: s.screen,
+        ticker: s.ticker,
+        navStack: s.navStack,
+      });
     case 'resetPersisted':
       // Back to a clean boot; the localStorage effect below then overwrites
       // the on-device cache with the blank slice.
@@ -495,16 +504,8 @@ export function readPersisted(saved: Record<string, unknown>): Partial<AppState>
   const picked: Partial<AppState> = {};
   for (const k of PERSISTED) if (k in saved) (picked as Record<string, unknown>)[k] = saved[k];
   if (isSeededWatchlist(picked.watchlist)) picked.watchlist = [];
-  else if (Array.isArray(picked.watchlist)) {
-    // Stored before tickers were normalised on the way in, or hand-edited.
-    const out: string[] = [];
-    for (const raw of picked.watchlist) {
-      if (typeof raw !== 'string') continue;
-      const ticker = raw.trim().toUpperCase();
-      if (ticker && !out.includes(ticker)) out.push(ticker);
-    }
-    picked.watchlist = out;
-  }
+  else if (Array.isArray(picked.watchlist)) picked.watchlist = normalisedTickers(picked.watchlist);
+  healAdvisory(picked);
   if (Array.isArray(picked.savedAlerts)) {
     // Duplicates could be stored before addAlert collapsed them, and a device
     // that filed the same alert four times would otherwise keep all four (and
@@ -525,6 +526,97 @@ export function readPersisted(saved: Record<string, unknown>): Partial<AppState>
       .reduce<SavedAlert[]>((kept, alert) => addAlert(kept, alert), []);
   }
   return picked;
+}
+
+/**
+ * Tickers as the app writes them today, from a list stored before they were
+ * normalised on the way in — or hand-edited since. Trimmed, upper-cased, and
+ * de-duplicated; anything that is not a string is dropped.
+ */
+function normalisedTickers(stored: unknown[]): string[] {
+  const out: string[] = [];
+  for (const raw of stored) {
+    if (typeof raw !== 'string') continue;
+    const ticker = raw.trim().toUpperCase();
+    if (ticker && !out.includes(ticker)) out.push(ticker);
+  }
+  return out;
+}
+
+/**
+ * Drops the parts of an incoming advisory fragment that the app could not have
+ * written. FIELD-level only — the pair rule lives in `withCoherentAdvisory`,
+ * because a fragment is not a state.
+ *
+ * ABSENT IS NOT CORRUPT here. A partial server row carrying one key and not the
+ * other says nothing about the one it omits, so nothing is inferred from a
+ * missing key at this level. That is correct for the fragment and, on its own,
+ * not enough: the consumers fill the other half in from `initial`, which is
+ * exactly how `{ advStage: 2 }` with no answers became a Balanced allocation.
+ * The invariant is therefore enforced again where the state is complete.
+ */
+function healAdvisory(picked: Partial<AppState>): void {
+  if ('advAnswers' in picked && !isStoredAnswers(picked.advAnswers)) {
+    picked.advAnswers = [];
+    picked.advStage = 0;
+  }
+  // A stage outside the flow is not merely wrong, it is unroutable: ADV_ORDER
+  // has five entries and setupProgress indexes it directly, so a negative
+  // stage resolves to `undefined` and navigates nowhere.
+  if ('advStage' in picked && !isStoredStage(picked.advStage)) picked.advStage = 0;
+}
+
+/**
+ * The advisory pair, made coherent on a COMPLETE state.
+ *
+ * WHY IT IS HERE AND NOT IN readPersisted. A stage above zero is only ever set
+ * once all four answers exist, so the two fields are one fact — but the fact is
+ * only visible once the state is assembled. readPersisted sees a fragment, and
+ * a fragment that omits `advAnswers` says nothing about them; inferring from
+ * the omission would discard progress the row never described. Both callers
+ * then merge that fragment over `initial`, which supplies `advAnswers: []` —
+ * and a stage of 2 beside an empty array routes to `advDash`, where
+ * `mapProfile([])` is null and the screen's `?? 'bal'` fallback hands over a
+ * full Balanced allocation. Nothing was corrupt at any single step.
+ *
+ * So the fragment is cleaned where it arrives and the invariant is enforced
+ * where the state is whole: hydrate() for the local bag, and the replaceState
+ * reducer for everything the server sends, including mergeRemote's wholesale
+ * sign-in adoption and adoptRemote's partial foreground update.
+ *
+ * Only the stage moves. The answers are whatever survived validation, and a
+ * short array is a real state — someone mid-chat keeps their place.
+ */
+function withCoherentAdvisory(s: AppState): AppState {
+  if (s.advStage === 0) return s;
+  if (isStoredStage(s.advStage) && s.advAnswers.length === 4) return s;
+  return { ...s, advStage: 0 };
+}
+
+/**
+ * A stage the app could have written: a whole number from 0 (not started) to
+ * 5 (finished), the range ADV_ORDER and setupProgress are built around.
+ */
+function isStoredStage(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 5;
+}
+
+/**
+ * A stored advisory-answer bag the app could actually have written.
+ *
+ * Four questions, each answered 1..3 (lib/advisory.ts), filled in order and
+ * never removed — so anything from zero to four entries is a real state, and
+ * a fifth is not. The reducer appends without a cap and this bag round-trips
+ * through localStorage and the synced `user_state` row, so neither the length
+ * nor the values are guaranteed by the time they are read back.
+ *
+ * The values are checked as well as the count. An entry of 7, or a string,
+ * would sum just as silently as a fifth answer — `mapProfile` reduces with
+ * `+`, so a string turns the sum into concatenation and the threshold
+ * comparison into something no one intended.
+ */
+function isStoredAnswers(value: unknown): value is Answer[] {
+  return Array.isArray(value) && value.length <= 4 && value.every((a) => a === 1 || a === 2 || a === 3);
 }
 
 /**
@@ -553,10 +645,12 @@ function isSavedAlert(value: unknown): value is SavedAlert {
   );
 }
 
-function hydrate(): AppState {
+/** Exported for the tests that pin the answers/stage invariant on a real boot. */
+export function hydrate(): AppState {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
-    return { ...initial, ...readPersisted(saved) };
+    // The other place a slice becomes state — see withCoherentAdvisory.
+    return withCoherentAdvisory({ ...initial, ...readPersisted(saved) });
   } catch {
     return initial;
   }

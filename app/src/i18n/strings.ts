@@ -192,6 +192,26 @@ export const STRINGS = {
     'Equity-heavy core across regions, with the largest share in individual stocks the rules allow.',
     'ליבה מנייתית רחבה על פני אזורים, עם החלק הגדול ביותר במניות בודדות שהכללים מתירים.',
   ),
+  // The line on the result screen that connects the answers to the outcome.
+  //
+  // Two forms because the mapping has two shapes, and using one form for both
+  // would state a reason that is not the reason. `whyAll` lists the four
+  // answers the reader actually chose and claims only that they add up to the
+  // profile — true for every combination, because the mapping IS their sum.
+  // `whyOne` is used only where a single answer decided it outright, which is
+  // the published hard rule and is therefore safe to state as a cause.
+  //
+  // Neither says anything about how individual stocks are selected. This is
+  // about the questionnaire, not about what the allocation contains.
+  'rec.whyAll': p(
+    'You chose: {answers}. Together, that maps to {profile}.',
+    'בחרת: {answers}. יחד זה ממופה ל{profile}.',
+  ),
+  'rec.whyOne': p(
+    'You chose “{answer}”. That alone maps to {profile}, whatever the other three say.',
+    'בחרת “{answer}”. זה לבדו ממפה ל{profile}, לא משנה מה שלוש התשובות האחרות.',
+  ),
+
   'profile.hardNote': p(
     '(A horizon under 2 years or no safety net always maps to Conservative.)',
     '(אופק מתחת לשנתיים או בלי כרית ביטחון תמיד ממופה לסולידי.)',

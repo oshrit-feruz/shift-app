@@ -288,6 +288,52 @@ describe('when storage cannot be reached', () => {
   });
 });
 
+describe('which arm the first run routes by', () => {
+  it('does not put a new device into a switched-off experiment', async () => {
+    const local = makeStorage();
+    vi.stubGlobal('localStorage', local.api);
+    const { entryArmFor, entryVariant } = await freshModule();
+
+    expect(entryArmFor('none', false)).toBeNull();
+    // And no arm was minted on the way past, so nothing to inherit later.
+    expect(entryVariant()).toBeNull();
+    expect(local.store.has(KEY)).toBe(false);
+  });
+
+  it('puts a new device in when the switch is on', async () => {
+    vi.stubGlobal('localStorage', makeStorage().api);
+    const { entryArmFor } = await freshModule();
+
+    expect(entryArmFor('none', true)).not.toBeNull();
+  });
+
+  it('KEEPS routing by an arm the device already has, switch off', async () => {
+    // The one that matters. `track` labels every event with the stored arm
+    // whatever the switch says, so a device routed down the offered path while
+    // its events carry 'routed' would put one person's journey on both sides
+    // of the comparison. The switch gates entering, not being recognised.
+    vi.stubGlobal('localStorage', makeStorage({ [KEY]: 'routed' }).api);
+    const { entryArmFor } = await freshModule();
+
+    expect(entryArmFor('none', false)).toBe('routed');
+  });
+
+  it('keeps the control arm too, not just the routed one', async () => {
+    vi.stubGlobal('localStorage', makeStorage({ [KEY]: 'offered' }).api);
+    const { entryArmFor } = await freshModule();
+
+    expect(entryArmFor('none', false)).toBe('offered');
+  });
+
+  it('never routes a reader who holds something, in any combination', async () => {
+    vi.stubGlobal('localStorage', makeStorage({ [KEY]: 'routed' }).api);
+    const { entryArmFor } = await freshModule();
+
+    for (const source of ['demo', 'live'] as const)
+      for (const on of [true, false]) expect(entryArmFor(source, on)).toBeNull();
+  });
+});
+
 describe('where the first run lets someone out', () => {
   it('routes the routed arm into the flow', async () => {
     vi.stubGlobal('localStorage', makeStorage().api);

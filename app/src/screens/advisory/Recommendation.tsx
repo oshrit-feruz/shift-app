@@ -13,6 +13,7 @@ import { BuyAtBrokerButton } from '../../components/BuyAtBrokerButton';
 import { fundTicker, hasAnyTradeDeepLink } from '../../lib/brokerLinks';
 import { money } from '../../lib/format';
 import { FlowStepper } from './FlowStepper';
+import { whyThisProfileLine } from './whyThisProfile';
 import { useAppState, useDispatch } from '../../state/appState';
 import { useT } from '../../i18n/useT';
 import { useLoadable } from '../../data/useLoadable';
@@ -20,6 +21,7 @@ import { PRICE_REFRESH_MS } from '../../data/quotes';
 import { demoService } from '../../data/demoAdapter';
 import { actionableSignals } from '../../data/recoveryDetector';
 import { CORE_FUNDS, mapProfile, PROFILES, sizeRadar } from '../../lib/advisory';
+import type { Answer } from '../../lib/advisory';
 import { track } from '../../data/analytics';
 import type { StringKey } from '../../i18n/strings';
 import type { ScreenProps } from '../../App';
@@ -117,6 +119,11 @@ export function AdvisoryRecommendation(_: ScreenProps) {
             </Button>
           </span>
         </div>
+        {/* Why this profile, in the reader's own words.
+            Directly under the name because it is the name it explains — the
+            allocation used to simply appear, which made the four questions
+            feel procedural rather than consulted. */}
+        <WhyThisProfile answers={s.advAnswers} profile={t(`profile.${profileKey}` as StringKey)} />
         {/* Label above, figure below, both starting at the same edge: side by
             side the number sits at the far end of the row, away from the words
             that say what it is. */}
@@ -528,6 +535,24 @@ function AmountSlider({ value, onChange }: Readonly<{ value: number; onChange: (
 }
 
 /** One caption paragraph — the screen carries several and they share a look. */
+/**
+ * One line saying why this profile, built from the answers themselves.
+ *
+ * The choice of what to blame lives in whyThisProfile.ts, where it is tested
+ * directly: it is a claim about causation, not a formatting detail.
+ */
+function WhyThisProfile({ answers, profile }: Readonly<{ answers: Answer[]; profile: string }>) {
+  const t = useT();
+  const line = whyThisProfileLine(answers, profile, t);
+  if (line === null) return null;
+
+  return (
+    <p className="text-muted" style={{ fontSize: 'var(--text-row)', margin: 0, lineHeight: 1.55 }}>
+      {line}
+    </p>
+  );
+}
+
 function Note({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <p className="text-muted" style={{ fontSize: 'var(--text-caption)', margin: 0, lineHeight: 1.5 }}>
