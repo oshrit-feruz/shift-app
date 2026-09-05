@@ -4,6 +4,7 @@ import { Tag } from '../../components/Tag';
 import { setupProgress, useAppState, useDispatch } from '../../state/appState';
 import { holdingsSource } from '../../lib/holdings';
 import { assignEntryVariant, firstRunDestination } from '../../lib/experiment';
+import { entryExperimentEnabled } from '../../data/appConfig';
 import { useTheme, type Language } from '../../theme/ThemeProvider';
 import { useT } from '../../i18n/useT';
 
@@ -56,7 +57,15 @@ export function FirstRunOverlay() {
     // Assigned only when eligible, so nobody is labelled with an arm they were
     // never shown. Both arms are assigned — 'offered' is the control, and a
     // control with no label has no computable rate.
-    const variant = source === 'none' ? assignEntryVariant() : null;
+    //
+    // The runtime switch (data/appConfig.ts) is the second condition, and it
+    // gates the ASSIGNMENT rather than the routing: with the experiment off
+    // nobody is given an arm at all, so their events carry null and they are
+    // absent from the split rather than sitting inside it as a silent third
+    // group. Turning it off stops new entries; it does not reach backwards and
+    // un-enter the readers who were already shown a door.
+    const eligible = source === 'none' && entryExperimentEnabled();
+    const variant = eligible ? assignEntryVariant() : null;
     const screen = firstRunDestination(source, variant, setupProgress(s).resumeScreen);
     if (screen === 'steps') {
       dispatch({ type: 'go', screen: 'steps' });

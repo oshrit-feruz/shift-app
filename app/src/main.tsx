@@ -11,6 +11,7 @@ import { ToastProvider } from './components/Toast';
 import { App } from './App';
 import { startInstallPromptCapture } from './lib/useInstall';
 import { migrateLegacyDemoDefault } from './data/demoFlags';
+import { loadAppConfig } from './data/appConfig';
 
 // Before the first render: Chromium fires `beforeinstallprompt` once, early,
 // and a listener registered inside a component effect can miss it — which
@@ -23,6 +24,12 @@ startInstallPromptCapture();
 // must keep it rather than have the new default reach backwards. See
 // migrateLegacyDemoDefault. Idempotent, so running it every load is free.
 migrateLegacyDemoDefault();
+
+// Before the first render, because the first-run overlay consumes it: the
+// runtime switch that says whether new readers may enter the entry
+// experiment. Fire and forget — an unanswered read leaves it off, which is
+// the app's behaviour before PR 2, so nothing here needs to be awaited.
+void loadAppConfig();
 
 // The empty service worker (public/sw.js) — registered only in built output,
 // where it is what makes the app installable at all; in `npm run dev` it
