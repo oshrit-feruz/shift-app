@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { CORE_FUNDS, hardRule, mapProfile, PROFILES, sizeRadar, type Answer } from './advisory';
+import {
+  CORE_FUNDS,
+  decisiveAnswer,
+  hardRule,
+  mapProfile,
+  PROFILES,
+  sizeRadar,
+  type Answer,
+} from './advisory';
 import { money, pct, signedMoney } from './format';
 
 const all: Answer[] = [1, 2, 3];
@@ -111,6 +119,55 @@ describe('advisory profile mapping', () => {
   it('does not recommend an unapproved fund for global government bonds', () => {
     expect(CORE_FUNDS.globalGovBonds).toBeUndefined();
     expect(Object.values(CORE_FUNDS).join(' ')).not.toContain('VEA');
+  });
+});
+
+describe('why this profile — which answer the screen is allowed to blame', () => {
+  it('names the horizon when it is under two years', () => {
+    for (const b of all)
+      for (const c of all) for (const d of all) expect(decisiveAnswer([1, b, c, d])).toBe(0);
+  });
+
+  it('names the safety net when there is none', () => {
+    // Only where the horizon did not already decide it — see the tie case.
+    for (const a of [2, 3] as Answer[])
+      for (const b of all) for (const c of all) expect(decisiveAnswer([a, b, c, 1])).toBe(3);
+  });
+
+  it('names the horizon when both hard conditions hold at once', () => {
+    expect(decisiveAnswer([1, 2, 2, 1])).toBe(0);
+  });
+
+  it('names NOTHING whenever the sum decided it', () => {
+    // The property that matters. Every combination that is not the hard rule
+    // is a sum of four against two thresholds, and no single answer caused it
+    // — so the screen must list all four rather than pick one to blame.
+    for (const a of [2, 3] as Answer[])
+      for (const b of all)
+        for (const c of all)
+          for (const d of [2, 3] as Answer[]) {
+            expect(decisiveAnswer([a, b, c, d])).toBeNull();
+            expect(hardRule([a, b, c, d])).toBe(false);
+          }
+  });
+
+  it('agrees with hardRule on every one of the 81 combinations', () => {
+    // Stated as an equivalence rather than trusted: if these ever drift, the
+    // screen explains one rule while the allocation follows another, and both
+    // look correct on their own.
+    for (const a of all)
+      for (const b of all)
+        for (const c of all)
+          for (const d of all) {
+            const ans: Answer[] = [a, b, c, d];
+            expect(decisiveAnswer(ans) !== null).toBe(hardRule(ans));
+          }
+  });
+
+  it('has nothing to say before four answers exist', () => {
+    expect(decisiveAnswer([])).toBeNull();
+    expect(decisiveAnswer([1])).toBeNull();
+    expect(decisiveAnswer([1, 1, 1])).toBeNull();
   });
 });
 

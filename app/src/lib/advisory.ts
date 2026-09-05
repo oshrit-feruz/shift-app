@@ -131,6 +131,39 @@ export function hardRule(answers: Answer[]): boolean {
   return answers.length >= 4 && (answers[0] === 1 || answers[3] === 1);
 }
 
+/**
+ * WHICH answer produced the profile, when a single one did — the index of the
+ * decisive answer, or null when the sum decided it.
+ *
+ * Exists so the result screen can say why without inventing a reason. The
+ * mapping has two distinct shapes and they explain themselves differently:
+ *
+ *   - the HARD RULE is genuinely one answer. A horizon under two years, or no
+ *     cash set aside, produces Conservative on its own and the other three are
+ *     not consulted. Naming that answer is exact.
+ *   - otherwise it is the SUM of all four against two thresholds. No pair
+ *     explains it. A sentence citing horizon and risk-reaction would read as
+ *     the reason while being, for most combinations, not the reason — a
+ *     plausible-looking explanation of a number, which is the one thing a
+ *     screen full of real figures must never carry.
+ *
+ * So null does not mean "no reason". It means the reason is all four, and the
+ * caller should name all four rather than pick.
+ *
+ * Both hard conditions can hold at once; q1 is named because it is tested
+ * first in `hardRule` and because between the two it is the one the reader
+ * chose about this money rather than about the rest of their life.
+ */
+export function decisiveAnswer(answers: Answer[]): 0 | 3 | null {
+  // Rendered only beside a profile, and a profile needs four answers, so an
+  // incomplete set has no decisive answer for the same reason it has no
+  // profile.
+  if (answers.length < 4) return null;
+  if (answers[0] === 1) return 0;
+  if (answers[3] === 1) return 3;
+  return null;
+}
+
 /** Deterministic mapping of four answers to a profile. Null until all four answered. */
 export function mapProfile(answers: Answer[]): ProfileKey | null {
   if (answers.length < 4) return null;
