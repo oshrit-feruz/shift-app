@@ -21,6 +21,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   findCoverageMarker,
+  REVIEWER_LOGIN,
   verdict,
   safeText,
   staleBy,
@@ -41,13 +42,17 @@ const plainBody =
   `<!-- final_review_risk_coverage:{"sourceCommitId":"${HEAD}",` +
   `"coveredCommitId":"${HEAD}","kind":"reviewed"} -->`;
 
+/** A comment as the API returns it: a body plus the author who wrote it. */
+const from = (login, body) => ({ user: { login }, body });
+const byReviewer = (body) => from(REVIEWER_LOGIN, body);
+
 test("parses the entity-escaped marker GitHub actually returns", () => {
-  const m = findCoverageMarker([{ body: escapedBody }]);
+  const m = findCoverageMarker([byReviewer(escapedBody)]);
   assert.equal(m?.coveredCommitId, REVIEWED);
 });
 
 test("parses an unescaped marker too", () => {
-  const m = findCoverageMarker([{ body: plainBody }]);
+  const m = findCoverageMarker([byReviewer(plainBody)]);
   assert.equal(m?.coveredCommitId, HEAD);
 });
 
@@ -55,12 +60,15 @@ test("takes the newest marker when a PR carries several walkthrough edits", () =
   // Comments arrive oldest-first from the API. The latest edit is the only one
   // describing the current state; reading the first would report a commit that
   // was current several pushes ago.
-  const m = findCoverageMarker([{ body: escapedBody }, { body: plainBody }]);
+  const m = findCoverageMarker([
+    byReviewer(escapedBody),
+    byReviewer(plainBody),
+  ]);
   assert.equal(m?.coveredCommitId, HEAD);
 });
 
 test("reports nothing rather than guessing when no marker is present", () => {
-  assert.equal(findCoverageMarker([{ body: "LGTM" }, { body: "" }]), null);
+  assert.equal(findCoverageMarker([byReviewer("LGTM"), byReviewer("")]), null);
   assert.equal(findCoverageMarker([]), null);
 });
 
@@ -69,15 +77,55 @@ test("a malformed marker does not hide an older valid one", () => {
   // valid marker is wrong too, but reporting null when a real one exists would
   // fire a false alarm, and this parser's job is to be believed.
   const broken = `<!-- final_review_risk_coverage:&#123;&quot;coveredCommitId&quot; -->`;
-  const m = findCoverageMarker([{ body: escapedBody }, { body: broken }]);
+  const m = findCoverageMarker([byReviewer(escapedBody), byReviewer(broken)]);
   assert.equal(m?.coveredCommitId, REVIEWED);
 });
 
 test("ignores a comment that merely mentions the marker name in prose", () => {
-  const prose = {
-    body: "the final_review_risk_coverage: marker is stuck on 87efa",
-  };
+  const prose = byReviewer(
+    "the final_review_risk_coverage: marker is stuck on 87efa",
+  );
   assert.equal(findCoverageMarker([prose]), null);
+});
+
+// --- only the reviewer's marker counts ------------------------------------
+//
+// The marker is text in a comment body, and anyone who can comment on a PR can
+// write one. Believing any author meant a comment could assert that the current
+// head had been reviewed, to the one check whose job is to establish that it
+// had — the check forging its own evidence on request.
+//
+// This is not a thought experiment: quoting the marker while explaining this
+// check puts a well-formed one in a non-reviewer comment, newer than the
+// walkthrough and so scanned first. On PR #59 it lost only because it sat in a
+// fenced block with no `-->`, so the slice never parsed. Formatting luck.
+
+const FORGED = "1111111111111111111111111111111111111111";
+
+test("a marker from someone other than the reviewer is not believed", () => {
+  const forged = from(
+    "someone-else",
+    `<!-- final_review_risk_coverage:{"coveredCommitId":"${FORGED}","kind":"reviewed"} -->`,
+  );
+  assert.equal(findCoverageMarker([forged]), null);
+});
+
+test("a forged newer marker does not override the reviewer's real one", () => {
+  // Comments arrive oldest-first, so the forgery is scanned BEFORE the
+  // walkthrough. Reporting FORGED here would mean a head reads as reviewed
+  // because a stranger said so.
+  const forged = from(
+    "someone-else",
+    `<!-- final_review_risk_coverage:{"coveredCommitId":"${FORGED}","kind":"reviewed"} -->`,
+  );
+  const m = findCoverageMarker([byReviewer(plainBody), forged]);
+  assert.equal(m?.coveredCommitId, HEAD);
+});
+
+test("an unattributed comment is not treated as the reviewer's", () => {
+  // The dangerous default: `undefined === undefined` would pass an author
+  // check written as a bare equality against a missing field.
+  assert.equal(findCoverageMarker([{ body: plainBody }]), null);
 });
 
 // --- exit codes -----------------------------------------------------------

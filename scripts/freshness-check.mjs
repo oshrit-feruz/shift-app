@@ -147,6 +147,9 @@ try {
   optionError = err;
 }
 
+/** The only comment author whose coverage marker is believed. */
+export const REVIEWER_LOGIN = "coderabbitai[bot]";
+
 const SONAR_TOKEN = process.env.SONAR_TOKEN;
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 
@@ -503,12 +506,32 @@ export async function checkCodeRabbit(prNumber) {
  * entity-escaped (`&#123;` for `{`, `&quot;` for `"`), so a bare JSON.parse on
  * the raw slice fails. Unescaping first, and tolerating the unescaped form
  * too, keeps this working whichever way the body comes back.
+ *
+ * ONLY THE REVIEWER'S OWN COMMENTS COUNT. The marker is just text in a comment
+ * body, and anyone who can comment on a pull request can write one. Scanning
+ * every author meant a comment saying
+ *
+ *   <!-- final_review_risk_coverage:{"coveredCommitId":"<head>"} -->
+ *
+ * would be read as proof that <head> had been reviewed, by the one check whose
+ * entire job is to establish that it had. Nobody did this; it was reachable,
+ * which for a check that exists to be believed is the same problem.
+ *
+ * It is not hypothetical either. Quoting the marker while explaining this
+ * check — which I did on PR #59 — puts a well-formed one in a non-reviewer
+ * comment, NEWER than the walkthrough and therefore scanned first. That one
+ * happened to be inside a fenced block with no `-->`, so the slice ran to the
+ * end of the body and failed to parse. It lost by an accident of formatting,
+ * which is not a property worth relying on.
  */
-export function findCoverageMarker(comments) {
+export function findCoverageMarker(comments, reviewer = REVIEWER_LOGIN) {
   const KEY = "final_review_risk_coverage:";
   // Newest first: a PR accumulates several walkthrough edits and only the
   // latest describes the current state.
   for (const c of [...comments].reverse()) {
+    // An unattributed comment is not the reviewer's. Test fixtures that omit
+    // the author must say who wrote it, same as the API does.
+    if (c.user?.login !== reviewer) continue;
     const body = c.body || "";
     const at = body.indexOf(KEY);
     if (at === -1) continue;
