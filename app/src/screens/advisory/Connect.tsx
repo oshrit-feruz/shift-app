@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Card, CardTitle } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Icon } from '../../components/Icon';
@@ -8,6 +9,7 @@ import { useAppState, useDispatch } from '../../state/appState';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useT } from '../../i18n/useT';
 import { BROKER_URLS } from '../../lib/brokerLinks';
+import { track } from '../../data/analytics';
 import type { ScreenProps } from '../../App';
 
 const BROKERS = [
@@ -53,6 +55,12 @@ export function AdvisoryConnect(_: ScreenProps) {
   const { language } = useTheme();
   const t = useT();
   const flow = !s.advSolo;
+
+  // The third funnel stage. Fired for both ways in — as a step of the flow
+  // and opened standalone from Settings, the portfolio or the checklist —
+  // because the question the baseline answers is how many people reach the
+  // broker screen at all, not how many take one particular path to it.
+  useEffect(() => track('broker_screen_viewed'), []);
 
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
@@ -132,7 +140,13 @@ export function AdvisoryConnect(_: ScreenProps) {
               block
               minHeight={42}
               fontSize={16}
-              onClick={() => window.open(BROKER_URLS[s.advBroker!], '_blank', 'noopener,noreferrer')}
+              onClick={() => {
+                // The primary KPI, recorded before the hand-off rather than
+                // after it: window.open can be blocked by the browser, and
+                // the intent to open an account is what this stage measures.
+                track('broker_action_clicked');
+                window.open(BROKER_URLS[s.advBroker!], '_blank', 'noopener,noreferrer');
+              }}
             >
               {t('conn.openAt', { broker: brokerName(s.advBroker) })} ↗
             </Button>

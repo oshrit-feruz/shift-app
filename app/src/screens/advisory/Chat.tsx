@@ -7,6 +7,7 @@ import { FlowStepper } from './FlowStepper';
 import { useAppState, useDispatch } from '../../state/appState';
 import { useT } from '../../i18n/useT';
 import { hardRule, mapProfile, type Answer } from '../../lib/advisory';
+import { track } from '../../data/analytics';
 import type { StringKey } from '../../i18n/strings';
 import type { ScreenProps } from '../../App';
 
@@ -63,6 +64,13 @@ export function AdvisoryChat(_: ScreenProps) {
   //
   // Keyed on the number of answers, not on every render: the only thing that
   // adds a turn is an answer landing.
+  // Top of the funnel: this screen opening IS the flow starting, so it is
+  // recorded here rather than on the first answer — someone who arrives,
+  // reads the questions and leaves is exactly the drop-off the baseline
+  // needs to show. Counted once per session however often the screen
+  // remounts; see data/analytics.ts.
+  useEffect(() => track('reco_started'), []);
+
   const bottomRef = useRef<HTMLDivElement>(null);
   const turns = ans.length;
   // The first paint is not a turn — the screen has just opened and belongs at

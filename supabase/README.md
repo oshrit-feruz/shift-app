@@ -68,6 +68,21 @@ that has not been pasted into the SQL editor is not live, however green CI is.
   be run *before* deploying the client release that offers that delete: under
   the 0005 policy the delete affects no rows and reports no error, so the
   Sandbox would disappear from the screen and return on the next read.
+- `0011_funnel_events.sql` — **the conversion funnel.** Creates
+  `funnel_events` and the `funnel_summary` view over it, and reading is done
+  from the SQL editor (`docs/funnel.md` has the queries). The client writes
+  here directly with the anon key: an **insert-only** policy admitting
+  `authenticated`, plus a column-level `grant insert (name, session_id,
+  anon_id)` — the same narrowing 0009 applies to `read_at`, and here it is
+  what keeps `created_at` the server's clock rather than the device's. There
+  is no select, update or delete grant, so the browser can never read the
+  table back. The table deliberately has **no `user_id` column** — the funnel
+  is counted by an anonymous per-device id and a per-tab session id, neither
+  of which joins to a person. Run it before deploying the release that fires
+  the events; until it is, every insert is refused (swallowed client-side, by
+  design) and every query reads zero, which is indistinguishable from nobody
+  using the flow — so check the table exists before believing a zero.
+  Needs no new environment variable and no API route.
 
 ### Verifying the ledger's RLS
 
