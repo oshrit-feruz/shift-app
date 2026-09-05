@@ -407,7 +407,16 @@ export function reducer(s: AppState, a: Action): AppState {
       // when the server state lands; yanking them elsewhere would read as a
       // crash, and dropping the trail would turn their next back press into
       // an app exit. Everything else resets to initial + the server's slice.
-      return { ...initial, ...a.persisted, screen: s.screen, ticker: s.ticker, navStack: s.navStack };
+      // Through withCoherentAdvisory because this is one of the two places a
+      // persisted slice becomes state, and the answers/stage invariant is only
+      // checkable once both halves are present — the server may send either.
+      return withCoherentAdvisory({
+        ...initial,
+        ...a.persisted,
+        screen: s.screen,
+        ticker: s.ticker,
+        navStack: s.navStack,
+      });
     case 'resetPersisted':
       // Back to a clean boot; the localStorage effect below then overwrites
       // the on-device cache with the blank slice.
@@ -535,42 +544,53 @@ function normalisedTickers(stored: unknown[]): string[] {
 }
 
 /**
- * Puts the advisory pair back into a state the app could actually have
- * reached, or empties it.
+ * Drops the parts of an incoming advisory fragment that the app could not have
+ * written. FIELD-level only — the pair rule lives in `withCoherentAdvisory`,
+ * because a fragment is not a state.
  *
- * ANSWERS AND STAGE ARE ONE FACT, NOT TWO. Validating each alone leaves the
- * combination unguarded, and the combination is what the screens read:
- * `{ advAnswers: [2], advStage: 5 }` has a plausible answer array and a
- * plausible stage, and is still impossible — a stage above zero is only ever
- * set after all four answers exist. Left standing, setupProgress routes it to
- * `advDash`, `mapProfile([2])` returns null, and the recommendation screen's
- * `?? 'bal'` fallback hands the reader a full Balanced allocation off one
- * answer. No error, nothing to notice: the same quiet wrongness as summing
- * five answers, arrived at from the other side.
- *
- * WHAT IS KEPT. A short answer array is a real state — someone mid-chat — so
- * it survives, and only the impossible stage is reset, which puts them back on
- * the question they had reached rather than at the start. Answers that could
- * not have been written are dropped entirely (see isStoredAnswers), and the
- * stage goes with them.
- *
- * ABSENT IS NOT CORRUPT. A partial server row carrying one key and not the
- * other says nothing about the one it omits, so the pair is only judged when
- * both are present — an existing test in remoteState covers exactly that row.
+ * ABSENT IS NOT CORRUPT here. A partial server row carrying one key and not the
+ * other says nothing about the one it omits, so nothing is inferred from a
+ * missing key at this level. That is correct for the fragment and, on its own,
+ * not enough: the consumers fill the other half in from `initial`, which is
+ * exactly how `{ advStage: 2 }` with no answers became a Balanced allocation.
+ * The invariant is therefore enforced again where the state is complete.
  */
 function healAdvisory(picked: Partial<AppState>): void {
   if ('advAnswers' in picked && !isStoredAnswers(picked.advAnswers)) {
     picked.advAnswers = [];
     picked.advStage = 0;
   }
-  if (!('advStage' in picked)) return;
   // A stage outside the flow is not merely wrong, it is unroutable: ADV_ORDER
   // has five entries and setupProgress indexes it directly, so a negative
   // stage resolves to `undefined` and navigates nowhere.
-  if (!isStoredStage(picked.advStage)) picked.advStage = 0;
-  else if (picked.advStage > 0 && 'advAnswers' in picked && picked.advAnswers?.length !== 4) {
-    picked.advStage = 0;
-  }
+  if ('advStage' in picked && !isStoredStage(picked.advStage)) picked.advStage = 0;
+}
+
+/**
+ * The advisory pair, made coherent on a COMPLETE state.
+ *
+ * WHY IT IS HERE AND NOT IN readPersisted. A stage above zero is only ever set
+ * once all four answers exist, so the two fields are one fact — but the fact is
+ * only visible once the state is assembled. readPersisted sees a fragment, and
+ * a fragment that omits `advAnswers` says nothing about them; inferring from
+ * the omission would discard progress the row never described. Both callers
+ * then merge that fragment over `initial`, which supplies `advAnswers: []` —
+ * and a stage of 2 beside an empty array routes to `advDash`, where
+ * `mapProfile([])` is null and the screen's `?? 'bal'` fallback hands over a
+ * full Balanced allocation. Nothing was corrupt at any single step.
+ *
+ * So the fragment is cleaned where it arrives and the invariant is enforced
+ * where the state is whole: hydrate() for the local bag, and the replaceState
+ * reducer for everything the server sends, including mergeRemote's wholesale
+ * sign-in adoption and adoptRemote's partial foreground update.
+ *
+ * Only the stage moves. The answers are whatever survived validation, and a
+ * short array is a real state — someone mid-chat keeps their place.
+ */
+function withCoherentAdvisory(s: AppState): AppState {
+  if (s.advStage === 0) return s;
+  if (isStoredStage(s.advStage) && s.advAnswers.length === 4) return s;
+  return { ...s, advStage: 0 };
 }
 
 /**
@@ -625,10 +645,12 @@ function isSavedAlert(value: unknown): value is SavedAlert {
   );
 }
 
-function hydrate(): AppState {
+/** Exported for the tests that pin the answers/stage invariant on a real boot. */
+export function hydrate(): AppState {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
-    return { ...initial, ...readPersisted(saved) };
+    // The other place a slice becomes state — see withCoherentAdvisory.
+    return withCoherentAdvisory({ ...initial, ...readPersisted(saved) });
   } catch {
     return initial;
   }

@@ -1,8 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   reducer,
   readLegacyLedger,
   readPersisted,
+  hydrate,
+  setupProgress,
   initial,
   PERSISTED,
   type Action,
@@ -10,6 +12,8 @@ import {
   type ManualTransaction,
 } from './appState';
 import { todayLocal } from '../sheets/TxSheet';
+import { mergeRemote, adoptRemote } from './remoteState';
+import type { Answer } from '../lib/advisory';
 
 const base = reducer({ pfIndex: 3 } as AppState, { type: 'pfIndex', index: 3 });
 
@@ -281,30 +285,6 @@ describe('a stored advisory-answer bag that cannot be trusted', () => {
     }
   });
 
-  it('refuses a stage the answers cannot support, keeping the answers', () => {
-    // The combination is the fact, not each field alone. [2] and 5 are each
-    // plausible; together they are impossible, because a stage above zero is
-    // only ever set once all four answers exist. Left standing, setupProgress
-    // routes to advDash and the recommendation screen's `?? 'bal'` fallback
-    // hands over a full Balanced allocation off one answer.
-    for (const answers of [[], [2], [1, 2], [3, 2, 1]]) {
-      for (const stage of [1, 2, 3, 4, 5]) {
-        const out = readPersisted({ advAnswers: answers, advStage: stage });
-        expect(out.advStage, `${JSON.stringify(answers)} @ ${stage}`).toBe(0);
-        // The answers themselves are a real state: keeping them puts the
-        // reader back on the question they had reached, not at the start.
-        expect(out.advAnswers).toEqual(answers);
-      }
-    }
-  });
-
-  it('leaves every legitimate answers-and-stage pair alone', () => {
-    for (const stage of [0, 1, 2, 3, 4, 5]) {
-      const out = readPersisted({ advAnswers: [1, 2, 3, 3], advStage: stage });
-      expect(out.advStage, `stage ${stage}`).toBe(stage);
-    }
-  });
-
   it('refuses a stage outside the flow, which routes nowhere at all', () => {
     // ADV_ORDER has five entries and setupProgress indexes it directly, so a
     // negative stage resolves to undefined and navigates to no screen.
@@ -315,9 +295,11 @@ describe('a stored advisory-answer bag that cannot be trusted', () => {
   });
 
   it('does not judge the pair when only one half is present', () => {
-    // Same rule as absent answers: a row carrying one key says nothing about
-    // the other, and correcting on the strength of a key never sent would
-    // discard progress this bag never described.
+    // Same rule as absent answers: a FRAGMENT carrying one key says nothing
+    // about the other, and correcting on the strength of a key never sent
+    // would discard progress this row never described. The pair itself is
+    // enforced once the state is whole — see the suite below, which is where
+    // that omission would otherwise turn into a Balanced allocation.
     expect(readPersisted({ advStage: 3 }).advStage).toBe(3);
     const answersOnly = readPersisted({ advAnswers: [2] });
     expect(answersOnly.advAnswers).toEqual([2]);
@@ -362,5 +344,80 @@ describe('a stored advisory-answer bag that cannot be trusted', () => {
     const out = readPersisted({ advStage: 2 });
     expect(out).not.toHaveProperty('advAnswers');
     expect(out.advStage).toBe(2);
+  });
+});
+
+describe('the answers-and-stage invariant, once the state is whole', () => {
+  /**
+   * A stage above zero is only ever set after all four answers exist, so the
+   * two fields are one fact. But the fact is only visible on an ASSEMBLED
+   * state: readPersisted sees a fragment, and a fragment that omits the
+   * answers says nothing about them. Both callers then merge over `initial`,
+   * which supplies `advAnswers: []` — and a stage of 2 beside an empty array
+   * routes to `advDash`, where `mapProfile([])` is null and the recommendation
+   * screen's `?? 'bal'` fallback hands over a full Balanced allocation.
+   *
+   * Nothing is corrupt at any single step, which is why validating the
+   * fragment alone was not enough. These cases pin it at both doors.
+   */
+  const persist = (persisted: Partial<AppState>): AppState =>
+    reducer(initial, { type: 'replaceState', persisted } as Action);
+
+  it('refuses a server row that carries a stage and no answers', () => {
+    // mergeRemote adopts a non-empty server bag wholesale at sign-in.
+    const { next } = mergeRemote({ advAnswers: [], advStage: 0 }, { advStage: 2 });
+    const s = persist(next);
+    expect(s.advStage).toBe(0);
+    expect(setupProgress(s).resumeScreen).toBe('advChat');
+  });
+
+  it('refuses a stage-only update landing on partial answers', () => {
+    // adoptRemote merges the remote fragment over the CURRENT bag, so the
+    // stage can meet answers it never travelled with.
+    const merged = adoptRemote({ advAnswers: [2], advStage: 0 }, { advStage: 5 });
+    const s = persist(merged ?? {});
+    expect(s.advStage).toBe(0);
+    expect(s.advAnswers).toEqual([2]);
+  });
+
+  it('refuses every incomplete answers-and-stage pair it can be handed', () => {
+    for (const advAnswers of [[], [2], [1, 2], [3, 2, 1]] as Answer[][])
+      for (const advStage of [1, 2, 3, 4, 5]) {
+        const s = persist({ advAnswers, advStage });
+        expect(s.advStage, `${JSON.stringify(advAnswers)} @ ${advStage}`).toBe(0);
+        // The answers survive: someone mid-chat keeps their place.
+        expect(s.advAnswers).toEqual(advAnswers);
+      }
+  });
+
+  it('leaves every complete pair alone', () => {
+    for (const advStage of [0, 1, 2, 3, 4, 5]) {
+      expect(persist({ advAnswers: [1, 2, 3, 3], advStage }).advStage, `stage ${advStage}`).toBe(advStage);
+    }
+  });
+
+  it('holds on a local boot too, not only on the server path', () => {
+    const store = new Map([['shift.state', JSON.stringify({ advAnswers: [2], advStage: 5 })]]);
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: () => {},
+      removeItem: () => {},
+    });
+    const s = hydrate();
+    vi.unstubAllGlobals();
+    expect(s.advStage).toBe(0);
+    expect(s.advAnswers).toEqual([2]);
+  });
+
+  it('never routes an assembled state to a screen that does not exist', () => {
+    // The whole point of the invariant, stated as the property it protects.
+    for (const advAnswers of [[], [2], [1, 2, 3, 3]] as Answer[][])
+      for (const advStage of [-1, 0, 1, 3, 5, 6, 99]) {
+        const s = persist({ advAnswers, advStage });
+        const screen = setupProgress(s).resumeScreen;
+        expect(screen, `${JSON.stringify(advAnswers)} @ ${advStage}`).toBeDefined();
+        // And it only reaches the recommendation with a real profile behind it.
+        if (screen === 'advDash') expect(s.advAnswers).toHaveLength(4);
+      }
   });
 });
