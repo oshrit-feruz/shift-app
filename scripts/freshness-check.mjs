@@ -210,11 +210,20 @@ async function getJson(url, headers) {
  * Running out of pages THROWS rather than returning what it has. A truncated
  * read that reports itself as complete is the failure this whole script is
  * about; 20 pages is 2,000 comments, and a PR past that deserves the error.
+ *
+ * THE BOUND IS maxPages + 1, and the extra page is the whole point. A
+ * collection of exactly maxPages * 100 items fills every page, so the last
+ * page is full and looks identical to "there is more" — the only way to tell
+ * a complete read from a truncated one is to ask for the next page and get
+ * nothing back. Stopping at maxPages threw on a COMPLETE read: exit 2 for a
+ * healthy case, from the helper whose reason for existing is that a short read
+ * must not pass as a whole one. Being wrong in that direction would have been
+ * the funnier failure and this one is the more likely, so it gets the test.
  */
-async function getAllPages(url, headers, maxPages = 20) {
+export async function getAllPages(url, headers, maxPages = 20) {
   const out = [];
   const sep = url.includes("?") ? "&" : "?";
-  for (let page = 1; page <= maxPages; page += 1) {
+  for (let page = 1; page <= maxPages + 1; page += 1) {
     const batch = await getJson(
       `${url}${sep}per_page=100&page=${page}`,
       headers,
@@ -229,9 +238,13 @@ async function getAllPages(url, headers, maxPages = 20) {
     out.push(...batch);
     if (batch.length < 100) return out;
   }
+  // Still a full page after maxPages + 1 requests. Stated as pages rather than
+  // as a round item count, because the count where this trips is
+  // (maxPages + 1) * 100 and a message naming 2,000 would be off by a page.
   throw new Error(
-    `${url.split("?")[0]} has more than ${maxPages * 100} items — ` +
-      `refusing to report on a truncated read`,
+    `${url.split("?")[0]} still had a full page after ${maxPages + 1} ` +
+      `pages (${(maxPages + 1) * 100} items) — refusing to report on a ` +
+      `truncated read`,
   );
 }
 

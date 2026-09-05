@@ -21,6 +21,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   findCoverageMarker,
+  getAllPages,
   REVIEWER_LOGIN,
   verdict,
   safeText,
@@ -172,6 +173,76 @@ test("reads past the first page to find a marker on a later one", async () => {
     pages.some((u) => /[?&]page=2(&|$)/.test(u)),
     `never asked for page 2: ${pages.join(", ")}`,
   );
+});
+
+// --- the boundary between "complete" and "truncated" ---------------------
+//
+// A collection of exactly maxPages * 100 items fills every page, so its last
+// page is full and is indistinguishable from "there is more" until the next
+// page comes back empty. The first version stopped at maxPages and threw on
+// that case: exit 2 for a COMPLETE read, from the helper that exists so a
+// short read cannot pass as a whole one. Wrong in the safer direction, and
+// still wrong.
+
+/** Serves `pages` full pages of 100, then empties, recording what was asked. */
+function pagedFetch(fullPages, asked = []) {
+  return async (url) => {
+    const u = String(url);
+    asked.push(u);
+    const n = Number(/[?&]page=(\d+)(&|$)/.exec(u)?.[1]);
+    const body =
+      n <= fullPages ? Array.from({ length: 100 }, (_, i) => ({ i })) : [];
+    return { ok: true, status: 200, text: async () => JSON.stringify(body) };
+  };
+}
+
+test("exactly maxPages * 100 items is a complete read, not a truncated one", async () => {
+  const asked = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = pagedFetch(2, asked);
+  try {
+    const out = await getAllPages("https://api.example/x", {}, 2);
+    assert.equal(out.length, 200);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  // It had to ask for page 3 to learn that page 2 was the end.
+  assert.ok(
+    asked.some((u) => /[?&]page=3(&|$)/.test(u)),
+    `never asked past the last full page: ${asked.join(", ")}`,
+  );
+});
+
+test("a genuinely longer collection still refuses rather than truncating", async () => {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = pagedFetch(99);
+  try {
+    await assert.rejects(
+      () => getAllPages("https://api.example/x", {}, 2),
+      /refusing to report on a truncated read/,
+    );
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("a short final page ends the walk without asking for more", async () => {
+  const asked = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    asked.push(String(url));
+    const n = Number(/[?&]page=(\d+)(&|$)/.exec(String(url))?.[1]);
+    const body =
+      n === 1 ? Array.from({ length: 100 }, (_, i) => ({ i })) : [{ last: 1 }];
+    return { ok: true, status: 200, text: async () => JSON.stringify(body) };
+  };
+  try {
+    const out = await getAllPages("https://api.example/x", {}, 20);
+    assert.equal(out.length, 101);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  assert.equal(asked.length, 2, `asked more than it needed: ${asked.length}`);
 });
 
 // --- exit codes -----------------------------------------------------------
