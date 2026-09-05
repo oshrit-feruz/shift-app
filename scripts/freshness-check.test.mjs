@@ -213,6 +213,32 @@ test("exactly maxPages * 100 items is a complete read, not a truncated one", asy
   );
 });
 
+test("a PARTIAL probe page is a complete read too, not just an empty one", async () => {
+  // The case the whole argument was about, and the one the other three miss:
+  // page maxPages + 1 comes back with 1-99 items. That terminates the list just
+  // as definitively as an empty page — a fix that accepts only the empty form
+  // refuses a complete read of 2,001 to 2,099 items, which is the original bug
+  // moved one page along. Untested until CodeRabbit pointed at the gap.
+  const asked = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const u = String(url);
+    asked.push(u);
+    const n = Number(/[?&]page=(\d+)(&|$)/.exec(u)?.[1]);
+    const len = n <= 2 ? 100 : n === 3 ? 37 : 0;
+    const body = Array.from({ length: len }, (_, i) => ({ i }));
+    return { ok: true, status: 200, text: async () => JSON.stringify(body) };
+  };
+  try {
+    const out = await getAllPages("https://api.example/x", {}, 2);
+    assert.equal(out.length, 237);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  // Stops at the partial probe page: no fourth request.
+  assert.equal(asked.length, 3, `asked ${asked.length} times, expected 3`);
+});
+
 test("a genuinely longer collection still refuses rather than truncating", async () => {
   const realFetch = globalThis.fetch;
   globalThis.fetch = pagedFetch(99);
