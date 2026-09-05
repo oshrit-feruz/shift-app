@@ -30,8 +30,19 @@ alter table public.app_config enable row level security;
 create policy app_config_read on public.app_config
   for select to anon, authenticated using (true);
 
+-- Supabase grants `anon` and `authenticated` table-wide access on new tables
+-- in `public` by default, so the grant is taken away first and handed back
+-- narrowed — the same two-step as 0011_funnel_events, and for the same reason.
+-- Writing `grant select` alone is additive: it reads as select-only and leaves
+-- INSERT, UPDATE, DELETE and TRUNCATE standing.
+--
+-- RLS would still refuse those writes, since the only policy here is the
+-- SELECT one above. This is the second lock rather than the first: a table
+-- whose safety rests entirely on RLS is one added policy, or one `alter table
+-- ... disable row level security`, away from being writable by every client.
+--
+-- The switch is flipped from the SQL editor or by a service-role key, never by
+-- the app. A client that can turn its own experiment off is not a kill switch,
+-- it is a preference.
+revoke all on public.app_config from anon, authenticated;
 grant select on public.app_config to anon, authenticated;
-
--- Deliberately no insert/update/delete grant. The switch is flipped from the
--- SQL editor or by a service-role key, never by the app. A client that can
--- turn its own experiment off is not a kill switch, it is a preference.
