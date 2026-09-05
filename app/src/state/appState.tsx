@@ -495,41 +495,8 @@ export function readPersisted(saved: Record<string, unknown>): Partial<AppState>
   const picked: Partial<AppState> = {};
   for (const k of PERSISTED) if (k in saved) (picked as Record<string, unknown>)[k] = saved[k];
   if (isSeededWatchlist(picked.watchlist)) picked.watchlist = [];
-  else if (Array.isArray(picked.watchlist)) {
-    // Stored before tickers were normalised on the way in, or hand-edited.
-    const out: string[] = [];
-    for (const raw of picked.watchlist) {
-      if (typeof raw !== 'string') continue;
-      const ticker = raw.trim().toUpperCase();
-      if (ticker && !out.includes(ticker)) out.push(ticker);
-    }
-    picked.watchlist = out;
-  }
-  if ('advAnswers' in picked && !isStoredAnswers(picked.advAnswers)) {
-    // PRESENT and unusable, which is not the same as absent: a partial server
-    // row that carries `advStage` and no answers at all is a row saying
-    // nothing about the answers, and resetting a stage on the strength of a
-    // key that was never sent would discard progress this bag never described.
-    //
-    // Dropped rather than trimmed, and the stage goes with it.
-    //
-    // Trimming to the first four would be a guess about which four the reader
-    // meant, and the cost of guessing wrong here is not a rendering glitch: it
-    // is an allocation built for a risk appetite they did not describe.
-    // Dropping puts them back at question one, which is four taps and is the
-    // only honest answer when the stored bag cannot say what they chose.
-    //
-    // `advStage` is reset alongside because it is only ever advanced past the
-    // chat, so a stage above zero with no answers is a state the app cannot
-    // reach on its own — and left standing it would route straight past the
-    // questions to a recommendation with nothing behind it.
-    //
-    // Same reasoning as the alert rows below, which are dropped rather than
-    // healed for the same reason: a corrupted row read charitably becomes a
-    // confident wrong answer.
-    picked.advAnswers = [];
-    picked.advStage = 0;
-  }
+  else if (Array.isArray(picked.watchlist)) picked.watchlist = normalisedTickers(picked.watchlist);
+  dropUntrustedAnswers(picked);
   if (Array.isArray(picked.savedAlerts)) {
     // Duplicates could be stored before addAlert collapsed them, and a device
     // that filed the same alert four times would otherwise keep all four (and
@@ -550,6 +517,51 @@ export function readPersisted(saved: Record<string, unknown>): Partial<AppState>
       .reduce<SavedAlert[]>((kept, alert) => addAlert(kept, alert), []);
   }
   return picked;
+}
+
+/**
+ * Tickers as the app writes them today, from a list stored before they were
+ * normalised on the way in — or hand-edited since. Trimmed, upper-cased, and
+ * de-duplicated; anything that is not a string is dropped.
+ */
+function normalisedTickers(stored: unknown[]): string[] {
+  const out: string[] = [];
+  for (const raw of stored) {
+    if (typeof raw !== 'string') continue;
+    const ticker = raw.trim().toUpperCase();
+    if (ticker && !out.includes(ticker)) out.push(ticker);
+  }
+  return out;
+}
+
+/**
+ * Empties an advisory-answer bag the app could not have written, and the
+ * stage that would have been read alongside it.
+ *
+ * PRESENT and unusable, which is not the same as absent: a partial server row
+ * carrying `advStage` and no answers at all says nothing about the answers,
+ * and resetting a stage on the strength of a key that was never sent would
+ * discard progress this bag never described.
+ *
+ * Dropped rather than trimmed. Keeping the first four would be a guess about
+ * which four the reader meant, and the cost of guessing wrong is not a
+ * rendering glitch — it is an allocation built for a risk appetite they did
+ * not describe (`mapProfile`, lib/advisory.ts). Dropping puts them back at
+ * question one, which is four taps, and is the only honest answer when the
+ * stored bag cannot say what they chose.
+ *
+ * `advStage` goes with it because it is only ever advanced past the chat, so a
+ * stage above zero with no answers is a state the app cannot reach on its own
+ * — and left standing it would route straight past the questions to a
+ * recommendation with nothing behind it.
+ *
+ * Same call the alert rows make below, and for the same stated reason: a
+ * corrupted row read charitably becomes a confident wrong answer.
+ */
+function dropUntrustedAnswers(picked: Partial<AppState>): void {
+  if (!('advAnswers' in picked) || isStoredAnswers(picked.advAnswers)) return;
+  picked.advAnswers = [];
+  picked.advStage = 0;
 }
 
 /**
