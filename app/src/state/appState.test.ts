@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   reducer,
   readLegacyLedger,
+  readPersisted,
   initial,
   PERSISTED,
   type Action,
@@ -246,5 +247,69 @@ describe('the back trail', () => {
   it('is dropped on sign-out', () => {
     const s = walk({ type: 'go', screen: 'pf' }, { type: 'openStock', ticker: 'AMD' });
     expect(reducer(s, { type: 'resetPersisted' }).navStack).toEqual([]);
+  });
+});
+
+describe('a stored advisory-answer bag that cannot be trusted', () => {
+  /**
+   * The quiet failure this guards.
+   *
+   * `advAnswers` round-trips through localStorage and the synced user_state
+   * row, and the reducer appends without a cap, so neither the length nor the
+   * values are guaranteed on the way back in. `mapProfile` sums them against
+   * thresholds calibrated for exactly four answers each in 1..3 — so a fifth
+   * entry, or a 7, or a string, produces a profile that looks entirely
+   * ordinary and is built for a risk appetite the reader never described.
+   *
+   * Nothing throws. Nothing looks wrong. That is why the bag is dropped here
+   * rather than read charitably — the same call the alert rows make one
+   * function down.
+   */
+  it('keeps a bag the app could actually have written', () => {
+    for (const answers of [[], [3], [1, 2], [3, 2, 1], [1, 2, 3, 3]]) {
+      const out = readPersisted({ advAnswers: answers, advStage: 5 });
+      expect(out.advAnswers, JSON.stringify(answers)).toEqual(answers);
+      expect(out.advStage).toBe(5);
+    }
+  });
+
+  it('drops a fifth answer rather than summing it', () => {
+    const out = readPersisted({ advAnswers: [2, 2, 2, 2, 2], advStage: 5 });
+    expect(out.advAnswers).toEqual([]);
+  });
+
+  it('drops values outside 1..3, which would sum just as silently', () => {
+    // A 7 is not a louder failure than a fifth answer, only a rarer one.
+    expect(readPersisted({ advAnswers: [7, 2, 2, 2] }).advAnswers).toEqual([]);
+    expect(readPersisted({ advAnswers: [0, 2, 2, 2] }).advAnswers).toEqual([]);
+    expect(readPersisted({ advAnswers: [2.5, 2, 2, 2] }).advAnswers).toEqual([]);
+  });
+
+  it('drops a string, which would turn the sum into concatenation', () => {
+    expect(readPersisted({ advAnswers: ['2', 2, 2, 2] }).advAnswers).toEqual([]);
+    expect(readPersisted({ advAnswers: [null, 2, 2, 2] }).advAnswers).toEqual([]);
+  });
+
+  it('drops something that is not an array at all', () => {
+    expect(readPersisted({ advAnswers: 'routed' }).advAnswers).toEqual([]);
+    expect(readPersisted({ advAnswers: { 0: 1 } }).advAnswers).toEqual([]);
+    expect(readPersisted({ advAnswers: null }).advAnswers).toEqual([]);
+  });
+
+  it('resets the stage alongside, so nothing routes past questions with no answers', () => {
+    // advStage only ever advances past the chat, so a stage above zero with no
+    // answers is unreachable by the app — and left standing it would send the
+    // reader straight to a recommendation with nothing behind it.
+    const out = readPersisted({ advAnswers: [2, 2, 2, 2, 2], advStage: 5 });
+    expect(out.advStage).toBe(0);
+  });
+
+  it('leaves a bag that simply does not mention the answers alone', () => {
+    // A partial server row carrying advStage and no advAnswers says nothing
+    // about the answers. Treating absent as corrupt would discard progress
+    // this row never described — caught by the mergeRemote whitelist test.
+    const out = readPersisted({ advStage: 2 });
+    expect(out).not.toHaveProperty('advAnswers');
+    expect(out.advStage).toBe(2);
   });
 });

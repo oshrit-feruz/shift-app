@@ -505,6 +505,31 @@ export function readPersisted(saved: Record<string, unknown>): Partial<AppState>
     }
     picked.watchlist = out;
   }
+  if ('advAnswers' in picked && !isStoredAnswers(picked.advAnswers)) {
+    // PRESENT and unusable, which is not the same as absent: a partial server
+    // row that carries `advStage` and no answers at all is a row saying
+    // nothing about the answers, and resetting a stage on the strength of a
+    // key that was never sent would discard progress this bag never described.
+    //
+    // Dropped rather than trimmed, and the stage goes with it.
+    //
+    // Trimming to the first four would be a guess about which four the reader
+    // meant, and the cost of guessing wrong here is not a rendering glitch: it
+    // is an allocation built for a risk appetite they did not describe.
+    // Dropping puts them back at question one, which is four taps and is the
+    // only honest answer when the stored bag cannot say what they chose.
+    //
+    // `advStage` is reset alongside because it is only ever advanced past the
+    // chat, so a stage above zero with no answers is a state the app cannot
+    // reach on its own — and left standing it would route straight past the
+    // questions to a recommendation with nothing behind it.
+    //
+    // Same reasoning as the alert rows below, which are dropped rather than
+    // healed for the same reason: a corrupted row read charitably becomes a
+    // confident wrong answer.
+    picked.advAnswers = [];
+    picked.advStage = 0;
+  }
   if (Array.isArray(picked.savedAlerts)) {
     // Duplicates could be stored before addAlert collapsed them, and a device
     // that filed the same alert four times would otherwise keep all four (and
@@ -525,6 +550,24 @@ export function readPersisted(saved: Record<string, unknown>): Partial<AppState>
       .reduce<SavedAlert[]>((kept, alert) => addAlert(kept, alert), []);
   }
   return picked;
+}
+
+/**
+ * A stored advisory-answer bag the app could actually have written.
+ *
+ * Four questions, each answered 1..3 (lib/advisory.ts), filled in order and
+ * never removed — so anything from zero to four entries is a real state, and
+ * a fifth is not. The reducer appends without a cap and this bag round-trips
+ * through localStorage and the synced `user_state` row, so neither the length
+ * nor the values are guaranteed by the time they are read back.
+ *
+ * The values are checked as well as the count. An entry of 7, or a string,
+ * would sum just as silently as a fifth answer — `mapProfile` reduces with
+ * `+`, so a string turns the sum into concatenation and the threshold
+ * comparison into something no one intended.
+ */
+function isStoredAnswers(value: unknown): value is Answer[] {
+  return Array.isArray(value) && value.length <= 4 && value.every((a) => a === 1 || a === 2 || a === 3);
 }
 
 /**

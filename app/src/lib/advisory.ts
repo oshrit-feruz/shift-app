@@ -126,9 +126,15 @@ export function sizeRadar(
   return { perName, names, overflow: count - names, inStocks, parked: budget - inStocks };
 }
 
-/** True when the hard Conservative override applies. */
+/**
+ * True when the hard Conservative override applies.
+ *
+ * EXACTLY four, like `mapProfile`. The two are read together — Chat.tsx shows
+ * the hard-rule note beside the profile — so a length one accepts and the
+ * other rejects would explain a rule that did not fire.
+ */
 export function hardRule(answers: Answer[]): boolean {
-  return answers.length >= 4 && (answers[0] === 1 || answers[3] === 1);
+  return answers.length === 4 && (answers[0] === 1 || answers[3] === 1);
 }
 
 /**
@@ -155,18 +161,36 @@ export function hardRule(answers: Answer[]): boolean {
  * chose about this money rather than about the rest of their life.
  */
 export function decisiveAnswer(answers: Answer[]): 0 | 3 | null {
-  // Rendered only beside a profile, and a profile needs four answers, so an
-  // incomplete set has no decisive answer for the same reason it has no
-  // profile.
-  if (answers.length < 4) return null;
+  // Rendered only beside a profile, and a profile needs exactly four answers,
+  // so any other count has no decisive answer for the same reason it has no
+  // profile. Kept identical to mapProfile's guard on purpose: if these drift,
+  // the screen explains one rule while the allocation follows another.
+  if (answers.length !== 4) return null;
   if (answers[0] === 1) return 0;
   if (answers[3] === 1) return 3;
   return null;
 }
 
-/** Deterministic mapping of four answers to a profile. Null until all four answered. */
+/**
+ * Deterministic mapping of four answers to a profile. Null unless there are
+ * exactly four.
+ *
+ * THE CEILING MATTERS AS MUCH AS THE FLOOR, and it is the quieter of the two.
+ * The thresholds (<= 7, <= 10) are calibrated for four answers each in 1..3.
+ * A five-element array sums five values against them and returns a profile
+ * that looks entirely ordinary — no error, no symptom, just a reader holding
+ * an allocation built for a risk appetite they did not describe. The same
+ * array crashed the explanation line, which is the only reason the gap was
+ * found at all; here it would never announce itself.
+ *
+ * `advAnswers` is persisted and rehydrated, so the length is not the
+ * component's to guarantee — see readPersisted in state/appState.tsx, which
+ * now drops a bag that cannot be trusted. This is the second line of defence
+ * rather than the first: a caller that builds an array by hand still cannot
+ * get a profile out of the wrong number of answers.
+ */
 export function mapProfile(answers: Answer[]): ProfileKey | null {
-  if (answers.length < 4) return null;
+  if (answers.length !== 4) return null;
   if (hardRule(answers)) return 'cons';
   const score = answers.reduce<number>((a, b) => a + b, 0);
   return score <= 7 ? 'cons' : score <= 10 ? 'bal' : 'growth';
