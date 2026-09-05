@@ -411,8 +411,12 @@ describe('the answers-and-stage invariant, once the state is whole', () => {
 
   it('never routes an assembled state to a screen that does not exist', () => {
     // The whole point of the invariant, stated as the property it protects.
-    for (const advAnswers of [[], [2], [1, 2, 3, 3]] as Answer[][])
-      for (const advStage of [-1, 0, 1, 3, 5, 6, 99]) {
+    // Every stage, not a sample. The omitted 2 and 4 created no separate branch
+    // in withCoherentAdvisory, so nothing was untested — but a loop labelled as
+    // a property while quietly skipping values reads stronger than it is, and
+    // that is the failure mode that has already cost this PR two rounds.
+    for (const advAnswers of [[], [2], [1, 2], [3, 2, 1], [1, 2, 3, 3]] as Answer[][])
+      for (const advStage of [-2, -1, 0, 1, 2, 3, 4, 5, 6, 99, 2.5, Number.NaN]) {
         const s = persist({ advAnswers, advStage });
         const screen = setupProgress(s).resumeScreen;
         expect(screen, `${JSON.stringify(advAnswers)} @ ${advStage}`).toBeDefined();
