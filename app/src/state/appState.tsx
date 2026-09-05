@@ -496,7 +496,7 @@ export function readPersisted(saved: Record<string, unknown>): Partial<AppState>
   for (const k of PERSISTED) if (k in saved) (picked as Record<string, unknown>)[k] = saved[k];
   if (isSeededWatchlist(picked.watchlist)) picked.watchlist = [];
   else if (Array.isArray(picked.watchlist)) picked.watchlist = normalisedTickers(picked.watchlist);
-  dropUntrustedAnswers(picked);
+  healAdvisory(picked);
   if (Array.isArray(picked.savedAlerts)) {
     // Duplicates could be stored before addAlert collapsed them, and a device
     // that filed the same alert four times would otherwise keep all four (and
@@ -535,33 +535,50 @@ function normalisedTickers(stored: unknown[]): string[] {
 }
 
 /**
- * Empties an advisory-answer bag the app could not have written, and the
- * stage that would have been read alongside it.
+ * Puts the advisory pair back into a state the app could actually have
+ * reached, or empties it.
  *
- * PRESENT and unusable, which is not the same as absent: a partial server row
- * carrying `advStage` and no answers at all says nothing about the answers,
- * and resetting a stage on the strength of a key that was never sent would
- * discard progress this bag never described.
+ * ANSWERS AND STAGE ARE ONE FACT, NOT TWO. Validating each alone leaves the
+ * combination unguarded, and the combination is what the screens read:
+ * `{ advAnswers: [2], advStage: 5 }` has a plausible answer array and a
+ * plausible stage, and is still impossible — a stage above zero is only ever
+ * set after all four answers exist. Left standing, setupProgress routes it to
+ * `advDash`, `mapProfile([2])` returns null, and the recommendation screen's
+ * `?? 'bal'` fallback hands the reader a full Balanced allocation off one
+ * answer. No error, nothing to notice: the same quiet wrongness as summing
+ * five answers, arrived at from the other side.
  *
- * Dropped rather than trimmed. Keeping the first four would be a guess about
- * which four the reader meant, and the cost of guessing wrong is not a
- * rendering glitch — it is an allocation built for a risk appetite they did
- * not describe (`mapProfile`, lib/advisory.ts). Dropping puts them back at
- * question one, which is four taps, and is the only honest answer when the
- * stored bag cannot say what they chose.
+ * WHAT IS KEPT. A short answer array is a real state — someone mid-chat — so
+ * it survives, and only the impossible stage is reset, which puts them back on
+ * the question they had reached rather than at the start. Answers that could
+ * not have been written are dropped entirely (see isStoredAnswers), and the
+ * stage goes with them.
  *
- * `advStage` goes with it because it is only ever advanced past the chat, so a
- * stage above zero with no answers is a state the app cannot reach on its own
- * — and left standing it would route straight past the questions to a
- * recommendation with nothing behind it.
- *
- * Same call the alert rows make below, and for the same stated reason: a
- * corrupted row read charitably becomes a confident wrong answer.
+ * ABSENT IS NOT CORRUPT. A partial server row carrying one key and not the
+ * other says nothing about the one it omits, so the pair is only judged when
+ * both are present — an existing test in remoteState covers exactly that row.
  */
-function dropUntrustedAnswers(picked: Partial<AppState>): void {
-  if (!('advAnswers' in picked) || isStoredAnswers(picked.advAnswers)) return;
-  picked.advAnswers = [];
-  picked.advStage = 0;
+function healAdvisory(picked: Partial<AppState>): void {
+  if ('advAnswers' in picked && !isStoredAnswers(picked.advAnswers)) {
+    picked.advAnswers = [];
+    picked.advStage = 0;
+  }
+  if (!('advStage' in picked)) return;
+  // A stage outside the flow is not merely wrong, it is unroutable: ADV_ORDER
+  // has five entries and setupProgress indexes it directly, so a negative
+  // stage resolves to `undefined` and navigates nowhere.
+  if (!isStoredStage(picked.advStage)) picked.advStage = 0;
+  else if (picked.advStage > 0 && 'advAnswers' in picked && picked.advAnswers?.length !== 4) {
+    picked.advStage = 0;
+  }
+}
+
+/**
+ * A stage the app could have written: a whole number from 0 (not started) to
+ * 5 (finished), the range ADV_ORDER and setupProgress are built around.
+ */
+function isStoredStage(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 5;
 }
 
 /**

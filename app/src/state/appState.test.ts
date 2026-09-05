@@ -266,11 +266,62 @@ describe('a stored advisory-answer bag that cannot be trusted', () => {
    * function down.
    */
   it('keeps a bag the app could actually have written', () => {
-    for (const answers of [[], [3], [1, 2], [3, 2, 1], [1, 2, 3, 3]]) {
-      const out = readPersisted({ advAnswers: answers, advStage: 5 });
-      expect(out.advAnswers, JSON.stringify(answers)).toEqual(answers);
-      expect(out.advStage).toBe(5);
+    // Only the complete one keeps a finished stage. The partial arrays are
+    // real states, so the ANSWERS survive — but a stage of 5 beside them is
+    // not, and is corrected below rather than preserved. An earlier version of
+    // this test asserted the opposite and was encoding the bug.
+    const out = readPersisted({ advAnswers: [1, 2, 3, 3], advStage: 5 });
+    expect(out.advAnswers).toEqual([1, 2, 3, 3]);
+    expect(out.advStage).toBe(5);
+
+    for (const answers of [[], [3], [1, 2], [3, 2, 1]]) {
+      const partial = readPersisted({ advAnswers: answers, advStage: 0 });
+      expect(partial.advAnswers, JSON.stringify(answers)).toEqual(answers);
+      expect(partial.advStage).toBe(0);
     }
+  });
+
+  it('refuses a stage the answers cannot support, keeping the answers', () => {
+    // The combination is the fact, not each field alone. [2] and 5 are each
+    // plausible; together they are impossible, because a stage above zero is
+    // only ever set once all four answers exist. Left standing, setupProgress
+    // routes to advDash and the recommendation screen's `?? 'bal'` fallback
+    // hands over a full Balanced allocation off one answer.
+    for (const answers of [[], [2], [1, 2], [3, 2, 1]]) {
+      for (const stage of [1, 2, 3, 4, 5]) {
+        const out = readPersisted({ advAnswers: answers, advStage: stage });
+        expect(out.advStage, `${JSON.stringify(answers)} @ ${stage}`).toBe(0);
+        // The answers themselves are a real state: keeping them puts the
+        // reader back on the question they had reached, not at the start.
+        expect(out.advAnswers).toEqual(answers);
+      }
+    }
+  });
+
+  it('leaves every legitimate answers-and-stage pair alone', () => {
+    for (const stage of [0, 1, 2, 3, 4, 5]) {
+      const out = readPersisted({ advAnswers: [1, 2, 3, 3], advStage: stage });
+      expect(out.advStage, `stage ${stage}`).toBe(stage);
+    }
+  });
+
+  it('refuses a stage outside the flow, which routes nowhere at all', () => {
+    // ADV_ORDER has five entries and setupProgress indexes it directly, so a
+    // negative stage resolves to undefined and navigates to no screen.
+    for (const stage of [-1, 6, 99, 2.5, Number.NaN, '3', null]) {
+      const out = readPersisted({ advAnswers: [1, 2, 3, 3], advStage: stage });
+      expect(out.advStage, String(stage)).toBe(0);
+    }
+  });
+
+  it('does not judge the pair when only one half is present', () => {
+    // Same rule as absent answers: a row carrying one key says nothing about
+    // the other, and correcting on the strength of a key never sent would
+    // discard progress this bag never described.
+    expect(readPersisted({ advStage: 3 }).advStage).toBe(3);
+    const answersOnly = readPersisted({ advAnswers: [2] });
+    expect(answersOnly.advAnswers).toEqual([2]);
+    expect(answersOnly).not.toHaveProperty('advStage');
   });
 
   it('drops a fifth answer rather than summing it', () => {
