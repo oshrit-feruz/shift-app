@@ -130,9 +130,22 @@ function positiveNumber(name, raw) {
   return n;
 }
 
-const MAX_AGE_DAYS = positiveNumber("max-age-days", arg("max-age-days", "2"));
-// How long a new head is given before "no review covers it" counts as stale.
-const GRACE_MIN = positiveNumber("grace-minutes", arg("grace-minutes", "20"));
+// Validated at module scope but NOT thrown here. A throw during module
+// initialisation escapes the run-as-command try/catch entirely: the process
+// dies with a stack trace and exit 1, instead of the "could not run" message
+// and exit 2 that every other unrunnable state produces — and importing the
+// module for tests would blow up on whatever argv happened to be present.
+// Deferred to main(), so a bad option reads like every other could-not-measure.
+let optionError = null;
+let MAX_AGE_DAYS = 2;
+let GRACE_MIN = 20;
+try {
+  MAX_AGE_DAYS = positiveNumber("max-age-days", arg("max-age-days", "2"));
+  // How long a new head is given before "no review covers it" counts as stale.
+  GRACE_MIN = positiveNumber("grace-minutes", arg("grace-minutes", "20"));
+} catch (err) {
+  optionError = err;
+}
 
 const SONAR_TOKEN = process.env.SONAR_TOKEN;
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
@@ -591,6 +604,8 @@ async function scheduleSection() {
 }
 
 async function main() {
+  // Raised here rather than at module scope — see the note by positiveNumber.
+  if (optionError) throw optionError;
   console.log(`freshness-check · repo ${REPO} · sonar project ${PROJECT}\n`);
 
   // One line per section, each either run or explicitly reported as skipped.
