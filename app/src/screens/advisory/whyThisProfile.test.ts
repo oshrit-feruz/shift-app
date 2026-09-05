@@ -31,6 +31,7 @@ function tFor(lang: 'en' | 'he'): TFn {
   }) as TFn;
 }
 
+/** The line as the screen would render it, for one set of answers. */
 function lineFor(answers: Answer[], lang: 'en' | 'he'): string {
   const t = tFor(lang);
   const profile = t(`profile.${mapProfile(answers)}` as StringKey);
@@ -39,6 +40,7 @@ function lineFor(answers: Answer[], lang: 'en' | 'he'): string {
   return line;
 }
 
+/** Runs an assertion over all 81 four-answer combinations. */
 function everyCombination(fn: (answers: Answer[]) => void) {
   for (const a of all) for (const b of all) for (const c of all) for (const d of all) fn([a, b, c, d]);
 }
@@ -121,5 +123,16 @@ describe('before there is anything to explain', () => {
     const t = tFor('he');
     expect(whyThisProfileLine([], 'סולידי', t)).toBeNull();
     expect(whyThisProfileLine([3, 3, 3], 'סולידי', t)).toBeNull();
+  });
+
+  it('renders nothing with MORE than four, rather than crashing on adv.q5', () => {
+    // `Answer[]` permits any length and `advAnswers` is rehydrated from
+    // localStorage and the synced user_state row without validation —
+    // readPersisted heals watchlist and savedAlerts and passes this through
+    // verbatim. Five answers would build `adv.q5a2`, which does not exist, and
+    // take down the screen the whole flow leads to.
+    const t = tFor('he');
+    expect(whyThisProfileLine([2, 2, 2, 2, 2], 'מאוזן', t)).toBeNull();
+    expect(whyThisProfileLine([1, 2, 2, 2, 2, 2], 'סולידי', t)).toBeNull();
   });
 });

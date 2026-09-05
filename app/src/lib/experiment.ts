@@ -179,6 +179,31 @@ export function clearEntryVariant() {
 }
 
 /**
+ * The arm this device should be routed by, given what it holds and whether the
+ * experiment is currently accepting new entries.
+ *
+ * THE SWITCH GATES CREATION, NOT RECOGNITION. A device that already carries an
+ * arm keeps being routed by it even after the experiment is turned off, and
+ * that asymmetry is load-bearing: `track` labels every event with the stored
+ * arm (data/analytics.ts) regardless of the switch. If routing ignored a
+ * stored arm while the events kept carrying it, a journey down the offered
+ * path would be filed under the routed label — the two halves of the
+ * comparison disagreeing about the same person, which is worse than having no
+ * comparison at all.
+ *
+ * So the switch answers one question only: may a device that has never been in
+ * the experiment be put into it now?
+ *
+ * `source` — only a reader holding nothing is in scope, in either direction.
+ */
+export function entryArmFor(source: HoldingsSource, experimentOn: boolean): EntryVariant | null {
+  if (source !== 'none') return null;
+  const stored = entryVariant();
+  if (stored !== null) return stored;
+  return experimentOn ? assignEntryVariant() : null;
+}
+
+/**
  * Where the first-run overlay lets someone out, as a value rather than a
  * branch buried in a component.
  *

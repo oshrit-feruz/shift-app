@@ -28,6 +28,7 @@ vi.mock('../lib/supabase', () => ({
   },
 }));
 
+/** A fresh copy of the module, since the flag lives at module scope. */
 async function freshModule() {
   vi.resetModules();
   return import('./appConfig');

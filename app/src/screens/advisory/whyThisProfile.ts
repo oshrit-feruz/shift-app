@@ -36,11 +36,19 @@ function answerKey(index: number, answer: Answer): StringKey {
 }
 
 /**
- * The line, or null when there is nothing honest to say yet — fewer than four
- * answers means no profile either, so there is nothing to explain.
+ * The line, or null when there is nothing honest to say.
+ *
+ * EXACTLY four, not "at least four". `Answer[]` permits any length, and
+ * `advAnswers` is rehydrated straight out of localStorage and the synced
+ * `user_state` row without validation — `readPersisted` heals `watchlist` and
+ * `savedAlerts` but passes this array through verbatim (state/appState.tsx).
+ * A bag carrying five would build `adv.q5a2`, a key that does not exist, and
+ * take the recommendation screen down with it.
+ *
+ * Fewer than four has no profile to explain either, so both ends read null.
  */
 export function whyThisProfileLine(answers: Answer[], profile: string, t: TFn): string | null {
-  if (answers.length < 4) return null;
+  if (answers.length !== 4) return null;
 
   const decisive = decisiveAnswer(answers);
   if (decisive !== null) {
