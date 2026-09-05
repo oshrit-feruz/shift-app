@@ -19,6 +19,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
  */
 
 const KEY = 'shift.experiment.entry';
+const OWNER_KEY = 'shift.experiment.entryUser';
 
 /** A working storage, seeded with whatever a case wants already stored. */
 function makeStorage(seed: Record<string, string> = {}) {
@@ -142,6 +143,85 @@ describe('clearing on account change', () => {
     clearEntryVariant();
     expect(entryVariant()).toBeNull();
     expect(local.store.has(KEY)).toBe(false);
+  });
+});
+
+describe('whose arm it is', () => {
+  it('keeps it across repeat adoptions by the same person', async () => {
+    // The regression this guards. `adoptUser` runs on every resolved session,
+    // token refresh included — several times over a long visit. If any of
+    // those dropped the arm, every event after it would carry null and the
+    // second half of that person's funnel would leave the experiment.
+    const local = makeStorage();
+    vi.stubGlobal('localStorage', local.api);
+    const { adoptEntryVariant, assignEntryVariant, entryVariant } = await freshModule();
+
+    adoptEntryVariant('user-a');
+    const assigned = assignEntryVariant();
+    adoptEntryVariant('user-a');
+    adoptEntryVariant('user-a');
+
+    expect(entryVariant()).toBe(assigned);
+  });
+
+  it('adopts an arm nobody has claimed rather than discarding it', async () => {
+    // The order the app actually runs in: the overlay can assign before any
+    // owner has been recorded. Treating an unowned arm as somebody else's
+    // would empty the experiment of the people it is measuring.
+    const local = makeStorage({ [KEY]: 'routed' });
+    vi.stubGlobal('localStorage', local.api);
+    const { adoptEntryVariant, entryVariant, entryVariantOwner } = await freshModule();
+
+    adoptEntryVariant('user-a');
+
+    expect(entryVariant()).toBe('routed');
+    expect(entryVariantOwner()).toBe('user-a');
+  });
+
+  it('drops it when a different person signs in without a sign-out', async () => {
+    const local = makeStorage();
+    vi.stubGlobal('localStorage', local.api);
+    const { adoptEntryVariant, assignEntryVariant, entryVariant } = await freshModule();
+
+    adoptEntryVariant('user-a');
+    assignEntryVariant();
+
+    adoptEntryVariant('user-b');
+
+    expect(entryVariant()).toBeNull();
+    expect(local.store.has(KEY)).toBe(false);
+  });
+
+  it('remembers the owner across a reload', async () => {
+    const local = makeStorage({ [KEY]: 'offered', [OWNER_KEY]: 'user-a' });
+    vi.stubGlobal('localStorage', local.api);
+    const { adoptEntryVariant, entryVariant } = await freshModule();
+
+    adoptEntryVariant('user-a');
+
+    expect(entryVariant()).toBe('offered');
+  });
+
+  it('forgets the owner along with the arm, so nobody inherits either', async () => {
+    const local = makeStorage();
+    vi.stubGlobal('localStorage', local.api);
+    const { adoptEntryVariant, assignEntryVariant, clearEntryVariant, entryVariantOwner } =
+      await freshModule();
+
+    adoptEntryVariant('user-a');
+    assignEntryVariant();
+    clearEntryVariant();
+
+    expect(entryVariantOwner()).toBeNull();
+    expect(local.store.has(OWNER_KEY)).toBe(false);
+  });
+
+  it('never throws when storage cannot be reached', async () => {
+    vi.stubGlobal('localStorage', throwing);
+    const { adoptEntryVariant, entryVariantOwner } = await freshModule();
+
+    expect(() => adoptEntryVariant('user-a')).not.toThrow();
+    expect(entryVariantOwner()).toBe('user-a');
   });
 });
 

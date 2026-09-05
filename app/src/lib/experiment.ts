@@ -45,8 +45,24 @@ export type EntryVariant = 'routed' | 'offered';
 
 const KEY = 'shift.experiment.entry';
 
+/**
+ * WHOSE arm this is, stored beside it because the browser outlives the
+ * session — the same reasoning, and the same shape, as the linked-brokerage
+ * flag's owner key (data/linkState.ts).
+ *
+ * It exists as its own key rather than reusing that one. `linkedUserId()` is
+ * written only by a successful read of /api/snaptrade, so for a reader with no
+ * brokerage — or any reader whose first read failed — it is null, and null is
+ * indistinguishable from "somebody else". Comparing against it would clear the
+ * arm on every auth event that followed, token refresh included, and the rest
+ * of that person's journey would land in the funnel with no arm at all. That
+ * is precisely the reader this experiment is about.
+ */
+const OWNER_KEY = 'shift.experiment.entryUser';
+
 /** Set when storage is unusable, so an arm still holds for this page load. */
 let memory: EntryVariant | null = null;
+let memoryOwner: string | null = null;
 
 function isVariant(v: string | null): v is EntryVariant {
   return v === 'routed' || v === 'offered';
@@ -115,14 +131,48 @@ export function assignEntryVariant(): EntryVariant {
   return assigned;
 }
 
+/** Who the stored arm belongs to, or null when nobody has claimed one. */
+export function entryVariantOwner(): string | null {
+  if (memoryOwner !== null) return memoryOwner;
+  try {
+    return localStorage.getItem(OWNER_KEY);
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Forgets the arm. Called on sign-out and on a change of account, beside the
- * other device-level state that is cleared there.
+ * Records that this device's arm belongs to `userId`, clearing it first if it
+ * belonged to somebody else.
+ *
+ * Called on every resolved session, so it has to be a no-op for the case that
+ * dominates: the same person, again, on a token refresh. Hence a clear only on
+ * a KNOWN owner that differs. An unclaimed arm is adopted rather than
+ * discarded — the assignment is made on the first run, which is before any
+ * owner has been recorded, and discarding it there would empty the experiment
+ * of the very people it is measuring.
+ */
+export function adoptEntryVariant(userId: string) {
+  const previous = entryVariantOwner();
+  if (previous !== null && previous !== userId) clearEntryVariant();
+  memoryOwner = userId;
+  try {
+    localStorage.setItem(OWNER_KEY, userId);
+  } catch {
+    /* no storage: ownership holds for this load and is not remembered */
+  }
+}
+
+/**
+ * Forgets the arm and who it belonged to. Called on sign-out and on a change
+ * of account, beside the other device-level state that is cleared there.
  */
 export function clearEntryVariant() {
   memory = null;
+  memoryOwner = null;
   try {
     localStorage.removeItem(KEY);
+    localStorage.removeItem(OWNER_KEY);
   } catch {
     /* nothing stored to clear */
   }
