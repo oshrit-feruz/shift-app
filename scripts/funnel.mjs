@@ -116,7 +116,10 @@ async function main() {
 
   const argv = process.argv.slice(2);
   const daysArg = argv.indexOf("--days");
-  const DAYS = daysArg === -1 ? 30 : Number(argv[daysArg + 1] || 30);
+  // No `|| 30` on the explicit branch: `--days` with nothing after it must
+  // fail the check below, not quietly report 30 days. The default belongs to
+  // the omitted-flag case only.
+  const DAYS = daysArg === -1 ? 30 : Number(argv[daysArg + 1]);
 
   if (!URL || !SERVICE)
     throw new Error("Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
@@ -137,14 +140,28 @@ async function main() {
   // construction (stages 1-3 are one row per session) and one read keeps the
   // per-session logic in one place rather than spread across four SQL round
   // trips that could drift apart.
-  const { data, error } = await db
-    .from("funnel_events")
-    .select("name, session_id, created_at")
-    .gte("created_at", since);
-
-  if (error) throw new Error(error.message);
-
-  const rows = data || [];
+  // PAGINATED, because the alternative is a report that is quietly wrong.
+  // Supabase caps a REST response (1000 rows by default), and a truncated read
+  // does not error — it returns a short array. `rollup` would then divide real
+  // numbers by a partial denominator and print a plausible funnel that
+  // undercounts. A measurement that fails loudly is recoverable; one that
+  // silently reports less than happened is the thing this repo keeps finding.
+  const PAGE = 1000;
+  const rows = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await db
+      .from("funnel_events")
+      .select("name, session_id, created_at")
+      .gte("created_at", since)
+      .order("created_at", { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error) throw new Error(error.message);
+    const page = data || [];
+    rows.push(...page);
+    // A short page is the last page. An exactly-full one might not be, so ask
+    // again — one extra round trip beats an undercount.
+    if (page.length < PAGE) break;
+  }
   if (rows.length === 0) {
     console.log(`\nNo funnel events in the last ${DAYS} days.\n`);
     console.log(

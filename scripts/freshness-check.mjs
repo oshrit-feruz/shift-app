@@ -111,9 +111,28 @@ const ALL_PRS = args.includes("--all-prs");
 const WORKFLOWS = args
   .map((a, i) => (a === "--workflow" ? args[i + 1] : null))
   .filter(Boolean);
-const MAX_AGE_DAYS = Number(arg("max-age-days", "2"));
+/**
+ * A numeric option, or a clear failure.
+ *
+ * `Number("abc")` is NaN, and every comparison against NaN is false — so an
+ * unvalidated option does not error, it silently inverts the check. A bad
+ * --max-age-days would report the Sonar baseline stale on every run; a bad
+ * --grace-minutes would disable the grace period without saying so. Same trap
+ * `staleBy` guards for timestamps.
+ */
+function positiveNumber(name, raw) {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) {
+    throw new Error(
+      `--${name} must be a non-negative number, got "${safeText(raw, 40)}"`,
+    );
+  }
+  return n;
+}
+
+const MAX_AGE_DAYS = positiveNumber("max-age-days", arg("max-age-days", "2"));
 // How long a new head is given before "no review covers it" counts as stale.
-const GRACE_MIN = Number(arg("grace-minutes", "20"));
+const GRACE_MIN = positiveNumber("grace-minutes", arg("grace-minutes", "20"));
 
 const SONAR_TOKEN = process.env.SONAR_TOKEN;
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
@@ -387,7 +406,7 @@ async function checkWorkflowSchedules(specs) {
  *     When a push lands after a review, the status may not be re-posted at
  *     all, and this marker is the only thing that still tells the truth.
  */
-async function checkCodeRabbit(prNumber) {
+export async function checkCodeRabbit(prNumber) {
   const headers = {
     Authorization: `Bearer ${GITHUB_TOKEN}`,
     Accept: "application/vnd.github+json",
@@ -442,7 +461,7 @@ async function checkCodeRabbit(prNumber) {
 
   // 2. The coverage marker, which names the commit that was actually reviewed.
   const comments = await getJson(
-    `${api}/issues/${PR}/comments?per_page=100`,
+    `${api}/issues/${prNumber}/comments?per_page=100`,
     headers,
   );
   const marker = findCoverageMarker(comments);

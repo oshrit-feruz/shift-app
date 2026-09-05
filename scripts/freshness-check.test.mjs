@@ -24,6 +24,7 @@ import {
   verdict,
   safeText,
   staleBy,
+  checkCodeRabbit,
 } from "./freshness-check.mjs";
 
 const HEAD = "3a13ad899af61548f66ffb6ad07f66e92171a125";
@@ -193,4 +194,59 @@ test("exactly at the tolerance is not yet stale", () => {
     staleBy(new Date(NOW - 30 * HOUR).toISOString(), 30, NOW).stale,
     false,
   );
+});
+
+// --- the review check addresses the PR it was given -----------------------
+//
+// This exists because of a real bug that shipped into review: checkCodeRabbit
+// took `prNumber` but built the comments URL from the module-level `PR`. Under
+// `--pr <n>` those are equal, so every PR run passed. Under `--all-prs` the
+// global is null, the URL becomes /issues/null/comments, GitHub answers 404 and
+// the run exits 2 — meaning the SCHEDULED SWEEP, the only mode that can catch a
+// stale review, would have failed on every execution while the PR runs that
+// masked it stayed green.
+//
+// So the assertion is not "it works" but "it uses its argument": every GitHub
+// URL this function requests must carry the PR number it was handed.
+
+test("builds every request from its prNumber argument, not a global", async () => {
+  const asked = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    asked.push(String(url));
+    const body = String(url).includes("/status")
+      ? { statuses: [] }
+      : String(url).includes("/comments")
+        ? []
+        : String(url).includes("/commits/")
+          ? { commit: { committer: { date: "2020-01-01T00:00:00Z" } } }
+          : { head: { sha: "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef" } };
+    return { ok: true, status: 200, text: async () => JSON.stringify(body) };
+  };
+  try {
+    await checkCodeRabbit(4242);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+
+  const prScoped = asked.filter(
+    (u) => u.includes("/pulls/") || u.includes("/issues/"),
+  );
+  assert.ok(
+    prScoped.length >= 2,
+    `expected PR-scoped requests, got ${asked.join(", ")}`,
+  );
+  for (const u of prScoped) {
+    // As a path SEGMENT: /pulls/4242 has no trailing slash, /issues/4242/... does.
+    assert.match(
+      u,
+      /\/4242(\/|\?|$)/,
+      `request did not carry the given PR number: ${u}`,
+    );
+    assert.doesNotMatch(
+      u,
+      /\/(null|undefined)(\/|\?|$)/,
+      `bad PR number: ${u}`,
+    );
+  }
 });
