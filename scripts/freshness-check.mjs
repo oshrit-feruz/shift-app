@@ -197,6 +197,41 @@ async function getJson(url, headers) {
 }
 
 /**
+ * Every page of a paginated GitHub list, not just the first.
+ *
+ * `?per_page=100` looks like "all of them" and is a cap, not a total. GitHub
+ * returns issue comments in ASCENDING id order, so on a pull request with more
+ * than 100 comments page one holds the OLDEST — and the coverage marker this
+ * script goes looking for is on the newest walkthrough. Reading page one alone
+ * would report "no marker found" on exactly the long-running, heavily
+ * commented PRs where review coverage matters most, and the failure would look
+ * like a stale review rather than like a bug in the reader.
+ *
+ * Running out of pages THROWS rather than returning what it has. A truncated
+ * read that reports itself as complete is the failure this whole script is
+ * about; 20 pages is 2,000 comments, and a PR past that deserves the error.
+ */
+async function getAllPages(url, headers, maxPages = 20) {
+  const out = [];
+  const sep = url.includes("?") ? "&" : "?";
+  for (let page = 1; page <= maxPages; page += 1) {
+    const batch = await getJson(
+      `${url}${sep}per_page=100&page=${page}`,
+      headers,
+    );
+    if (!Array.isArray(batch)) {
+      throw new Error(`expected a list from ${url.split("?")[0]}`);
+    }
+    out.push(...batch);
+    if (batch.length < 100) return out;
+  }
+  throw new Error(
+    `${url.split("?")[0]} has more than ${maxPages * 100} items — ` +
+      `refusing to report on a truncated read`,
+  );
+}
+
+/**
  * Remote text, made safe to print.
  *
  * Everything this script reports on comes back from SonarCloud or GitHub, and
@@ -329,8 +364,11 @@ async function openPullRequests() {
     Accept: "application/vnd.github+json",
     "User-Agent": "shift-freshness-check",
   };
-  const prs = await getJson(
-    `https://api.github.com/repos/${REPO}/pulls?state=open&per_page=100`,
+  // Paginated for the same reason as the comment lookup: a 101st open PR would
+  // otherwise be dropped from the sweep silently, and a PR nobody checks looks
+  // exactly like a PR with nothing wrong.
+  const prs = await getAllPages(
+    `https://api.github.com/repos/${REPO}/pulls?state=open`,
     headers,
   );
   return prs.map((p) => p.number);
@@ -476,8 +514,8 @@ export async function checkCodeRabbit(prNumber) {
   }
 
   // 2. The coverage marker, which names the commit that was actually reviewed.
-  const comments = await getJson(
-    `${api}/issues/${prNumber}/comments?per_page=100`,
+  const comments = await getAllPages(
+    `${api}/issues/${prNumber}/comments`,
     headers,
   );
   const marker = findCoverageMarker(comments);

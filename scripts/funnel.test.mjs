@@ -98,6 +98,58 @@ test("a stage reached without its predecessor still counts", () => {
   assert.equal(stage(f, "broker_action_clicked").sessions, 1);
 });
 
+test("the step-to-step rate cannot exceed 100%", () => {
+  // The defect this guards, reproduced before it was fixed: stages are
+  // deliberately unordered, so `stage[i] / stage[i-1]` is not a rate. Two
+  // sessions reaching the broker screen without ever seeing their allocation
+  // printed "2 → 3   200.0%" — a conversion rate above one, from real data.
+  const f = rollup([
+    ev("s1", "reco_started"),
+    ev("s1", "broker_screen_viewed"),
+    ev("s2", "reco_started"),
+    ev("s2", "broker_screen_viewed"),
+    ev("s3", "reco_started"),
+    ev("s3", "reco_completed"),
+  ]);
+  const screen = stage(f, "broker_screen_viewed");
+  const completed = stage(f, "reco_completed");
+
+  // The headline count still reports what happened — nothing is discarded.
+  assert.equal(screen.sessions, 2);
+  // But the progression numerator is the intersection, which here is empty.
+  assert.equal(screen.fromPrev, 0);
+  assert.equal(screen.skippedPrev, 2);
+  assert.equal(rate(screen.fromPrev, completed.sessions), "0.0%");
+});
+
+test("every step-to-step numerator is a subset of its denominator", () => {
+  // The general form of the above, over a mixed sample: the property, not the
+  // one case that caught it.
+  const f = rollup([
+    ev("a", "reco_started"),
+    ev("a", "reco_completed"),
+    ev("a", "broker_screen_viewed"),
+    ev("b", "reco_started"),
+    ev("b", "broker_action_clicked"),
+    ev("c", "reco_started"),
+    ev("c", "reco_completed"),
+    ev("d", "reco_started"),
+    ev("d", "broker_screen_viewed"),
+  ]);
+  for (let i = 1; i < f.stages.length; i += 1) {
+    assert.ok(
+      f.stages[i].fromPrev <= f.stages[i - 1].sessions,
+      `${f.stages[i].name}: ${f.stages[i].fromPrev} > ${f.stages[i - 1].sessions}`,
+    );
+  }
+});
+
+test("the first stage has no predecessor to progress from", () => {
+  const f = rollup([ev("s1", "reco_started")]);
+  assert.equal(f.stages[0].fromPrev, null);
+  assert.equal(f.stages[0].skippedPrev, null);
+});
+
 test("an empty denominator reads as unknown, never as zero", () => {
   assert.equal(rate(0, 0), "—");
   assert.equal(rate(5, 0), "—");

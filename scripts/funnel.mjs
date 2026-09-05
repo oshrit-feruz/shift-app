@@ -26,11 +26,20 @@
  *
  *   - Stages 1-3 are counted once per session, stage 4 every time. A click is
  *     an act, not a state, so `events` can exceed `sessions` on that row.
- *   - Every later stage is conditioned on `reco_started`, so a rate can never
- *     exceed 100%. Broker actions from the Connections screen in a session
- *     that never started the flow are counted separately, at the bottom —
- *     a large number there is a real finding about how people reach the
- *     broker, not noise.
+ *   - Every later stage is conditioned on `reco_started`, so the headline
+ *     column can never exceed 100%. Broker actions from the Connections screen
+ *     in a session that never started the flow are counted separately, at the
+ *     bottom — a large number there is a real finding about how people reach
+ *     the broker, not noise.
+ *   - The step-to-step column asks a different question, and is computed
+ *     differently for a reason. Stages are NOT ordered: stage 4 can arrive
+ *     without stage 3, because the read-only connect card is reachable outside
+ *     the flow. So `stage[i] / stage[i-1]` is not a rate at all — it went to
+ *     200% on a three-session sample. Each step is therefore the sessions
+ *     holding BOTH stages over the sessions holding the earlier one, which is
+ *     what "went on to" means and is <= 100% by construction. The sessions
+ *     that reached a stage without its predecessor are not discarded — that
+ *     would undercount real behaviour — they are reported beside the step.
  *
  * A rate over an empty denominator prints "—", never "0%". The app's own
  * contract for a price it does not have, applied to its own metrics: a
@@ -68,6 +77,13 @@ const lpad = (s, n) => String(s).padStart(n);
  * from sessions that contain `reco_started`, so a numerator is always a subset
  * of its denominator. Sessions that acted without ever starting are not
  * discarded — they are reported separately as `outside`.
+ *
+ * That invariant covers the headline column and NOT the step-to-step one,
+ * which is a separate ratio between two adjacent stages. `fromPrev` exists so
+ * that ratio is also a subset of its own denominator: without it the printed
+ * step reached 200% whenever sessions skipped a stage, since the stages are
+ * deliberately unordered. `skippedPrev` keeps the skippers visible rather than
+ * dropping them, on the same principle as `outside`.
  */
 export function rollup(rows) {
   /** session_id → stages seen, plus a click tally. */
@@ -85,13 +101,27 @@ export function rollup(rows) {
   const sessions = [...bySession.values()];
   const started = sessions.filter((s) => s.stages.has("reco_started"));
 
-  const stages = STAGES.map(([name, label]) => ({
-    name,
-    label,
-    // Conditioned on `started` — the invariant above.
-    sessions: started.filter((s) => s.stages.has(name)).length,
-    events: rows.filter((r) => r.name === name).length,
-  }));
+  const stages = STAGES.map(([name, label], i) => {
+    const prev = i === 0 ? null : STAGES[i - 1][0];
+    const reached = started.filter((s) => s.stages.has(name));
+    return {
+      name,
+      label,
+      // Conditioned on `started` — the invariant above.
+      sessions: reached.length,
+      events: rows.filter((r) => r.name === name).length,
+      // Progression, for the step-to-step row: reached this stage AND the one
+      // before it. Null on the first stage, which has nothing to progress from.
+      fromPrev:
+        prev === null ? null : reached.filter((s) => s.stages.has(prev)).length,
+      // Reached this stage without the one before it. Real sessions, reported
+      // rather than discarded.
+      skippedPrev:
+        prev === null
+          ? null
+          : reached.filter((s) => !s.stages.has(prev)).length,
+    };
+  });
 
   const outsideSessions = sessions.filter(
     (s) =>
@@ -201,8 +231,12 @@ async function main() {
   console.log(`\n  step-to-step:`);
   for (let i = 1; i < f.stages.length; i += 1) {
     const step = pad(`${i} → ${i + 1}`, 12);
-    const pct = lpad(rate(f.stages[i].sessions, f.stages[i - 1].sessions), 8);
-    console.log(`    ${step}${pct}`);
+    // fromPrev, not sessions: see the note in rollup. The stages are unordered,
+    // so the raw ratio is not a rate and printed 200% on a three-session sample.
+    const pct = lpad(rate(f.stages[i].fromPrev, f.stages[i - 1].sessions), 8);
+    const skipped = f.stages[i].skippedPrev;
+    const note = skipped ? `   (${skipped} reached it without step ${i})` : "";
+    console.log(`    ${step}${pct}${note}`);
   }
 
   console.log(

@@ -128,6 +128,52 @@ test("an unattributed comment is not treated as the reviewer's", () => {
   assert.equal(findCoverageMarker([{ body: plainBody }]), null);
 });
 
+// --- reading every page, not just the first --------------------------------
+//
+// `?per_page=100` reads as "all of them" and is a cap. GitHub returns issue
+// comments in ASCENDING id order, so on a PR with more than 100 comments page
+// one holds the OLDEST and the newest walkthrough is unreachable. The check
+// would then report "no marker found" — indistinguishable from a genuinely
+// unreviewed head — on precisely the long-lived PRs where coverage matters.
+
+test("reads past the first page to find a marker on a later one", async () => {
+  const asked = [];
+  const realFetch = globalThis.fetch;
+  const filler = Array.from({ length: 100 }, () => ({
+    user: { login: REVIEWER_LOGIN },
+    body: "no marker here",
+  }));
+  globalThis.fetch = async (url) => {
+    const u = String(url);
+    asked.push(u);
+    let body;
+    if (u.includes("/comments")) {
+      // Page 1 full and markerless; the marker only on page 2.
+      // As a parameter, not a substring: `per_page=100` CONTAINS "page=1", so
+      // a naive includes() call matches every page and the loop never ends.
+      body = /[?&]page=1(&|$)/.test(u) ? filler : [byReviewer(plainBody)];
+    } else if (u.includes("/status")) {
+      body = { statuses: [] };
+    } else if (u.includes("/commits/")) {
+      body = { commit: { committer: { date: "2020-01-01T00:00:00Z" } } };
+    } else {
+      body = { head: { sha: HEAD } };
+    }
+    return { ok: true, status: 200, text: async () => JSON.stringify(body) };
+  };
+  try {
+    await checkCodeRabbit(4242);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+
+  const pages = asked.filter((u) => u.includes("/comments"));
+  assert.ok(
+    pages.some((u) => /[?&]page=2(&|$)/.test(u)),
+    `never asked for page 2: ${pages.join(", ")}`,
+  );
+});
+
 // --- exit codes -----------------------------------------------------------
 //
 // These four cases are the whole contract, and the third one is why the
