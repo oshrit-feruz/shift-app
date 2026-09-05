@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { loading, ok, unavailable, type Loadable } from '../data/types';
 import { readProfile, type UserProfile } from './profile';
 import { clearLinked, linkedUserId } from '../data/linkState';
+import { adoptEntryVariant, clearEntryVariant } from '../lib/experiment';
 import { disconnectBrokerage, fetchConnectedAccounts } from '../data/snaptradeAccount';
 import { resetConnectedAccountCache } from '../data/appService';
 
@@ -114,12 +115,26 @@ function adoptUser(userId: string | undefined) {
     // Signed out. Forget it all rather than leave it for the next person.
     clearLinked();
     resetConnectedAccountCache();
+    // The entry-experiment arm goes with it. `firstRunSeen` resets on this
+    // same transition (state/useRemoteSync.ts), so the next person on this
+    // device is shown a door again and must be assigned one afresh — leaving
+    // the old arm would file their journey under a door they never saw.
+    clearEntryVariant();
     return;
   }
   if (linkedUserId() !== userId) {
     clearLinked();
     resetConnectedAccountCache();
   }
+  // A different person on the same device, without a sign-out in between: same
+  // reasoning as above, their entry is theirs, not the last reader's. Kept out
+  // of the branch above deliberately. That one turns on `linkedUserId()`, which
+  // is written only by a successful read of /api/snaptrade — so for a reader
+  // with no brokerage it is null on every call, and clearing there would drop
+  // the arm on each token refresh and file the rest of their journey under no
+  // arm at all. `adoptEntryVariant` compares against an owner recorded here, so
+  // the repeat call for the same person is a no-op.
+  adoptEntryVariant(userId);
   void fetchConnectedAccounts();
 }
 

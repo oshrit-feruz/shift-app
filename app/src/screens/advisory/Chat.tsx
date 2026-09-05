@@ -126,6 +126,27 @@ export function AdvisoryChat(_: ScreenProps) {
         </span>
       ))}
 
+      {/* A way out, while the questions are still being asked.
+          Someone can now ARRIVE here without choosing to — the entry
+          experiment routes half of new users straight in — and the only exits
+          used to be the tab bar and a "Continue later" that appears after all
+          four questions are answered. A door you cannot see is not a door: a
+          reader who did not mean to be here would leave the app rather than
+          the screen.
+
+          Shown in BOTH arms, not only the routed one. The flow has to be
+          identical on both sides or the experiment measures two changes at
+          once and answers neither. It reuses adv.later, the same string and
+          the same destination as the exit further down, so there is one way to
+          say this rather than two. */}
+      {asking && (
+        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 2 }}>
+          <Button variant="ghost" fontSize={16} onClick={() => dispatch({ type: 'go', screen: 'home' })}>
+            {t('adv.later')}
+          </Button>
+        </div>
+      )}
+
       {asking && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7, paddingTop: 2 }}>
           <div

@@ -34,6 +34,7 @@
 
 import { supabase } from '../lib/supabase';
 import { anonId, sessionId } from '../lib/analyticsIds';
+import { entryVariant } from '../lib/experiment';
 
 /** The four stages. Kept in step with the check constraint in
  *  supabase/migrations/0011_funnel_events.sql. */
@@ -163,10 +164,21 @@ async function send(name: FunnelEvent): Promise<void> {
     // migration means this row could not set it even if it tried. A phone
     // with a wrong clock would otherwise file events into last week and bend
     // every date range in the report.
+    //
+    // `variant` rides on EVERY event, not only the first. A funnel split by
+    // arm needs the denominator and the numerator to carry the same label —
+    // labelling only `reco_started` would give the arms' starting counts and
+    // leave every later stage unattributable, which is the one number the
+    // experiment exists to produce.
+    //
+    // It is null for anyone who never entered through the experiment, which
+    // is most people (lib/experiment.ts). Null is written rather than the key
+    // omitted so the row shape is the same either way.
     await supabase.from(FUNNEL_TABLE).insert({
       name,
       session_id: sessionId(),
       anon_id: anonId(),
+      variant: entryVariant(),
     });
   } catch {
     /* Never surfaces. See the rule at the top of this file. */
