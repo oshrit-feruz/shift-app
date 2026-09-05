@@ -92,6 +92,10 @@ describe('track', () => {
       name: 'reco_started',
       session_id: 's-session-0000-1111-2222-333',
       anon_id: 'a-device-0000-1111-2222-3333',
+      // Null, because this device never entered the entry experiment — which
+      // is the normal case and the one that keeps `group by variant` a
+      // comparison of the experiment rather than of the whole userbase.
+      variant: null,
     });
   });
 
@@ -105,7 +109,10 @@ describe('track', () => {
     await settle();
 
     const row = insert.mock.calls[0][0] as Record<string, unknown>;
-    expect(Object.keys(row).sort()).toEqual(['anon_id', 'name', 'session_id']);
+    // The shape stays closed. `variant` joined it in 0012 and is the only
+    // addition; anything else appearing here is a new fact about a person
+    // being written to a table that deliberately holds none.
+    expect(Object.keys(row).sort()).toEqual(['anon_id', 'name', 'session_id', 'variant']);
     expect(row).not.toHaveProperty('created_at');
     expect(row).not.toHaveProperty('user_id');
   });
@@ -258,5 +265,53 @@ describe('track', () => {
     await settle();
 
     expect(insert).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('the entry-experiment arm', () => {
+  it('rides on all four events, not only the first', async () => {
+    // The requirement the split depends on. A funnel compared by arm needs the
+    // denominator and every numerator to carry the same label — labelling only
+    // reco_started would give the arms' starting counts and leave every later
+    // stage unattributable, which is the one number the experiment exists to
+    // produce.
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => (k === 'shift.experiment.entry' ? 'routed' : null),
+      setItem: () => {},
+      removeItem: () => {},
+    });
+    const { track } = await freshModule();
+
+    const stages = [
+      'reco_started',
+      'reco_completed',
+      'broker_screen_viewed',
+      'broker_action_clicked',
+    ] as const;
+    for (const stage of stages) track(stage);
+    await settle();
+
+    expect(insert).toHaveBeenCalledTimes(4);
+    for (const call of insert.mock.calls) {
+      const row = call[0] as Record<string, unknown>;
+      expect(row.variant).toBe('routed');
+    }
+    expect(insert.mock.calls.map((c) => (c[0] as Record<string, unknown>).name)).toEqual([...stages]);
+  });
+
+  it('is null for a device that never entered the experiment', async () => {
+    // Most rows. This is what keeps `group by variant` a comparison of the
+    // experiment rather than of two arbitrary halves of the userbase.
+    vi.stubGlobal('localStorage', {
+      getItem: () => null,
+      setItem: () => {},
+      removeItem: () => {},
+    });
+    const { track } = await freshModule();
+
+    track('reco_started');
+    await settle();
+
+    expect((insert.mock.calls[0][0] as Record<string, unknown>).variant).toBeNull();
   });
 });

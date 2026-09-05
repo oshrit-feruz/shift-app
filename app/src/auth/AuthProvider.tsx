@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { loading, ok, unavailable, type Loadable } from '../data/types';
 import { readProfile, type UserProfile } from './profile';
 import { clearLinked, linkedUserId } from '../data/linkState';
+import { clearEntryVariant } from '../lib/experiment';
 import { disconnectBrokerage, fetchConnectedAccounts } from '../data/snaptradeAccount';
 import { resetConnectedAccountCache } from '../data/appService';
 
@@ -114,11 +115,19 @@ function adoptUser(userId: string | undefined) {
     // Signed out. Forget it all rather than leave it for the next person.
     clearLinked();
     resetConnectedAccountCache();
+    // The entry-experiment arm goes with it. `firstRunSeen` resets on this
+    // same transition (state/useRemoteSync.ts), so the next person on this
+    // device is shown a door again and must be assigned one afresh — leaving
+    // the old arm would file their journey under a door they never saw.
+    clearEntryVariant();
     return;
   }
   if (linkedUserId() !== userId) {
     clearLinked();
     resetConnectedAccountCache();
+    // A different person on the same device, without a sign-out in between.
+    // Same reasoning as above: their entry is theirs, not the last reader's.
+    clearEntryVariant();
   }
   void fetchConnectedAccounts();
 }

@@ -22,9 +22,14 @@ import type { ManualPortfolio, ManualTransaction } from '../state/appState';
  * (data/appService.ts, liveDataActive), because that switch is what makes the
  * app safe to show to a room.
  */
-type HoldingsSource = 'demo' | 'live' | 'none';
+export type HoldingsSource = 'demo' | 'live' | 'none';
 
-function holdingsSource(): HoldingsSource {
+/**
+ * Exported for the entry experiment's eligibility check
+ * (screens/onboarding/FirstRunOverlay.tsx). The rule lives here precisely so
+ * it is not re-derived as a ternary elsewhere — see the note above.
+ */
+export function holdingsSource(): HoldingsSource {
   if (DEMO_FLAGS.demoData) return 'demo';
   return isLinked() ? 'live' : 'none';
 }

@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Button } from '../../components/Button';
 import { Tag } from '../../components/Tag';
-import { useDispatch } from '../../state/appState';
+import { setupProgress, useAppState, useDispatch } from '../../state/appState';
+import { holdingsSource } from '../../lib/holdings';
+import { assignEntryVariant, firstRunDestination } from '../../lib/experiment';
 import { useTheme, type Language } from '../../theme/ThemeProvider';
 import { useT } from '../../i18n/useT';
 
@@ -20,13 +22,47 @@ import { useT } from '../../i18n/useT';
  */
 export function FirstRunOverlay() {
   const dispatch = useDispatch();
+  const s = useAppState();
   const { mode, setMode, language, setLanguage } = useTheme();
   const t = useT();
   const [step, setStep] = useState<'lang' | 'density'>('lang');
 
+  /**
+   * Where the first run lets out — the entry experiment, and the whole of it.
+   *
+   * HALF ROUTED, HALF OFFERED. 'offered' is exactly what this always did: the
+   * first-steps checklist, with the recommendation flow reachable from the
+   * home screen's own card one tap later. 'routed' opens the flow itself. The
+   * funnel then answers which produces more first actions, rather than anyone
+   * arguing it — see lib/experiment.ts.
+   *
+   * ONLY FOR SOMEONE WITH NOTHING. `holdingsSource() === 'none'` is the cheap
+   * synchronous signal: sample data off and no brokerage remembered, so the
+   * service holdings are known to be empty without a network round trip. A
+   * reader who already holds something is not the subject of this question and
+   * is left on the path they had. (It does not catch a linked account holding
+   * nothing, or a manual-ledger-only reader — both need an async read, and
+   * both are rare enough at first run to be worth less than the flicker that
+   * awaiting one would cost.)
+   *
+   * `resumeScreen` rather than a hardcoded first step, so a reader who is
+   * somehow already part-way through — most plausibly one whose remote state
+   * arrives late on a new device — is put back where they were instead of
+   * being restarted from question one.
+   */
   const finish = () => {
     dispatch({ type: 'firstRunSeen' });
-    dispatch({ type: 'go', screen: 'steps' });
+    const source = holdingsSource();
+    // Assigned only when eligible, so nobody is labelled with an arm they were
+    // never shown. Both arms are assigned — 'offered' is the control, and a
+    // control with no label has no computable rate.
+    const variant = source === 'none' ? assignEntryVariant() : null;
+    const screen = firstRunDestination(source, variant, setupProgress(s).resumeScreen);
+    if (screen === 'steps') {
+      dispatch({ type: 'go', screen: 'steps' });
+    } else {
+      dispatch({ type: 'advGoto', screen, solo: false });
+    }
   };
   const pickDensity = (m: 'beginner' | 'advanced') => {
     setMode(m);
